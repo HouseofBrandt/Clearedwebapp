@@ -2,11 +2,12 @@ import { requireAuth } from "@/lib/auth/session"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
+import { UserManagement } from "@/components/settings/user-management"
 
 export default async function SettingsPage() {
   const session = await requireAuth()
   const user = session.user as any
+  const isAdmin = user.role === "ADMIN"
 
   return (
     <div className="space-y-6">
@@ -53,6 +54,8 @@ export default async function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {isAdmin && <UserManagement />}
     </div>
   )
 }
