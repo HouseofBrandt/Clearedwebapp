@@ -5,8 +5,9 @@ import { PrismaClient } from "@prisma/client"
 // In Node.js environments (local dev), use the ws package for WebSockets
 // In serverless environments (Vercel), the built-in WebSocket is available
 if (typeof globalThis.WebSocket === "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  neonConfig.webSocketConstructor = require("ws")
+  import("ws").then((ws) => {
+    neonConfig.webSocketConstructor = ws.default
+  })
 }
 
 const globalForPrisma = globalThis as unknown as {

@@ -8,8 +8,12 @@ import { logAIRequest } from "@/lib/ai/audit"
 import { readFileSync } from "fs"
 import path from "path"
 
+// Force Next.js to include prompt files in the serverless bundle
+// by referencing the directory with path.join at module level
+const PROMPTS_DIR = path.join(process.cwd(), "src", "lib", "ai", "prompts")
+
 function loadPrompt(name: string): string {
-  const promptPath = path.join(process.cwd(), "src", "lib", "ai", "prompts", `${name}.txt`)
+  const promptPath = path.join(PROMPTS_DIR, `${name}.txt`)
   return readFileSync(promptPath, "utf-8")
 }
 

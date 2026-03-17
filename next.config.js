@@ -4,6 +4,9 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    outputFileTracingIncludes: {
+      '/api/ai/analyze': ['./src/lib/ai/prompts/**/*.txt'],
+    },
   },
 }
 
