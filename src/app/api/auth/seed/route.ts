@@ -2,12 +2,15 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/db"
 
-export async function POST() {
-  // Only available in development
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Not available" }, { status: 403 })
-  }
+export async function GET() {
+  return seed()
+}
 
+export async function POST() {
+  return seed()
+}
+
+async function seed() {
   try {
     const existingAdmin = await prisma.user.findUnique({
       where: { email: "admin@cleared.com" },
