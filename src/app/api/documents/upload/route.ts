@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
+import { extractTextFromDocument } from "@/lib/documents/extract"
 
 function getFileType(mimeType: string, fileName: string): string {
   if (mimeType === "application/pdf" || fileName.endsWith(".pdf")) return "PDF"
@@ -46,6 +47,18 @@ export async function POST(request: NextRequest) {
 
     const fileType = getFileType(file.type, file.name)
 
+    // Extract text from document
+    let extractedText: string | null = null
+    try {
+      extractedText = await extractTextFromDocument(s3Key, fileType)
+      if (extractedText && !extractedText.trim()) {
+        extractedText = null
+      }
+    } catch (err) {
+      console.error("Text extraction failed (non-fatal):", err)
+      // Continue without extracted text — can retry later
+    }
+
     const document = await prisma.document.create({
       data: {
         caseId,
@@ -55,13 +68,17 @@ export async function POST(request: NextRequest) {
         fileSize: buffer.length,
         documentCategory: documentCategory as any,
         uploadedById: (session.user as any).id,
+        extractedText,
       },
       include: {
         uploadedBy: { select: { name: true } },
       },
     })
 
-    return NextResponse.json(document, { status: 201 })
+    return NextResponse.json({
+      ...document,
+      hasExtractedText: !!extractedText,
+    }, { status: 201 })
   } catch (error) {
     console.error("Upload error:", error)
     return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })

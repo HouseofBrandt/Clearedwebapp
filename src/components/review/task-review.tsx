@@ -9,17 +9,23 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/toast"
+import { SpreadsheetEditor } from "@/components/editor/spreadsheet-editor"
+import { RichTextEditor } from "@/components/editor/rich-text-editor"
 import {
   CheckCircle,
   XCircle,
   Edit3,
   AlertTriangle,
   FileText,
+  Download,
 } from "lucide-react"
 
 interface TaskReviewProps {
   task: any
 }
+
+const SPREADSHEET_TASKS = ["WORKING_PAPERS", "OIC_NARRATIVE"]
+const MEMO_TASKS = ["CASE_MEMO", "PENALTY_LETTER", "GENERAL_ANALYSIS"]
 
 export function TaskReview({ task }: TaskReviewProps) {
   const [output, setOutput] = useState(task.detokenizedOutput || "")
@@ -28,6 +34,10 @@ export function TaskReview({ task }: TaskReviewProps) {
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
+
+  const isSpreadsheet = SPREADSHEET_TASKS.includes(task.taskType)
+  const isMemo = MEMO_TASKS.includes(task.taskType)
+  const isReviewable = task.status === "READY_FOR_REVIEW"
 
   async function handleReviewAction(action: string) {
     setSubmitting(true)
@@ -59,10 +69,14 @@ export function TaskReview({ task }: TaskReviewProps) {
     }
   }
 
-  const isReviewable = task.status === "READY_FOR_REVIEW"
+  function handleExport() {
+    const format = isSpreadsheet ? "xlsx" : "txt"
+    window.open(`/api/ai/tasks/${task.id}/export?format=${format}`, "_blank")
+  }
 
   return (
     <div className="space-y-4">
+      {/* Output display */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -83,15 +97,35 @@ export function TaskReview({ task }: TaskReviewProps) {
                   {task.judgmentFlagCount} [JUDGMENT]
                 </Badge>
               )}
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="mr-2 h-3 w-3" />
+                Export {isSpreadsheet ? ".xlsx" : ".txt"}
+              </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {editing ? (
+          {isSpreadsheet ? (
+            <SpreadsheetEditor
+              taskId={task.id}
+              editable={editing}
+            />
+          ) : isMemo && editing ? (
+            <RichTextEditor
+              content={output}
+              editable={true}
+              onChange={(html) => setOutput(html)}
+            />
+          ) : editing ? (
             <Textarea
               value={output}
               onChange={(e) => setOutput(e.target.value)}
               className="min-h-[400px] font-mono text-sm"
+            />
+          ) : isMemo ? (
+            <RichTextEditor
+              content={output}
+              editable={false}
             />
           ) : (
             <div className="prose max-w-none rounded-lg bg-muted/30 p-4">
@@ -101,6 +135,7 @@ export function TaskReview({ task }: TaskReviewProps) {
         </CardContent>
       </Card>
 
+      {/* Review actions */}
       {isReviewable && (
         <Card>
           <CardHeader>
@@ -174,6 +209,7 @@ export function TaskReview({ task }: TaskReviewProps) {
         </Card>
       )}
 
+      {/* Review history */}
       {task.reviewActions?.length > 0 && (
         <Card>
           <CardHeader>
