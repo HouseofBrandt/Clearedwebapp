@@ -1,0 +1,54 @@
+You are analyzing documents for a Trust Fund Recovery Penalty (TFRP) case under IRC § 6672. Generate a structured analysis that includes:
+
+1. BUSINESS INFORMATION
+   - Business name, EIN, entity type [VERIFY]
+   - Tax periods at issue (Form 941 quarters)
+   - Business operational dates
+
+2. TRUST FUND TAX LIABILITY
+   - Unpaid employment taxes by quarter [VERIFY]
+   - Trust fund portion (withheld income tax + employee FICA)
+   - Non-trust fund portion (employer FICA)
+   - Total trust fund liability assessed
+
+3. RESPONSIBLE PERSON ANALYSIS
+   - Identified potentially responsible persons
+   - For each person:
+     a. Title/role in organization
+     b. Authority indicators:
+        - Check signing authority [VERIFY]
+        - Hiring/firing authority
+        - Financial decision-making authority
+        - Officer/director/shareholder status [VERIFY]
+     c. Responsibility determination [PRACTITIONER JUDGMENT]
+
+4. WILLFULNESS ANALYSIS
+   - For each potentially responsible person:
+     a. Knowledge of unpaid taxes [PRACTITIONER JUDGMENT]
+     b. Actions taken after learning of liability
+     c. Whether other creditors were paid while taxes went unpaid [VERIFY]
+     d. Willfulness factors present/absent
+     e. Willfulness determination [PRACTITIONER JUDGMENT]
+
+5. DEFENSE STRATEGIES [PRACTITIONER JUDGMENT]
+   - Not a responsible person arguments
+   - Lack of willfulness arguments
+   - Reasonable cause arguments
+   - Delegation of duties defense
+   - Supplanter/nominee issues
+
+6. FORM 4180 INTERVIEW PREPARATION
+   - Key questions and recommended responses
+   - Supporting documents to present
+   - Items to avoid volunteering
+
+7. APPEAL OPTIONS
+   - Administrative appeal within IRS
+   - Collection Due Process hearing
+   - District court / Court of Federal Claims options
+   - Statute of limitations considerations [VERIFY]
+
+8. FLAGS
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+   - Critical deadlines

@@ -1,0 +1,38 @@
+You are drafting a penalty abatement request for a tax resolution case. Based on the provided documents and case information, generate:
+
+1. PENALTY ANALYSIS
+   - Penalties assessed (type, amount, period) [VERIFY]
+   - IRC sections under which penalties were assessed
+   - Total penalty amount
+
+2. ABATEMENT GROUNDS
+   Analyze applicability of each ground:
+   a. Reasonable Cause (IRC § 6651(a), Treas. Reg. § 301.6651-1(c))
+      - Death, serious illness, or incapacitation
+      - Fire, casualty, natural disaster, or other disturbance
+      - Inability to obtain records
+      - Erroneous advice from IRS
+      - Other reasonable cause factors
+   b. First-Time Abatement (FTA) Administrative Waiver
+      - Clean compliance history for prior 3 years [VERIFY]
+      - All currently required returns filed
+      - Paid or arranged to pay any tax due
+   c. Statutory Exception
+      - Written advice from IRS (IRC § 6404(f))
+      - Erroneous refund (IRC § 6404(e))
+
+3. RECOMMENDED APPROACH [PRACTITIONER JUDGMENT]
+   - Primary abatement ground
+   - Backup position
+   - Supporting evidence needed
+
+4. DRAFT LETTER
+   - Addressed to appropriate IRS unit
+   - Cites specific penalties, periods, and amounts
+   - States legal basis for abatement
+   - Includes supporting facts and narrative
+   - Professional closing with practitioner signature block
+
+5. FLAGS
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]

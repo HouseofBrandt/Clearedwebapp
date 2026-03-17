@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PRACTITIONER
+  SENIOR
+  ADMIN
+}
+
+enum LicenseType {
+  EA
+  CPA
+  ATTORNEY
+}
+
+enum CaseStatus {
+  INTAKE
+  ANALYSIS
+  REVIEW
+  ACTIVE
+  RESOLVED
+  CLOSED
+}
+
+enum CaseType {
+  OIC
+  IA
+  PENALTY
+  INNOCENT_SPOUSE
+  CNC
+  TFRP
+  ERC
+  UNFILED
+  AUDIT
+  CDP
+  OTHER
+}
+
+enum FileType {
+  PDF
+  IMAGE
+  DOCX
+  XLSX
+  TEXT
+}
+
+enum DocumentCategory {
+  IRS_NOTICE
+  BANK_STATEMENT
+  TAX_RETURN
+  PAYROLL
+  MEDICAL
+  MEETING_NOTES
+  OTHER
+}
+
+enum AITaskType {
+  WORKING_PAPERS
+  CASE_MEMO
+  PENALTY_LETTER
+  OIC_NARRATIVE
+  GENERAL_ANALYSIS
+}
+
+enum AITaskStatus {
+  QUEUED
+  PROCESSING
+  READY_FOR_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum ReviewActionType {
+  APPROVE
+  EDIT_APPROVE
+  REJECT_REPROMPT
+  REJECT_MANUAL
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  passwordHash   String
+  role           Role      @default(PRACTITIONER)
+  licenseType    LicenseType?
+  licenseNumber  String?
+  mfaEnabled     Boolean   @default(false)
+  mfaSecret      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  assignedCases  Case[]         @relation("AssignedPractitioner")
+  uploadedDocs   Document[]
+  reviewActions  ReviewAction[]
+  auditLogs      AuditLog[]
+  aiTasks        AITask[]
+
+  @@map("users")
+}
+
+model Case {
+  id                    String     @id @default(cuid())
+  caseNumber            String     @unique
+  clientName            String
+  clientNameEncrypted   String?
+  status                CaseStatus @default(INTAKE)
+  caseType              CaseType   @default(OTHER)
+  assignedPractitionerId String?
+  assignedPractitioner  User?      @relation("AssignedPractitioner", fields: [assignedPractitionerId], references: [id])
+  notes                 String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  documents  Document[]
+  aiTasks    AITask[]
+  tokenMaps  TokenMap[]
+  auditLogs  AuditLog[]
+
+  @@map("cases")
+}
+
+model Document {
+  id               String           @id @default(cuid())
+  caseId           String
+  case             Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  fileName         String
+  filePath         String
+  fileType         FileType
+  fileSize         Int
+  documentCategory DocumentCategory @default(OTHER)
+  extractedText    String?
+  uploadedById     String
+  uploadedBy       User             @relation(fields: [uploadedById], references: [id])
+  uploadedAt       DateTime         @default(now())
+
+  @@map("documents")
+}
+
+model AITask {
+  id                  String       @id @default(cuid())
+  caseId              String
+  case                Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  taskType            AITaskType
+  status              AITaskStatus @default(QUEUED)
+  tokenizedInput      String?      @db.Text
+  tokenizedOutput     String?      @db.Text
+  detokenizedOutput   String?      @db.Text
+  modelUsed           String?
+  temperature         Float?
+  systemPromptVersion String?
+  verifyFlagCount     Int          @default(0)
+  judgmentFlagCount    Int          @default(0)
+  requestId           String       @unique @default(uuid())
+  createdById         String?
+  createdBy           User?        @relation(fields: [createdById], references: [id])
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  reviewActions ReviewAction[]
+  auditLogs     AuditLog[]
+
+  @@map("ai_tasks")
+}
+
+model ReviewAction {
+  id               String           @id @default(cuid())
+  aiTaskId         String
+  aiTask           AITask           @relation(fields: [aiTaskId], references: [id], onDelete: Cascade)
+  practitionerId   String
+  practitioner     User             @relation(fields: [practitionerId], references: [id])
+  action           ReviewActionType
+  editedOutput     String?          @db.Text
+  reviewNotes      String?
+  reviewStartedAt  DateTime
+  reviewCompletedAt DateTime?
+
+  @@map("review_actions")
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  aiTaskId       String?
+  aiTask         AITask?  @relation(fields: [aiTaskId], references: [id])
+  practitionerId String?
+  practitioner   User?    @relation(fields: [practitionerId], references: [id])
+  caseId         String?
+  case           Case?    @relation(fields: [caseId], references: [id])
+  action         String
+  metadata       Json?
+  timestamp      DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model TokenMap {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  tokenMap  String   @db.Text
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@map("token_maps")
+}
