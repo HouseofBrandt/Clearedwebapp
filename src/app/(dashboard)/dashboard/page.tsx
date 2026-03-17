@@ -6,16 +6,31 @@ import { FileText, Users, ClipboardCheck, AlertCircle } from "lucide-react"
 export default async function DashboardPage() {
   const session = await requireAuth()
 
-  const [totalCases, activeCases, pendingReviews, recentCases] = await Promise.all([
-    prisma.case.count(),
-    prisma.case.count({ where: { status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } } }),
-    prisma.aITask.count({ where: { status: "READY_FOR_REVIEW" } }),
-    prisma.case.findMany({
-      take: 5,
-      orderBy: { updatedAt: "desc" },
-      include: { assignedPractitioner: { select: { name: true } } },
-    }),
-  ])
+  let totalCases = 0
+  let activeCases = 0
+  let pendingReviews = 0
+  let recentCases: any[] = []
+  let dbError = false
+
+  try {
+    const results = await Promise.all([
+      prisma.case.count(),
+      prisma.case.count({ where: { status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } } }),
+      prisma.aITask.count({ where: { status: "READY_FOR_REVIEW" } }),
+      prisma.case.findMany({
+        take: 5,
+        orderBy: { updatedAt: "desc" },
+        include: { assignedPractitioner: { select: { name: true } } },
+      }),
+    ])
+    totalCases = results[0]
+    activeCases = results[1]
+    pendingReviews = results[2]
+    recentCases = results[3]
+  } catch (error: any) {
+    console.error("Dashboard query error:", error?.message)
+    dbError = true
+  }
 
   return (
     <div className="space-y-6">
@@ -25,6 +40,16 @@ export default async function DashboardPage() {
           Welcome back, {session.user.name}
         </p>
       </div>
+
+      {dbError && (
+        <Card className="border-yellow-500 bg-yellow-50">
+          <CardContent className="pt-6">
+            <p className="text-sm text-yellow-800">
+              Unable to load dashboard data. The database may still be initializing. Try refreshing the page.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
