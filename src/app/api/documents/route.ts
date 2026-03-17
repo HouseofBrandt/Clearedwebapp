@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
-
-const UPLOAD_DIR = process.env.UPLOAD_DIR || "./uploads"
+import { uploadToS3 } from "@/lib/storage"
 
 function getFileType(mimeType: string): "PDF" | "IMAGE" | "DOCX" | "XLSX" | "TEXT" {
   if (mimeType === "application/pdf") return "PDF"
@@ -37,23 +34,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
 
-    // Create upload directory for this case
-    const caseDir = path.join(UPLOAD_DIR, caseId)
-    await mkdir(caseDir, { recursive: true })
-
-    // Save file
+    // Upload to S3
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     const uniqueName = `${Date.now()}-${file.name}`
-    const filePath = path.join(caseDir, uniqueName)
-    await writeFile(filePath, buffer)
+    const s3Key = `documents/${caseId}/${uniqueName}`
+    await uploadToS3(s3Key, buffer, file.type || "application/octet-stream")
 
     // Create document record
     const document = await prisma.document.create({
       data: {
         caseId,
         fileName: file.name,
-        filePath,
+        filePath: s3Key,
         fileType: getFileType(file.type),
         fileSize: file.size,
         documentCategory: category as any,
