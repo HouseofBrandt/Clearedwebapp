@@ -3,7 +3,12 @@ import { authOptions } from "./options"
 import { redirect } from "next/navigation"
 
 export async function getSession() {
-  return await getServerSession(authOptions)
+  try {
+    return await getServerSession(authOptions)
+  } catch (error: any) {
+    console.error("Failed to get session:", error?.message)
+    return null
+  }
 }
 
 export async function requireAuth() {
