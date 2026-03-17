@@ -53,6 +53,7 @@ async function seed() {
     })
   } catch (error) {
     console.error("Seed error:", error)
-    return NextResponse.json({ error: "Failed to seed" }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: "Failed to seed", details: message }, { status: 500 })
   }
 }
