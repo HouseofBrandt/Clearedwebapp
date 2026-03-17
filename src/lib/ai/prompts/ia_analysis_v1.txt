@@ -1,0 +1,43 @@
+You are analyzing documents for an Installment Agreement (IA) case. Generate a structured working paper that includes:
+
+1. TAXPAYER INFORMATION
+   - Filing status, dependents, tax periods at issue
+   - Current compliance status (all returns filed?) [VERIFY]
+
+2. LIABILITY SUMMARY
+   - Tax, penalties, and interest by period [VERIFY]
+   - Total assessed balance
+   - CSED dates for each period [VERIFY]
+
+3. INCOME ANALYSIS
+   - Monthly gross income by source
+   - Projected annual income
+   - Income trend (increasing/stable/decreasing)
+
+4. EXPENSE ANALYSIS (IRS Collection Financial Standards)
+   - National Standards (food, clothing, housekeeping, personal care, misc)
+   - Local Standards (housing and utilities, transportation)
+   - Other necessary expenses with justification [PRACTITIONER JUDGMENT]
+   - Total allowable monthly expenses
+
+5. MONTHLY DISPOSABLE INCOME
+   - Net income minus allowable expenses
+   - Available monthly payment amount
+
+6. INSTALLMENT AGREEMENT OPTIONS
+   a. Guaranteed IA (≤$10,000, all returns filed, can full-pay in ≤3 years)
+   b. Streamlined IA (≤$50,000, can full-pay within CSED)
+   c. Non-Streamlined IA (>$50,000 or cannot full-pay within CSED)
+   d. Partial Pay IA (cannot full-pay within CSED)
+   [PRACTITIONER JUDGMENT] Recommended option with rationale
+
+7. PAYMENT CALCULATION
+   - Minimum acceptable payment amount
+   - Recommended payment amount
+   - Months to full payment at recommended amount
+   - CSED considerations
+
+8. FLAGS AND NOTES
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+   - Missing documents or information needed

@@ -1,0 +1,50 @@
+You are analyzing documents for an Innocent Spouse Relief case under IRC § 6015. Generate a structured analysis that includes:
+
+1. TAXPAYER INFORMATION
+   - Requesting spouse information
+   - Non-requesting spouse information
+   - Marriage/divorce status and dates
+   - Tax periods at issue
+
+2. LIABILITY ANALYSIS
+   - Understated tax or underpayment by period [VERIFY]
+   - Source of understatement (unreported income, erroneous deductions, etc.)
+   - Which spouse was responsible for the erroneous item
+
+3. RELIEF OPTIONS ANALYSIS
+   a. IRC § 6015(b) - Traditional Innocent Spouse Relief
+      - Joint return filed [VERIFY]
+      - Understatement attributable to erroneous item of other spouse
+      - Requesting spouse did not know or have reason to know [PRACTITIONER JUDGMENT]
+      - Inequitable to hold requesting spouse liable [PRACTITIONER JUDGMENT]
+
+   b. IRC § 6015(c) - Separation of Liability
+      - No longer married / legally separated / lived apart for 12 months [VERIFY]
+      - Allocation of deficiency between spouses
+      - Knowledge limitation analysis
+
+   c. IRC § 6015(f) - Equitable Relief
+      - Does not qualify under (b) or (c)
+      - Revenue Procedure 2013-34 factors analysis:
+        - Marital status
+        - Economic hardship
+        - Knowledge or reason to know
+        - Legal obligation of non-requesting spouse
+        - Significant benefit
+        - Compliance with tax laws
+        - Mental or physical health [PRACTITIONER JUDGMENT]
+
+4. RECOMMENDED RELIEF TYPE [PRACTITIONER JUDGMENT]
+   - Primary relief requested
+   - Alternative relief position
+   - Supporting evidence needed
+
+5. FORM 8857 PREPARATION NOTES
+   - Key responses for Form 8857
+   - Supporting documentation to attach
+   - Narrative statement outline
+
+6. FLAGS
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+   - Statute of limitations considerations [VERIFY]

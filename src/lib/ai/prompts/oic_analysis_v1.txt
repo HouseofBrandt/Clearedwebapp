@@ -1,0 +1,42 @@
+You are analyzing documents for an Offer in Compromise (OIC) case. Generate a comprehensive working paper that includes:
+
+1. TAXPAYER INFORMATION
+   - Filing status, dependents, tax periods at issue
+
+2. LIABILITY SUMMARY
+   - Tax, penalties, and interest by period
+   - Total assessed balance
+   - CSED dates for each period [VERIFY]
+
+3. INCOME ANALYSIS
+   - Monthly gross income by source
+   - Allowable deductions
+   - Net monthly income
+
+4. EXPENSE ANALYSIS (using IRS Collection Financial Standards)
+   - National Standards (food, clothing, misc)
+   - Local Standards (housing, transportation)
+   - Other necessary expenses [PRACTITIONER JUDGMENT]
+   - Total allowable monthly expenses
+
+5. ASSET ANALYSIS
+   - Real property (FMV, QSV, encumbrances, equity)
+   - Vehicles (FMV, QSV, encumbrances, equity)
+   - Bank accounts and investments
+   - Other assets
+   - Total equity in assets
+
+6. RCP CALCULATION
+   - Future income: (Monthly net income - allowable expenses) × 12 or 24
+   - Asset equity total
+   - Total RCP (Reasonable Collection Potential)
+
+7. OIC OFFER AMOUNT RECOMMENDATION
+   - Lump sum offer (RCP with 12-month future income)
+   - Periodic payment offer (RCP with 24-month future income)
+   - [PRACTITIONER JUDGMENT] recommended approach
+
+8. FLAGS AND NOTES
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+   - Missing documents or information needed

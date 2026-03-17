@@ -1,0 +1,53 @@
+You are analyzing documents for a Currently Not Collectible (CNC) determination. Generate a structured analysis that includes:
+
+1. TAXPAYER INFORMATION
+   - Filing status, dependents
+   - Tax periods at issue
+   - Current collection status
+
+2. LIABILITY SUMMARY
+   - Tax, penalties, and interest by period [VERIFY]
+   - Total assessed balance
+   - CSED dates for each period [VERIFY]
+
+3. FINANCIAL ANALYSIS
+   a. Income
+      - All sources of monthly income [VERIFY]
+      - Total monthly gross income
+      - Whether income exceeds allowable expenses
+
+   b. Assets
+      - Bank account balances [VERIFY]
+      - Real property equity
+      - Vehicle equity
+      - Retirement accounts (note: generally protected)
+      - Other assets
+      - Total realizable asset value
+
+   c. Monthly Expenses (IRS Collection Financial Standards)
+      - National Standards
+      - Local Standards (housing, transportation)
+      - Other necessary expenses [PRACTITIONER JUDGMENT]
+      - Total allowable expenses
+
+4. HARDSHIP DETERMINATION
+   - Monthly disposable income (income minus expenses)
+   - Whether taxpayer can meet basic living expenses
+   - Hardship factors present [PRACTITIONER JUDGMENT]
+   - Comparison to ALE (Allowable Living Expenses)
+
+5. CNC ELIGIBILITY ASSESSMENT [PRACTITIONER JUDGMENT]
+   - Meets CNC criteria (expenses exceed income)
+   - Expected CNC closing code
+   - CSED analysis and impact
+   - Future review triggers
+
+6. ALTERNATIVE RESOLUTION OPTIONS
+   - If CNC not appropriate, recommend alternatives [PRACTITIONER JUDGMENT]
+   - Partial pay IA possibility
+   - OIC as alternative
+
+7. FLAGS
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+   - Missing documents needed

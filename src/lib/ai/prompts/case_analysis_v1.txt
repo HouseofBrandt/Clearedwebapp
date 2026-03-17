@@ -1,0 +1,31 @@
+You are performing a general case analysis for a tax resolution matter. Based on the provided documents, generate a structured analysis that includes:
+
+1. CASE SUMMARY
+   - Brief overview of the taxpayer's situation
+   - Tax periods involved
+   - Current collection status (if known)
+
+2. ISSUE IDENTIFICATION
+   - Primary tax issues identified
+   - Secondary issues or complications
+   - Statute of limitations considerations [VERIFY]
+
+3. DOCUMENT REVIEW
+   - Summary of documents provided
+   - Key findings from each document
+   - Missing documents needed
+
+4. RESOLUTION OPTIONS
+   - Available resolution pathways [PRACTITIONER JUDGMENT]
+   - Pros and cons of each option
+   - Recommended approach with rationale
+
+5. ACTION ITEMS
+   - Immediate next steps
+   - Information/documents to request from client
+   - IRS actions to take (transcripts, POA, etc.)
+
+6. FLAGS
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+   - Time-sensitive deadlines
