@@ -509,7 +509,7 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
                         size="sm"
                         onClick={() => {
                           window.open(
-                            `/api/ai/export/${task.id}?format=${isSpreadsheet ? "xlsx" : "docx"}`,
+                            `/api/ai/tasks/${task.id}/export?format=${isSpreadsheet ? "xlsx" : "docx"}`,
                             "_blank"
                           )
                         }}
