@@ -49,14 +49,16 @@ export async function POST(request: NextRequest) {
 
     // Extract text directly from the uploaded buffer (no S3 round-trip)
     let extractedText: string | null = null
+    let extractionError: string | null = null
     try {
       extractedText = await extractTextFromBuffer(buffer, fileType)
       if (extractedText && !extractedText.trim()) {
         extractedText = null
       }
-    } catch (err) {
-      console.error("Text extraction failed (non-fatal):", err)
-      // Continue without extracted text — can retry later
+    } catch (err: any) {
+      extractionError = err.message || "Unknown extraction error"
+      console.error(`Text extraction failed for ${file.name} (${fileType}):`, err)
+      // Continue — save document record but flag the failure
     }
 
     const document = await prisma.document.create({
@@ -78,6 +80,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ...document,
       hasExtractedText: !!extractedText,
+      extractedTextLength: extractedText?.length || 0,
+      extractionError,
     }, { status: 201 })
   } catch (error) {
     console.error("Upload error:", error)

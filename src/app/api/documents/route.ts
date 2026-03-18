@@ -46,13 +46,15 @@ export async function POST(request: NextRequest) {
 
     // Extract text from document
     let extractedText: string | null = null
+    let extractionError: string | null = null
     try {
       extractedText = await extractTextFromBuffer(buffer, fileType)
       if (extractedText && !extractedText.trim()) {
         extractedText = null
       }
-    } catch (err) {
-      console.error("Text extraction failed (non-fatal):", err)
+    } catch (err: any) {
+      extractionError = err.message || "Unknown extraction error"
+      console.error(`Text extraction failed for ${file.name} (${fileType}):`, err)
     }
 
     // Create document record
@@ -69,7 +71,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(document, { status: 201 })
+    return NextResponse.json({
+      ...document,
+      hasExtractedText: !!extractedText,
+      extractionError,
+    }, { status: 201 })
   } catch (error) {
     console.error("Upload error:", error)
     return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })

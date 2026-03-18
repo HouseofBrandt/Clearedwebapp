@@ -49,6 +49,9 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
     setUploading(true)
 
     try {
+      let extractedCount = 0
+      let failedExtraction: string[] = []
+
       for (const file of files) {
         const formData = new FormData()
         formData.append("file", file)
@@ -61,12 +64,27 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
         })
 
         if (!res.ok) throw new Error(`Failed to upload ${file.name}`)
+
+        const result = await res.json()
+        if (result.hasExtractedText) {
+          extractedCount++
+        } else {
+          failedExtraction.push(file.name)
+        }
       }
 
-      addToast({
-        title: "Upload complete",
-        description: `${files.length} file(s) uploaded successfully.`,
-      })
+      if (failedExtraction.length > 0) {
+        addToast({
+          title: "Upload complete — some files need attention",
+          description: `${extractedCount}/${files.length} files had text extracted. Failed: ${failedExtraction.join(", ")}`,
+          variant: failedExtraction.length === files.length ? "destructive" : "default",
+        })
+      } else {
+        addToast({
+          title: "Upload complete",
+          description: `${files.length} file(s) uploaded with text extracted.`,
+        })
+      }
       setFiles([])
       router.refresh()
     } catch (error) {
