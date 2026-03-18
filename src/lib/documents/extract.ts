@@ -1,15 +1,13 @@
 import { getFromS3 } from "@/lib/storage"
 
 /**
- * Extract text from a document stored in S3 based on file type.
- * Supports PDF, DOCX, and plain text files.
+ * Extract text from a buffer based on file type.
+ * Supports PDF, DOCX, XLSX, and plain text files.
  */
-export async function extractTextFromDocument(
-  s3Key: string,
+export async function extractTextFromBuffer(
+  buffer: Buffer,
   fileType: string
 ): Promise<string> {
-  const buffer = await getFromS3(s3Key)
-
   switch (fileType) {
     case "PDF":
       return extractFromPDF(buffer)
@@ -57,4 +55,15 @@ async function extractFromXLSX(buffer: Buffer): Promise<string> {
   })
 
   return lines.join("\n")
+}
+
+/**
+ * Extract text from a document stored in S3 (legacy — prefer extractTextFromBuffer).
+ */
+export async function extractTextFromDocument(
+  s3Key: string,
+  fileType: string
+): Promise<string> {
+  const buffer = await getFromS3(s3Key)
+  return extractTextFromBuffer(buffer, fileType)
 }
