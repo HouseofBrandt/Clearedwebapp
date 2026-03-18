@@ -33,8 +33,33 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Search, FileText, FolderOpen } from "lucide-react"
-import { CASE_TYPE_LABELS, CASE_STATUS_LABELS } from "@/types"
+import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS } from "@/types"
 import { useToast } from "@/components/ui/toast"
+
+function timeAgo(date: string | Date): string {
+  const now = new Date()
+  const then = new Date(date)
+  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000)
+
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  const years = Math.floor(months / 12)
+  return `${years}y ago`
+}
+
+function formatCurrency(value: number | string | null | undefined): string {
+  if (value == null || value === "") return "-"
+  const num = typeof value === "string" ? parseFloat(value) : value
+  if (isNaN(num)) return "-"
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(num)
+}
 
 const statusColors: Record<string, string> = {
   INTAKE: "bg-blue-100 text-blue-800",
@@ -57,7 +82,17 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [newCase, setNewCase] = useState({ clientName: "", caseType: "OTHER", notes: "" })
+  const [newCase, setNewCase] = useState({
+    clientName: "",
+    caseType: "OTHER",
+    notes: "",
+    filingStatus: "",
+    clientEmail: "",
+    clientPhone: "",
+    totalLiability: "",
+  })
+  const [currentPage, setCurrentPage] = useState(1)
+  const PAGE_SIZE = 25
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -82,7 +117,13 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
       const res = await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCase),
+        body: JSON.stringify({
+          ...newCase,
+          filingStatus: newCase.filingStatus || undefined,
+          clientEmail: newCase.clientEmail || undefined,
+          clientPhone: newCase.clientPhone || undefined,
+          totalLiability: newCase.totalLiability ? parseFloat(newCase.totalLiability) : undefined,
+        }),
       })
 
       if (!res.ok) throw new Error("Failed to create case")
@@ -90,7 +131,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
       const created = await res.json()
       setCases([created, ...cases])
       setDialogOpen(false)
-      setNewCase({ clientName: "", caseType: "OTHER", notes: "" })
+      setNewCase({ clientName: "", caseType: "OTHER", notes: "", filingStatus: "", clientEmail: "", clientPhone: "", totalLiability: "" })
       addToast({ title: "Case created", description: `Case ${created.caseNumber} has been created.` })
       router.refresh()
     } catch {
@@ -147,6 +188,56 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="filingStatus">Filing Status</Label>
+                <Select
+                  value={newCase.filingStatus}
+                  onValueChange={(v) => setNewCase({ ...newCase, filingStatus: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select filing status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(FILING_STATUS_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientEmail">Client Email (optional)</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={newCase.clientEmail}
+                  onChange={(e) => setNewCase({ ...newCase, clientEmail: e.target.value })}
+                  placeholder="client@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientPhone">Client Phone (optional)</Label>
+                <Input
+                  id="clientPhone"
+                  type="tel"
+                  value={newCase.clientPhone}
+                  onChange={(e) => setNewCase({ ...newCase, clientPhone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="totalLiability">Estimated Total Liability (optional)</Label>
+                <Input
+                  id="totalLiability"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newCase.totalLiability}
+                  onChange={(e) => setNewCase({ ...newCase, totalLiability: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="notes">Notes (optional)</Label>
                 <Textarea
                   id="notes"
@@ -160,7 +251,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateCase} disabled={creating || !newCase.clientName}>
+              <Button onClick={handleCreateCase} disabled={creating || !newCase.clientName || !newCase.filingStatus}>
                 {creating ? "Creating..." : "Create Case"}
               </Button>
             </DialogFooter>
@@ -222,19 +313,23 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
               </p>
             </div>
           ) : (
+            <>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Case #</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Filing Status</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Total Liability</TableHead>
                   <TableHead>Assigned To</TableHead>
+                  <TableHead>Last Updated</TableHead>
                   <TableHead className="text-right">Docs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCases.map((c) => (
+                {filteredCases.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((c) => (
                   <TableRow key={c.id} className="cursor-pointer" onClick={() => router.push(`/cases/${c.id}`)}>
                     <TableCell className="font-medium">{c.caseNumber}</TableCell>
                     <TableCell>{c.clientName}</TableCell>
@@ -242,11 +337,18 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                       <span className="text-sm">{CASE_TYPE_LABELS[c.caseType as keyof typeof CASE_TYPE_LABELS] || c.caseType}</span>
                     </TableCell>
                     <TableCell>
+                      <span className="text-sm">{FILING_STATUS_LABELS[c.filingStatus as keyof typeof FILING_STATUS_LABELS] || "-"}</span>
+                    </TableCell>
+                    <TableCell>
                       <Badge className={statusColors[c.status] || ""} variant="secondary">
                         {CASE_STATUS_LABELS[c.status as keyof typeof CASE_STATUS_LABELS] || c.status}
                       </Badge>
                     </TableCell>
+                    <TableCell>{formatCurrency(c.totalLiability)}</TableCell>
                     <TableCell>{c.assignedPractitioner?.name || "Unassigned"}</TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">{timeAgo(c.updatedAt)}</span>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <FileText className="h-3 w-3" />
@@ -257,6 +359,32 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                 ))}
               </TableBody>
             </Table>
+            {filteredCases.length > PAGE_SIZE && (
+              <div className="flex items-center justify-between pt-4">
+                <p className="text-sm text-muted-foreground">
+                  Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredCases.length)} of {filteredCases.length} cases
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage * PAGE_SIZE >= filteredCases.length}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>

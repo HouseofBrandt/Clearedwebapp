@@ -40,7 +40,17 @@ enum CaseType {
   UNFILED
   AUDIT
   CDP
+  AMENDED
+  VOLUNTARY_DISCLOSURE
   OTHER
+}
+
+enum FilingStatus {
+  SINGLE
+  MFJ
+  MFS
+  HOH
+  QSS
 }
 
 enum FileType {
@@ -58,6 +68,13 @@ enum DocumentCategory {
   PAYROLL
   MEDICAL
   MEETING_NOTES
+  UTILITY_BILL
+  VEHICLE_LOAN
+  STUDENT_LOAN
+  RETIREMENT_ACCOUNT
+  MORTGAGE_STATEMENT
+  INSURANCE
+  PAY_STUB
   OTHER
 }
 
@@ -117,6 +134,10 @@ model Case {
   clientNameEncrypted   String?
   status                CaseStatus @default(INTAKE)
   caseType              CaseType   @default(OTHER)
+  filingStatus          FilingStatus?
+  clientEmail           String?
+  clientPhone           String?
+  totalLiability        Decimal?
   assignedPractitionerId String?
   assignedPractitioner  User?      @relation("AssignedPractitioner", fields: [assignedPractitionerId], references: [id])
   notes                 String?

@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { clientName, caseType, notes } = body
+    const { clientName, caseType, notes, filingStatus, clientEmail, clientPhone, totalLiability } = body
 
     if (!clientName || !caseType) {
       return NextResponse.json(
@@ -85,6 +85,10 @@ export async function POST(request: NextRequest) {
         clientName,
         caseType,
         notes: notes || null,
+        filingStatus: filingStatus || null,
+        clientEmail: clientEmail || null,
+        clientPhone: clientPhone || null,
+        totalLiability: totalLiability != null ? totalLiability : null,
         assignedPractitionerId: (session.user as any).id,
         status: "INTAKE",
       },

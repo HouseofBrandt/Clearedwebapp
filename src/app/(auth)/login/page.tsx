@@ -42,13 +42,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+    <div className="min-h-screen flex flex-col bg-muted/30">
+      <div className="w-full py-6 px-6 flex items-center gap-2" style={{ backgroundColor: "#1B2A4A" }}>
+        <Shield className="h-7 w-7 text-white" />
+        <span className="text-xl font-bold text-white">Cleared</span>
+      </div>
+      <div className="flex flex-1 items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-            <Shield className="h-6 w-6 text-primary-foreground" />
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: "#1B2A4A" }}>
+            <Shield className="h-6 w-6 text-white" />
           </div>
-          <CardTitle className="text-2xl">Cleared</CardTitle>
+          <CardTitle className="text-2xl" style={{ color: "#1B2A4A" }}>Cleared</CardTitle>
           <CardDescription>
             Sign in to the Tax Resolution Platform
           </CardDescription>
@@ -87,6 +92,7 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

@@ -28,8 +28,60 @@ import {
   FileText,
   Brain,
   Clock,
+  Download,
+  Upload,
+  CheckCircle,
+  XCircle,
+  PenLine,
+  RotateCcw,
+  FolderPlus,
 } from "lucide-react"
-import { CASE_TYPE_LABELS, CASE_STATUS_LABELS } from "@/types"
+import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS } from "@/types"
+
+function timeAgo(date: string | Date): string {
+  const now = new Date()
+  const then = new Date(date)
+  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000)
+
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days} day${days !== 1 ? "s" : ""} ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months} month${months !== 1 ? "s" : ""} ago`
+  const years = Math.floor(months / 12)
+  return `${years} year${years !== 1 ? "s" : ""} ago`
+}
+
+function formatTaskType(taskType: string): string {
+  return taskType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+const SPREADSHEET_TASK_TYPES = new Set(["WORKING_PAPERS", "OIC_NARRATIVE"])
+
+const reviewActionLabels: Record<string, string> = {
+  APPROVE: "Approved",
+  EDIT_APPROVE: "Edited & Approved",
+  REJECT_REPROMPT: "Rejected (Re-prompt)",
+  REJECT_MANUAL: "Rejected (Manual)",
+}
+
+const reviewActionColors: Record<string, string> = {
+  APPROVE: "bg-green-500",
+  EDIT_APPROVE: "bg-yellow-500",
+  REJECT_REPROMPT: "bg-red-500",
+  REJECT_MANUAL: "bg-red-500",
+}
+
+const reviewActionIcons: Record<string, typeof CheckCircle> = {
+  APPROVE: CheckCircle,
+  EDIT_APPROVE: PenLine,
+  REJECT_REPROMPT: RotateCcw,
+  REJECT_MANUAL: XCircle,
+}
 
 const statusColors: Record<string, string> = {
   INTAKE: "bg-blue-100 text-blue-800",
@@ -54,17 +106,87 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
     status: caseData.status,
     notes: caseData.notes || "",
     assignedPractitionerId: caseData.assignedPractitionerId || "",
+    filingStatus: caseData.filingStatus || "",
+    clientEmail: caseData.clientEmail || "",
+    clientPhone: caseData.clientPhone || "",
+    totalLiability: caseData.totalLiability != null ? String(caseData.totalLiability) : "",
   })
   const router = useRouter()
   const { addToast } = useToast()
 
+  const approvedTasks = caseData.aiTasks.filter((t: any) => t.status === "APPROVED")
+
+  // Build timeline events from case data
+  const timelineEvents = (() => {
+    const events: {
+      date: Date
+      type: "case" | "document" | "ai" | "review"
+      title: string
+      description?: string
+      action?: string
+    }[] = []
+
+    // Case created
+    events.push({
+      date: new Date(caseData.createdAt),
+      type: "case",
+      title: "Case created",
+      description: caseData.caseNumber,
+    })
+
+    // Document uploads
+    caseData.documents.forEach((doc: any) => {
+      events.push({
+        date: new Date(doc.uploadedAt),
+        type: "document",
+        title: `Document uploaded — ${doc.fileName}`,
+        description: doc.uploadedBy?.name ? `by ${doc.uploadedBy.name}` : undefined,
+      })
+    })
+
+    // AI tasks
+    caseData.aiTasks.forEach((task: any) => {
+      events.push({
+        date: new Date(task.createdAt),
+        type: "ai",
+        title: `AI Analysis started — ${formatTaskType(task.taskType)}`,
+      })
+
+      // Review actions
+      if (task.reviewActions) {
+        task.reviewActions.forEach((ra: any) => {
+          events.push({
+            date: new Date(ra.reviewCompletedAt || ra.reviewStartedAt),
+            type: "review",
+            title: `${reviewActionLabels[ra.action] || ra.action} — ${formatTaskType(task.taskType)}`,
+            description: ra.practitioner?.name ? `by ${ra.practitioner.name}` : undefined,
+            action: ra.action,
+          })
+        })
+      }
+    })
+
+    // Sort newest first
+    events.sort((a, b) => b.date.getTime() - a.date.getTime())
+    return events
+  })()
+
   async function handleSave() {
+    if (form.status === "CLOSED" && caseData.status !== "CLOSED") {
+      if (!window.confirm("Are you sure you want to close this case? This action may be difficult to reverse.")) return
+    }
     setSaving(true)
     try {
       const res = await fetch(`/api/cases/${caseData.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          filingStatus: form.filingStatus || undefined,
+          clientEmail: form.clientEmail || undefined,
+          clientPhone: form.clientPhone || undefined,
+          totalLiability: form.totalLiability ? parseFloat(form.totalLiability) : undefined,
+        }),
       })
 
       if (!res.ok) throw new Error("Failed to update")
@@ -122,6 +244,10 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
             <Brain className="mr-1 h-4 w-4" />
             AI Tasks ({caseData.aiTasks.length})
           </TabsTrigger>
+          <TabsTrigger value="deliverables">
+            <Download className="mr-1 h-4 w-4" />
+            Deliverables ({approvedTasks.length})
+          </TabsTrigger>
           <TabsTrigger value="timeline">
             <Clock className="mr-1 h-4 w-4" />
             Timeline
@@ -176,6 +302,66 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
                     <Badge className={statusColors[caseData.status] || ""} variant="secondary">
                       {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
                     </Badge>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Filing Status</Label>
+                  {editing ? (
+                    <Select value={form.filingStatus} onValueChange={(v) => setForm({ ...form, filingStatus: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select filing status" /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(FILING_STATUS_LABELS).map(([val, label]) => (
+                          <SelectItem key={val} value={val}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm">{caseData.filingStatus ? FILING_STATUS_LABELS[caseData.filingStatus as keyof typeof FILING_STATUS_LABELS] : "Not set"}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Client Email</Label>
+                  {editing ? (
+                    <Input
+                      type="email"
+                      value={form.clientEmail}
+                      onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
+                      placeholder="client@example.com"
+                    />
+                  ) : (
+                    <p className="text-sm">{caseData.clientEmail || "Not set"}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Client Phone</Label>
+                  {editing ? (
+                    <Input
+                      type="tel"
+                      value={form.clientPhone}
+                      onChange={(e) => setForm({ ...form, clientPhone: e.target.value })}
+                      placeholder="(555) 123-4567"
+                    />
+                  ) : (
+                    <p className="text-sm">{caseData.clientPhone || "Not set"}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Estimated Total Liability</Label>
+                  {editing ? (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.totalLiability}
+                      onChange={(e) => setForm({ ...form, totalLiability: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  ) : (
+                    <p className="text-sm">
+                      {caseData.totalLiability != null
+                        ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(caseData.totalLiability))
+                        : "Not set"}
+                    </p>
                   )}
                 </div>
               </CardContent>
@@ -278,12 +464,130 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="timeline">
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              Case timeline will show all activity including document uploads, AI analyses, and review actions.
-            </CardContent>
-          </Card>
+        <TabsContent value="deliverables" className="space-y-4">
+          {approvedTasks.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Download className="h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold">No approved deliverables yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Approve AI outputs from the Review Queue to generate deliverables.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {approvedTasks.map((task: any) => {
+                const approvalAction = task.reviewActions?.find(
+                  (ra: any) => ra.action === "APPROVE" || ra.action === "EDIT_APPROVE"
+                )
+                const isSpreadsheet = SPREADSHEET_TASK_TYPES.has(task.taskType)
+                return (
+                  <Card key={task.id}>
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{formatTaskType(task.taskType)}</p>
+                            <Badge className="bg-green-100 text-green-800" variant="secondary">
+                              Final
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {approvalAction
+                              ? `Approved ${timeAgo(approvalAction.reviewCompletedAt || approvalAction.reviewStartedAt)}${
+                                  approvalAction.practitioner?.name
+                                    ? ` by ${approvalAction.practitioner.name}`
+                                    : ""
+                                }`
+                              : `Approved ${timeAgo(task.updatedAt || task.createdAt)}`}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          window.open(
+                            `/api/ai/export/${task.id}?format=${isSpreadsheet ? "xlsx" : "docx"}`,
+                            "_blank"
+                          )
+                        }}
+                      >
+                        <Download className="mr-1 h-4 w-4" />
+                        Export {isSpreadsheet ? ".xlsx" : ".docx"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="timeline" className="space-y-4">
+          {timelineEvents.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Clock className="h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold">No activity yet</h3>
+                <p className="text-sm text-muted-foreground">
+                  Activity will appear here as you work on this case.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <div className="relative">
+                  {/* Vertical line */}
+                  <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-border" />
+
+                  <div className="space-y-6">
+                    {timelineEvents.map((event, index) => {
+                      let dotColor = "bg-blue-500"
+                      let EventIcon = FolderPlus
+
+                      if (event.type === "document") {
+                        dotColor = "bg-green-500"
+                        EventIcon = Upload
+                      } else if (event.type === "ai") {
+                        dotColor = "bg-purple-500"
+                        EventIcon = Brain
+                      } else if (event.type === "review") {
+                        dotColor = reviewActionColors[event.action || ""] || "bg-yellow-500"
+                        EventIcon = reviewActionIcons[event.action || ""] || CheckCircle
+                      }
+
+                      return (
+                        <div key={index} className="relative flex gap-4 pl-8">
+                          {/* Dot */}
+                          <div
+                            className={`absolute left-0 top-1 h-5 w-5 rounded-full ${dotColor} flex items-center justify-center`}
+                          >
+                            <EventIcon className="h-3 w-3 text-white" />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-medium">{event.title}</p>
+                              <p className="text-xs text-muted-foreground whitespace-nowrap">
+                                {timeAgo(event.date)}
+                              </p>
+                            </div>
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground">{event.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
