@@ -5,18 +5,8 @@ import { prisma } from "@/lib/db"
 import { callClaude } from "@/lib/ai/client"
 import { tokenizeText, encryptTokenMap, detokenizeText } from "@/lib/ai/tokenizer"
 import { logAIRequest } from "@/lib/ai/audit"
-import { readFileSync } from "fs"
-import path from "path"
+import { loadPrompt } from "@/lib/ai/prompts"
 import { z } from "zod"
-
-// Force Next.js to include prompt files in the serverless bundle
-// by referencing the directory with path.join at module level
-const PROMPTS_DIR = path.join(process.cwd(), "src", "lib", "ai", "prompts")
-
-function loadPrompt(name: string): string {
-  const promptPath = path.join(PROMPTS_DIR, `${name}.txt`)
-  return readFileSync(promptPath, "utf-8")
-}
 
 const VALID_TASK_TYPES = [
   "WORKING_PAPERS",
@@ -145,9 +135,10 @@ export async function POST(request: NextRequest) {
       userMessage += `\n\nAdditional Context:\n${tokenizedContext}`
     }
 
-    // Determine model based on complexity
+    // Determine model and token limit based on complexity
     const useOpus = taskType === "WORKING_PAPERS" || taskType === "OIC_NARRATIVE"
     const model = useOpus ? "claude-opus-4-6" : "claude-sonnet-4-6"
+    const maxTokens = useOpus ? 16384 : 8192
 
     // Call Claude API
     const response = await callClaude({
@@ -155,7 +146,7 @@ export async function POST(request: NextRequest) {
       userMessage,
       model,
       temperature: 0.2,
-      maxTokens: 8192,
+      maxTokens,
     })
 
     // Count flags

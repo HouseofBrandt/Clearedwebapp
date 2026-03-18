@@ -257,19 +257,21 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
           ) : (
             <div className="space-y-3">
               {caseData.aiTasks.map((task: any) => (
-                <Card key={task.id}>
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div>
-                      <p className="font-medium">{task.taskType.replace(/_/g, " ")}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(task.createdAt).toLocaleString()} &middot; {task.modelUsed || "pending"}
-                      </p>
-                    </div>
-                    <Badge variant={task.status === "APPROVED" ? "default" : "secondary"}>
-                      {task.status.replace(/_/g, " ")}
-                    </Badge>
-                  </CardContent>
-                </Card>
+                <Link key={task.id} href={`/review/${task.id}`}>
+                  <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div>
+                        <p className="font-medium">{task.taskType.replace(/_/g, " ")}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(task.createdAt).toLocaleString()} &middot; {task.modelUsed || "pending"}
+                        </p>
+                      </div>
+                      <Badge variant={task.status === "APPROVED" ? "default" : "secondary"}>
+                        {task.status.replace(/_/g, " ")}
+                      </Badge>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </div>
           )}

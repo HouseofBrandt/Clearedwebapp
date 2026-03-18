@@ -4,6 +4,9 @@ import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { parseOICOutput, oicToSpreadsheetData } from "@/lib/ai/parsers/oic-parser"
 import { generateOICWorkbook } from "@/lib/documents/excel"
+import { generateDocx } from "@/lib/documents/docx"
+
+const SPREADSHEET_TASKS = ["WORKING_PAPERS", "OIC_NARRATIVE"]
 
 export async function GET(
   request: NextRequest,
@@ -37,8 +40,8 @@ export async function GET(
 
   const format = request.nextUrl.searchParams.get("format") || "xlsx"
 
-  if (format === "xlsx" && (task.taskType === "WORKING_PAPERS" || task.taskType === "OIC_NARRATIVE")) {
-    // Parse OIC output and generate Excel
+  // Excel export for OIC working papers
+  if (format === "xlsx" && SPREADSHEET_TASKS.includes(task.taskType)) {
     const parsed = parseOICOutput(output)
     const tabs = oicToSpreadsheetData(parsed)
     const buffer = await generateOICWorkbook(
@@ -57,7 +60,26 @@ export async function GET(
     })
   }
 
-  // Default: export as plain text
+  // Word doc export for memos, letters, narratives, and general analysis
+  if (format === "docx") {
+    const buffer = await generateDocx(
+      output,
+      task.case.caseNumber,
+      task.case.clientName,
+      task.taskType
+    )
+
+    const filename = `${task.case.caseNumber}_${task.taskType.replace(/_/g, "_")}.docx`
+
+    return new NextResponse(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    })
+  }
+
+  // Default: plain text
   const filename = `${task.case.caseNumber}_${task.taskType}.txt`
   return new NextResponse(output, {
     headers: {
