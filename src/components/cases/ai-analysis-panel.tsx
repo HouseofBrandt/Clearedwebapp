@@ -77,11 +77,17 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
     setResult(null)
 
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 150_000) // 2.5 min timeout
+
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ caseId, taskType, additionalContext }),
+        signal: controller.signal,
       })
+
+      clearTimeout(timeoutId)
 
       if (!res.ok) {
         const err = await res.json()
@@ -96,9 +102,12 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
       })
       router.refresh()
     } catch (error: any) {
+      const isTimeout = error.name === "AbortError"
       addToast({
-        title: "Analysis failed",
-        description: error.message,
+        title: isTimeout ? "Analysis timed out" : "Analysis failed",
+        description: isTimeout
+          ? "The analysis took too long. Try with fewer documents or a simpler analysis type."
+          : error.message,
         variant: "destructive",
       })
     } finally {
