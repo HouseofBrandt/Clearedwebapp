@@ -102,6 +102,9 @@ function sendEvent(controller: ReadableStreamDefaultController, data: Record<str
   controller.enqueue(new TextEncoder().encode(JSON.stringify(data) + "\n"))
 }
 
+// Ensure Vercel gives full execution time for streaming AI responses
+export const maxDuration = 60
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(PRACTITIONER_ROLES)
   if (!auth.authorized) {
@@ -296,11 +299,18 @@ export async function POST(request: NextRequest) {
         let fullContent = ""
         let chunkCount = 0
 
+        // Register error handler to prevent unhandled EventEmitter errors
+        let streamError: any = null
+        claudeStream.on("error", (err: any) => {
+          streamError = err
+          console.error("[AI Analyze] Stream error:", err?.message || err)
+        })
+
         claudeStream.on("text", (text) => {
           fullContent += text
           chunkCount++
-          // Send a keepalive heartbeat every 20 chunks to keep the connection alive
-          if (chunkCount % 20 === 0) {
+          // Send a keepalive heartbeat every 10 chunks to keep the connection alive
+          if (chunkCount % 10 === 0) {
             sendEvent(controller, {
               status: "processing",
               phase: "AI is generating response...",
@@ -310,7 +320,17 @@ export async function POST(request: NextRequest) {
         })
 
         // Wait for the full message to complete
-        const finalMessage = await claudeStream.finalMessage()
+        let finalMessage
+        try {
+          finalMessage = await claudeStream.finalMessage()
+        } catch (streamErr: any) {
+          // Re-throw with more context for the outer catch to handle
+          const msg = streamErr?.message || streamError?.message || "Unknown stream error"
+          const status = streamErr?.status || streamError?.status
+          const err = new Error(`Claude API stream failed: ${msg}`)
+          ;(err as any).status = status
+          throw err
+        }
 
         const responseModel = finalMessage.model
         const inputTokens = finalMessage.usage.input_tokens
@@ -503,20 +523,27 @@ export async function POST(request: NextRequest) {
         })
         controller.close()
       } catch (error: any) {
-        console.error("AI analysis error:", error)
-
-        if (aiTaskId) {
-          await prisma.aITask.update({
-            where: { id: aiTaskId },
-            data: { status: "REJECTED" },
-          }).catch((e) => console.error("Failed to update task status:", e))
-        }
+        console.error("[AI Analyze] Error:", error?.status, error?.message || error)
 
         let errorMessage = error.message || "AI analysis failed"
         if (error?.status === 401) {
           errorMessage = "Invalid API key. Please check your ANTHROPIC_API_KEY configuration."
         } else if (error?.status === 429) {
           errorMessage = "AI service rate limit exceeded. Please try again in a moment."
+        } else if (error?.status === 400) {
+          errorMessage = `API request error: ${error.message}`
+        } else if (error?.status === 529 || error?.status >= 500) {
+          errorMessage = "AI service is temporarily unavailable. Please try again in a moment."
+        }
+
+        if (aiTaskId) {
+          await prisma.aITask.update({
+            where: { id: aiTaskId },
+            data: {
+              status: "REJECTED",
+              detokenizedOutput: `Error: ${errorMessage}`,
+            },
+          }).catch((e) => console.error("Failed to update task status:", e))
         }
 
         sendEvent(controller, { status: "error", error: errorMessage })

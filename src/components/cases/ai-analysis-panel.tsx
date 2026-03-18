@@ -63,6 +63,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
     judgmentFlagCount: number
     warning?: string
   } | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -78,6 +79,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
 
     setLoading(true)
     setResult(null)
+    setErrorMessage(null)
     setStatusPhase("Starting analysis...")
 
     try {
@@ -126,6 +128,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
         }
       }
     } catch (error: any) {
+      setErrorMessage(error.message || "Analysis failed")
       addToast({
         title: "Analysis failed",
         description: error.message,
@@ -235,6 +238,16 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
             </p>
           )}
         </div>
+
+        {errorMessage && !loading && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <span className="font-medium text-sm text-red-800">Analysis Failed</span>
+            </div>
+            <p className="text-sm text-red-700">{errorMessage}</p>
+          </div>
+        )}
 
         {result && (
           <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
