@@ -16,7 +16,15 @@ export default async function ReviewTaskPage({
   const task = await prisma.aITask.findUnique({
     where: { id: params.taskId },
     include: {
-      case: { select: { id: true, caseNumber: true, clientName: true, caseType: true } },
+      case: {
+        select: {
+          id: true, caseNumber: true, clientName: true, caseType: true,
+          documents: {
+            select: { id: true, fileName: true, fileType: true, documentCategory: true, extractedText: true, fileSize: true, uploadedAt: true },
+            orderBy: { uploadedAt: "desc" as const },
+          },
+        },
+      },
       reviewActions: {
         include: { practitioner: { select: { name: true } } },
         orderBy: { reviewStartedAt: "desc" },
@@ -45,7 +53,7 @@ export default async function ReviewTaskPage({
           </p>
         </div>
       </div>
-      <TaskReview task={task} />
+      <TaskReview task={task} documents={task.case.documents} />
     </div>
   )
 }

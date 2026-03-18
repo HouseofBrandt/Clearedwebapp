@@ -19,9 +19,11 @@ import {
   FileText,
   Download,
 } from "lucide-react"
+import { DocumentViewerPanel } from "@/components/review/document-viewer-panel"
 
 interface TaskReviewProps {
   task: any
+  documents?: any[]
 }
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS", "OIC_NARRATIVE"]
@@ -30,7 +32,7 @@ const MEMO_TASKS = [
   "IA_ANALYSIS", "CNC_ANALYSIS", "TFRP_ANALYSIS", "INNOCENT_SPOUSE_ANALYSIS",
 ]
 
-export function TaskReview({ task }: TaskReviewProps) {
+export function TaskReview({ task, documents = [] }: TaskReviewProps) {
   const [output, setOutput] = useState(task.detokenizedOutput || "")
   const [reviewNotes, setReviewNotes] = useState("")
   const [editing, setEditing] = useState(false)
@@ -78,7 +80,14 @@ export function TaskReview({ task }: TaskReviewProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col lg:flex-row gap-4">
+      {/* Left panel: source documents */}
+      <div className="w-full lg:w-2/5 lg:sticky lg:top-4 lg:self-start">
+        <DocumentViewerPanel documents={documents} />
+      </div>
+
+      {/* Right panel: AI output and review actions */}
+      <div className="w-full lg:w-3/5 space-y-4">
       {/* Output display */}
       <Card>
         <CardHeader>
@@ -252,6 +261,7 @@ export function TaskReview({ task }: TaskReviewProps) {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   )
 }

@@ -57,7 +57,7 @@ export default async function ReviewPage() {
                   <span className="text-xs text-muted-foreground">
                     {new Date(task.createdAt).toLocaleString()}
                   </span>
-                  <Link href={`/cases/${task.case.id}`}>
+                  <Link href={`/review/${task.id}`}>
                     <Button size="sm">Review</Button>
                   </Link>
                 </div>
