@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
-import { Lock, Save, Shield } from "lucide-react"
+import { Lock, Save, Shield, Clock, AlertTriangle, CheckCircle, BarChart3 } from "lucide-react"
 
 interface ProfileFormProps {
   userId: string
@@ -179,58 +179,206 @@ export function PasswordChangeForm() {
   )
 }
 
-export function ComplianceSection() {
-  const [usage, setUsage] = useState<{
-    totalRequests: number
-    totalInputTokens: number
-    totalOutputTokens: number
-  } | null>(null)
-  const [loadingUsage, setLoadingUsage] = useState(true)
+interface ComplianceData {
+  month: string
+  totalRequests: number
+  totalInputTokens: number
+  totalOutputTokens: number
+  reviewStats: {
+    totalReviews: number
+    avgReviewTimeSeconds: number
+    approvedCount: number
+    editApprovedCount: number
+    rejectedCount: number
+  }
+  flagStats: {
+    totalVerifyFlags: number
+    totalJudgmentFlags: number
+    flagsAcknowledgedCount: number
+    flagsPendingCount: number
+  }
+  modelBreakdown: { model: string; count: number }[]
+  taskTypeBreakdown: { taskType: string; count: number }[]
+}
 
-  useState(() => {
-    fetch("/api/usage")
+export function ComplianceSection() {
+  const [data, setData] = useState<ComplianceData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("/api/compliance")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setUsage(data)
-      })
+      .then((d) => { if (d) setData(d) })
       .catch(() => {})
-      .finally(() => setLoadingUsage(false))
-  })
+      .finally(() => setLoading(false))
+  }, [])
+
+  function formatDuration(seconds: number): string {
+    if (seconds < 60) return `${Math.round(seconds)}s`
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m ${Math.round(seconds % 60)}s`
+    return `${Math.floor(seconds / 3600)}h ${Math.round((seconds % 3600) / 60)}m`
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Compliance Dashboard
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Loading compliance data...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Compliance Dashboard
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Unable to load compliance data</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const flagResolutionRate = data.flagStats.totalVerifyFlags + data.flagStats.totalJudgmentFlags > 0
+    ? Math.round((data.flagStats.flagsAcknowledgedCount / (data.flagStats.flagsAcknowledgedCount + data.flagStats.flagsPendingCount)) * 100)
+    : 100
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          Compliance
-        </CardTitle>
-        <CardDescription>Audit logs and API usage</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <h4 className="text-sm font-medium mb-2">API Usage This Month</h4>
-          {loadingUsage ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          ) : usage ? (
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Requests</p>
-                <p className="text-lg font-bold">{usage.totalRequests.toLocaleString()}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Input Tokens</p>
-                <p className="text-lg font-bold">{usage.totalInputTokens.toLocaleString()}</p>
-              </div>
-              <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground">Output Tokens</p>
-                <p className="text-lg font-bold">{usage.totalOutputTokens.toLocaleString()}</p>
+    <div className="space-y-4">
+      {/* API Usage */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            API Usage This Month
+          </CardTitle>
+          <CardDescription>Claude API consumption and cost indicators</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Requests</p>
+              <p className="text-lg font-bold">{data.totalRequests.toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Input Tokens</p>
+              <p className="text-lg font-bold">{data.totalInputTokens.toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Output Tokens</p>
+              <p className="text-lg font-bold">{data.totalOutputTokens.toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Total Tokens</p>
+              <p className="text-lg font-bold">{(data.totalInputTokens + data.totalOutputTokens).toLocaleString()}</p>
+            </div>
+          </div>
+          {data.modelBreakdown.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs text-muted-foreground mb-2">By Model</p>
+              <div className="flex gap-3 flex-wrap">
+                {data.modelBreakdown.map((m) => (
+                  <span key={m.model} className="text-xs rounded-full border px-2 py-1">
+                    {m.model.replace("claude-", "").replace("-20250514", "")}: {m.count}
+                  </span>
+                ))}
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Unable to load usage data</p>
           )}
-        </div>
-      </CardContent>
-    </Card>
+          {data.taskTypeBreakdown.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs text-muted-foreground mb-2">By Task Type</p>
+              <div className="flex gap-3 flex-wrap">
+                {data.taskTypeBreakdown.map((t) => (
+                  <span key={t.taskType} className="text-xs rounded-full border px-2 py-1">
+                    {t.taskType.replace(/_/g, " ").toLowerCase()}: {t.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Review Performance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Review Performance
+          </CardTitle>
+          <CardDescription>Review time averages and approval rates</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Total Reviews</p>
+              <p className="text-lg font-bold">{data.reviewStats.totalReviews}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Avg Review Time</p>
+              <p className="text-lg font-bold">{formatDuration(data.reviewStats.avgReviewTimeSeconds)}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <CheckCircle className="h-3 w-3 text-green-600" /> Approved
+              </p>
+              <p className="text-lg font-bold text-green-700">{data.reviewStats.approvedCount}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Edit + Approved</p>
+              <p className="text-lg font-bold text-blue-700">{data.reviewStats.editApprovedCount}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Rejected</p>
+              <p className="text-lg font-bold text-red-700">{data.reviewStats.rejectedCount}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Flag Resolution */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            Flag Resolution
+          </CardTitle>
+          <CardDescription>[VERIFY] and [PRACTITIONER JUDGMENT] flag tracking</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">[VERIFY] Flags</p>
+              <p className="text-lg font-bold">{data.flagStats.totalVerifyFlags}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">[JUDGMENT] Flags</p>
+              <p className="text-lg font-bold">{data.flagStats.totalJudgmentFlags}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Acknowledged</p>
+              <p className="text-lg font-bold text-green-700">{data.flagStats.flagsAcknowledgedCount}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground">Resolution Rate</p>
+              <p className="text-lg font-bold">{flagResolutionRate}%</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

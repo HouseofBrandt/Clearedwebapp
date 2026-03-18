@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
+import { encryptField } from "@/lib/encryption"
 
 export async function GET(
   request: NextRequest,
@@ -52,7 +53,10 @@ export async function PATCH(
     const { clientName, caseType, status, notes, assignedPractitionerId, filingStatus, clientEmail, clientPhone, totalLiability } = body
 
     const updateData: any = {}
-    if (clientName !== undefined) updateData.clientName = clientName
+    if (clientName !== undefined) {
+      updateData.clientName = clientName
+      updateData.clientNameEncrypted = encryptField(clientName)
+    }
     if (caseType !== undefined) updateData.caseType = caseType
     if (status !== undefined) updateData.status = status
     if (notes !== undefined) updateData.notes = notes

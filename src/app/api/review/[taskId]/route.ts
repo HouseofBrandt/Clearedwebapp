@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth/options"
+import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logReviewAction } from "@/lib/ai/audit"
 
@@ -8,9 +7,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { taskId: string } }
 ) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await requireApiAuth(PRACTITIONER_ROLES)
+  if (!auth.authorized) {
+    return NextResponse.json(
+      { error: "Forbidden: only licensed practitioners can review AI output" },
+      { status: 403 }
+    )
   }
 
   try {
@@ -51,7 +53,7 @@ export async function POST(
     const reviewAction = await prisma.reviewAction.create({
       data: {
         aiTaskId: params.taskId,
-        practitionerId: (session.user as any).id,
+        practitionerId: auth.userId,
         action: action as any,
         editedOutput: editedOutput || null,
         reviewNotes: reviewNotes || null,
@@ -79,7 +81,7 @@ export async function POST(
     // Audit log
     await logReviewAction({
       aiTaskId: params.taskId,
-      practitionerId: (session.user as any).id,
+      practitionerId: auth.userId,
       caseId: task.caseId,
       action,
       reviewNotes,

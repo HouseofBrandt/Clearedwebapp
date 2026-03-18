@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
 import { extractWithDetails } from "@/lib/documents/extract"
+import { populateFromTranscript } from "@/lib/documents/liability"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -135,6 +136,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Auto-populate LiabilityPeriod from IRS transcripts
+    let liabilityPeriodsCreated = 0
+    if (extractedText && (documentCategory === "IRS_NOTICE" || documentCategory === "TAX_RETURN")) {
+      try {
+        liabilityPeriodsCreated = await populateFromTranscript(caseId, extractedText)
+      } catch (err: any) {
+        console.error("Transcript parsing failed (non-blocking):", err.message)
+      }
+    }
+
     return NextResponse.json({
       ...document,
       hasExtractedText: !!extractedText,
@@ -142,6 +153,7 @@ export async function POST(request: NextRequest) {
       extractionMethod: extractionResult.method,
       extractionError: extractionResult.error || null,
       detectedFileType: fileType,
+      liabilityPeriodsCreated,
     }, { status: 201 })
   } catch (error: any) {
     console.error("Upload error:", error)

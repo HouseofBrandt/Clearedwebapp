@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
+import { encryptField } from "@/lib/encryption"
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
       data: {
         caseNumber,
         clientName,
+        clientNameEncrypted: encryptField(clientName),
         caseType,
         notes: notes || null,
         filingStatus: filingStatus || null,

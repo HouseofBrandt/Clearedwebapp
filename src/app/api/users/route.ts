@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth/options"
+import { requireApiAuth, ADMIN_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
@@ -9,15 +8,15 @@ const createUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
   password: z.string().min(8),
-  role: z.enum(["PRACTITIONER", "SENIOR", "ADMIN"]),
-  licenseType: z.enum(["EA", "CPA", "ATTORNEY"]),
-  licenseNumber: z.string().min(1),
+  role: z.enum(["PRACTITIONER", "SENIOR", "ADMIN", "SUPPORT_STAFF"]),
+  licenseType: z.enum(["EA", "CPA", "ATTORNEY"]).optional(),
+  licenseNumber: z.string().optional(),
 })
 
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const auth = await requireApiAuth(ADMIN_ROLES)
+  if (!auth.authorized) {
+    return auth.response
   }
 
   const users = await prisma.user.findMany({
@@ -37,14 +36,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-
-  // Only admins can create users
-  if ((session.user as any).role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
+  const auth = await requireApiAuth(ADMIN_ROLES)
+  if (!auth.authorized) {
+    return auth.response
   }
 
   try {

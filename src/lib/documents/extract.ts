@@ -47,7 +47,7 @@ export async function extractWithDetails(
       case "TEXT":
         return extractPlainText(buffer)
       case "IMAGE":
-        return extractImageText(buffer)
+        return await extractImageText(buffer)
       default:
         // Try to detect from buffer content
         return await extractBySniffing(buffer)
@@ -103,11 +103,23 @@ async function extractPDF(buffer: Buffer): Promise<ExtractionResult> {
     attempts.push(`FlateDecode extraction error: ${err.message}`)
   }
 
+  // Fallback 3: Scanned/image-only PDF — attempt OCR
+  try {
+    const ocrResult = await extractImageText(buffer)
+    if (ocrResult.text.length > 20) {
+      return { text: ocrResult.text, method: "pdf-ocr" }
+    }
+    if (ocrResult.text.length > 0) attempts.push(`OCR found only ${ocrResult.text.length} chars`)
+    else attempts.push("OCR returned no text")
+  } catch (err: any) {
+    attempts.push(`OCR error: ${err.message}`)
+  }
+
   console.warn(`[PDF Extract] All methods failed for ${buffer.length} byte PDF. Attempts: ${attempts.join("; ")}`)
   return {
     text: "",
     method: "pdf-failed",
-    error: `Could not extract text from PDF (${buffer.length} bytes). Tried: ${attempts.join("; ")}. It may be a scanned/image-only document requiring OCR.`,
+    error: `Could not extract text from PDF (${buffer.length} bytes). Tried: ${attempts.join("; ")}.`,
   }
 }
 
@@ -466,15 +478,29 @@ function stripRTF(rtf: string): string {
     .trim()
 }
 
-// ─── Images ─────────────────────────────────────────────────────
+// ─── Images (OCR via Tesseract.js) ──────────────────────────────
 
-function extractImageText(buffer: Buffer): ExtractionResult {
-  // Tesseract.js is not installed — return a clear message
-  // TODO: Add Tesseract.js for OCR when needed
-  return {
-    text: "",
-    method: "image-no-ocr",
-    error: "Image files require OCR processing which is not yet configured. Please upload the document as a PDF or text file instead.",
+async function extractImageText(buffer: Buffer): Promise<ExtractionResult> {
+  try {
+    const Tesseract = await import("tesseract.js")
+    const { data } = await Tesseract.recognize(buffer, "eng", {
+      logger: () => {},  // suppress progress logs
+    })
+    const text = data.text?.trim() || ""
+    if (text.length > 0) {
+      return { text, method: "tesseract-ocr" }
+    }
+    return {
+      text: "",
+      method: "tesseract-ocr-empty",
+      error: "OCR completed but no readable text was found in the image.",
+    }
+  } catch (err: any) {
+    return {
+      text: "",
+      method: "ocr-failed",
+      error: `OCR processing failed: ${err.message}`,
+    }
   }
 }
 
@@ -498,17 +524,17 @@ async function extractBySniffing(buffer: Buffer): Promise<ExtractionResult> {
 
   // PNG: starts with \x89PNG
   if (buffer.length > 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
-    return extractImageText(buffer)
+    return await extractImageText(buffer)
   }
 
   // JPEG: starts with \xFF\xD8\xFF
   if (buffer.length > 3 && buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
-    return extractImageText(buffer)
+    return await extractImageText(buffer)
   }
 
   // TIFF: starts with II or MM
   if (buffer.length > 4 && ((buffer[0] === 0x49 && buffer[1] === 0x49) || (buffer[0] === 0x4D && buffer[1] === 0x4D))) {
-    return extractImageText(buffer)
+    return await extractImageText(buffer)
   }
 
   // Default: try as plain text

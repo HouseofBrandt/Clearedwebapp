@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth/options"
+import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { callClaudeStream } from "@/lib/ai/client"
 import { tokenizeText, encryptTokenMap, detokenizeText, validateTokenization } from "@/lib/ai/tokenizer"
@@ -9,6 +8,7 @@ import { loadPrompt } from "@/lib/ai/prompts"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 import { OIC_TEMPLATE, getExtractionKeys } from "@/lib/templates/oic-working-papers"
 import { z } from "zod"
+import { populateFromAIExtraction } from "@/lib/documents/liability"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -103,10 +103,10 @@ function sendEvent(controller: ReadableStreamDefaultController, data: Record<str
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
+  const auth = await requireApiAuth(PRACTITIONER_ROLES)
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: "Forbidden: only licensed practitioners can run AI analysis" }), {
+      status: 403,
       headers: { "Content-Type": "application/json" },
     })
   }
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { caseId, taskType, additionalContext, model: requestedModel } = parsed.data
-  const userId = (session.user as any).id
+  const userId = auth.userId
 
   // Fetch case with documents
   const caseData = await prisma.case.findUnique({
@@ -436,11 +436,35 @@ export async function POST(request: NextRequest) {
             detokenizedData.practitioner_judgment_items?.length || 0,
             embeddedJudgment,
           )
+
+          // Populate LiabilityPeriod from extracted tax_liability array
+          if (detokenizedData.tax_liability || detokenizedData.tax_liabilities) {
+            const liabilities = detokenizedData.tax_liability || detokenizedData.tax_liabilities
+            populateFromAIExtraction(caseId, liabilities).catch((e) =>
+              console.error("[AI Analyze] Liability population failed:", e.message)
+            )
+          }
         } else {
           // --- NARRATIVE PIPELINE ---
           detokenized = detokenizeText(fullContent, tokenMap)
           verifyFlags = (fullContent.match(/\[VERIFY\]/g) || []).length
           judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
+
+          // Try to extract structured liability data from narrative JSON blocks
+          try {
+            const jsonMatch = detokenized.match(/"tax_liabilit(?:y|ies)"\s*:\s*\[[\s\S]*?\]/)
+            if (jsonMatch) {
+              const parsed = JSON.parse(`{${jsonMatch[0]}}`)
+              const arr = parsed.tax_liability || parsed.tax_liabilities
+              if (Array.isArray(arr)) {
+                populateFromAIExtraction(caseId, arr).catch((e) =>
+                  console.error("[AI Analyze] Liability population failed:", e.message)
+                )
+              }
+            }
+          } catch {
+            // Not critical — skip
+          }
         }
 
         // Update AI task with results
