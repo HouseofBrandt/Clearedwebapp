@@ -12,6 +12,7 @@ enum Role {
   PRACTITIONER
   SENIOR
   ADMIN
+  SUPPORT_STAFF
 }
 
 enum LicenseType {
@@ -144,10 +145,11 @@ model Case {
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
-  documents  Document[]
-  aiTasks    AITask[]
-  tokenMaps  TokenMap[]
-  auditLogs  AuditLog[]
+  documents         Document[]
+  aiTasks           AITask[]
+  tokenMaps         TokenMap[]
+  auditLogs         AuditLog[]
+  liabilityPeriods  LiabilityPeriod[]
 
   @@map("cases")
 }
@@ -204,8 +206,9 @@ model ReviewAction {
   action           ReviewActionType
   editedOutput     String?          @db.Text
   reviewNotes      String?
-  reviewStartedAt  DateTime
-  reviewCompletedAt DateTime?
+  reviewStartedAt   DateTime
+  reviewCompletedAt  DateTime?
+  flagsAcknowledged  Boolean   @default(false)
 
   @@map("review_actions")
 }
@@ -223,6 +226,23 @@ model AuditLog {
   timestamp      DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+model LiabilityPeriod {
+  id                 String    @id @default(cuid())
+  caseId             String
+  case               Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  taxYear            Int
+  formType           String    // "1040", "941", etc.
+  originalAssessment Decimal?
+  penalties          Decimal?
+  interest           Decimal?
+  totalBalance       Decimal?
+  assessmentDate     DateTime?
+  csedDate           DateTime?
+  status             String?   // "assessed", "paid", etc.
+
+  @@map("liability_periods")
 }
 
 model TokenMap {

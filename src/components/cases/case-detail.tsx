@@ -36,7 +36,7 @@ import {
   RotateCcw,
   FolderPlus,
 } from "lucide-react"
-import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS } from "@/types"
+import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
 
 function timeAgo(date: string | Date): string {
   const now = new Date()
@@ -57,7 +57,7 @@ function timeAgo(date: string | Date): string {
 }
 
 function formatTaskType(taskType: string): string {
-  return taskType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  return TASK_TYPE_LABELS[taskType as keyof typeof TASK_TYPE_LABELS] || taskType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 const SPREADSHEET_TASK_TYPES = new Set(["WORKING_PAPERS", "OIC_NARRATIVE"])
@@ -417,6 +417,33 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
               </CardContent>
             </Card>
           </div>
+
+          {/* Liability Summary Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Liability Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {caseData.totalLiability != null ? (
+                <div className="space-y-3">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm text-muted-foreground">Estimated Total Liability</span>
+                    <span className="text-xl font-bold">
+                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(caseData.totalLiability))}
+                    </span>
+                  </div>
+                  <Separator />
+                  <p className="text-xs text-muted-foreground">
+                    Detailed liability breakdown by tax year will appear here after transcript analysis.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No liability data yet. Set the estimated total liability above, or run an AI analysis after uploading IRS transcripts.
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-4">
@@ -448,7 +475,7 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
                   <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
                     <CardContent className="flex items-center justify-between p-4">
                       <div>
-                        <p className="font-medium">{task.taskType.replace(/_/g, " ")}</p>
+                        <p className="font-medium">{formatTaskType(task.taskType)}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(task.createdAt).toLocaleString()} &middot; {task.modelUsed || "pending"}
                         </p>

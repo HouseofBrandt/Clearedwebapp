@@ -121,14 +121,19 @@ export function DocumentList({ documents }: DocumentListProps) {
                         </span>
                       </div>
                     ) : doc.fileType === "IMAGE" ? (
-                      <div className="flex items-center gap-1.5 text-yellow-600">
+                      <div className="flex items-center gap-1.5 text-amber-600" title="Image files require OCR processing which is not yet configured">
                         <AlertTriangle className="h-3.5 w-3.5" />
-                        <span className="text-xs">Needs OCR</span>
+                        <span className="text-xs">OCR not configured</span>
+                      </div>
+                    ) : doc.fileType === "PDF" ? (
+                      <div className="flex items-center gap-1.5 text-amber-600" title="This PDF appears to be scanned (image-only). Searchable PDFs extract text automatically.">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span className="text-xs">Scanned PDF — no text</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 text-red-500">
                         <XCircle className="h-3.5 w-3.5" />
-                        <span className="text-xs">No text</span>
+                        <span className="text-xs">No text extracted</span>
                       </div>
                     )}
                   </TableCell>
