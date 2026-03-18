@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,31 +34,16 @@ const MEMO_TASKS = [
 
 const COMPLEX_TASK_TYPES = ["WORKING_PAPERS", "GENERAL_ANALYSIS", "TFRP_ANALYSIS"]
 
-interface ParsedFlag {
-  type: "VERIFY" | "JUDGMENT"
-  context: string
-}
-
-function parseFlags(text: string): ParsedFlag[] {
-  const flags: ParsedFlag[] = []
-  const patterns = [
-    { regex: /\[VERIFY\]/g, type: "VERIFY" as const },
-    { regex: /\[PRACTITIONER JUDGMENT\]/g, type: "JUDGMENT" as const },
-  ]
-
-  for (const { regex, type } of patterns) {
-    let match
-    while ((match = regex.exec(text)) !== null) {
-      const start = Math.max(0, match.index - 30)
-      const end = Math.min(text.length, match.index + match[0].length + 30)
-      let context = text.slice(start, end).replace(/\n/g, " ")
-      if (start > 0) context = "..." + context
-      if (end < text.length) context = context + "..."
-      flags.push({ type, context })
-    }
-  }
-
-  return flags
+function highlightFlags(text: string): string {
+  return text
+    .replace(
+      /\[VERIFY[^\]]*\]/g,
+      (match) => `<mark style="background:#FEF3C7;padding:1px 4px;border-radius:3px;font-weight:600;font-size:0.85em">${match}</mark>`
+    )
+    .replace(
+      /\[PRACTITIONER JUDGMENT\]/g,
+      (match) => `<mark style="background:#DBEAFE;padding:1px 4px;border-radius:3px;font-weight:600;font-size:0.85em">${match}</mark>`
+    )
 }
 
 export function TaskReview({ task, documents = [] }: TaskReviewProps) {
@@ -66,7 +51,8 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
   const [reviewNotes, setReviewNotes] = useState("")
   const [editing, setEditing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [acknowledgedFlags, setAcknowledgedFlags] = useState<Set<number>>(new Set())
+  const [flagsReviewed, setFlagsReviewed] = useState(false)
+  const [outputConfirmed, setOutputConfirmed] = useState(false)
   const [reviewStartedAt] = useState(Date.now())
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [correctionNotes, setCorrectionNotes] = useState("")
@@ -77,20 +63,10 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
   const isMemo = MEMO_TASKS.includes(task.taskType)
   const isReviewable = task.status === "READY_FOR_REVIEW"
 
-  const flags = useMemo(() => parseFlags(output), [output])
-  const allFlagsAcknowledged = flags.length === 0 || acknowledgedFlags.size >= flags.length
-
-  function toggleFlag(index: number) {
-    setAcknowledgedFlags((prev) => {
-      const next = new Set(prev)
-      if (next.has(index)) {
-        next.delete(index)
-      } else {
-        next.add(index)
-      }
-      return next
-    })
-  }
+  const verifyCount = task.verifyFlagCount || 0
+  const judgmentCount = task.judgmentFlagCount || 0
+  const totalFlags = verifyCount + judgmentCount
+  const allFlagsAcknowledged = totalFlags === 0 || (flagsReviewed && outputConfirmed)
 
   async function handleReviewAction(action: string) {
     // Item 13: Review time warning for complex tasks
@@ -152,42 +128,36 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
       {/* Right panel: AI output and review actions */}
       <div className="w-full lg:w-3/5 space-y-4">
 
-      {/* Item 12: Flag acknowledgment bar */}
-      {flags.length > 0 && isReviewable && (
-        <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              {flags.length} flag{flags.length === 1 ? "" : "s"} require{flags.length === 1 ? "s" : ""} acknowledgment
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {flags.map((flag, i) => (
-              <label
-                key={i}
-                className="flex items-start gap-3 rounded-md border bg-background p-2 cursor-pointer hover:bg-muted/50"
-              >
-                <input
-                  type="checkbox"
-                  checked={acknowledgedFlags.has(i)}
-                  onChange={() => toggleFlag(i)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300"
-                />
-                <div className="flex-1 min-w-0">
-                  <Badge
-                    variant="outline"
-                    className={
-                      flag.type === "VERIFY"
-                        ? "text-yellow-600 mb-1"
-                        : "text-blue-600 mb-1"
-                    }
-                  >
-                    {flag.type === "VERIFY" ? "[VERIFY]" : "[JUDGMENT]"}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground break-words">{flag.context}</p>
-                </div>
-              </label>
-            ))}
+      {/* Flag attestation */}
+      {totalFlags > 0 && isReviewable && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span className="font-medium text-sm">Review Flags</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This analysis contains{" "}
+              <strong>{verifyCount} verification item{verifyCount !== 1 ? "s" : ""}</strong>
+              {judgmentCount > 0 && <> and <strong>{judgmentCount} professional judgment item{judgmentCount !== 1 ? "s" : ""}</strong></>}
+              . These are highlighted in the document below.
+            </p>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={flagsReviewed}
+                onChange={(e) => setFlagsReviewed(e.target.checked)}
+                className="mt-0.5 h-4 w-4" />
+              <span className="text-sm">
+                I have reviewed all flagged items and exercised professional judgment.
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" checked={outputConfirmed}
+                onChange={(e) => setOutputConfirmed(e.target.checked)}
+                className="mt-0.5 h-4 w-4" />
+              <span className="text-sm">
+                I confirm this output is suitable for use after my review.
+              </span>
+            </label>
           </CardContent>
         </Card>
       )}
@@ -246,12 +216,12 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             />
           ) : isMemo ? (
             <RichTextEditor
-              content={output}
+              content={highlightFlags(output)}
               editable={false}
             />
           ) : (
             <div className="prose max-w-none rounded-lg bg-muted/30 p-4">
-              <pre className="whitespace-pre-wrap text-sm">{output}</pre>
+              <pre className="whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: highlightFlags(output.replace(/</g, "&lt;").replace(/>/g, "&gt;")) }} />
             </div>
           )}
         </CardContent>
@@ -277,9 +247,9 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             <Separator />
 
             {/* Flag acknowledgment notice */}
-            {flags.length > 0 && !allFlagsAcknowledged && (
+            {totalFlags > 0 && !allFlagsAcknowledged && (
               <p className="text-sm text-yellow-600 font-medium">
-                Acknowledge all flags before approving
+                Acknowledge all flags above before approving
               </p>
             )}
 

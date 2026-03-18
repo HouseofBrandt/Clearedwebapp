@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Search, FileText, FolderOpen } from "lucide-react"
+import { Plus, Search, FileText, FolderOpen, Trash2 } from "lucide-react"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS } from "@/types"
 import { useToast } from "@/components/ui/toast"
 
@@ -108,6 +108,17 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
     }
     return true
   })
+
+  async function handleDeleteCase(caseId: string, caseNumber: string) {
+    if (!confirm(`Delete case ${caseNumber}? This permanently deletes all documents, AI tasks, and review history.`)) return
+    const res = await fetch(`/api/cases/${caseId}`, { method: "DELETE" })
+    if (res.ok) {
+      setCases((prev) => prev.filter((c) => c.id !== caseId))
+      addToast({ title: "Case deleted" })
+    } else {
+      addToast({ title: "Error", description: "Failed to delete case", variant: "destructive" })
+    }
+  }
 
   async function handleCreateCase() {
     if (!newCase.clientName || !newCase.caseType) return
@@ -320,12 +331,13 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                   <TableHead>Case #</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Filing Status</TableHead>
+                  <TableHead className="hidden xl:table-cell">Filing Status</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Total Liability</TableHead>
-                  <TableHead>Assigned To</TableHead>
+                  <TableHead className="hidden xl:table-cell">Assigned To</TableHead>
                   <TableHead>Last Updated</TableHead>
                   <TableHead className="text-right">Docs</TableHead>
+                  <TableHead className="w-[40px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -336,16 +348,16 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                     <TableCell>
                       <span className="text-sm">{CASE_TYPE_LABELS[c.caseType as keyof typeof CASE_TYPE_LABELS] || c.caseType}</span>
                     </TableCell>
-                    <TableCell>
-                      <span className="text-sm">{FILING_STATUS_LABELS[c.filingStatus as keyof typeof FILING_STATUS_LABELS] || "-"}</span>
+                    <TableCell className="hidden xl:table-cell">
+                      <span className="text-sm">{c.filingStatus ? (FILING_STATUS_LABELS[c.filingStatus as keyof typeof FILING_STATUS_LABELS] || c.filingStatus) : <span className="text-muted-foreground">&mdash;</span>}</span>
                     </TableCell>
                     <TableCell>
                       <Badge className={statusColors[c.status] || ""} variant="secondary">
                         {CASE_STATUS_LABELS[c.status as keyof typeof CASE_STATUS_LABELS] || c.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{formatCurrency(c.totalLiability)}</TableCell>
-                    <TableCell>{c.assignedPractitioner?.name || "Unassigned"}</TableCell>
+                    <TableCell>{c.totalLiability != null && c.totalLiability !== "" ? formatCurrency(c.totalLiability) : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
+                    <TableCell className="hidden xl:table-cell">{c.assignedPractitioner?.name || <span className="text-muted-foreground italic">Unassigned</span>}</TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">{timeAgo(c.updatedAt)}</span>
                     </TableCell>
@@ -354,6 +366,12 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                         <FileText className="h-3 w-3" />
                         {c._count?.documents || 0}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" className="h-8 w-8"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCase(c.id, c.caseNumber) }}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

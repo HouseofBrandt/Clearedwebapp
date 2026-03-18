@@ -35,6 +35,7 @@ import {
   PenLine,
   RotateCcw,
   FolderPlus,
+  Trash2,
 } from "lucide-react"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
 
@@ -61,6 +62,14 @@ function formatTaskType(taskType: string): string {
 }
 
 const SPREADSHEET_TASK_TYPES = new Set(["WORKING_PAPERS", "OIC_NARRATIVE"])
+
+const taskStatusStyles: Record<string, string> = {
+  QUEUED: "bg-gray-100 text-gray-700",
+  PROCESSING: "bg-blue-100 text-blue-700",
+  READY_FOR_REVIEW: "bg-amber-100 text-amber-800",
+  APPROVED: "bg-green-100 text-green-800",
+  REJECTED: "bg-red-100 text-red-700",
+}
 
 const reviewActionLabels: Record<string, string> = {
   APPROVE: "Approved",
@@ -115,6 +124,39 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
   const { addToast } = useToast()
 
   const approvedTasks = caseData.aiTasks.filter((t: any) => t.status === "APPROVED")
+  const failedTasks = caseData.aiTasks.filter((t: any) => t.status === "PROCESSING" || t.status === "REJECTED")
+
+  async function handleDeleteTask(taskId: string) {
+    if (!confirm("Delete this AI task? This cannot be undone.")) return
+    const res = await fetch(`/api/ai/tasks/${taskId}`, { method: "DELETE" })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      addToast({ title: "Error", description: err.error || "Failed to delete", variant: "destructive" })
+      return
+    }
+    addToast({ title: "Task deleted" })
+    router.refresh()
+  }
+
+  async function handleCleanupTasks() {
+    if (!confirm(`Delete ${failedTasks.length} failed/stuck tasks?`)) return
+    const res = await fetch(`/api/cases/${caseData.id}/cleanup-tasks`, { method: "DELETE" })
+    if (res.ok) {
+      addToast({ title: "Cleaned up failed tasks" })
+      router.refresh()
+    }
+  }
+
+  async function handleDeleteCase() {
+    if (!confirm(`Delete case ${caseData.caseNumber}? This permanently deletes all documents, AI tasks, and review history.`)) return
+    const res = await fetch(`/api/cases/${caseData.id}`, { method: "DELETE" })
+    if (res.ok) {
+      addToast({ title: "Case deleted" })
+      router.push("/cases")
+    } else {
+      addToast({ title: "Error", description: "Failed to delete case", variant: "destructive" })
+    }
+  }
 
   // Build timeline events from case data
   const timelineEvents = (() => {
@@ -228,7 +270,15 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
               </Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => setEditing(true)}>Edit Case</Button>
+            <>
+              <Button variant="outline" onClick={() => setEditing(true)}>Edit Case</Button>
+              <Button variant="outline" size="sm"
+                className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                onClick={handleDeleteCase}>
+                <Trash2 className="mr-1 h-4 w-4" />
+                Delete
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -458,6 +508,15 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
             documentCount={caseData.documents.length}
             documentsWithTextCount={caseData.documents.filter((d: any) => d.extractedText && d.extractedText.trim().length > 0).length}
           />
+          {failedTasks.length > 1 && (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={handleCleanupTasks}
+                className="text-destructive text-xs">
+                <Trash2 className="mr-1 h-3 w-3" />
+                Clear {failedTasks.length} failed tasks
+              </Button>
+            </div>
+          )}
           {caseData.aiTasks.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
@@ -471,21 +530,28 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
           ) : (
             <div className="space-y-3">
               {caseData.aiTasks.map((task: any) => (
-                <Link key={task.id} href={`/review/${task.id}`}>
-                  <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
-                    <CardContent className="flex items-center justify-between p-4">
-                      <div>
-                        <p className="font-medium">{formatTaskType(task.taskType)}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(task.createdAt).toLocaleString()} &middot; {task.modelUsed || "pending"}
-                        </p>
-                      </div>
-                      <Badge variant={task.status === "APPROVED" ? "default" : "secondary"}>
+                <Card key={task.id} className="hover:bg-muted/50 transition-colors">
+                  <CardContent className="flex items-center justify-between p-4">
+                    <Link href={`/review/${task.id}`} className="flex-1 min-w-0">
+                      <p className="font-medium">{formatTaskType(task.taskType)}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(task.createdAt).toLocaleString()} &middot;{" "}
+                        {task.modelUsed || (task.status === "REJECTED" ? "failed" : "starting...")}
+                      </p>
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className={taskStatusStyles[task.status] || ""} variant="secondary">
                         {task.status.replace(/_/g, " ")}
                       </Badge>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      {task.status !== "APPROVED" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8"
+                          onClick={(e) => { e.preventDefault(); handleDeleteTask(task.id) }}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
