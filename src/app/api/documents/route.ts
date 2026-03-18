@@ -3,13 +3,41 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
-import { extractTextFromBuffer } from "@/lib/documents/extract"
+import { extractWithDetails } from "@/lib/documents/extract"
 
-function getFileType(mimeType: string): "PDF" | "IMAGE" | "DOCX" | "XLSX" | "TEXT" {
-  if (mimeType === "application/pdf") return "PDF"
-  if (mimeType.startsWith("image/")) return "IMAGE"
-  if (mimeType.includes("wordprocessingml") || mimeType.includes("msword")) return "DOCX"
-  if (mimeType.includes("spreadsheetml") || mimeType.includes("ms-excel")) return "XLSX"
+/**
+ * Detect file type from MIME type, file extension, AND buffer magic bytes.
+ */
+function detectFileType(mimeType: string, fileName: string, buffer: Buffer): string {
+  const ext = fileName.toLowerCase().split(".").pop() || ""
+  const mime = (mimeType || "").toLowerCase()
+
+  if (buffer.length > 4) {
+    if (buffer.toString("ascii", 0, 5) === "%PDF-") return "PDF"
+    if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
+      if (ext === "xlsx" || ext === "xls" || mime.includes("spreadsheet") || mime.includes("excel")) return "XLSX"
+      if (ext === "docx" || ext === "doc" || mime.includes("wordprocessing") || mime.includes("msword")) return "DOCX"
+      return "DOCX"
+    }
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return "IMAGE"
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return "IMAGE"
+    if ((buffer[0] === 0x49 && buffer[1] === 0x49) || (buffer[0] === 0x4D && buffer[1] === 0x4D)) return "IMAGE"
+    if (buffer.toString("ascii", 0, 3) === "GIF") return "IMAGE"
+    if (buffer[0] === 0x42 && buffer[1] === 0x4D) return "IMAGE"
+  }
+
+  if (mime === "application/pdf") return "PDF"
+  if (mime.startsWith("image/")) return "IMAGE"
+  if (mime.includes("wordprocessingml") || mime.includes("msword")) return "DOCX"
+  if (mime.includes("spreadsheetml") || mime.includes("excel") || mime === "text/csv") return "XLSX"
+  if (mime.startsWith("text/")) return "TEXT"
+
+  if (ext === "pdf") return "PDF"
+  if (["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "webp", "heic"].includes(ext)) return "IMAGE"
+  if (["doc", "docx"].includes(ext)) return "DOCX"
+  if (["xls", "xlsx", "csv"].includes(ext)) return "XLSX"
+  if (["txt", "text", "rtf", "log", "md"].includes(ext)) return "TEXT"
+
   return "TEXT"
 }
 
@@ -29,39 +57,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File and caseId are required" }, { status: 400 })
     }
 
-    // Verify case exists
     const caseExists = await prisma.case.findUnique({ where: { id: caseId } })
     if (!caseExists) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
 
-    // Upload to S3
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+    const fileType = detectFileType(file.type, file.name, buffer)
     const uniqueName = `${Date.now()}-${file.name}`
     const s3Key = `documents/${caseId}/${uniqueName}`
-    await uploadToS3(s3Key, buffer, file.type || "application/octet-stream")
 
-    const fileType = getFileType(file.type)
+    const [, extractionResult] = await Promise.all([
+      uploadToS3(s3Key, buffer, file.type || "application/octet-stream").catch((err) => {
+        console.error("S3 upload failed:", err)
+        return null
+      }),
+      extractWithDetails(buffer, fileType),
+    ])
 
-    // Extract text from document
-    let extractedText: string | null = null
-    try {
-      extractedText = await extractTextFromBuffer(buffer, fileType)
-      if (extractedText && !extractedText.trim()) {
-        extractedText = null
-      }
-    } catch (err) {
-      console.error("Text extraction failed (non-fatal):", err)
-    }
+    const extractedText = extractionResult.text.trim() || null
 
-    // Create document record
     const document = await prisma.document.create({
       data: {
         caseId,
         fileName: file.name,
         filePath: s3Key,
-        fileType,
+        fileType: fileType as any,
         fileSize: file.size,
         documentCategory: category as any,
         uploadedById: (session.user as any).id,
@@ -69,9 +91,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(document, { status: 201 })
-  } catch (error) {
+    return NextResponse.json({
+      ...document,
+      hasExtractedText: !!extractedText,
+      extractionMethod: extractionResult.method,
+      extractionError: extractionResult.error || null,
+    }, { status: 201 })
+  } catch (error: any) {
     console.error("Upload error:", error)
-    return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
+    return NextResponse.json({ error: `Failed to upload file: ${error.message}` }, { status: 500 })
   }
 }

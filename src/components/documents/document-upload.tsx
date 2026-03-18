@@ -49,6 +49,9 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
     setUploading(true)
 
     try {
+      let extractedCount = 0
+      let failedFiles: { name: string; reason: string }[] = []
+
       for (const file of files) {
         const formData = new FormData()
         formData.append("file", file)
@@ -60,13 +63,40 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
           body: formData,
         })
 
-        if (!res.ok) throw new Error(`Failed to upload ${file.name}`)
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Upload failed" }))
+          failedFiles.push({ name: file.name, reason: err.error || "Upload failed" })
+          continue
+        }
+
+        const result = await res.json()
+        if (result.hasExtractedText) {
+          extractedCount++
+        } else {
+          failedFiles.push({
+            name: file.name,
+            reason: result.extractionError || "No text could be extracted",
+          })
+        }
       }
 
-      addToast({
-        title: "Upload complete",
-        description: `${files.length} file(s) uploaded successfully.`,
-      })
+      if (failedFiles.length > 0 && extractedCount > 0) {
+        addToast({
+          title: `${extractedCount}/${files.length} files processed`,
+          description: `Text extraction failed for: ${failedFiles.map(f => f.name).join(", ")}`,
+        })
+      } else if (failedFiles.length > 0 && extractedCount === 0) {
+        addToast({
+          title: "Upload complete but no text extracted",
+          description: failedFiles[0].reason,
+          variant: "destructive",
+        })
+      } else {
+        addToast({
+          title: "Upload complete",
+          description: `${files.length} file(s) uploaded and processed.`,
+        })
+      }
       setFiles([])
       router.refresh()
     } catch (error) {

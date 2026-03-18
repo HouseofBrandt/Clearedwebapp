@@ -3,14 +3,72 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
-import { extractTextFromBuffer } from "@/lib/documents/extract"
+import { extractWithDetails } from "@/lib/documents/extract"
 
-function getFileType(mimeType: string, fileName: string): string {
-  if (mimeType === "application/pdf" || fileName.endsWith(".pdf")) return "PDF"
-  if (mimeType.startsWith("image/")) return "IMAGE"
-  if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || fileName.endsWith(".docx")) return "DOCX"
-  if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || fileName.endsWith(".xlsx")) return "XLSX"
-  return "TEXT"
+/**
+ * Detect file type from MIME type, file extension, AND buffer magic bytes.
+ * Falls back through all three to ensure correct detection.
+ */
+function detectFileType(mimeType: string, fileName: string, buffer: Buffer): string {
+  const ext = fileName.toLowerCase().split(".").pop() || ""
+  const mime = (mimeType || "").toLowerCase()
+
+  // Check buffer magic bytes first (most reliable)
+  if (buffer.length > 4) {
+    // PDF
+    if (buffer.toString("ascii", 0, 5) === "%PDF-") return "PDF"
+
+    // ZIP-based (DOCX, XLSX, PPTX)
+    if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
+      // Distinguish DOCX vs XLSX by extension/mime since both are ZIP
+      if (ext === "xlsx" || ext === "xls" || mime.includes("spreadsheet") || mime.includes("excel")) return "XLSX"
+      if (ext === "docx" || ext === "doc" || mime.includes("wordprocessing") || mime.includes("msword")) return "DOCX"
+      // Default ZIP to DOCX (more common in tax resolution)
+      return "DOCX"
+    }
+
+    // PNG
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return "IMAGE"
+
+    // JPEG
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return "IMAGE"
+
+    // TIFF
+    if ((buffer[0] === 0x49 && buffer[1] === 0x49) || (buffer[0] === 0x4D && buffer[1] === 0x4D)) return "IMAGE"
+
+    // GIF
+    if (buffer.toString("ascii", 0, 3) === "GIF") return "IMAGE"
+
+    // BMP
+    if (buffer[0] === 0x42 && buffer[1] === 0x4D) return "IMAGE"
+  }
+
+  // Fall back to MIME type
+  if (mime === "application/pdf") return "PDF"
+  if (mime.startsWith("image/")) return "IMAGE"
+  if (mime.includes("wordprocessingml") || mime.includes("msword")) return "DOCX"
+  if (mime.includes("spreadsheetml") || mime.includes("excel") || mime.includes("csv")) return "XLSX"
+  if (mime === "text/csv") return "XLSX" // CSVs go through the spreadsheet extractor
+  if (mime === "application/rtf" || mime === "text/rtf") return "TEXT"
+  if (mime.startsWith("text/")) return "TEXT"
+
+  // Fall back to extension
+  if (ext === "pdf") return "PDF"
+  if (["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "webp", "heic"].includes(ext)) return "IMAGE"
+  if (["doc", "docx"].includes(ext)) return "DOCX"
+  if (["xls", "xlsx", "csv"].includes(ext)) return "XLSX"
+  if (["txt", "text", "rtf", "log", "md"].includes(ext)) return "TEXT"
+
+  // Last resort: check if buffer is valid UTF-8 text
+  try {
+    const sample = buffer.toString("utf-8", 0, Math.min(buffer.length, 1000))
+    const printable = sample.replace(/[^\x20-\x7E\n\r\t]/g, "")
+    if (printable.length > sample.length * 0.8) return "TEXT"
+  } catch {
+    // Not text
+  }
+
+  return "TEXT" // Default to TEXT — the extractor will handle it
 }
 
 export async function POST(request: NextRequest) {
@@ -38,26 +96,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
 
-    // Upload to S3
+    // Read file into buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+
+    // Detect file type robustly
+    const fileType = detectFileType(file.type, file.name, buffer)
+
+    // Upload to S3 (non-blocking for text extraction)
     const uniqueName = `${Date.now()}-${file.name}`
     const s3Key = `documents/${caseId}/${uniqueName}`
-    await uploadToS3(s3Key, buffer, file.type || "application/octet-stream")
 
-    const fileType = getFileType(file.type, file.name)
+    // Run S3 upload and text extraction in parallel
+    const [, extractionResult] = await Promise.all([
+      uploadToS3(s3Key, buffer, file.type || "application/octet-stream").catch((err) => {
+        console.error("S3 upload failed:", err)
+        // Don't throw — we still want to save the record with extracted text
+        return null
+      }),
+      extractWithDetails(buffer, fileType),
+    ])
 
-    // Extract text directly from the uploaded buffer (no S3 round-trip)
-    let extractedText: string | null = null
-    try {
-      extractedText = await extractTextFromBuffer(buffer, fileType)
-      if (extractedText && !extractedText.trim()) {
-        extractedText = null
-      }
-    } catch (err) {
-      console.error("Text extraction failed (non-fatal):", err)
-      // Continue without extracted text — can retry later
-    }
+    const extractedText = extractionResult.text.trim() || null
 
     const document = await prisma.document.create({
       data: {
@@ -78,9 +138,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ...document,
       hasExtractedText: !!extractedText,
+      extractedTextLength: extractedText?.length || 0,
+      extractionMethod: extractionResult.method,
+      extractionError: extractionResult.error || null,
+      detectedFileType: fileType,
     }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error)
-    return NextResponse.json({ error: "Failed to upload file" }, { status: 500 })
+    return NextResponse.json(
+      { error: `Failed to upload file: ${error.message}` },
+      { status: 500 }
+    )
   }
 }
