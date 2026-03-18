@@ -20,16 +20,17 @@ const navigation = [
 
 interface SidebarProps {
   user: { name?: string | null; role: string }
+  pendingReviewCount?: number
 }
 
-export function Sidebar({ user }: SidebarProps) {
+export function SidebarContent({ user, pendingReviewCount, onLinkClick }: SidebarProps & { onLinkClick?: () => void }) {
   const pathname = usePathname()
 
   return (
-    <div className="hidden w-64 flex-col border-r bg-card lg:flex">
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <Shield className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold">Cleared</span>
+    <>
+      <div className="flex h-16 items-center gap-2 px-6" style={{ backgroundColor: "#1B2A4A" }}>
+        <Shield className="h-6 w-6 text-white" />
+        <span className="text-lg font-bold text-white">Cleared</span>
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {navigation.map((item) => {
@@ -38,6 +39,7 @@ export function Sidebar({ user }: SidebarProps) {
             <Link
               key={item.name}
               href={item.href}
+              onClick={onLinkClick}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive
@@ -47,6 +49,11 @@ export function Sidebar({ user }: SidebarProps) {
             >
               <item.icon className="h-4 w-4" />
               {item.name}
+              {item.name === "Review Queue" && pendingReviewCount != null && pendingReviewCount > 0 && (
+                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-white">
+                  {pendingReviewCount > 99 ? "99+" : pendingReviewCount}
+                </span>
+              )}
             </Link>
           )
         })}
@@ -62,6 +69,14 @@ export function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
       </div>
+    </>
+  )
+}
+
+export function Sidebar({ user, pendingReviewCount }: SidebarProps) {
+  return (
+    <div className="hidden w-64 flex-col border-r bg-card lg:flex">
+      <SidebarContent user={user} pendingReviewCount={pendingReviewCount} />
     </div>
   )
 }
