@@ -53,6 +53,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
   })()
 
   const [taskType, setTaskType] = useState(defaultTaskType)
+  const [model, setModel] = useState<string>("claude-sonnet-4-6")
   const [additionalContext, setAdditionalContext] = useState("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{
@@ -87,7 +88,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId, taskType, additionalContext }),
+        body: JSON.stringify({ caseId, taskType, additionalContext, model }),
         signal: controller.signal,
       })
 
@@ -149,6 +150,19 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
                     {t.label}
                   </SelectItem>
                 ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Model</Label>
+          <Select value={model} onValueChange={setModel}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="claude-sonnet-4-6">Sonnet 4.6 (fast, standard)</SelectItem>
+              <SelectItem value="claude-opus-4-6">Opus 4.6 (complex analysis)</SelectItem>
             </SelectContent>
           </Select>
         </div>

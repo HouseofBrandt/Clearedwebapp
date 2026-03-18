@@ -93,7 +93,8 @@ const TIER2_PATTERNS: { pattern: RegExp; type: string; prefix: string }[] = [
 export function tokenizeText(
   text: string,
   knownNames: string[] = [],
-  knownAddresses: string[] = []
+  knownAddresses: string[] = [],
+  knownEmployers: string[] = []
 ): TokenizerResult {
   const tokenMap: TokenMapping = {}
   let tokenized = text
@@ -160,7 +161,52 @@ export function tokenizeText(
     return token
   })
 
+  // Tokenize known employers (Tier 2 — sequential numbering)
+  for (let i = 0; i < knownEmployers.length; i++) {
+    const emp = knownEmployers[i]
+    if (!emp || emp.length < 3) continue
+    const token = `[EMPLOYER-${i + 1}]`
+    tokenMap[token] = emp
+    const escaped = emp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    tokenized = tokenized.replace(new RegExp(escaped, "gi"), token)
+  }
+
   return { tokenizedText: tokenized, tokenMap }
+}
+
+/**
+ * Pre-flight validation: scan tokenized text for remaining PII patterns.
+ * Returns warnings if potential PII is found — the caller decides whether to block or log.
+ */
+export function validateTokenization(text: string): {
+  passed: boolean
+  warnings: string[]
+} {
+  const warnings: string[] = []
+
+  // Check for remaining SSN patterns (with hyphens)
+  const ssnMatches = text.match(/\b\d{3}-\d{2}-\d{4}\b/g)
+  if (ssnMatches) {
+    warnings.push(`Found ${ssnMatches.length} potential SSN(s) still in text`)
+  }
+
+  // Check for remaining EIN patterns (but not inside tokens like [EIN-ABC123])
+  const einPattern = /(?<!\[EIN-)\b\d{2}-\d{7}\b/g
+  const einMatches = text.match(einPattern)
+  if (einMatches) {
+    warnings.push(`Found ${einMatches.length} potential EIN(s) still in text`)
+  }
+
+  // Check for 9-digit numbers preceded by SSN/TIN context
+  const unhyphenated = text.match(/(?:SSN|TIN|Social)\s*:?\s*\d{9}\b/gi)
+  if (unhyphenated) {
+    warnings.push(`Found ${unhyphenated.length} potential unhyphenated SSN(s)`)
+  }
+
+  return {
+    passed: warnings.length === 0,
+    warnings,
+  }
 }
 
 export function detokenizeText(

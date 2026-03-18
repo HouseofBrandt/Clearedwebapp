@@ -20,12 +20,26 @@ You are performing a general case analysis for a tax resolution matter. Based on
    - Pros and cons of each option
    - Recommended approach with rationale
 
-5. ACTION ITEMS
+5. FINANCIAL ANALYSIS
+   For each identified issue:
+   - State the specific IRC section, regulation, or IRM provision
+   - Analyze how the client's specific facts apply to the legal standard
+   - Assess the strength of the client's position (strong/moderate/weak) with reasoning
+   - Identify the strongest counterargument the IRS would make
+   - Recommend specific next steps with deadlines where applicable
+
+   For financial data extracted from bank statements or tax returns:
+   - Present income and expense data in structured tables
+   - Clearly label the source document for each figure
+   - Note any discrepancies between documents (e.g., bank statement balance vs. client-reported amount)
+   - Calculate monthly averages where single-month data is provided and note that multiple months are needed for OIC/IA purposes
+
+6. ACTION ITEMS
    - Immediate next steps
    - Information/documents to request from client
    - IRS actions to take (transcripts, POA, etc.)
 
-6. FLAGS
+7. FLAGS
    - Items requiring verification [VERIFY]
    - Items requiring professional judgment [PRACTITIONER JUDGMENT]
    - Time-sensitive deadlines

@@ -15,7 +15,7 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { action, editedOutput, reviewNotes } = body
+    const { action, editedOutput, reviewNotes, reviewStartedAt, flagsAcknowledged } = body
 
     if (!action) {
       return NextResponse.json({ error: "Action is required" }, { status: 400 })
@@ -41,6 +41,12 @@ export async function POST(
       )
     }
 
+    // Use client-provided reviewStartedAt for accurate review duration tracking.
+    // Falls back to server time if not provided.
+    const startedAt = reviewStartedAt
+      ? new Date(reviewStartedAt)
+      : new Date()
+
     // Create review action
     const reviewAction = await prisma.reviewAction.create({
       data: {
@@ -49,8 +55,9 @@ export async function POST(
         action: action as any,
         editedOutput: editedOutput || null,
         reviewNotes: reviewNotes || null,
-        reviewStartedAt: new Date(),
+        reviewStartedAt: startedAt,
         reviewCompletedAt: new Date(),
+        flagsAcknowledged: flagsAcknowledged ?? false,
       },
     })
 

@@ -180,6 +180,23 @@ export function PasswordChangeForm() {
 }
 
 export function ComplianceSection() {
+  const [usage, setUsage] = useState<{
+    totalRequests: number
+    totalInputTokens: number
+    totalOutputTokens: number
+  } | null>(null)
+  const [loadingUsage, setLoadingUsage] = useState(true)
+
+  useState(() => {
+    fetch("/api/usage")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setUsage(data)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingUsage(false))
+  })
+
   return (
     <Card>
       <CardHeader>
@@ -187,15 +204,32 @@ export function ComplianceSection() {
           <Shield className="h-5 w-5" />
           Compliance
         </CardTitle>
-        <CardDescription>Audit logs and compliance reporting</CardDescription>
+        <CardDescription>Audit logs and API usage</CardDescription>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          Compliance Dashboard — Coming Soon
-        </p>
-        <Button disabled variant="outline">
-          Open Compliance Dashboard
-        </Button>
+      <CardContent className="space-y-4">
+        <div>
+          <h4 className="text-sm font-medium mb-2">API Usage This Month</h4>
+          {loadingUsage ? (
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          ) : usage ? (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Requests</p>
+                <p className="text-lg font-bold">{usage.totalRequests.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Input Tokens</p>
+                <p className="text-lg font-bold">{usage.totalInputTokens.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Output Tokens</p>
+                <p className="text-lg font-bold">{usage.totalOutputTokens.toLocaleString()}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Unable to load usage data</p>
+          )}
+        </div>
       </CardContent>
     </Card>
   )

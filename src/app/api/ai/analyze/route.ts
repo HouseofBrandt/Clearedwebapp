@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { callClaude } from "@/lib/ai/client"
-import { tokenizeText, encryptTokenMap, detokenizeText } from "@/lib/ai/tokenizer"
+import { tokenizeText, encryptTokenMap, detokenizeText, validateTokenization } from "@/lib/ai/tokenizer"
 import { logAIRequest } from "@/lib/ai/audit"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
@@ -12,6 +12,8 @@ import { z } from "zod"
 
 // Allow up to 300s for AI analysis (working papers extraction can take 2-4 min)
 export const maxDuration = 300
+
+const DEBUG = process.env.NODE_ENV !== "production"
 
 /**
  * Extract a JSON object from an AI response that may contain
@@ -68,12 +70,15 @@ const VALID_TASK_TYPES = [
   "INNOCENT_SPOUSE_ANALYSIS",
 ] as const
 
+const VALID_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"] as const
+
 const analyzeSchema = z.object({
   caseId: z.string().min(1, "caseId is required"),
   taskType: z.enum(VALID_TASK_TYPES, {
     error: `taskType must be one of: ${VALID_TASK_TYPES.join(", ")}`,
   }),
   additionalContext: z.string().optional(),
+  model: z.enum(VALID_MODELS).optional(),
 })
 
 // Each task type maps to its specific prompt file
@@ -115,7 +120,7 @@ export async function POST(request: NextRequest) {
       const messages = parsed.error.issues.map((issue: { message: string }) => issue.message)
       return NextResponse.json({ error: messages.join(", ") }, { status: 400 })
     }
-    const { caseId, taskType, additionalContext } = parsed.data
+    const { caseId, taskType, additionalContext, model: requestedModel } = parsed.data
 
     // Fetch case with documents
     const caseData = await prisma.case.findUnique({
@@ -143,9 +148,11 @@ export async function POST(request: NextRequest) {
     // Log document extraction status for debugging
     const totalDocs = await prisma.document.count({ where: { caseId } })
     const docsWithText = caseData.documents.length
-    console.log(`[AI Analyze] Case ${caseId}: ${totalDocs} total docs, ${docsWithText} with extracted text`)
-    for (const d of caseData.documents) {
-      console.log(`  - ${d.fileName} (${d.documentCategory}): ${d.extractedText?.length || 0} chars`)
+    if (DEBUG) {
+      console.log(`[AI Analyze] Case ${caseId}: ${totalDocs} total docs, ${docsWithText} with extracted text`)
+      for (const d of caseData.documents) {
+        console.log(`  - ${d.fileName} (${d.documentCategory}): ${d.extractedText?.length || 0} chars`)
+      }
     }
 
     const documentText = caseData.documents
@@ -224,14 +231,24 @@ export async function POST(request: NextRequest) {
       userMessage += `\n\nAdditional Context:\n${tokenizedContext}`
     }
 
-    console.log(`[AI Analyze] Sending to Claude: ${userMessage.length} chars user message, ${systemPrompt.length} chars system prompt`)
-    console.log(`[AI Analyze] Document text preview (first 500 chars): ${tokenizedDocText.substring(0, 500)}`)
+    // PII pre-flight validation — log warnings if potential PII remains after tokenization
+    const piiValidation = validateTokenization(tokenizedText)
+    if (!piiValidation.passed) {
+      console.warn("[AI Analyze] PII validation warnings:", piiValidation.warnings)
+    }
 
-    // Use sonnet for extraction (reliable, fast), opus for complex narrative
+    if (DEBUG) {
+      console.log(`[AI Analyze] Sending to Claude: ${userMessage.length} chars user message, ${systemPrompt.length} chars system prompt`)
+      console.log(`[AI Analyze] Document text preview (first 500 chars): ${tokenizedDocText.substring(0, 500)}`)
+    }
+
+    // Use client-requested model if provided, otherwise default based on task type.
+    // Sonnet for extraction (reliable, fast), opus for complex narrative.
     const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
-    const model = isTemplateTask
-      ? "claude-sonnet-4-6"   // Extraction is simpler — sonnet is reliable and cheaper
+    const defaultModel = isTemplateTask
+      ? "claude-sonnet-4-6"
       : taskType === "OIC_NARRATIVE" ? "claude-opus-4-6" : "claude-sonnet-4-6"
+    const model = requestedModel || defaultModel
     const maxTokens = isTemplateTask ? 8192 : 8192
     const temperature = isTemplateTask ? 0.1 : 0.2  // Lower temp for structured extraction
 
@@ -248,8 +265,10 @@ export async function POST(request: NextRequest) {
     let verifyFlags: number
     let judgmentFlags: number
 
-    console.log(`[AI Analyze] Claude response: ${response.content.length} chars, model=${response.model}, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}`)
-    console.log(`[AI Analyze] Response preview (first 300 chars): ${response.content.substring(0, 300)}`)
+    if (DEBUG) {
+      console.log(`[AI Analyze] Claude response: ${response.content.length} chars, model=${response.model}, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}`)
+      console.log(`[AI Analyze] Response preview (first 300 chars): ${response.content.substring(0, 300)}`)
+    }
 
     if (isTemplateTask) {
       // --- TEMPLATE + EXTRACTION PIPELINE ---
@@ -260,11 +279,13 @@ export async function POST(request: NextRequest) {
         // Log extraction success with key counts
         const keys = Object.keys(extractedData)
         const nonNullKeys = keys.filter(k => extractedData[k] != null)
-        console.log(`[AI Analyze] JSON parsed OK: ${keys.length} total keys, ${nonNullKeys.length} non-null`)
-        console.log(`[AI Analyze] Non-null keys: ${nonNullKeys.join(", ")}`)
-        const nullKeys = keys.filter(k => extractedData[k] == null)
-        if (nullKeys.length > 0) {
-          console.log(`[AI Analyze] Null keys: ${nullKeys.join(", ")}`)
+        if (DEBUG) {
+          console.log(`[AI Analyze] JSON parsed OK: ${keys.length} total keys, ${nonNullKeys.length} non-null`)
+          console.log(`[AI Analyze] Non-null keys: ${nonNullKeys.join(", ")}`)
+          const nullKeys = keys.filter(k => extractedData[k] == null)
+          if (nullKeys.length > 0) {
+            console.log(`[AI Analyze] Null keys: ${nullKeys.join(", ")}`)
+          }
         }
 
         // Validate extracted keys against template expectations
@@ -274,7 +295,7 @@ export async function POST(request: NextRequest) {
         if (missingFromExtraction.length > 0) {
           console.warn(`[AI Analyze] Keys expected by template but missing from extraction: ${missingFromExtraction.join(", ")}`)
         }
-        if (extraKeys.length > 0) {
+        if (DEBUG && extraKeys.length > 0) {
           console.log(`[AI Analyze] Extra keys from AI (not in template): ${extraKeys.join(", ")}`)
         }
       } catch (parseError: any) {
@@ -346,11 +367,13 @@ export async function POST(request: NextRequest) {
       const merged = mergeTemplateWithData(detokenizedData)
 
       // Log merge results
-      console.log(`[AI Analyze] Merge complete: ${merged.tabs.length} tabs, ${merged.validationIssues.length} validation issues`)
-      console.log(`[AI Analyze] Summary: assets=$${merged.summary.totalAssetEquity}, income=$${merged.summary.monthlyNetIncome}, RCP lump=$${merged.summary.rcpLump}, liability=$${merged.summary.totalLiability}`)
-      console.log(`[AI Analyze] Arrays: ${merged.extractedArrays.tax_liability.length} tax periods, ${merged.extractedArrays.bank_accounts.length} bank accounts, ${merged.extractedArrays.dependents.length} dependents`)
-      if (merged.validationIssues.length > 0) {
-        console.log(`[AI Analyze] Validation issues:`, merged.validationIssues.map(i => `${i.severity}: ${i.label} - ${i.issue}`).join("; "))
+      if (DEBUG) {
+        console.log(`[AI Analyze] Merge complete: ${merged.tabs.length} tabs, ${merged.validationIssues.length} validation issues`)
+        console.log(`[AI Analyze] Summary: assets=$${merged.summary.totalAssetEquity}, income=$${merged.summary.monthlyNetIncome}, RCP lump=$${merged.summary.rcpLump}, liability=$${merged.summary.totalLiability}`)
+        console.log(`[AI Analyze] Arrays: ${merged.extractedArrays.tax_liability.length} tax periods, ${merged.extractedArrays.bank_accounts.length} bank accounts, ${merged.extractedArrays.dependents.length} dependents`)
+        if (merged.validationIssues.length > 0) {
+          console.log(`[AI Analyze] Validation issues:`, merged.validationIssues.map(i => `${i.severity}: ${i.label} - ${i.issue}`).join("; "))
+        }
       }
 
       // Store both the raw extracted JSON and the merged result
@@ -389,6 +412,8 @@ export async function POST(request: NextRequest) {
       where: { id: aiTask.id },
       data: {
         status: "READY_FOR_REVIEW",
+        // Truncate to 10K chars for audit purposes — full input is reconstructable
+        // from the case documents. Do not remove this truncation.
         tokenizedInput: tokenizedText.substring(0, 10000),
         tokenizedOutput: response.content,
         detokenizedOutput: detokenized,

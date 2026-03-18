@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { Brain, CheckCircle2, AlertTriangle, FileText } from "lucide-react"
 import Link from "next/link"
+import { TASK_TYPE_LABELS } from "@/types"
 
 const CASE_TYPES = [
   "OIC", "IA", "PENALTY", "INNOCENT_SPOUSE", "CNC", "TFRP",
@@ -168,7 +169,7 @@ export function ReviewQueue({ tasks }: ReviewQueueProps) {
                 <div className="flex items-center gap-4">
                   <Brain className="h-5 w-5 text-primary" />
                   <div>
-                    <p className="font-medium">{task.taskType.replace(/_/g, " ")}</p>
+                    <p className="font-medium">{TASK_TYPE_LABELS[task.taskType as keyof typeof TASK_TYPE_LABELS] || task.taskType}</p>
                     <p className="text-sm text-muted-foreground">
                       {task.case.caseNumber} &middot; {task.case.clientName}
                     </p>

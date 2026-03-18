@@ -113,6 +113,8 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
           action,
           editedOutput: editing ? output : undefined,
           reviewNotes: action === "REJECT_REPROMPT" ? correctionNotes : reviewNotes,
+          reviewStartedAt,
+          flagsAcknowledged: allFlagsAcknowledged,
         }),
       })
 
@@ -182,7 +184,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                   >
                     {flag.type === "VERIFY" ? "[VERIFY]" : "[JUDGMENT]"}
                   </Badge>
-                  <p className="text-xs text-muted-foreground truncate">{flag.context}</p>
+                  <p className="text-xs text-muted-foreground break-words">{flag.context}</p>
                 </div>
               </label>
             ))}

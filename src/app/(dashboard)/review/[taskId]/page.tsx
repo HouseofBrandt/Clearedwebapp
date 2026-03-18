@@ -5,6 +5,7 @@ import { TaskReview } from "@/components/review/task-review"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { TASK_TYPE_LABELS } from "@/types"
 
 export default async function ReviewTaskPage({
   params,
@@ -46,7 +47,7 @@ export default async function ReviewTaskPage({
         </Link>
         <div>
           <h1 className="text-2xl font-bold">
-            {task.taskType.replace(/_/g, " ")}
+            {TASK_TYPE_LABELS[task.taskType as keyof typeof TASK_TYPE_LABELS] || task.taskType}
           </h1>
           <p className="text-muted-foreground">
             {task.case.caseNumber} &middot; {task.case.clientName}
