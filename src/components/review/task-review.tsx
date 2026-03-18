@@ -69,9 +69,9 @@ export function TaskReview({ task }: TaskReviewProps) {
     }
   }
 
-  function handleExport() {
-    const format = isSpreadsheet ? "xlsx" : "txt"
-    window.open(`/api/ai/tasks/${task.id}/export?format=${format}`, "_blank")
+  function handleExport(format?: string) {
+    const fmt = format || (isSpreadsheet ? "xlsx" : "docx")
+    window.open(`/api/ai/tasks/${task.id}/export?format=${fmt}`, "_blank")
   }
 
   return (
@@ -97,10 +97,16 @@ export function TaskReview({ task }: TaskReviewProps) {
                   {task.judgmentFlagCount} [JUDGMENT]
                 </Badge>
               )}
-              <Button variant="outline" size="sm" onClick={handleExport}>
+              <Button variant="outline" size="sm" onClick={() => handleExport()}>
                 <Download className="mr-2 h-3 w-3" />
-                Export {isSpreadsheet ? ".xlsx" : ".txt"}
+                Export {isSpreadsheet ? ".xlsx" : ".docx"}
               </Button>
+              {isSpreadsheet && (
+                <Button variant="outline" size="sm" onClick={() => handleExport("docx")}>
+                  <Download className="mr-2 h-3 w-3" />
+                  Export .docx
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
