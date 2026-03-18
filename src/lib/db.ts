@@ -1,33 +1,26 @@
+import { Pool, neonConfig } from "@neondatabase/serverless"
+import { PrismaNeon } from "@prisma/adapter-neon"
 import { PrismaClient } from "@prisma/client"
+
+// In Node.js environments (local dev), use the ws package for WebSockets
+// In serverless environments (Vercel), the built-in WebSocket is available
+if (typeof globalThis.WebSocket === "undefined") {
+  import("ws").then((ws) => {
+    neonConfig.webSocketConstructor = ws.default
+  })
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
 function createPrismaClient() {
-  const isNeon = (process.env.DATABASE_URL || "").includes("neon.tech")
+  const connectionString = process.env.DATABASE_URL!
+  const pool = new Pool({ connectionString })
+  const adapter = new PrismaNeon(pool)
 
-  if (isNeon) {
-    // Use Neon serverless adapter for cloud deployments
-    const { Pool, neonConfig } = require("@neondatabase/serverless")
-    const { PrismaNeon } = require("@prisma/adapter-neon")
-
-    if (typeof globalThis.WebSocket === "undefined") {
-      const ws = require("ws")
-      neonConfig.webSocketConstructor = ws.default || ws
-    }
-
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-    const adapter = new PrismaNeon(pool)
-
-    return new PrismaClient({
-      adapter,
-      log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    })
-  }
-
-  // Standard Prisma client for local PostgreSQL
   return new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   })
 }
