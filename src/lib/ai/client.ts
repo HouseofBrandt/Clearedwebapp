@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
+  timeout: 120_000, // 2 minute timeout per request
 })
 
 interface AIRequestOptions {
