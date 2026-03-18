@@ -20,6 +20,14 @@ interface AIResponse {
   outputTokens: number
 }
 
+const MAX_RETRIES = 3
+const RETRY_DELAYS = [2000, 4000, 8000]
+
+function isRetryableError(error: any): boolean {
+  const status = error?.status
+  return status === 429 || status === 529 || (status >= 500 && status < 600)
+}
+
 export async function callClaude({
   systemPrompt,
   userMessage,
@@ -29,29 +37,10 @@ export async function callClaude({
 }: AIRequestOptions): Promise<AIResponse> {
   const requestId = crypto.randomUUID()
 
-  try {
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: maxTokens,
-      temperature,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    })
+  let lastError: any = null
 
-    const textContent = response.content.find((c) => c.type === "text")
-    const content = textContent ? textContent.text : ""
-
-    return {
-      content,
-      model: response.model,
-      requestId,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    }
-  } catch (error: any) {
-    // Retry once on transient errors
-    if (error?.status === 429 || error?.status === 529 || error?.status >= 500) {
-      await new Promise((r) => setTimeout(r, 2000))
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
       const response = await anthropic.messages.create({
         model,
         max_tokens: maxTokens,
@@ -70,7 +59,17 @@ export async function callClaude({
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
       }
+    } catch (error: any) {
+      lastError = error
+
+      if (attempt < MAX_RETRIES && isRetryableError(error)) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]))
+        continue
+      }
+
+      throw error
     }
-    throw error
   }
+
+  throw lastError
 }
