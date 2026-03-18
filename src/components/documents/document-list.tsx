@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/table"
 import { useToast } from "@/components/ui/toast"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   FileText,
   Image as ImageIcon,
   FileSpreadsheet,
@@ -41,6 +48,18 @@ interface DocumentListProps {
 export function DocumentList({ documents }: DocumentListProps) {
   const router = useRouter()
   const { addToast } = useToast()
+
+  async function handleCategoryChange(docId: string, newCategory: string) {
+    const res = await fetch(`/api/documents/${docId}/update`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentCategory: newCategory }),
+    })
+    if (res.ok) {
+      addToast({ title: "Category updated" })
+      router.refresh()
+    }
+  }
 
   async function handleDelete(docId: string, fileName: string) {
     if (!confirm(`Delete ${fileName}?`)) return
@@ -108,9 +127,17 @@ export function DocumentList({ documents }: DocumentListProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">
-                      {DOCUMENT_CATEGORY_LABELS[doc.documentCategory] || doc.documentCategory}
-                    </Badge>
+                    <Select value={doc.documentCategory}
+                      onValueChange={(v) => handleCategoryChange(doc.id, v)}>
+                      <SelectTrigger className="h-7 w-[140px] text-xs border-0 bg-transparent hover:bg-muted/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([val, label]) => (
+                          <SelectItem key={val} value={val}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell>
                     {doc.extractedText && doc.extractedText.trim().length > 0 ? (
@@ -121,9 +148,9 @@ export function DocumentList({ documents }: DocumentListProps) {
                         </span>
                       </div>
                     ) : doc.fileType === "IMAGE" ? (
-                      <div className="flex items-center gap-1.5 text-amber-600" title="Image files require OCR processing which is not yet configured">
+                      <div className="flex items-center gap-1.5 text-amber-600" title="OCR did not find readable text in this image">
                         <AlertTriangle className="h-3.5 w-3.5" />
-                        <span className="text-xs">OCR not configured</span>
+                        <span className="text-xs">No text found (OCR)</span>
                       </div>
                     ) : doc.fileType === "PDF" ? (
                       <div className="flex items-center gap-1.5 text-amber-600" title="This PDF appears to be scanned (image-only). Searchable PDFs extract text automatically.">

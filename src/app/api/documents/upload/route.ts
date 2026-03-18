@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
 import { extractWithDetails } from "@/lib/documents/extract"
 import { populateFromTranscript } from "@/lib/documents/liability"
+import { autoDetectCategory } from "@/lib/documents/auto-category"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -82,7 +83,6 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get("file") as File | null
     const caseId = formData.get("caseId") as string | null
-    const documentCategory = (formData.get("documentCategory") as string) || "OTHER"
 
     if (!file || !caseId) {
       return NextResponse.json(
@@ -90,6 +90,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const userCat = (formData.get("documentCategory") as string) || "OTHER"
+    const documentCategory = userCat === "OTHER" ? autoDetectCategory(file.name) : userCat
 
     // Verify case exists
     const caseExists = await prisma.case.findUnique({ where: { id: caseId } })

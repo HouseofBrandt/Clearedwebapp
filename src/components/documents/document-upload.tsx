@@ -14,6 +14,7 @@ import {
 import { useToast } from "@/components/ui/toast"
 import { Upload, FileUp, X } from "lucide-react"
 import { DOCUMENT_CATEGORY_LABELS } from "@/types"
+import { autoDetectCategory } from "@/lib/documents/auto-category"
 
 interface DocumentUploadProps {
   caseId: string
@@ -21,27 +22,33 @@ interface DocumentUploadProps {
 
 export function DocumentUpload({ caseId }: DocumentUploadProps) {
   const [files, setFiles] = useState<File[]>([])
-  const [category, setCategory] = useState("OTHER")
+  const [fileCategories, setFileCategories] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
+  const addFiles = useCallback((newFiles: File[]) => {
+    const newCats = newFiles.map((f) => autoDetectCategory(f.name))
+    setFiles((prev) => [...prev, ...newFiles])
+    setFileCategories((prev) => [...prev, ...newCats])
+  }, [])
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    setFiles((prev) => [...prev, ...droppedFiles])
-  }, [])
+    addFiles(Array.from(e.dataTransfer.files))
+  }, [addFiles])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFiles((prev) => [...prev, ...Array.from(e.target.files!)])
+      addFiles(Array.from(e.target.files))
     }
   }
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index))
+    setFileCategories((prev) => prev.filter((_, i) => i !== index))
   }
 
   async function handleUpload() {
@@ -52,11 +59,12 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
       let extractedCount = 0
       let failedFiles: { name: string; reason: string }[] = []
 
-      for (const file of files) {
+      for (let idx = 0; idx < files.length; idx++) {
+        const file = files[idx]
         const formData = new FormData()
         formData.append("file", file)
         formData.append("caseId", caseId)
-        formData.append("documentCategory", category)
+        formData.append("documentCategory", fileCategories[idx] || "OTHER")
 
         const res = await fetch("/api/documents/upload", {
           method: "POST",
@@ -98,6 +106,7 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
         })
       }
       setFiles([])
+      setFileCategories([])
       router.refresh()
     } catch (error) {
       addToast({
@@ -144,36 +153,38 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
           <div className="mt-4 space-y-3">
             <div className="space-y-2">
               {files.map((file, i) => (
-                <div key={i} className="flex items-center justify-between rounded-md border px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    <FileUp className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{file.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({(file.size / 1024).toFixed(1)} KB)
-                    </span>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeFile(i)}>
-                    <X className="h-4 w-4" />
+                <div key={i} className="flex items-center gap-2 border rounded-md px-3 py-2">
+                  <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm truncate flex-1">{file.name}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {(file.size / 1024).toFixed(0)} KB
+                  </span>
+                  <Select value={fileCategories[i] || "OTHER"}
+                    onValueChange={(v) => {
+                      const updated = [...fileCategories]
+                      updated[i] = v
+                      setFileCategories(updated)
+                    }}>
+                    <SelectTrigger className="w-[150px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([val, label]) => (
+                        <SelectItem key={val} value={val}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+                    onClick={() => removeFile(i)}>
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center gap-3">
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([val, label]) => (
-                    <SelectItem key={val} value={val}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button onClick={handleUpload} disabled={uploading}>
-                {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}
-              </Button>
-            </div>
+            <Button onClick={handleUpload} disabled={uploading}>
+              {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}
+            </Button>
           </div>
         )}
       </CardContent>

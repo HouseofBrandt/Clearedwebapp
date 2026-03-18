@@ -10,6 +10,7 @@ import {
   Settings,
   Shield,
 } from "lucide-react"
+import { ROLE_LABELS } from "@/types"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -19,7 +20,7 @@ const navigation = [
 ]
 
 interface SidebarProps {
-  user: { name?: string | null; role: string }
+  user: { name?: string | null; role?: string }
   pendingReviewCount?: number
 }
 
@@ -39,6 +40,7 @@ export function SidebarContent({ user, pendingReviewCount, onLinkClick }: Sideba
             <Link
               key={item.name}
               href={item.href}
+              title={item.name}
               onClick={onLinkClick}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
@@ -65,7 +67,7 @@ export function SidebarContent({ user, pendingReviewCount, onLinkClick }: Sideba
           </div>
           <div className="flex-1 truncate">
             <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground">{user.role}</p>
+            <p className="text-xs text-muted-foreground">{ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] || user.role}</p>
           </div>
         </div>
       </div>
