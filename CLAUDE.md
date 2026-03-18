@@ -20,9 +20,13 @@ Cleared is an internal web application for a tax resolution firm. Licensed pract
 - **AI Integration**: Anthropic Claude API (claude-sonnet-4-6 primary, claude-opus-4-6 for complex analysis)
 - **Document Processing**: pdf-parse for PDFs, Tesseract.js for OCR, mammoth for .docx
 - **Spreadsheet Generation**: ExcelJS for .xlsx output
-- **Document Generation**: docx (npm) for .docx output
+- **Document Generation**: docx (npm) for .docx output, marked for markdown AST parsing
 - **Rich Text Editor**: TipTap for in-browser editing of memos and letters
 - **Spreadsheet Editor**: Handsontable (or AG Grid Community) for in-browser spreadsheet editing
+
+## Document Export Standard
+
+All exported documents (.docx, .pdf) must use **Times New Roman** as the only font. This applies to headings, body text, tables, headers, footers, and all other elements. This is a firm-wide standard for all Cleared documents.
 
 ## Architecture Principles
 

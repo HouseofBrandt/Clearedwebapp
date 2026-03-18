@@ -478,9 +478,22 @@ When a practitioner approves OIC or IA working papers, the system can export to 
 #### 8.2 Letters & Memos → Word (.docx)
 
 When a practitioner approves a letter or memo in TipTap:
-- Export to Word with proper formatting (headings, paragraphs, lists)
-- Cleared letterhead template applied automatically
-- Generated using the docx npm package
+- AI markdown response is parsed to an AST (using `marked`), then each node is rendered as proper Word elements
+- Headings → Word heading styles (H1: navy 16pt, H2: blue accent 13pt, H3: dark gray 11pt)
+- **bold**, *italic*, `code` → proper Word inline formatting
+- Markdown tables → real Word tables with navy header row, alternating row shading, borders
+- Blockquotes → shaded callout boxes (light blue background, left blue border)
+- Bullet and numbered lists → proper Word list formatting
+- `---` → styled horizontal rule (thin blue accent line)
+- [VERIFY] → yellow highlighted bold red text; [PRACTITIONER JUDGMENT] → orange highlighted text; [MISSING] → red highlighted text
+- [ ] checkboxes → Word checkbox characters (☐/☑)
+- Cover block: "CLEARED" header, case number, client name, date, "DRAFT — Requires Practitioner Review" stamp
+- Header on every page: "Cleared — [Case Number]"
+- Footer on every page: "Confidential — Page X"
+- Cleared color scheme: navy #1B2A4A headers, #2E75B6 accent
+- Generated using the `docx` npm package with `marked` for markdown AST parsing
+
+**Font requirement:** All exported documents (.docx, .pdf) must use Times New Roman as the only font. This applies to headings, body text, tables, headers, footers, and all other elements. This is a firm-wide standard.
 
 #### 8.3 Case Summary → PDF
 
