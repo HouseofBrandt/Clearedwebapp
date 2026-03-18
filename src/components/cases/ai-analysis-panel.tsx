@@ -29,9 +29,11 @@ interface AIAnalysisPanelProps {
   caseId: string
   caseType: string
   documentCount: number
+  documentsWithTextCount?: number
 }
 
-export function AIAnalysisPanel({ caseId, caseType, documentCount }: AIAnalysisPanelProps) {
+export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWithTextCount }: AIAnalysisPanelProps) {
+  const docsWithText = documentsWithTextCount ?? documentCount
   const [taskType, setTaskType] = useState(
     caseType === "OIC" ? "WORKING_PAPERS" :
     caseType === "PENALTY" ? "PENALTY_LETTER" :
@@ -125,8 +127,24 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount }: AIAnalysisP
           />
         </div>
 
+        {documentCount > 0 && docsWithText < documentCount && (
+          <div className="flex items-start gap-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+            <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-yellow-800">
+                {docsWithText === 0
+                  ? `None of your ${documentCount} document(s) have extractable text.`
+                  : `Only ${docsWithText} of ${documentCount} document(s) have extractable text.`}
+              </p>
+              <p className="text-yellow-700 mt-1">
+                Scanned PDFs and images cannot be read yet (OCR not configured). Upload searchable PDFs or text files for best results.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
-          <Button onClick={handleAnalyze} disabled={loading || documentCount === 0}>
+          <Button onClick={handleAnalyze} disabled={loading || docsWithText === 0}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -142,6 +160,11 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount }: AIAnalysisP
           {documentCount === 0 && (
             <p className="text-sm text-muted-foreground">
               Upload documents first
+            </p>
+          )}
+          {documentCount > 0 && docsWithText === 0 && (
+            <p className="text-sm text-destructive">
+              No documents with extractable text
             </p>
           )}
         </div>

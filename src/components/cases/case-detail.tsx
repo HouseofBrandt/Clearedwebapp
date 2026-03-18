@@ -243,6 +243,7 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
             caseId={caseData.id}
             caseType={caseData.caseType}
             documentCount={caseData.documents.length}
+            documentsWithTextCount={caseData.documents.filter((d: any) => d.extractedText && d.extractedText.trim().length > 0).length}
           />
           {caseData.aiTasks.length === 0 ? (
             <Card>
