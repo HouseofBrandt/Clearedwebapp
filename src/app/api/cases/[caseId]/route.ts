@@ -49,7 +49,7 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { clientName, caseType, status, notes, assignedPractitionerId } = body
+    const { clientName, caseType, status, notes, assignedPractitionerId, filingStatus, clientEmail, clientPhone, totalLiability } = body
 
     const updateData: any = {}
     if (clientName !== undefined) updateData.clientName = clientName
@@ -57,6 +57,10 @@ export async function PATCH(
     if (status !== undefined) updateData.status = status
     if (notes !== undefined) updateData.notes = notes
     if (assignedPractitionerId !== undefined) updateData.assignedPractitionerId = assignedPractitionerId
+    if (filingStatus !== undefined) updateData.filingStatus = filingStatus || null
+    if (clientEmail !== undefined) updateData.clientEmail = clientEmail || null
+    if (clientPhone !== undefined) updateData.clientPhone = clientPhone || null
+    if (totalLiability !== undefined) updateData.totalLiability = totalLiability != null ? totalLiability : null
 
     const updated = await prisma.case.update({
       where: { id: params.caseId },

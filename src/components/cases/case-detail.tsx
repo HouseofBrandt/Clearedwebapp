@@ -36,7 +36,7 @@ import {
   RotateCcw,
   FolderPlus,
 } from "lucide-react"
-import { CASE_TYPE_LABELS, CASE_STATUS_LABELS } from "@/types"
+import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS } from "@/types"
 
 function timeAgo(date: string | Date): string {
   const now = new Date()
@@ -106,6 +106,10 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
     status: caseData.status,
     notes: caseData.notes || "",
     assignedPractitionerId: caseData.assignedPractitionerId || "",
+    filingStatus: caseData.filingStatus || "",
+    clientEmail: caseData.clientEmail || "",
+    clientPhone: caseData.clientPhone || "",
+    totalLiability: caseData.totalLiability != null ? String(caseData.totalLiability) : "",
   })
   const router = useRouter()
   const { addToast } = useToast()
@@ -173,7 +177,13 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
       const res = await fetch(`/api/cases/${caseData.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          filingStatus: form.filingStatus || undefined,
+          clientEmail: form.clientEmail || undefined,
+          clientPhone: form.clientPhone || undefined,
+          totalLiability: form.totalLiability ? parseFloat(form.totalLiability) : undefined,
+        }),
       })
 
       if (!res.ok) throw new Error("Failed to update")
@@ -289,6 +299,66 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
                     <Badge className={statusColors[caseData.status] || ""} variant="secondary">
                       {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
                     </Badge>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Filing Status</Label>
+                  {editing ? (
+                    <Select value={form.filingStatus} onValueChange={(v) => setForm({ ...form, filingStatus: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select filing status" /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(FILING_STATUS_LABELS).map(([val, label]) => (
+                          <SelectItem key={val} value={val}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm">{caseData.filingStatus ? FILING_STATUS_LABELS[caseData.filingStatus as keyof typeof FILING_STATUS_LABELS] : "Not set"}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Client Email</Label>
+                  {editing ? (
+                    <Input
+                      type="email"
+                      value={form.clientEmail}
+                      onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
+                      placeholder="client@example.com"
+                    />
+                  ) : (
+                    <p className="text-sm">{caseData.clientEmail || "Not set"}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Client Phone</Label>
+                  {editing ? (
+                    <Input
+                      type="tel"
+                      value={form.clientPhone}
+                      onChange={(e) => setForm({ ...form, clientPhone: e.target.value })}
+                      placeholder="(555) 123-4567"
+                    />
+                  ) : (
+                    <p className="text-sm">{caseData.clientPhone || "Not set"}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Estimated Total Liability</Label>
+                  {editing ? (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={form.totalLiability}
+                      onChange={(e) => setForm({ ...form, totalLiability: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  ) : (
+                    <p className="text-sm">
+                      {caseData.totalLiability != null
+                        ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(caseData.totalLiability))
+                        : "Not set"}
+                    </p>
                   )}
                 </div>
               </CardContent>
