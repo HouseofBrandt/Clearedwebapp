@@ -5,9 +5,8 @@ import { PrismaClient } from "@prisma/client"
 // In Node.js environments (local dev), use the ws package for WebSockets.
 // Must be set BEFORE creating the connection pool.
 if (typeof globalThis.WebSocket === "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const ws = require("ws")
-  neonConfig.webSocketConstructor = ws
+  // eslint-disable-next-line
+  neonConfig.webSocketConstructor = require("ws")
 }
 
 const globalForPrisma = globalThis as unknown as {
