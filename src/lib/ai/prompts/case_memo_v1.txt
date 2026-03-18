@@ -1,0 +1,47 @@
+You are drafting an internal case memorandum for a tax resolution practitioner. This memo summarizes the case status, key findings, and recommended next steps. Format as a professional internal memo.
+
+MEMO FORMAT:
+
+TO: Case File
+FROM: [Practitioner review required]
+RE: Case Analysis Memorandum
+DATE: [Current date]
+
+1. CASE OVERVIEW
+   - Client identification (use tokenized names)
+   - Case type and tax periods at issue
+   - Current case status and IRS collection stage
+   - How the client came to the firm
+
+2. FACTS AND FINDINGS
+   - Summary of key facts from documents reviewed
+   - Financial snapshot (income, assets, liabilities)
+   - Compliance status — are all returns filed? [VERIFY]
+   - Outstanding balances by tax period [VERIFY]
+   - CSED dates if applicable [VERIFY]
+
+3. ANALYSIS
+   - Primary issues identified
+   - Applicable IRC sections and IRS procedures
+   - Strengths of the case [PRACTITIONER JUDGMENT]
+   - Weaknesses or risks [PRACTITIONER JUDGMENT]
+   - Relevant precedent or IRM guidance
+
+4. RESOLUTION RECOMMENDATION [PRACTITIONER JUDGMENT]
+   - Recommended resolution path (OIC, IA, CNC, penalty abatement, etc.)
+   - Rationale for recommendation
+   - Alternative options considered and why they were rejected
+   - Likelihood of success assessment
+
+5. ACTION ITEMS
+   - Immediate next steps (prioritized)
+   - Documents or information still needed from client
+   - IRS actions required (POA, transcripts, CDP requests, etc.)
+   - Internal deadlines and external statute dates [VERIFY]
+
+6. FLAGS
+   - Items requiring verification [VERIFY]
+   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+   - Time-sensitive matters or approaching deadlines
+
+Keep the tone professional but concise. Focus on actionable analysis rather than restating document contents. Flag any assumptions made due to missing information.

@@ -59,6 +59,10 @@ const VALID_TASK_TYPES = [
   "PENALTY_LETTER",
   "OIC_NARRATIVE",
   "GENERAL_ANALYSIS",
+  "IA_ANALYSIS",
+  "CNC_ANALYSIS",
+  "TFRP_ANALYSIS",
+  "INNOCENT_SPOUSE_ANALYSIS",
 ] as const
 
 const analyzeSchema = z.object({
@@ -69,17 +73,20 @@ const analyzeSchema = z.object({
   additionalContext: z.string().optional(),
 })
 
-// Template+extraction pipeline uses the extraction prompt
-// Narrative tasks use their original prompts
+// Each task type maps to its specific prompt file
 const TASK_TYPE_TO_PROMPT: Record<string, string> = {
-  WORKING_PAPERS: "oic_extraction_v1",  // NEW: extraction-only prompt
-  CASE_MEMO: "case_analysis_v1",
+  WORKING_PAPERS: "oic_extraction_v1",
+  CASE_MEMO: "case_memo_v1",
   PENALTY_LETTER: "penalty_abatement_v1",
   OIC_NARRATIVE: "oic_analysis_v1",
   GENERAL_ANALYSIS: "case_analysis_v1",
+  IA_ANALYSIS: "ia_analysis_v1",
+  CNC_ANALYSIS: "cnc_analysis_v1",
+  TFRP_ANALYSIS: "tfrp_analysis_v1",
+  INNOCENT_SPOUSE_ANALYSIS: "innocent_spouse_v1",
 }
 
-// Tasks that use the template+extraction pipeline
+// Tasks that use the template+extraction pipeline (structured JSON output)
 const TEMPLATE_TASKS = ["WORKING_PAPERS"]
 
 export async function POST(request: NextRequest) {
@@ -153,12 +160,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Guard against exceeding Claude's context window (~200k tokens ≈ ~600k chars)
-    const MAX_INPUT_CHARS = 400000
-    if (documentText.length > MAX_INPUT_CHARS) {
+    // Guard against exceeding Claude's context window
+    // Reserve ~50K chars for system prompt, user message overhead, and response tokens
+    const MAX_DOCUMENT_CHARS = 350000
+    if (documentText.length > MAX_DOCUMENT_CHARS) {
       return NextResponse.json(
         {
-          error: `Document text is too large (${(documentText.length / 1000).toFixed(0)}K chars, max ${MAX_INPUT_CHARS / 1000}K). Try uploading fewer documents or splitting into multiple cases.`,
+          error: `Document text is too large (${(documentText.length / 1000).toFixed(0)}K chars, max ${MAX_DOCUMENT_CHARS / 1000}K). Try uploading fewer documents or splitting into multiple cases.`,
         },
         { status: 413 }
       )
@@ -177,7 +185,7 @@ export async function POST(request: NextRequest) {
 
     // Tokenize PII — tokenize documents and context SEPARATELY to avoid
     // substring miscalculation (tokenization changes text length)
-    const knownNames = [caseData.clientName]
+    const knownNames = [caseData.clientName].filter(Boolean) as string[]
     const { tokenizedText: tokenizedDocText, tokenMap: docTokenMap } =
       tokenizeText(documentText, knownNames)
 
@@ -349,10 +357,22 @@ export async function POST(request: NextRequest) {
         merged: merged,
       })
 
-      // Count flags from validation
-      verifyFlags = merged.validationIssues.filter(i => i.severity === "warning").length +
-        (detokenizedData.verify_flags?.length || 0)
-      judgmentFlags = (detokenizedData.practitioner_judgment_items?.length || 0)
+      // Count flags from multiple sources:
+      // 1. Validation issues from template merge
+      // 2. Explicit verify_flags array from extraction
+      // 3. [VERIFY] / [PRACTITIONER JUDGMENT] strings embedded in extracted values
+      const detokenizedStr = JSON.stringify(detokenizedData)
+      const embeddedVerify = (detokenizedStr.match(/\[VERIFY\]/g) || []).length
+      const embeddedJudgment = (detokenizedStr.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
+      verifyFlags = Math.max(
+        merged.validationIssues.filter(i => i.severity === "warning").length +
+          (detokenizedData.verify_flags?.length || 0),
+        embeddedVerify,
+      )
+      judgmentFlags = Math.max(
+        detokenizedData.practitioner_judgment_items?.length || 0,
+        embeddedJudgment,
+      )
 
     } else {
       // --- NARRATIVE PIPELINE (unchanged) ---

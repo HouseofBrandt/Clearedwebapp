@@ -30,6 +30,14 @@ export async function GET(
     return NextResponse.json({ error: "Task not found" }, { status: 404 })
   }
 
+  const SPREADSHEET_TASKS = ["WORKING_PAPERS", "OIC_NARRATIVE"]
+  if (!SPREADSHEET_TASKS.includes(task.taskType)) {
+    return NextResponse.json(
+      { error: `Task type "${task.taskType}" does not support spreadsheet view. Use the document viewer instead.` },
+      { status: 400 }
+    )
+  }
+
   if (!task.detokenizedOutput) {
     return NextResponse.json(
       { error: "No detokenized output available. Re-run analysis to generate viewable output." },

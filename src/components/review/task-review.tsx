@@ -25,7 +25,10 @@ interface TaskReviewProps {
 }
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS", "OIC_NARRATIVE"]
-const MEMO_TASKS = ["CASE_MEMO", "PENALTY_LETTER", "GENERAL_ANALYSIS"]
+const MEMO_TASKS = [
+  "CASE_MEMO", "PENALTY_LETTER", "GENERAL_ANALYSIS",
+  "IA_ANALYSIS", "CNC_ANALYSIS", "TFRP_ANALYSIS", "INNOCENT_SPOUSE_ANALYSIS",
+]
 
 export function TaskReview({ task }: TaskReviewProps) {
   const [output, setOutput] = useState(task.detokenizedOutput || "")
