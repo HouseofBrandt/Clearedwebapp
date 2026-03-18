@@ -9,6 +9,49 @@ import { loadPrompt } from "@/lib/ai/prompts"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 import { z } from "zod"
 
+/**
+ * Extract a JSON object from an AI response that may contain
+ * preamble text, markdown fences, or trailing commentary.
+ */
+function extractJSON(text: string): Record<string, any> {
+  const raw = text.trim()
+
+  // Try 1: Direct parse (response is pure JSON)
+  try {
+    return JSON.parse(raw)
+  } catch { /* continue */ }
+
+  // Try 2: Strip markdown code fences
+  const fenceMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/)
+  if (fenceMatch) {
+    try {
+      return JSON.parse(fenceMatch[1].trim())
+    } catch { /* continue */ }
+  }
+
+  // Try 3: Find the first { and last } — extract the JSON object
+  const firstBrace = raw.indexOf("{")
+  const lastBrace = raw.lastIndexOf("}")
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const jsonCandidate = raw.substring(firstBrace, lastBrace + 1)
+    try {
+      return JSON.parse(jsonCandidate)
+    } catch { /* continue */ }
+
+    // Try 4: Fix common JSON issues (trailing commas, single quotes)
+    try {
+      const cleaned = jsonCandidate
+        .replace(/,\s*}/g, "}")       // trailing commas before }
+        .replace(/,\s*\]/g, "]")      // trailing commas before ]
+        .replace(/'/g, '"')           // single quotes to double
+        .replace(/(\w+)\s*:/g, '"$1":') // unquoted keys
+      return JSON.parse(cleaned)
+    } catch { /* continue */ }
+  }
+
+  throw new Error("Could not find valid JSON in AI response")
+}
+
 const VALID_TASK_TYPES = [
   "WORKING_PAPERS",
   "CASE_MEMO",
@@ -135,7 +178,7 @@ export async function POST(request: NextRequest) {
     const model = isTemplateTask
       ? "claude-sonnet-4-6"   // Extraction is simpler — sonnet is reliable and cheaper
       : taskType === "OIC_NARRATIVE" ? "claude-opus-4-6" : "claude-sonnet-4-6"
-    const maxTokens = isTemplateTask ? 4096 : 8192
+    const maxTokens = isTemplateTask ? 8192 : 8192
     const temperature = isTemplateTask ? 0.1 : 0.2  // Lower temp for structured extraction
 
     // Call Claude API
@@ -156,16 +199,49 @@ export async function POST(request: NextRequest) {
       // Parse the JSON extraction response
       let extractedData: Record<string, any>
       try {
-        // Strip markdown code fences if present
-        let jsonStr = response.content.trim()
-        if (jsonStr.startsWith("```")) {
-          jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "")
-        }
-        extractedData = JSON.parse(jsonStr)
-      } catch (parseError) {
-        console.error("Failed to parse extraction JSON:", parseError)
-        console.error("Raw response:", response.content.substring(0, 500))
-        throw new Error("AI returned invalid JSON for data extraction. Please try again.")
+        extractedData = extractJSON(response.content)
+      } catch (parseError: any) {
+        console.error("Failed to parse extraction JSON:", parseError.message)
+        console.error("Raw response (first 1000 chars):", response.content.substring(0, 1000))
+
+        // Fall back to narrative pipeline — store the raw text instead of failing
+        detokenized = detokenizeText(response.content, tokenMap)
+        verifyFlags = (response.content.match(/\[VERIFY\]/g) || []).length
+        judgmentFlags = (response.content.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
+
+        await prisma.aITask.update({
+          where: { id: aiTask.id },
+          data: {
+            status: "READY_FOR_REVIEW",
+            tokenizedInput: tokenizedText.substring(0, 10000),
+            tokenizedOutput: response.content,
+            detokenizedOutput: detokenized,
+            modelUsed: response.model,
+            temperature,
+            systemPromptVersion: promptName,
+            verifyFlagCount: verifyFlags,
+            judgmentFlagCount: judgmentFlags,
+          },
+        })
+
+        await logAIRequest({
+          aiTaskId: aiTask.id,
+          practitionerId: (session.user as any).id,
+          caseId,
+          model: response.model,
+          requestId: response.requestId,
+          systemPromptVersion: promptName,
+          inputTokens: response.inputTokens,
+          outputTokens: response.outputTokens,
+        })
+
+        return NextResponse.json({
+          taskId: aiTask.id,
+          status: "READY_FOR_REVIEW",
+          verifyFlagCount: verifyFlags,
+          judgmentFlagCount: judgmentFlags,
+          warning: "AI did not return structured data. Output saved as narrative text for review.",
+        })
       }
 
       // Detokenize extracted string values
