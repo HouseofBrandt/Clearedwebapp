@@ -493,7 +493,7 @@ When a practitioner approves a letter or memo in TipTap:
 - Cleared color scheme: navy #1B2A4A headers, #2E75B6 accent
 - Generated using the `docx` npm package with `marked` for markdown AST parsing
 
-**Font requirement:** All exported documents (.docx, .pdf) must use Times New Roman as the only font. This applies to headings, body text, tables, headers, footers, and all other elements. This is a firm-wide standard.
+**Font requirement:** All exported documents (.docx, .xlsx, .pdf) must use Times New Roman as the only font throughout. This applies to headings, body text, tables, headers, footers, cover sheets, and all other elements. No other fonts.
 
 #### 8.3 Case Summary → PDF
 

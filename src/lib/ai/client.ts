@@ -2,7 +2,6 @@ import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
-  timeout: 120_000, // 2 minute timeout per request
 })
 
 interface AIRequestOptions {
@@ -25,6 +24,10 @@ const MAX_RETRIES = 3
 const RETRY_DELAYS = [2000, 4000, 8000]
 
 function isRetryableError(error: any): boolean {
+  // Don't retry timeouts — if a request timed out once, retrying wastes minutes
+  if (error?.name === "AbortError" || error?.code === "ETIMEDOUT" || error?.message?.includes("timed out")) {
+    return false
+  }
   const status = error?.status
   return status === 429 || status === 529 || (status >= 500 && status < 600)
 }
@@ -37,18 +40,23 @@ export async function callClaude({
   maxTokens = 4096,
 }: AIRequestOptions): Promise<AIResponse> {
   const requestId = crypto.randomUUID()
+  // Scale timeout with max_tokens: ~1.5s per 100 output tokens, minimum 120s
+  const timeoutMs = Math.max(120_000, Math.ceil(maxTokens / 100) * 1500)
 
   let lastError: any = null
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await anthropic.messages.create({
-        model,
-        max_tokens: maxTokens,
-        temperature,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMessage }],
-      })
+      const response = await anthropic.messages.create(
+        {
+          model,
+          max_tokens: maxTokens,
+          temperature,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userMessage }],
+        },
+        { timeout: timeoutMs },
+      )
 
       const textContent = response.content.find((c) => c.type === "text")
       const content = textContent ? textContent.text : ""

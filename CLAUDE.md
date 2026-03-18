@@ -26,7 +26,7 @@ Cleared is an internal web application for a tax resolution firm. Licensed pract
 
 ## Document Export Standard
 
-All exported documents (.docx, .pdf) must use **Times New Roman** as the only font. This applies to headings, body text, tables, headers, footers, and all other elements. This is a firm-wide standard for all Cleared documents.
+All exported documents (.docx, .xlsx, .pdf) must use **Times New Roman** as the only font throughout. This applies to headings, body text, tables, headers, footers, cover sheets, and all other elements. No other fonts.
 
 ## Architecture Principles
 
