@@ -20,6 +20,9 @@ import {
   File,
   Download,
   Trash2,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react"
 import { DOCUMENT_CATEGORY_LABELS } from "@/types"
 
@@ -66,10 +69,19 @@ export function DocumentList({ documents }: DocumentListProps) {
     )
   }
 
+  const docsWithText = documents.filter(
+    (d) => d.extractedText && d.extractedText.trim().length > 0
+  ).length
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Documents ({documents.length})</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Documents ({documents.length})</CardTitle>
+          <span className="text-sm text-muted-foreground">
+            {docsWithText}/{documents.length} ready for AI analysis
+          </span>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -77,6 +89,7 @@ export function DocumentList({ documents }: DocumentListProps) {
             <TableRow>
               <TableHead>File</TableHead>
               <TableHead>Category</TableHead>
+              <TableHead>Text Extracted</TableHead>
               <TableHead>Size</TableHead>
               <TableHead>Uploaded By</TableHead>
               <TableHead>Date</TableHead>
@@ -98,6 +111,26 @@ export function DocumentList({ documents }: DocumentListProps) {
                     <Badge variant="outline">
                       {DOCUMENT_CATEGORY_LABELS[doc.documentCategory] || doc.documentCategory}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {doc.extractedText && doc.extractedText.trim().length > 0 ? (
+                      <div className="flex items-center gap-1.5 text-green-600">
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        <span className="text-xs">
+                          {doc.extractedText.trim().length.toLocaleString()} chars
+                        </span>
+                      </div>
+                    ) : doc.fileType === "IMAGE" ? (
+                      <div className="flex items-center gap-1.5 text-yellow-600">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span className="text-xs">Needs OCR</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-red-500">
+                        <XCircle className="h-3.5 w-3.5" />
+                        <span className="text-xs">No text</span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm">
                     {(doc.fileSize / 1024).toFixed(1)} KB
