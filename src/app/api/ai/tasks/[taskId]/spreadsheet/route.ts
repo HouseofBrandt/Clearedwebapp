@@ -30,10 +30,13 @@ export async function GET(
     return NextResponse.json({ error: "Task not found" }, { status: 404 })
   }
 
-  const output = task.detokenizedOutput || task.tokenizedOutput || ""
-  if (!output) {
-    return NextResponse.json({ error: "No output to parse" }, { status: 400 })
+  if (!task.detokenizedOutput) {
+    return NextResponse.json(
+      { error: "No detokenized output available. Re-run analysis to generate viewable output." },
+      { status: 400 }
+    )
   }
+  const output = task.detokenizedOutput
 
   // Try new template format first
   try {
