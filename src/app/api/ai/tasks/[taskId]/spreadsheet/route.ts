@@ -3,10 +3,15 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { parseOICOutput, oicToSpreadsheetData } from "@/lib/ai/parsers/oic-parser"
+import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 
 /**
  * Returns the parsed OIC working paper data as JSON
  * for the in-browser spreadsheet editor.
+ *
+ * Supports both:
+ * - New template+extraction format (JSON with _type field)
+ * - Legacy free-text format (parsed with oic-parser)
  */
 export async function GET(
   request: NextRequest,
@@ -30,6 +35,22 @@ export async function GET(
     return NextResponse.json({ error: "No output to parse" }, { status: 400 })
   }
 
+  // Try new template format first
+  try {
+    const parsed = JSON.parse(output)
+    if (parsed._type === "oic_working_papers_v1" && parsed.merged) {
+      return NextResponse.json({
+        tabs: mergedToSpreadsheetData(parsed.merged),
+        rawText: output,
+        validationIssues: parsed.merged.validationIssues || [],
+        summary: parsed.merged.summary || {},
+      })
+    }
+  } catch {
+    // Not JSON — fall through to legacy parser
+  }
+
+  // Legacy: parse free-text output
   const parsed = parseOICOutput(output)
   const tabs = oicToSpreadsheetData(parsed)
 
