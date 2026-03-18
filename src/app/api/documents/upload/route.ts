@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
-import { extractTextFromDocument } from "@/lib/documents/extract"
+import { extractTextFromBuffer } from "@/lib/documents/extract"
 
 function getFileType(mimeType: string, fileName: string): string {
   if (mimeType === "application/pdf" || fileName.endsWith(".pdf")) return "PDF"
@@ -47,10 +47,10 @@ export async function POST(request: NextRequest) {
 
     const fileType = getFileType(file.type, file.name)
 
-    // Extract text from document
+    // Extract text directly from the uploaded buffer (no S3 round-trip)
     let extractedText: string | null = null
     try {
-      extractedText = await extractTextFromDocument(s3Key, fileType)
+      extractedText = await extractTextFromBuffer(buffer, fileType)
       if (extractedText && !extractedText.trim()) {
         extractedText = null
       }
