@@ -33,10 +33,13 @@ export async function GET(
     return NextResponse.json({ error: "Task is not ready for export" }, { status: 400 })
   }
 
-  const output = task.detokenizedOutput || task.tokenizedOutput || ""
-  if (!output) {
-    return NextResponse.json({ error: "No output to export" }, { status: 400 })
+  if (!task.detokenizedOutput) {
+    return NextResponse.json(
+      { error: "No detokenized output available. Re-run analysis to generate exportable output." },
+      { status: 400 }
+    )
   }
+  const output = task.detokenizedOutput
 
   const format = request.nextUrl.searchParams.get("format") || "xlsx"
 

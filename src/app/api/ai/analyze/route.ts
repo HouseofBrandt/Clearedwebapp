@@ -7,6 +7,7 @@ import { tokenizeText, encryptTokenMap, detokenizeText } from "@/lib/ai/tokenize
 import { logAIRequest } from "@/lib/ai/audit"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
+import { OIC_TEMPLATE, getExtractionKeys } from "@/lib/templates/oic-working-papers"
 import { z } from "zod"
 
 /**
@@ -118,6 +119,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
 
+    // Rate limit: max 3 requests per case per 5 minutes
+    const recentTasks = await prisma.aITask.count({
+      where: { caseId, createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } },
+    })
+    if (recentTasks >= 3) {
+      return NextResponse.json(
+        { error: "Too many analysis requests for this case. Please wait a few minutes before trying again." },
+        { status: 429 }
+      )
+    }
+
     // Log document extraction status for debugging
     const totalDocs = await prisma.document.count({ where: { caseId } })
     const docsWithText = caseData.documents.length
@@ -127,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     const documentText = caseData.documents
-      .map((d) => `--- ${d.fileName} (${d.documentCategory}) ---\n${d.extractedText}`)
+      .map((d) => `--- ${d.fileName} [${d.documentCategory}] ---\n${d.extractedText}`)
       .join("\n\n")
 
     if (!documentText.trim()) {
@@ -138,6 +150,17 @@ export async function POST(request: NextRequest) {
           documentsWithText: docsWithText,
         },
         { status: 400 }
+      )
+    }
+
+    // Guard against exceeding Claude's context window (~200k tokens ≈ ~600k chars)
+    const MAX_INPUT_CHARS = 400000
+    if (documentText.length > MAX_INPUT_CHARS) {
+      return NextResponse.json(
+        {
+          error: `Document text is too large (${(documentText.length / 1000).toFixed(0)}K chars, max ${MAX_INPUT_CHARS / 1000}K). Try uploading fewer documents or splitting into multiple cases.`,
+        },
+        { status: 413 }
       )
     }
 
@@ -231,6 +254,17 @@ export async function POST(request: NextRequest) {
         const nullKeys = keys.filter(k => extractedData[k] == null)
         if (nullKeys.length > 0) {
           console.log(`[AI Analyze] Null keys: ${nullKeys.join(", ")}`)
+        }
+
+        // Validate extracted keys against template expectations
+        const expectedKeys = getExtractionKeys(OIC_TEMPLATE)
+        const missingFromExtraction = expectedKeys.filter(k => !(k in extractedData))
+        const extraKeys = keys.filter(k => !expectedKeys.includes(k))
+        if (missingFromExtraction.length > 0) {
+          console.warn(`[AI Analyze] Keys expected by template but missing from extraction: ${missingFromExtraction.join(", ")}`)
+        }
+        if (extraKeys.length > 0) {
+          console.log(`[AI Analyze] Extra keys from AI (not in template): ${extraKeys.join(", ")}`)
         }
       } catch (parseError: any) {
         console.error("[AI Analyze] FAILED to parse extraction JSON:", parseError.message)

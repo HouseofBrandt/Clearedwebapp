@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get("file") as File | null
     const caseId = formData.get("caseId") as string | null
-    const category = (formData.get("category") as string) || "OTHER"
+    const category = (formData.get("documentCategory") as string) || (formData.get("category") as string) || "OTHER"
 
     if (!file || !caseId) {
       return NextResponse.json({ error: "File and caseId are required" }, { status: 400 })

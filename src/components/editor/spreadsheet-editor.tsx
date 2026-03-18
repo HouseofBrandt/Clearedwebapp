@@ -20,19 +20,33 @@ interface SpreadsheetEditorProps {
   onDataChange?: (tabs: SpreadsheetTab[]) => void
 }
 
+interface ValidationIssue {
+  key: string
+  label: string
+  issue: string
+  severity: "error" | "warning" | "info"
+}
+
 export function SpreadsheetEditor({ taskId, editable, onDataChange }: SpreadsheetEditorProps) {
   const [tabs, setTabs] = useState<SpreadsheetTab[]>([])
   const [activeTab, setActiveTab] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
+  const [summary, setSummary] = useState<Record<string, number>>({})
 
   useEffect(() => {
     async function fetchData() {
       try {
         const res = await fetch(`/api/ai/tasks/${taskId}/spreadsheet`)
-        if (!res.ok) throw new Error("Failed to load spreadsheet data")
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: "Failed to load" }))
+          throw new Error(errData.error || "Failed to load spreadsheet data")
+        }
         const data = await res.json()
         setTabs(data.tabs)
+        if (data.validationIssues) setValidationIssues(data.validationIssues)
+        if (data.summary) setSummary(data.summary)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -114,6 +128,33 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
             Export .xlsx
           </Button>
         </div>
+
+        {/* Validation issues */}
+        {validationIssues.length > 0 && (
+          <div className="space-y-1 rounded-lg border p-3 bg-muted/30">
+            <p className="text-sm font-medium">
+              {validationIssues.filter(i => i.severity === "error").length > 0
+                ? "Issues found in extracted data:"
+                : "Notes on extracted data:"}
+            </p>
+            {validationIssues.map((issue, i) => (
+              <div key={i} className={`flex items-start gap-2 text-xs ${
+                issue.severity === "error" ? "text-red-600" :
+                issue.severity === "warning" ? "text-yellow-700" :
+                "text-muted-foreground"
+              }`}>
+                {issue.severity === "error" ? (
+                  <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                ) : issue.severity === "warning" ? (
+                  <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                ) : (
+                  <FileText className="h-3 w-3 mt-0.5 shrink-0" />
+                )}
+                <span><strong>{issue.label}:</strong> {issue.issue}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Tab navigation */}
         <div className="flex flex-wrap gap-1 border-b pt-2">
