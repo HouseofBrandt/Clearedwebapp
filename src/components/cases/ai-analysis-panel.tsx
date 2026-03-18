@@ -56,10 +56,12 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
   const [model, setModel] = useState<string>("claude-sonnet-4-6")
   const [additionalContext, setAdditionalContext] = useState("")
   const [loading, setLoading] = useState(false)
+  const [statusPhase, setStatusPhase] = useState("")
   const [result, setResult] = useState<{
     taskId: string
     verifyFlagCount: number
     judgmentFlagCount: number
+    warning?: string
   } | null>(null)
   const router = useRouter()
   const { addToast } = useToast()
@@ -76,47 +78,62 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
 
     setLoading(true)
     setResult(null)
-    addToast({ title: "Analysis started", description: "This may take a few minutes..." })
+    setStatusPhase("Starting analysis...")
 
     try {
-      const controller = new AbortController()
-      // Working papers / OIC extraction can take longer due to large structured JSON output
-      const isHeavyTask = ["WORKING_PAPERS", "OIC_NARRATIVE"].includes(taskType)
-      const timeoutMs = isHeavyTask ? 300_000 : 150_000  // 5 min for heavy, 2.5 min for others
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
       const res = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ caseId, taskType, additionalContext, model }),
-        signal: controller.signal,
       })
 
-      clearTimeout(timeoutId)
-
       if (!res.ok) {
+        // Non-streaming error (validation, auth, rate limit)
         const err = await res.json()
         throw new Error(err.error || "Analysis failed")
       }
 
-      const data = await res.json()
-      setResult(data)
-      addToast({
-        title: "Analysis complete",
-        description: "AI output is ready for review.",
-      })
-      router.refresh()
+      // Read the streaming response
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n").filter(Boolean)
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line)
+            if (data.status === "processing") {
+              setStatusPhase(data.phase || "Processing...")
+            } else if (data.status === "complete") {
+              setResult(data)
+              addToast({
+                title: "Analysis complete",
+                description: data.warning || "AI output is ready for review.",
+              })
+              router.refresh()
+            } else if (data.status === "error") {
+              throw new Error(data.error || "Analysis failed")
+            }
+          } catch (parseError: any) {
+            // If it's a re-thrown error from inside, propagate it
+            if (parseError.message && parseError.message !== "Unexpected end of JSON input") {
+              throw parseError
+            }
+          }
+        }
+      }
     } catch (error: any) {
-      const isTimeout = error.name === "AbortError"
       addToast({
-        title: isTimeout ? "Analysis timed out" : "Analysis failed",
-        description: isTimeout
-          ? "The analysis took too long. Try with fewer documents or a simpler analysis type."
-          : error.message,
+        title: "Analysis failed",
+        description: error.message,
         variant: "destructive",
       })
     } finally {
       setLoading(false)
+      setStatusPhase("")
     }
   }
 
@@ -198,7 +215,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing...
+                {statusPhase || "Analyzing..."}
               </>
             ) : (
               <>

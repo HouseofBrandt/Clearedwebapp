@@ -32,6 +32,31 @@ function isRetryableError(error: any): boolean {
   return status === 429 || status === 529 || (status >= 500 && status < 600)
 }
 
+/**
+ * Streaming variant — returns a MessageStream that emits chunks as they arrive.
+ * Use this to keep HTTP connections alive past Vercel's 60s time-to-first-byte limit.
+ * The stream emits text_delta events; collect them to build the full response.
+ */
+export function callClaudeStream({
+  systemPrompt,
+  userMessage,
+  model = "claude-sonnet-4-6",
+  temperature = 0.2,
+  maxTokens = 4096,
+}: AIRequestOptions) {
+  const requestId = crypto.randomUUID()
+
+  const stream = anthropic.messages.stream({
+    model,
+    max_tokens: maxTokens,
+    temperature,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+  })
+
+  return { stream, requestId }
+}
+
 export async function callClaude({
   systemPrompt,
   userMessage,

@@ -1,17 +1,14 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { callClaude } from "@/lib/ai/client"
+import { callClaudeStream } from "@/lib/ai/client"
 import { tokenizeText, encryptTokenMap, detokenizeText, validateTokenization } from "@/lib/ai/tokenizer"
 import { logAIRequest } from "@/lib/ai/audit"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 import { OIC_TEMPLATE, getExtractionKeys } from "@/lib/templates/oic-working-papers"
 import { z } from "zod"
-
-// Allow up to 300s for AI analysis (working papers extraction can take 2-4 min)
-export const maxDuration = 300
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -97,224 +94,364 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
 // Tasks that use the template+extraction pipeline (structured JSON output)
 const TEMPLATE_TASKS = ["WORKING_PAPERS"]
 
+// Tasks that produce long detailed output and need more token room
+const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "CASE_MEMO", "OIC_NARRATIVE"]
+
+/** Send a JSON line to the stream controller */
+function sendEvent(controller: ReadableStreamDefaultController, data: Record<string, any>) {
+  controller.enqueue(new TextEncoder().encode(JSON.stringify(data) + "\n"))
+}
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "AI service is not configured. Please set the ANTHROPIC_API_KEY environment variable." },
-      { status: 503 }
+    return new Response(
+      JSON.stringify({ error: "AI service is not configured. Please set the ANTHROPIC_API_KEY environment variable." }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
     )
   }
 
-  let aiTaskId: string | null = null
-
+  // Parse and validate request body before starting the stream
+  let body: any
   try {
-    const body = await request.json()
-
-    const parsed = analyzeSchema.safeParse(body)
-    if (!parsed.success) {
-      const messages = parsed.error.issues.map((issue: { message: string }) => issue.message)
-      return NextResponse.json({ error: messages.join(", ") }, { status: 400 })
-    }
-    const { caseId, taskType, additionalContext, model: requestedModel } = parsed.data
-
-    // Fetch case with documents
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
-      include: {
-        documents: { where: { extractedText: { not: null } } },
-      },
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
     })
+  }
 
-    if (!caseData) {
-      return NextResponse.json({ error: "Case not found" }, { status: 404 })
-    }
-
-    // Rate limit: max 3 requests per case per 5 minutes
-    const recentTasks = await prisma.aITask.count({
-      where: { caseId, createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } },
+  const parsed = analyzeSchema.safeParse(body)
+  if (!parsed.success) {
+    const messages = parsed.error.issues.map((issue: { message: string }) => issue.message)
+    return new Response(JSON.stringify({ error: messages.join(", ") }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
     })
-    if (recentTasks >= 3) {
-      return NextResponse.json(
-        { error: "Too many analysis requests for this case. Please wait a few minutes before trying again." },
-        { status: 429 }
-      )
-    }
+  }
 
-    // Log document extraction status for debugging
-    const totalDocs = await prisma.document.count({ where: { caseId } })
-    const docsWithText = caseData.documents.length
-    if (DEBUG) {
-      console.log(`[AI Analyze] Case ${caseId}: ${totalDocs} total docs, ${docsWithText} with extracted text`)
-      for (const d of caseData.documents) {
-        console.log(`  - ${d.fileName} (${d.documentCategory}): ${d.extractedText?.length || 0} chars`)
-      }
-    }
+  const { caseId, taskType, additionalContext, model: requestedModel } = parsed.data
+  const userId = (session.user as any).id
 
-    const documentText = caseData.documents
-      .map((d) => `--- ${d.fileName} [${d.documentCategory}] ---\n${d.extractedText}`)
-      .join("\n\n")
+  // Fetch case with documents
+  const caseData = await prisma.case.findUnique({
+    where: { id: caseId },
+    include: {
+      documents: { where: { extractedText: { not: null } } },
+    },
+  })
 
-    if (!documentText.trim()) {
-      return NextResponse.json(
-        {
-          error: `No extracted text found in case documents. ${totalDocs} document(s) uploaded but ${docsWithText} had extractable text. Scanned PDFs and images require OCR. Try uploading searchable PDFs or text files.`,
-          totalDocuments: totalDocs,
-          documentsWithText: docsWithText,
-        },
-        { status: 400 }
-      )
-    }
-
-    // Guard against exceeding Claude's context window
-    // Reserve ~50K chars for system prompt, user message overhead, and response tokens
-    const MAX_DOCUMENT_CHARS = 350000
-    if (documentText.length > MAX_DOCUMENT_CHARS) {
-      return NextResponse.json(
-        {
-          error: `Document text is too large (${(documentText.length / 1000).toFixed(0)}K chars, max ${MAX_DOCUMENT_CHARS / 1000}K). Try uploading fewer documents or splitting into multiple cases.`,
-        },
-        { status: 413 }
-      )
-    }
-
-    // Create the AI task record
-    const aiTask = await prisma.aITask.create({
-      data: {
-        caseId,
-        taskType,
-        status: "PROCESSING",
-        createdById: (session.user as any).id,
-      },
+  if (!caseData) {
+    return new Response(JSON.stringify({ error: "Case not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
     })
-    aiTaskId = aiTask.id
+  }
 
-    // Tokenize PII — tokenize documents and context SEPARATELY to avoid
-    // substring miscalculation (tokenization changes text length)
-    const knownNames = [caseData.clientName].filter(Boolean) as string[]
-    const { tokenizedText: tokenizedDocText, tokenMap: docTokenMap } =
-      tokenizeText(documentText, knownNames)
+  // Rate limit: max 3 requests per case per 5 minutes
+  const recentTasks = await prisma.aITask.count({
+    where: { caseId, createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } },
+  })
+  if (recentTasks >= 3) {
+    return new Response(
+      JSON.stringify({ error: "Too many analysis requests for this case. Please wait a few minutes before trying again." }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    )
+  }
 
-    let tokenizedContext: string | undefined
-    let tokenMap = { ...docTokenMap }
-
-    if (additionalContext) {
-      const contextResult = tokenizeText(additionalContext, knownNames)
-      tokenizedContext = contextResult.tokenizedText
-      tokenMap = { ...tokenMap, ...contextResult.tokenMap }
+  // Check document text
+  const totalDocs = await prisma.document.count({ where: { caseId } })
+  const docsWithText = caseData.documents.length
+  if (DEBUG) {
+    console.log(`[AI Analyze] Case ${caseId}: ${totalDocs} total docs, ${docsWithText} with extracted text`)
+    for (const d of caseData.documents) {
+      console.log(`  - ${d.fileName} (${d.documentCategory}): ${d.extractedText?.length || 0} chars`)
     }
+  }
 
-    const tokenizedText = tokenizedContext
-      ? `${tokenizedDocText}\n\n${tokenizedContext}`
-      : tokenizedDocText
+  const documentText = caseData.documents
+    .map((d) => `--- ${d.fileName} [${d.documentCategory}] ---\n${d.extractedText}`)
+    .join("\n\n")
 
-    // Store encrypted token map
-    const encryptedMap = encryptTokenMap(tokenMap)
-    await prisma.tokenMap.create({
-      data: { caseId, tokenMap: encryptedMap },
-    })
+  if (!documentText.trim()) {
+    return new Response(
+      JSON.stringify({
+        error: `No extracted text found in case documents. ${totalDocs} document(s) uploaded but ${docsWithText} had extractable text. Scanned PDFs and images require OCR. Try uploading searchable PDFs or text files.`,
+        totalDocuments: totalDocs,
+        documentsWithText: docsWithText,
+      }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    )
+  }
 
-    // Load system prompts
-    const corePrompt = loadPrompt("core_system_v1")
-    const promptName = TASK_TYPE_TO_PROMPT[taskType] || "case_analysis_v1"
-    const taskPrompt = loadPrompt(promptName)
-    const systemPrompt = `${corePrompt}\n\n${taskPrompt}`
+  const MAX_DOCUMENT_CHARS = 350000
+  if (documentText.length > MAX_DOCUMENT_CHARS) {
+    return new Response(
+      JSON.stringify({
+        error: `Document text is too large (${(documentText.length / 1000).toFixed(0)}K chars, max ${MAX_DOCUMENT_CHARS / 1000}K). Try uploading fewer documents or splitting into multiple cases.`,
+      }),
+      { status: 413, headers: { "Content-Type": "application/json" } },
+    )
+  }
 
-    // Build user message
-    let userMessage = `Case Type: ${caseData.caseType}\nCase Number: ${caseData.caseNumber}\n\n`
-    userMessage += `Documents:\n${tokenizedDocText}`
-    if (tokenizedContext) {
-      userMessage += `\n\nAdditional Context:\n${tokenizedContext}`
-    }
+  // --- All validation passed. Start the streaming response. ---
+  // Everything from here runs inside the stream so we keep sending bytes
+  // and avoid Vercel's 60s time-to-first-byte timeout.
 
-    // PII pre-flight validation — log warnings if potential PII remains after tokenization
-    const piiValidation = validateTokenization(tokenizedText)
-    if (!piiValidation.passed) {
-      console.warn("[AI Analyze] PII validation warnings:", piiValidation.warnings)
-    }
+  const stream = new ReadableStream({
+    async start(controller) {
+      let aiTaskId: string | null = null
 
-    if (DEBUG) {
-      console.log(`[AI Analyze] Sending to Claude: ${userMessage.length} chars user message, ${systemPrompt.length} chars system prompt`)
-      console.log(`[AI Analyze] Document text preview (first 500 chars): ${tokenizedDocText.substring(0, 500)}`)
-    }
-
-    // Use client-requested model if provided, otherwise default based on task type.
-    // Sonnet for extraction (reliable, fast), opus for complex narrative.
-    const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
-    const defaultModel = isTemplateTask
-      ? "claude-sonnet-4-6"
-      : taskType === "OIC_NARRATIVE" ? "claude-opus-4-6" : "claude-sonnet-4-6"
-    const model = requestedModel || defaultModel
-    const maxTokens = isTemplateTask ? 8192 : 8192
-    const temperature = isTemplateTask ? 0.1 : 0.2  // Lower temp for structured extraction
-
-    // Call Claude API
-    const response = await callClaude({
-      systemPrompt,
-      userMessage,
-      model,
-      temperature,
-      maxTokens,
-    })
-
-    let detokenized: string
-    let verifyFlags: number
-    let judgmentFlags: number
-
-    if (DEBUG) {
-      console.log(`[AI Analyze] Claude response: ${response.content.length} chars, model=${response.model}, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}`)
-      console.log(`[AI Analyze] Response preview (first 300 chars): ${response.content.substring(0, 300)}`)
-    }
-
-    if (isTemplateTask) {
-      // --- TEMPLATE + EXTRACTION PIPELINE ---
-      // Parse the JSON extraction response
-      let extractedData: Record<string, any>
       try {
-        extractedData = extractJSON(response.content)
-        // Log extraction success with key counts
-        const keys = Object.keys(extractedData)
-        const nonNullKeys = keys.filter(k => extractedData[k] != null)
+        // Phase 1: Setup (fast — DB writes, tokenization)
+        sendEvent(controller, { status: "processing", phase: "Preparing documents..." })
+
+        // Create the AI task record
+        const aiTask = await prisma.aITask.create({
+          data: {
+            caseId,
+            taskType,
+            status: "PROCESSING",
+            createdById: userId,
+          },
+        })
+        aiTaskId = aiTask.id
+
+        // Tokenize PII
+        const knownNames = [caseData.clientName].filter(Boolean) as string[]
+        const { tokenizedText: tokenizedDocText, tokenMap: docTokenMap } =
+          tokenizeText(documentText, knownNames)
+
+        let tokenizedContext: string | undefined
+        let tokenMap = { ...docTokenMap }
+
+        if (additionalContext) {
+          const contextResult = tokenizeText(additionalContext, knownNames)
+          tokenizedContext = contextResult.tokenizedText
+          tokenMap = { ...tokenMap, ...contextResult.tokenMap }
+        }
+
+        const tokenizedText = tokenizedContext
+          ? `${tokenizedDocText}\n\n${tokenizedContext}`
+          : tokenizedDocText
+
+        // Store encrypted token map
+        const encryptedMap = encryptTokenMap(tokenMap)
+        await prisma.tokenMap.create({
+          data: { caseId, tokenMap: encryptedMap },
+        })
+
+        // PII pre-flight validation
+        const piiValidation = validateTokenization(tokenizedText)
+        if (!piiValidation.passed) {
+          console.warn("[AI Analyze] PII validation warnings:", piiValidation.warnings)
+        }
+
+        // Load system prompts
+        const corePrompt = loadPrompt("core_system_v1")
+        const promptName = TASK_TYPE_TO_PROMPT[taskType] || "case_analysis_v1"
+        const taskPrompt = loadPrompt(promptName)
+        const systemPrompt = `${corePrompt}\n\n${taskPrompt}`
+
+        // Build user message
+        let userMessage = `Case Type: ${caseData.caseType}\nCase Number: ${caseData.caseNumber}\n\n`
+        userMessage += `Documents:\n${tokenizedDocText}`
+        if (tokenizedContext) {
+          userMessage += `\n\nAdditional Context:\n${tokenizedContext}`
+        }
+
         if (DEBUG) {
-          console.log(`[AI Analyze] JSON parsed OK: ${keys.length} total keys, ${nonNullKeys.length} non-null`)
-          console.log(`[AI Analyze] Non-null keys: ${nonNullKeys.join(", ")}`)
-          const nullKeys = keys.filter(k => extractedData[k] == null)
-          if (nullKeys.length > 0) {
-            console.log(`[AI Analyze] Null keys: ${nullKeys.join(", ")}`)
+          console.log(`[AI Analyze] Sending to Claude: ${userMessage.length} chars user message, ${systemPrompt.length} chars system prompt`)
+        }
+
+        // Determine model and token settings
+        const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
+        const defaultModel = isTemplateTask
+          ? "claude-sonnet-4-6"
+          : taskType === "OIC_NARRATIVE" ? "claude-opus-4-6" : "claude-sonnet-4-6"
+        const model = requestedModel || defaultModel
+        const maxTokens = isTemplateTask ? 8192 : (HIGH_TOKEN_TASKS.includes(taskType) ? 16384 : 8192)
+        const temperature = isTemplateTask ? 0.1 : 0.2
+
+        // Phase 2: Stream Claude API response
+        sendEvent(controller, { status: "processing", phase: "AI is generating response..." })
+
+        const { stream: claudeStream, requestId } = callClaudeStream({
+          systemPrompt,
+          userMessage,
+          model,
+          temperature,
+          maxTokens,
+        })
+
+        // Collect the full response while streaming keeps connection alive
+        let fullContent = ""
+        let chunkCount = 0
+
+        claudeStream.on("text", (text) => {
+          fullContent += text
+          chunkCount++
+          // Send a keepalive heartbeat every 20 chunks to keep the connection alive
+          if (chunkCount % 20 === 0) {
+            sendEvent(controller, {
+              status: "processing",
+              phase: "AI is generating response...",
+              progress: fullContent.length,
+            })
           }
+        })
+
+        // Wait for the full message to complete
+        const finalMessage = await claudeStream.finalMessage()
+
+        const responseModel = finalMessage.model
+        const inputTokens = finalMessage.usage.input_tokens
+        const outputTokens = finalMessage.usage.output_tokens
+
+        if (DEBUG) {
+          console.log(`[AI Analyze] Claude response: ${fullContent.length} chars, model=${responseModel}, inputTokens=${inputTokens}, outputTokens=${outputTokens}`)
         }
 
-        // Validate extracted keys against template expectations
-        const expectedKeys = getExtractionKeys(OIC_TEMPLATE)
-        const missingFromExtraction = expectedKeys.filter(k => !(k in extractedData))
-        const extraKeys = keys.filter(k => !expectedKeys.includes(k))
-        if (missingFromExtraction.length > 0) {
-          console.warn(`[AI Analyze] Keys expected by template but missing from extraction: ${missingFromExtraction.join(", ")}`)
-        }
-        if (DEBUG && extraKeys.length > 0) {
-          console.log(`[AI Analyze] Extra keys from AI (not in template): ${extraKeys.join(", ")}`)
-        }
-      } catch (parseError: any) {
-        console.error("[AI Analyze] FAILED to parse extraction JSON:", parseError.message)
-        console.error("[AI Analyze] Full raw response:", response.content.substring(0, 2000))
+        // Phase 3: Process results
+        sendEvent(controller, { status: "processing", phase: "Processing results..." })
 
-        // Fall back to narrative pipeline — store the raw text instead of failing
-        detokenized = detokenizeText(response.content, tokenMap)
-        verifyFlags = (response.content.match(/\[VERIFY\]/g) || []).length
-        judgmentFlags = (response.content.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
+        let detokenized: string
+        let verifyFlags: number
+        let judgmentFlags: number
 
+        if (isTemplateTask) {
+          // --- TEMPLATE + EXTRACTION PIPELINE ---
+          let extractedData: Record<string, any>
+          try {
+            extractedData = extractJSON(fullContent)
+            const keys = Object.keys(extractedData)
+            const nonNullKeys = keys.filter(k => extractedData[k] != null)
+            if (DEBUG) {
+              console.log(`[AI Analyze] JSON parsed OK: ${keys.length} total keys, ${nonNullKeys.length} non-null`)
+            }
+
+            // Validate extracted keys against template expectations
+            const expectedKeys = getExtractionKeys(OIC_TEMPLATE)
+            const missingFromExtraction = expectedKeys.filter(k => !(k in extractedData))
+            if (missingFromExtraction.length > 0) {
+              console.warn(`[AI Analyze] Keys expected by template but missing from extraction: ${missingFromExtraction.join(", ")}`)
+            }
+          } catch (parseError: any) {
+            console.error("[AI Analyze] FAILED to parse extraction JSON:", parseError.message)
+            console.error("[AI Analyze] Full raw response:", fullContent.substring(0, 2000))
+
+            // Fall back to narrative pipeline
+            detokenized = detokenizeText(fullContent, tokenMap)
+            verifyFlags = (fullContent.match(/\[VERIFY\]/g) || []).length
+            judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
+
+            await prisma.aITask.update({
+              where: { id: aiTask.id },
+              data: {
+                status: "READY_FOR_REVIEW",
+                tokenizedInput: tokenizedText.substring(0, 10000),
+                tokenizedOutput: fullContent,
+                detokenizedOutput: detokenized,
+                modelUsed: responseModel,
+                temperature,
+                systemPromptVersion: promptName,
+                verifyFlagCount: verifyFlags,
+                judgmentFlagCount: judgmentFlags,
+              },
+            })
+
+            await logAIRequest({
+              aiTaskId: aiTask.id,
+              practitionerId: userId,
+              caseId,
+              model: responseModel,
+              requestId,
+              systemPromptVersion: promptName,
+              inputTokens,
+              outputTokens,
+            })
+
+            sendEvent(controller, {
+              status: "complete",
+              taskId: aiTask.id,
+              verifyFlagCount: verifyFlags,
+              judgmentFlagCount: judgmentFlags,
+              warning: "AI did not return structured data. Output saved as narrative text for review.",
+            })
+            controller.close()
+            return
+          }
+
+          // Detokenize extracted string values
+          const detokenizedData: Record<string, any> = {}
+          for (const [key, value] of Object.entries(extractedData)) {
+            if (typeof value === "string") {
+              detokenizedData[key] = detokenizeText(value, tokenMap)
+            } else if (Array.isArray(value)) {
+              detokenizedData[key] = value.map((item: any) => {
+                if (typeof item === "object" && item !== null) {
+                  const detokenizedItem: Record<string, any> = {}
+                  for (const [k, v] of Object.entries(item)) {
+                    detokenizedItem[k] = typeof v === "string" ? detokenizeText(v, tokenMap) : v
+                  }
+                  return detokenizedItem
+                }
+                return typeof item === "string" ? detokenizeText(item, tokenMap) : item
+              })
+            } else {
+              detokenizedData[key] = value
+            }
+          }
+
+          // Merge with template
+          const merged = mergeTemplateWithData(detokenizedData)
+
+          if (DEBUG) {
+            console.log(`[AI Analyze] Merge complete: ${merged.tabs.length} tabs, ${merged.validationIssues.length} validation issues`)
+          }
+
+          detokenized = JSON.stringify({
+            _type: "oic_working_papers_v1",
+            extracted: detokenizedData,
+            merged: merged,
+          })
+
+          const detokenizedStr = JSON.stringify(detokenizedData)
+          const embeddedVerify = (detokenizedStr.match(/\[VERIFY\]/g) || []).length
+          const embeddedJudgment = (detokenizedStr.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
+          verifyFlags = Math.max(
+            merged.validationIssues.filter(i => i.severity === "warning").length +
+              (detokenizedData.verify_flags?.length || 0),
+            embeddedVerify,
+          )
+          judgmentFlags = Math.max(
+            detokenizedData.practitioner_judgment_items?.length || 0,
+            embeddedJudgment,
+          )
+        } else {
+          // --- NARRATIVE PIPELINE ---
+          detokenized = detokenizeText(fullContent, tokenMap)
+          verifyFlags = (fullContent.match(/\[VERIFY\]/g) || []).length
+          judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
+        }
+
+        // Update AI task with results
         await prisma.aITask.update({
           where: { id: aiTask.id },
           data: {
             status: "READY_FOR_REVIEW",
             tokenizedInput: tokenizedText.substring(0, 10000),
-            tokenizedOutput: response.content,
+            tokenizedOutput: fullContent,
             detokenizedOutput: detokenized,
-            modelUsed: response.model,
+            modelUsed: responseModel,
             temperature,
             systemPromptVersion: promptName,
             verifyFlagCount: verifyFlags,
@@ -322,153 +459,53 @@ export async function POST(request: NextRequest) {
           },
         })
 
+        // Audit log
         await logAIRequest({
           aiTaskId: aiTask.id,
-          practitionerId: (session.user as any).id,
+          practitionerId: userId,
           caseId,
-          model: response.model,
-          requestId: response.requestId,
+          model: responseModel,
+          requestId,
           systemPromptVersion: promptName,
-          inputTokens: response.inputTokens,
-          outputTokens: response.outputTokens,
+          inputTokens,
+          outputTokens,
         })
 
-        return NextResponse.json({
+        sendEvent(controller, {
+          status: "complete",
           taskId: aiTask.id,
-          status: "READY_FOR_REVIEW",
           verifyFlagCount: verifyFlags,
           judgmentFlagCount: judgmentFlags,
-          warning: "AI did not return structured data. Output saved as narrative text for review.",
         })
-      }
+        controller.close()
+      } catch (error: any) {
+        console.error("AI analysis error:", error)
 
-      // Detokenize extracted string values
-      const detokenizedData: Record<string, any> = {}
-      for (const [key, value] of Object.entries(extractedData)) {
-        if (typeof value === "string") {
-          detokenizedData[key] = detokenizeText(value, tokenMap)
-        } else if (Array.isArray(value)) {
-          detokenizedData[key] = value.map((item: any) => {
-            if (typeof item === "object" && item !== null) {
-              const detokenizedItem: Record<string, any> = {}
-              for (const [k, v] of Object.entries(item)) {
-                detokenizedItem[k] = typeof v === "string" ? detokenizeText(v, tokenMap) : v
-              }
-              return detokenizedItem
-            }
-            return typeof item === "string" ? detokenizeText(item, tokenMap) : item
-          })
-        } else {
-          detokenizedData[key] = value
+        if (aiTaskId) {
+          await prisma.aITask.update({
+            where: { id: aiTaskId },
+            data: { status: "REJECTED" },
+          }).catch((e) => console.error("Failed to update task status:", e))
         }
-      }
 
-      // Merge with template — this computes all formulas
-      const merged = mergeTemplateWithData(detokenizedData)
-
-      // Log merge results
-      if (DEBUG) {
-        console.log(`[AI Analyze] Merge complete: ${merged.tabs.length} tabs, ${merged.validationIssues.length} validation issues`)
-        console.log(`[AI Analyze] Summary: assets=$${merged.summary.totalAssetEquity}, income=$${merged.summary.monthlyNetIncome}, RCP lump=$${merged.summary.rcpLump}, liability=$${merged.summary.totalLiability}`)
-        console.log(`[AI Analyze] Arrays: ${merged.extractedArrays.tax_liability.length} tax periods, ${merged.extractedArrays.bank_accounts.length} bank accounts, ${merged.extractedArrays.dependents.length} dependents`)
-        if (merged.validationIssues.length > 0) {
-          console.log(`[AI Analyze] Validation issues:`, merged.validationIssues.map(i => `${i.severity}: ${i.label} - ${i.issue}`).join("; "))
+        let errorMessage = error.message || "AI analysis failed"
+        if (error?.status === 401) {
+          errorMessage = "Invalid API key. Please check your ANTHROPIC_API_KEY configuration."
+        } else if (error?.status === 429) {
+          errorMessage = "AI service rate limit exceeded. Please try again in a moment."
         }
+
+        sendEvent(controller, { status: "error", error: errorMessage })
+        controller.close()
       }
+    },
+  })
 
-      // Store both the raw extracted JSON and the merged result
-      detokenized = JSON.stringify({
-        _type: "oic_working_papers_v1",
-        extracted: detokenizedData,
-        merged: merged,
-      })
-
-      // Count flags from multiple sources:
-      // 1. Validation issues from template merge
-      // 2. Explicit verify_flags array from extraction
-      // 3. [VERIFY] / [PRACTITIONER JUDGMENT] strings embedded in extracted values
-      const detokenizedStr = JSON.stringify(detokenizedData)
-      const embeddedVerify = (detokenizedStr.match(/\[VERIFY\]/g) || []).length
-      const embeddedJudgment = (detokenizedStr.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
-      verifyFlags = Math.max(
-        merged.validationIssues.filter(i => i.severity === "warning").length +
-          (detokenizedData.verify_flags?.length || 0),
-        embeddedVerify,
-      )
-      judgmentFlags = Math.max(
-        detokenizedData.practitioner_judgment_items?.length || 0,
-        embeddedJudgment,
-      )
-
-    } else {
-      // --- NARRATIVE PIPELINE (unchanged) ---
-      detokenized = detokenizeText(response.content, tokenMap)
-      verifyFlags = (response.content.match(/\[VERIFY\]/g) || []).length
-      judgmentFlags = (response.content.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
-    }
-
-    // Update AI task with results
-    await prisma.aITask.update({
-      where: { id: aiTask.id },
-      data: {
-        status: "READY_FOR_REVIEW",
-        // Truncate to 10K chars for audit purposes — full input is reconstructable
-        // from the case documents. Do not remove this truncation.
-        tokenizedInput: tokenizedText.substring(0, 10000),
-        tokenizedOutput: response.content,
-        detokenizedOutput: detokenized,
-        modelUsed: response.model,
-        temperature,
-        systemPromptVersion: promptName,
-        verifyFlagCount: verifyFlags,
-        judgmentFlagCount: judgmentFlags,
-      },
-    })
-
-    // Audit log
-    await logAIRequest({
-      aiTaskId: aiTask.id,
-      practitionerId: (session.user as any).id,
-      caseId,
-      model: response.model,
-      requestId: response.requestId,
-      systemPromptVersion: promptName,
-      inputTokens: response.inputTokens,
-      outputTokens: response.outputTokens,
-    })
-
-    return NextResponse.json({
-      taskId: aiTask.id,
-      status: "READY_FOR_REVIEW",
-      verifyFlagCount: verifyFlags,
-      judgmentFlagCount: judgmentFlags,
-    })
-  } catch (error: any) {
-    console.error("AI analysis error:", error)
-
-    if (aiTaskId) {
-      await prisma.aITask.update({
-        where: { id: aiTaskId },
-        data: { status: "REJECTED" },
-      }).catch((e) => console.error("Failed to update task status:", e))
-    }
-
-    if (error?.status === 401) {
-      return NextResponse.json(
-        { error: "Invalid API key. Please check your ANTHROPIC_API_KEY configuration." },
-        { status: 502 }
-      )
-    }
-    if (error?.status === 429) {
-      return NextResponse.json(
-        { error: "AI service rate limit exceeded. Please try again in a moment." },
-        { status: 429 }
-      )
-    }
-
-    return NextResponse.json(
-      { error: error.message || "AI analysis failed" },
-      { status: 500 }
-    )
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  })
 }
