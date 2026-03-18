@@ -22,8 +22,15 @@ function generateHash(value: string, type: string): string {
 // Tier 1: Always strip — SSN, EIN, names, DOB, addresses, bank accounts, routing numbers
 const TIER1_PATTERNS: { pattern: RegExp; type: string; prefix: string }[] = [
   {
-    // SSN: 123-45-6789 or 123456789
-    pattern: /\b(\d{3}[-]?\d{2}[-]?\d{4})\b/g,
+    // SSN: 123-45-6789 (require hyphens to avoid matching 9-digit financial amounts)
+    // Also match XXX-XX-XXXX preceded by SSN/TIN/Social label for unhyphenated forms
+    pattern: /\b(\d{3}-\d{2}-\d{4})\b/g,
+    type: "SSN",
+    prefix: "SSN",
+  },
+  {
+    // Unhyphenated SSN only when preceded by a label like "SSN", "TIN", "Social Security"
+    pattern: /(?:SSN|TIN|Social\s*Security\s*(?:Number|No\.?|#)?)\s*:?\s*(\d{9})\b/gi,
     type: "SSN",
     prefix: "SSN",
   },

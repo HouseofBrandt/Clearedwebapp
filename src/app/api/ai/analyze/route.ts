@@ -118,13 +118,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
 
+    // Log document extraction status for debugging
+    const totalDocs = await prisma.document.count({ where: { caseId } })
+    const docsWithText = caseData.documents.length
+    console.log(`[AI Analyze] Case ${caseId}: ${totalDocs} total docs, ${docsWithText} with extracted text`)
+    for (const d of caseData.documents) {
+      console.log(`  - ${d.fileName} (${d.documentCategory}): ${d.extractedText?.length || 0} chars`)
+    }
+
     const documentText = caseData.documents
       .map((d) => `--- ${d.fileName} (${d.documentCategory}) ---\n${d.extractedText}`)
       .join("\n\n")
 
     if (!documentText.trim()) {
       return NextResponse.json(
-        { error: "No extracted text found in case documents. Upload and process documents first." },
+        {
+          error: `No extracted text found in case documents. ${totalDocs} document(s) uploaded but ${docsWithText} had extractable text. Scanned PDFs and images require OCR. Try uploading searchable PDFs or text files.`,
+          totalDocuments: totalDocs,
+          documentsWithText: docsWithText,
+        },
         { status: 400 }
       )
     }
@@ -140,19 +152,24 @@ export async function POST(request: NextRequest) {
     })
     aiTaskId = aiTask.id
 
-    // Tokenize PII
+    // Tokenize PII — tokenize documents and context SEPARATELY to avoid
+    // substring miscalculation (tokenization changes text length)
     const knownNames = [caseData.clientName]
-    const fullText = additionalContext
-      ? `${documentText}\n\n${additionalContext}`
-      : documentText
-    const { tokenizedText, tokenMap } = tokenizeText(fullText, knownNames)
+    const { tokenizedText: tokenizedDocText, tokenMap: docTokenMap } =
+      tokenizeText(documentText, knownNames)
 
-    const tokenizedDocText = additionalContext
-      ? tokenizedText.substring(0, tokenizedText.length - additionalContext.length - 2)
-      : tokenizedText
-    const tokenizedContext = additionalContext
-      ? tokenizeText(additionalContext, knownNames).tokenizedText
-      : undefined
+    let tokenizedContext: string | undefined
+    let tokenMap = { ...docTokenMap }
+
+    if (additionalContext) {
+      const contextResult = tokenizeText(additionalContext, knownNames)
+      tokenizedContext = contextResult.tokenizedText
+      tokenMap = { ...tokenMap, ...contextResult.tokenMap }
+    }
+
+    const tokenizedText = tokenizedContext
+      ? `${tokenizedDocText}\n\n${tokenizedContext}`
+      : tokenizedDocText
 
     // Store encrypted token map
     const encryptedMap = encryptTokenMap(tokenMap)
@@ -172,6 +189,9 @@ export async function POST(request: NextRequest) {
     if (tokenizedContext) {
       userMessage += `\n\nAdditional Context:\n${tokenizedContext}`
     }
+
+    console.log(`[AI Analyze] Sending to Claude: ${userMessage.length} chars user message, ${systemPrompt.length} chars system prompt`)
+    console.log(`[AI Analyze] Document text preview (first 500 chars): ${tokenizedDocText.substring(0, 500)}`)
 
     // Use sonnet for extraction (reliable, fast), opus for complex narrative
     const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
