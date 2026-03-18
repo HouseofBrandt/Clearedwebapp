@@ -5,6 +5,7 @@
  * Each extractor has its own error handling and fallback.
  * Never throws — always returns a string (empty string on total failure).
  */
+import { inflateSync } from "zlib"
 
 export interface ExtractionResult {
   text: string
@@ -63,7 +64,9 @@ export async function extractWithDetails(
 // ─── PDF ────────────────────────────────────────────────────────
 
 async function extractPDF(buffer: Buffer): Promise<ExtractionResult> {
-  // Try pdf-parse first
+  const attempts: string[] = []
+
+  // Try pdf-parse first (uses pdfjs-dist, handles most PDFs)
   try {
     const pdfParseModule: any = await import("pdf-parse")
     const pdfParse = pdfParseModule.default || pdfParseModule
@@ -72,33 +75,53 @@ async function extractPDF(buffer: Buffer): Promise<ExtractionResult> {
       if (data.text && data.text.trim().length > 0) {
         return { text: data.text, method: "pdf-parse" }
       }
+      attempts.push("pdf-parse returned empty text")
     }
   } catch (err: any) {
-    console.warn("pdf-parse failed, trying fallback:", err.message)
+    attempts.push(`pdf-parse error: ${err.message}`)
   }
 
-  // Fallback: extract raw text streams from PDF binary
+  // Fallback 1: Extract text from BT/ET markers in raw PDF
   try {
-    const text = extractPDFRawText(buffer)
+    const text = extractPDFTextObjects(buffer)
     if (text.length > 20) {
-      return { text, method: "pdf-fallback" }
+      return { text, method: "pdf-text-objects" }
     }
+    if (text.length > 0) attempts.push(`BT/ET extraction found only ${text.length} chars`)
   } catch (err: any) {
-    console.warn("PDF fallback also failed:", err.message)
+    attempts.push(`BT/ET extraction error: ${err.message}`)
   }
 
-  return { text: "", method: "pdf-failed", error: "Could not extract text from PDF. It may be a scanned document requiring OCR." }
+  // Fallback 2: Decompress FlateDecode streams and extract text
+  try {
+    const text = extractPDFDecompressedStreams(buffer)
+    if (text.length > 20) {
+      return { text, method: "pdf-flatedecode" }
+    }
+    if (text.length > 0) attempts.push(`FlateDecode extraction found only ${text.length} chars`)
+  } catch (err: any) {
+    attempts.push(`FlateDecode extraction error: ${err.message}`)
+  }
+
+  console.warn(`[PDF Extract] All methods failed for ${buffer.length} byte PDF. Attempts: ${attempts.join("; ")}`)
+  return {
+    text: "",
+    method: "pdf-failed",
+    error: `Could not extract text from PDF (${buffer.length} bytes). Tried: ${attempts.join("; ")}. It may be a scanned/image-only document requiring OCR.`,
+  }
 }
 
-function extractPDFRawText(buffer: Buffer): string {
+/** Extract text from BT/ET text objects in raw PDF binary */
+function extractPDFTextObjects(buffer: Buffer): string {
   const raw = buffer.toString("latin1")
   const textParts: string[] = []
 
-  // Method 1: Extract text between BT/ET markers (standard PDF text objects)
   const btEtRegex = /BT\s*([\s\S]*?)\s*ET/g
   let match
   while ((match = btEtRegex.exec(raw)) !== null) {
     const block = match[1]
+
+    // Parenthesized strings: (Hello World)
     const strRegex = /\(([^)]*)\)/g
     let strMatch
     while ((strMatch = strRegex.exec(block)) !== null) {
@@ -114,7 +137,7 @@ function extractPDFRawText(buffer: Buffer): string {
       }
     }
 
-    // Also try hex-encoded strings <48656C6C6F>
+    // Hex-encoded strings: <48656C6C6F>
     const hexRegex = /<([0-9A-Fa-f\s]+)>/g
     let hexMatch
     while ((hexMatch = hexRegex.exec(block)) !== null) {
@@ -130,20 +153,196 @@ function extractPDFRawText(buffer: Buffer): string {
     }
   }
 
-  if (textParts.length > 0) {
-    return textParts.join(" ").replace(/\s+/g, " ").trim()
+  return textParts.join(" ").replace(/\s+/g, " ").trim()
+}
+
+/**
+ * Decompress FlateDecode (zlib) streams from PDF and extract readable text.
+ * Many bank statements, IRS notices, and financial PDFs use FlateDecode
+ * compression that pdf-parse sometimes fails to handle.
+ */
+function extractPDFDecompressedStreams(buffer: Buffer): string {
+  const raw = buffer.toString("latin1")
+  const allText: string[] = []
+
+  // Find all stream...endstream blocks
+  const streamRegex = /stream\r?\n([\s\S]*?)endstream/g
+  let match
+  while ((match = streamRegex.exec(raw)) !== null) {
+    const streamData = match[1]
+    // Convert latin1 string back to buffer for decompression
+    const streamBuffer = Buffer.from(streamData, "latin1")
+
+    try {
+      // Try zlib inflate (FlateDecode)
+      const decompressed = inflateSync(streamBuffer)
+      const text = decompressed.toString("utf-8")
+
+      // Extract text from BT/ET blocks within decompressed content
+      const btText = extractTextFromBTET(text)
+      if (btText.length > 0) {
+        allText.push(btText)
+        continue
+      }
+
+      // Also try extracting any readable text content
+      const readable = text
+        .replace(/[^\x20-\x7E\n\r\t]/g, " ")
+        .replace(/\s{3,}/g, " ")
+        .trim()
+
+      // Filter out PDF operators and short fragments
+      if (readable.length > 10 && hasReadableContent(readable)) {
+        allText.push(readable)
+      }
+    } catch {
+      // Not zlib compressed — try ASCII85 decode
+      try {
+        const decoded = decodeASCII85(streamData)
+        if (decoded) {
+          // Try to inflate the decoded data (ASCII85 + FlateDecode)
+          try {
+            const decompressed = inflateSync(decoded)
+            const text = decompressed.toString("utf-8")
+            const btText = extractTextFromBTET(text)
+            if (btText.length > 0) {
+              allText.push(btText)
+              continue
+            }
+            const readable = text
+              .replace(/[^\x20-\x7E\n\r\t]/g, " ")
+              .replace(/\s{3,}/g, " ")
+              .trim()
+            if (readable.length > 10 && hasReadableContent(readable)) {
+              allText.push(readable)
+            }
+          } catch {
+            // Decoded but not zlib — try as plain text
+            const text = decoded.toString("utf-8")
+            const btText = extractTextFromBTET(text)
+            if (btText.length > 0) {
+              allText.push(btText)
+            }
+          }
+        }
+      } catch {
+        // Not ASCII85 either — skip this stream
+      }
+    }
   }
 
-  // Method 2: Look for FlateDecode streams and extract readable text
-  const readable = buffer.toString("utf-8", 0, Math.min(buffer.length, 500000))
-    .replace(/[^\x20-\x7E\n\r\t]/g, " ")
-    .replace(/\s{4,}/g, "\n")
-    .split("\n")
-    .filter(line => line.trim().length > 3)
-    .join("\n")
-    .trim()
+  return allText.join("\n").trim()
+}
 
-  return readable
+/** Extract text content from BT/ET operators in decompressed PDF streams */
+function extractTextFromBTET(text: string): string {
+  const parts: string[] = []
+  const btEtRegex = /BT\s*([\s\S]*?)\s*ET/g
+  let match
+  while ((match = btEtRegex.exec(text)) !== null) {
+    const block = match[1]
+
+    // TJ operator: array of strings and positions [(Hello) -100 (World)] TJ
+    const tjRegex = /\[((?:\([^)]*\)|[^\]])*)\]\s*TJ/g
+    let tjMatch
+    while ((tjMatch = tjRegex.exec(block)) !== null) {
+      const strRegex = /\(([^)]*)\)/g
+      let strMatch
+      while ((strMatch = strRegex.exec(tjMatch[1])) !== null) {
+        const decoded = decodePDFString(strMatch[1])
+        if (decoded.trim()) parts.push(decoded)
+      }
+    }
+
+    // Tj operator: single string (Hello) Tj
+    const singleRegex = /\(([^)]*)\)\s*Tj/g
+    let singleMatch
+    while ((singleMatch = singleRegex.exec(block)) !== null) {
+      const decoded = decodePDFString(singleMatch[1])
+      if (decoded.trim()) parts.push(decoded)
+    }
+
+    // ' and " operators (show text with newline)
+    const primeRegex = /\(([^)]*)\)\s*['"]/g
+    let primeMatch
+    while ((primeMatch = primeRegex.exec(block)) !== null) {
+      const decoded = decodePDFString(primeMatch[1])
+      if (decoded.trim()) parts.push(decoded)
+    }
+  }
+
+  return parts.join(" ").replace(/\s+/g, " ").trim()
+}
+
+function decodePDFString(s: string): string {
+  return s
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\\(/g, "(")
+    .replace(/\\\)/g, ")")
+    .replace(/\\\\/g, "\\")
+    .replace(/\\(\d{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
+}
+
+/** Check if a string contains meaningful text (not just PDF operators) */
+function hasReadableContent(text: string): boolean {
+  // Count words (3+ letter sequences)
+  const words = text.match(/[a-zA-Z]{3,}/g)
+  if (!words || words.length < 3) return false
+  // Check ratio of readable words to total length
+  const wordChars = words.reduce((sum, w) => sum + w.length, 0)
+  return wordChars / text.length > 0.15
+}
+
+/** Decode ASCII85 (btoa) encoded data */
+function decodeASCII85(data: string): Buffer | null {
+  // Find the ASCII85 delimiters <~ and ~>
+  const start = data.indexOf("<~")
+  const end = data.indexOf("~>")
+  const encoded = start >= 0 && end > start
+    ? data.substring(start + 2, end)
+    : data.trim()
+
+  if (encoded.length < 5) return null
+
+  const result: number[] = []
+  let i = 0
+  const clean = encoded.replace(/\s/g, "")
+
+  while (i < clean.length) {
+    if (clean[i] === "z") {
+      result.push(0, 0, 0, 0)
+      i++
+      continue
+    }
+
+    const group: number[] = []
+    for (let j = 0; j < 5 && i < clean.length; j++, i++) {
+      group.push(clean.charCodeAt(i) - 33)
+    }
+    while (group.length < 5) group.push(84) // pad with 'u'
+
+    let value = 0
+    for (let j = 0; j < 5; j++) {
+      value = value * 85 + group[j]
+    }
+
+    const bytes = [
+      (value >>> 24) & 0xFF,
+      (value >>> 16) & 0xFF,
+      (value >>> 8) & 0xFF,
+      value & 0xFF,
+    ]
+
+    // Only push the bytes we actually decoded (handle short final group)
+    const numBytes = group.length === 5 ? 4 : group.length - 1
+    for (let j = 0; j < numBytes; j++) {
+      result.push(bytes[j])
+    }
+  }
+
+  return Buffer.from(result)
 }
 
 // ─── DOCX ───────────────────────────────────────────────────────

@@ -1,5 +1,25 @@
 import crypto from "crypto"
 
+const DEV_KEY = "dev-encryption-key-change-in-production-32chars"
+
+function getEncryptionKey(): string {
+  const key = process.env.ENCRYPTION_KEY
+  if (!key) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "ENCRYPTION_KEY environment variable is required in production. " +
+        "Set a cryptographically random 32+ character string."
+      )
+    }
+    console.warn("[SECURITY] Using development encryption key. Set ENCRYPTION_KEY for production.")
+    return DEV_KEY
+  }
+  if (key.length < 32) {
+    throw new Error("ENCRYPTION_KEY must be at least 32 characters long.")
+  }
+  return key
+}
+
 interface TokenMapping {
   [token: string]: string
 }
@@ -155,7 +175,7 @@ export function detokenizeText(
 }
 
 export function encryptTokenMap(tokenMap: TokenMapping): string {
-  const key = process.env.ENCRYPTION_KEY || "dev-encryption-key-change-in-production-32chars"
+  const key = getEncryptionKey()
   const iv = crypto.randomBytes(16)
   const cipher = crypto.createCipheriv(
     "aes-256-cbc",
@@ -168,7 +188,7 @@ export function encryptTokenMap(tokenMap: TokenMapping): string {
 }
 
 export function decryptTokenMap(encrypted: string): TokenMapping {
-  const key = process.env.ENCRYPTION_KEY || "dev-encryption-key-change-in-production-32chars"
+  const key = getEncryptionKey()
   const [ivHex, encryptedData] = encrypted.split(":")
   const iv = Buffer.from(ivHex, "hex")
   const decipher = crypto.createDecipheriv(

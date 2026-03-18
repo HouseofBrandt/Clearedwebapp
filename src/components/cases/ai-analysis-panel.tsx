@@ -19,11 +19,15 @@ import { Brain, Loader2, AlertTriangle, CheckCircle } from "lucide-react"
 
 const TASK_TYPES = [
   { value: "GENERAL_ANALYSIS", label: "General Case Analysis" },
-  { value: "WORKING_PAPERS", label: "OIC Working Papers" },
   { value: "CASE_MEMO", label: "Case Memo" },
-  { value: "PENALTY_LETTER", label: "Penalty Abatement Letter" },
-  { value: "OIC_NARRATIVE", label: "OIC Narrative" },
-]
+  { value: "WORKING_PAPERS", label: "OIC Working Papers", caseTypes: ["OIC"] },
+  { value: "OIC_NARRATIVE", label: "OIC Narrative", caseTypes: ["OIC"] },
+  { value: "PENALTY_LETTER", label: "Penalty Abatement Letter", caseTypes: ["PENALTY"] },
+  { value: "IA_ANALYSIS", label: "Installment Agreement Analysis", caseTypes: ["IA"] },
+  { value: "CNC_ANALYSIS", label: "Currently Not Collectible Analysis", caseTypes: ["CNC"] },
+  { value: "TFRP_ANALYSIS", label: "Trust Fund Recovery Penalty Analysis", caseTypes: ["TFRP"] },
+  { value: "INNOCENT_SPOUSE_ANALYSIS", label: "Innocent Spouse Relief Analysis", caseTypes: ["INNOCENT_SPOUSE"] },
+] as const
 
 interface AIAnalysisPanelProps {
   caseId: string
@@ -34,11 +38,21 @@ interface AIAnalysisPanelProps {
 
 export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWithTextCount }: AIAnalysisPanelProps) {
   const docsWithText = documentsWithTextCount ?? documentCount
-  const [taskType, setTaskType] = useState(
-    caseType === "OIC" ? "WORKING_PAPERS" :
-    caseType === "PENALTY" ? "PENALTY_LETTER" :
-    "GENERAL_ANALYSIS"
-  )
+
+  // Smart default: pick the most relevant task type for the case type
+  const defaultTaskType = (() => {
+    switch (caseType) {
+      case "OIC": return "WORKING_PAPERS"
+      case "PENALTY": return "PENALTY_LETTER"
+      case "IA": return "IA_ANALYSIS"
+      case "CNC": return "CNC_ANALYSIS"
+      case "TFRP": return "TFRP_ANALYSIS"
+      case "INNOCENT_SPOUSE": return "INNOCENT_SPOUSE_ANALYSIS"
+      default: return "GENERAL_ANALYSIS"
+    }
+  })()
+
+  const [taskType, setTaskType] = useState(defaultTaskType)
   const [additionalContext, setAdditionalContext] = useState("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{
@@ -108,11 +122,20 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {TASK_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
-                </SelectItem>
-              ))}
+              {/* Show relevant tasks first, then general, then others */}
+              {[...TASK_TYPES]
+                .sort((a, b) => {
+                  const aRelevant = !("caseTypes" in a) || (a.caseTypes?.includes(caseType as never))
+                  const bRelevant = !("caseTypes" in b) || (b.caseTypes?.includes(caseType as never))
+                  if (aRelevant && !bRelevant) return -1
+                  if (!aRelevant && bRelevant) return 1
+                  return 0
+                })
+                .map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>

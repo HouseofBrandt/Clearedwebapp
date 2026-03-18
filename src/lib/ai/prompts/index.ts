@@ -27,14 +27,15 @@ export function loadPrompt(name: string): string {
 const _promptFiles = [
   path.join(PROMPTS_DIR, "core_system_v1.txt"),
   path.join(PROMPTS_DIR, "oic_analysis_v1.txt"),
+  path.join(PROMPTS_DIR, "oic_extraction_v1.txt"),
   path.join(PROMPTS_DIR, "case_analysis_v1.txt"),
+  path.join(PROMPTS_DIR, "case_memo_v1.txt"),
   path.join(PROMPTS_DIR, "penalty_abatement_v1.txt"),
   path.join(PROMPTS_DIR, "ia_analysis_v1.txt"),
   path.join(PROMPTS_DIR, "cnc_analysis_v1.txt"),
   path.join(PROMPTS_DIR, "innocent_spouse_v1.txt"),
   path.join(PROMPTS_DIR, "tfrp_analysis_v1.txt"),
   path.join(PROMPTS_DIR, "case_router_v1.txt"),
-  path.join(PROMPTS_DIR, "oic_extraction_v1.txt"),
 ]
 
 // Force Next.js to trace these files by reading them at module init
