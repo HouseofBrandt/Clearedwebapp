@@ -78,7 +78,10 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 150_000) // 2.5 min timeout
+      // Working papers / OIC extraction can take longer due to large structured JSON output
+      const isHeavyTask = ["WORKING_PAPERS", "OIC_NARRATIVE"].includes(taskType)
+      const timeoutMs = isHeavyTask ? 300_000 : 150_000  // 5 min for heavy, 2.5 min for others
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
       const res = await fetch("/api/ai/analyze", {
         method: "POST",

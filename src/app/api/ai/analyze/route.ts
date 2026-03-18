@@ -10,6 +10,9 @@ import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/
 import { OIC_TEMPLATE, getExtractionKeys } from "@/lib/templates/oic-working-papers"
 import { z } from "zod"
 
+// Allow up to 300s for AI analysis (working papers extraction can take 2-4 min)
+export const maxDuration = 300
+
 /**
  * Extract a JSON object from an AI response that may contain
  * preamble text, markdown fences, or trailing commentary.
