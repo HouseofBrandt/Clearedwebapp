@@ -214,15 +214,27 @@ export async function POST(request: NextRequest) {
     let verifyFlags: number
     let judgmentFlags: number
 
+    console.log(`[AI Analyze] Claude response: ${response.content.length} chars, model=${response.model}, inputTokens=${response.inputTokens}, outputTokens=${response.outputTokens}`)
+    console.log(`[AI Analyze] Response preview (first 300 chars): ${response.content.substring(0, 300)}`)
+
     if (isTemplateTask) {
       // --- TEMPLATE + EXTRACTION PIPELINE ---
       // Parse the JSON extraction response
       let extractedData: Record<string, any>
       try {
         extractedData = extractJSON(response.content)
+        // Log extraction success with key counts
+        const keys = Object.keys(extractedData)
+        const nonNullKeys = keys.filter(k => extractedData[k] != null)
+        console.log(`[AI Analyze] JSON parsed OK: ${keys.length} total keys, ${nonNullKeys.length} non-null`)
+        console.log(`[AI Analyze] Non-null keys: ${nonNullKeys.join(", ")}`)
+        const nullKeys = keys.filter(k => extractedData[k] == null)
+        if (nullKeys.length > 0) {
+          console.log(`[AI Analyze] Null keys: ${nullKeys.join(", ")}`)
+        }
       } catch (parseError: any) {
-        console.error("Failed to parse extraction JSON:", parseError.message)
-        console.error("Raw response (first 1000 chars):", response.content.substring(0, 1000))
+        console.error("[AI Analyze] FAILED to parse extraction JSON:", parseError.message)
+        console.error("[AI Analyze] Full raw response:", response.content.substring(0, 2000))
 
         // Fall back to narrative pipeline — store the raw text instead of failing
         detokenized = detokenizeText(response.content, tokenMap)
@@ -287,6 +299,14 @@ export async function POST(request: NextRequest) {
 
       // Merge with template — this computes all formulas
       const merged = mergeTemplateWithData(detokenizedData)
+
+      // Log merge results
+      console.log(`[AI Analyze] Merge complete: ${merged.tabs.length} tabs, ${merged.validationIssues.length} validation issues`)
+      console.log(`[AI Analyze] Summary: assets=$${merged.summary.totalAssetEquity}, income=$${merged.summary.monthlyNetIncome}, RCP lump=$${merged.summary.rcpLump}, liability=$${merged.summary.totalLiability}`)
+      console.log(`[AI Analyze] Arrays: ${merged.extractedArrays.tax_liability.length} tax periods, ${merged.extractedArrays.bank_accounts.length} bank accounts, ${merged.extractedArrays.dependents.length} dependents`)
+      if (merged.validationIssues.length > 0) {
+        console.log(`[AI Analyze] Validation issues:`, merged.validationIssues.map(i => `${i.severity}: ${i.label} - ${i.issue}`).join("; "))
+      }
 
       // Store both the raw extracted JSON and the merged result
       detokenized = JSON.stringify({

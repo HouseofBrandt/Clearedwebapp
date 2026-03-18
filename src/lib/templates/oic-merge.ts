@@ -253,6 +253,44 @@ function computeFormulas(data: ExtractedData): Record<string, number> {
 
 // --- Merge ---
 
+/**
+ * Convert arrays/objects to readable text for display in spreadsheet cells.
+ * E.g., [{institution: "Chase", type: "Checking", balance: 5000}]
+ *   → "Chase (Checking): $5,000.00"
+ */
+function flattenToText(val: any): string {
+  if (val == null) return ""
+  if (typeof val === "string") return val
+  if (typeof val === "number" || typeof val === "boolean") return String(val)
+
+  if (Array.isArray(val)) {
+    if (val.length === 0) return ""
+    return val.map((item, i) => {
+      if (typeof item === "object" && item !== null) {
+        const parts = Object.entries(item)
+          .filter(([, v]) => v != null && v !== "")
+          .map(([k, v]) => {
+            if (typeof v === "number" && (k.includes("balance") || k.includes("income") || k.includes("amount") || k.includes("assessed") || k.includes("penalties") || k.includes("interest") || k.includes("total"))) {
+              return `${k}: $${v.toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+            }
+            return `${k}: ${v}`
+          })
+        return parts.join(", ")
+      }
+      return String(item)
+    }).join("; ")
+  }
+
+  if (typeof val === "object") {
+    return Object.entries(val)
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ")
+  }
+
+  return String(val)
+}
+
 function resolveField(
   field: TemplateField,
   data: ExtractedData,
@@ -280,10 +318,16 @@ function resolveField(
     flag = "VERIFY"
   }
 
-  // Format value
-  let value: string | number | null = rawValue ?? null
-  if (field.type === "currency" && typeof rawValue === "number") {
+  // Format value — convert arrays/objects to readable text
+  let value: string | number | null = null
+  if (rawValue == null) {
+    value = null
+  } else if (Array.isArray(rawValue) || (typeof rawValue === "object" && rawValue !== null)) {
+    value = flattenToText(rawValue)
+  } else if (field.type === "currency" && typeof rawValue === "number") {
     value = Math.round(rawValue * 100) / 100
+  } else {
+    value = rawValue
   }
 
   return {
