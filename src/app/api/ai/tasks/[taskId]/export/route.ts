@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { parseOICOutput, oicToSpreadsheetData } from "@/lib/ai/parsers/oic-parser"
 import { generateOICWorkbook } from "@/lib/documents/excel"
+import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
 import { generateDocx, generateTemplateDocx } from "@/lib/documents/docx"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 
@@ -45,27 +46,37 @@ export async function GET(
 
   // Excel export for OIC working papers
   if (format === "xlsx" && SPREADSHEET_TASKS.includes(task.taskType)) {
-    let tabs: { name: string; columns: string[]; rows: string[][] }[]
+    let buffer: Buffer
 
-    // Try new template format first
+    // Use the purpose-built OIC Excel generator with real formulas
     try {
       const parsed = JSON.parse(output)
-      if (parsed._type === "oic_working_papers_v1" && parsed.merged) {
-        tabs = mergedToSpreadsheetData(parsed.merged)
+      if (parsed._type === "oic_working_papers_v1" && parsed.merged && parsed.extracted) {
+        buffer = await generateOICWorkingPapersExcel(
+          parsed.extracted,
+          parsed.merged,
+          task.case.caseNumber,
+          task.case.clientName
+        )
       } else {
         throw new Error("not template format")
       }
-    } catch {
-      // Legacy: parse free-text
-      const parsed = parseOICOutput(output)
-      tabs = oicToSpreadsheetData(parsed)
+    } catch (e: any) {
+      // Legacy fallback: generic tab-based workbook
+      let tabs: { name: string; columns: string[]; rows: string[][] }[]
+      try {
+        const parsed = JSON.parse(output)
+        if (parsed._type === "oic_working_papers_v1" && parsed.merged) {
+          tabs = mergedToSpreadsheetData(parsed.merged)
+        } else {
+          throw new Error("not template format")
+        }
+      } catch {
+        const parsed = parseOICOutput(output)
+        tabs = oicToSpreadsheetData(parsed)
+      }
+      buffer = await generateOICWorkbook(tabs, task.case.caseNumber, task.case.clientName)
     }
-
-    const buffer = await generateOICWorkbook(
-      tabs,
-      task.case.caseNumber,
-      task.case.clientName
-    )
 
     const filename = `${task.case.caseNumber}_OIC_Working_Papers.xlsx`
 
