@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,11 +32,44 @@ const MEMO_TASKS = [
   "IA_ANALYSIS", "CNC_ANALYSIS", "TFRP_ANALYSIS", "INNOCENT_SPOUSE_ANALYSIS",
 ]
 
+const COMPLEX_TASK_TYPES = ["WORKING_PAPERS", "GENERAL_ANALYSIS", "TFRP_ANALYSIS"]
+
+interface ParsedFlag {
+  type: "VERIFY" | "JUDGMENT"
+  context: string
+}
+
+function parseFlags(text: string): ParsedFlag[] {
+  const flags: ParsedFlag[] = []
+  const patterns = [
+    { regex: /\[VERIFY\]/g, type: "VERIFY" as const },
+    { regex: /\[PRACTITIONER JUDGMENT\]/g, type: "JUDGMENT" as const },
+  ]
+
+  for (const { regex, type } of patterns) {
+    let match
+    while ((match = regex.exec(text)) !== null) {
+      const start = Math.max(0, match.index - 30)
+      const end = Math.min(text.length, match.index + match[0].length + 30)
+      let context = text.slice(start, end).replace(/\n/g, " ")
+      if (start > 0) context = "..." + context
+      if (end < text.length) context = context + "..."
+      flags.push({ type, context })
+    }
+  }
+
+  return flags
+}
+
 export function TaskReview({ task, documents = [] }: TaskReviewProps) {
   const [output, setOutput] = useState(task.detokenizedOutput || "")
   const [reviewNotes, setReviewNotes] = useState("")
   const [editing, setEditing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [acknowledgedFlags, setAcknowledgedFlags] = useState<Set<number>>(new Set())
+  const [reviewStartedAt] = useState(Date.now())
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [correctionNotes, setCorrectionNotes] = useState("")
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -44,7 +77,33 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
   const isMemo = MEMO_TASKS.includes(task.taskType)
   const isReviewable = task.status === "READY_FOR_REVIEW"
 
+  const flags = useMemo(() => parseFlags(output), [output])
+  const allFlagsAcknowledged = flags.length === 0 || acknowledgedFlags.size >= flags.length
+
+  function toggleFlag(index: number) {
+    setAcknowledgedFlags((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
   async function handleReviewAction(action: string) {
+    // Item 13: Review time warning for complex tasks
+    if (action === "APPROVE" || action === "EDIT_APPROVE") {
+      const elapsedSeconds = Math.floor((Date.now() - reviewStartedAt) / 1000)
+      if (COMPLEX_TASK_TYPES.includes(task.taskType) && elapsedSeconds < 60) {
+        const confirmed = window.confirm(
+          `This review was completed in ${elapsedSeconds} seconds. Complex analyses typically require thorough review. Are you sure you want to approve?`
+        )
+        if (!confirmed) return
+      }
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch(`/api/review/${task.id}`, {
@@ -53,7 +112,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
         body: JSON.stringify({
           action,
           editedOutput: editing ? output : undefined,
-          reviewNotes,
+          reviewNotes: action === "REJECT_REPROMPT" ? correctionNotes : reviewNotes,
         }),
       })
 
@@ -71,6 +130,8 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
       })
     } finally {
       setSubmitting(false)
+      setRejectDialogOpen(false)
+      setCorrectionNotes("")
     }
   }
 
@@ -88,6 +149,47 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
 
       {/* Right panel: AI output and review actions */}
       <div className="w-full lg:w-3/5 space-y-4">
+
+      {/* Item 12: Flag acknowledgment bar */}
+      {flags.length > 0 && isReviewable && (
+        <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              {flags.length} flag{flags.length === 1 ? "" : "s"} require{flags.length === 1 ? "s" : ""} acknowledgment
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {flags.map((flag, i) => (
+              <label
+                key={i}
+                className="flex items-start gap-3 rounded-md border bg-background p-2 cursor-pointer hover:bg-muted/50"
+              >
+                <input
+                  type="checkbox"
+                  checked={acknowledgedFlags.has(i)}
+                  onChange={() => toggleFlag(i)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                />
+                <div className="flex-1 min-w-0">
+                  <Badge
+                    variant="outline"
+                    className={
+                      flag.type === "VERIFY"
+                        ? "text-yellow-600 mb-1"
+                        : "text-blue-600 mb-1"
+                    }
+                  >
+                    {flag.type === "VERIFY" ? "[VERIFY]" : "[JUDGMENT]"}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground truncate">{flag.context}</p>
+                </div>
+              </label>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Output display */}
       <Card>
         <CardHeader>
@@ -172,10 +274,17 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
 
             <Separator />
 
+            {/* Flag acknowledgment notice */}
+            {flags.length > 0 && !allFlagsAcknowledged && (
+              <p className="text-sm text-yellow-600 font-medium">
+                Acknowledge all flags before approving
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => handleReviewAction("APPROVE")}
-                disabled={submitting || editing}
+                disabled={submitting || editing || !allFlagsAcknowledged}
                 className="bg-green-600 hover:bg-green-700"
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
@@ -190,7 +299,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
               ) : (
                 <Button
                   onClick={() => handleReviewAction("EDIT_APPROVE")}
-                  disabled={submitting}
+                  disabled={submitting || !allFlagsAcknowledged}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <CheckCircle className="mr-2 h-4 w-4" />
@@ -200,7 +309,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
 
               <Button
                 variant="outline"
-                onClick={() => handleReviewAction("REJECT_REPROMPT")}
+                onClick={() => setRejectDialogOpen(true)}
                 disabled={submitting}
                 className="text-destructive"
               >
@@ -210,7 +319,10 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
 
               <Button
                 variant="outline"
-                onClick={() => handleReviewAction("REJECT_MANUAL")}
+                onClick={() => {
+                  if (!window.confirm("Are you sure you want to reject this task? This cannot be undone.")) return
+                  handleReviewAction("REJECT_MANUAL")
+                }}
                 disabled={submitting}
                 className="text-destructive"
               >
@@ -218,6 +330,39 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                 Reject (Manual)
               </Button>
             </div>
+
+            {/* Item 14: Reject & Re-prompt confirmation section */}
+            {rejectDialogOpen && (
+              <div className="rounded-lg border border-destructive/50 p-4 space-y-3">
+                <Label className="font-medium">
+                  Enter correction notes for the AI re-prompt:
+                </Label>
+                <Textarea
+                  value={correctionNotes}
+                  onChange={(e) => setCorrectionNotes(e.target.value)}
+                  placeholder="Describe what needs to be corrected..."
+                  rows={3}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleReviewAction("REJECT_REPROMPT")}
+                    disabled={submitting || correctionNotes.trim().length === 0}
+                    variant="destructive"
+                  >
+                    Confirm & Re-prompt
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setRejectDialogOpen(false)
+                      setCorrectionNotes("")
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <p className="text-xs text-muted-foreground">
               All AI output must be reviewed by a licensed practitioner before use.

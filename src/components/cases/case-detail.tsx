@@ -172,6 +172,9 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
   })()
 
   async function handleSave() {
+    if (form.status === "CLOSED" && caseData.status !== "CLOSED") {
+      if (!window.confirm("Are you sure you want to close this case? This action may be difficult to reverse.")) return
+    }
     setSaving(true)
     try {
       const res = await fetch(`/api/cases/${caseData.id}`, {

@@ -23,8 +23,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  if ((session.user as any).role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 })
+  const isAdmin = (session.user as any).role === "ADMIN"
+  const isSelf = (session.user as any).id === params.userId
+
+  if (!isAdmin && !isSelf) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   try {
@@ -36,6 +39,19 @@ export async function PATCH(
         { error: "Invalid input", details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       )
+    }
+
+    // Non-admin users can only update their own name
+    if (!isAdmin) {
+      const allowedKeys = ["name"]
+      const keys = Object.keys(parsed.data)
+      const disallowed = keys.filter((k) => !allowedKeys.includes(k))
+      if (disallowed.length > 0) {
+        return NextResponse.json(
+          { error: "You can only update your name" },
+          { status: 403 }
+        )
+      }
     }
 
     const existing = await prisma.user.findUnique({ where: { id: params.userId } })

@@ -75,6 +75,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
 
     setLoading(true)
     setResult(null)
+    addToast({ title: "Analysis started", description: "This may take a few minutes..." })
 
     try {
       const controller = new AbortController()
