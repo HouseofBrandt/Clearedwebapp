@@ -428,6 +428,17 @@ export async function POST(request: NextRequest) {
           console.error("[AI Analyze] Stream error:", err?.message || err)
         })
 
+        // Periodic heartbeat timer — keeps data flowing even when Claude is
+        // processing a large input context before producing the first token.
+        // Without this, Vercel may kill the connection for inactivity.
+        const heartbeat = setInterval(() => {
+          safeSendEvent(controller, {
+            status: "processing",
+            phase: "AI is generating response...",
+            progress: fullContent.length,
+          })
+        }, 15_000)
+
         claudeStream.on("text", (text) => {
           fullContent += text
           chunkCount++
@@ -452,6 +463,8 @@ export async function POST(request: NextRequest) {
           const err = new Error(`Claude API stream failed: ${msg}`)
           ;(err as any).status = status
           throw err
+        } finally {
+          clearInterval(heartbeat)
         }
 
         const responseModel = finalMessage.model
@@ -495,31 +508,32 @@ export async function POST(request: NextRequest) {
             verifyFlags = (fullContent.match(/\[VERIFY\]/g) || []).length
             judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
 
-            await prisma.aITask.update({
-              where: { id: aiTask.id },
-              data: {
-                status: "READY_FOR_REVIEW",
-                tokenizedInput: tokenizedText.substring(0, 10000),
-                tokenizedOutput: fullContent,
-                detokenizedOutput: detokenized,
-                modelUsed: responseModel,
-                temperature,
+            await Promise.all([
+              prisma.aITask.update({
+                where: { id: aiTask.id },
+                data: {
+                  status: "READY_FOR_REVIEW",
+                  tokenizedInput: tokenizedText.substring(0, 10000),
+                  tokenizedOutput: fullContent,
+                  detokenizedOutput: detokenized,
+                  modelUsed: responseModel,
+                  temperature,
+                  systemPromptVersion: promptName,
+                  verifyFlagCount: verifyFlags,
+                  judgmentFlagCount: judgmentFlags,
+                },
+              }),
+              logAIRequest({
+                aiTaskId: aiTask.id,
+                practitionerId: userId,
+                caseId,
+                model: responseModel,
+                requestId,
                 systemPromptVersion: promptName,
-                verifyFlagCount: verifyFlags,
-                judgmentFlagCount: judgmentFlags,
-              },
-            })
-
-            await logAIRequest({
-              aiTaskId: aiTask.id,
-              practitionerId: userId,
-              caseId,
-              model: responseModel,
-              requestId,
-              systemPromptVersion: promptName,
-              inputTokens,
-              outputTokens,
-            })
+                inputTokens,
+                outputTokens,
+              }),
+            ])
 
             safeSendEvent(controller, {
               status: "complete",
@@ -612,34 +626,36 @@ export async function POST(request: NextRequest) {
         // Extract suggested deadlines from AI output
         const suggestedDeadlines = extractDeadlinesFromOutput(detokenized)
 
-        // Update AI task with results
-        await prisma.aITask.update({
-          where: { id: aiTask.id },
-          data: {
-            status: "READY_FOR_REVIEW",
-            tokenizedInput: tokenizedText.substring(0, 10000),
-            tokenizedOutput: fullContent,
-            detokenizedOutput: detokenized,
-            modelUsed: responseModel,
-            temperature,
+        // Persist to DB and notify the client in parallel — run the DB update
+        // and audit log concurrently so post-processing is as fast as possible.
+        // Send the "complete" event right after to minimize total function time.
+        await Promise.all([
+          prisma.aITask.update({
+            where: { id: aiTask.id },
+            data: {
+              status: "READY_FOR_REVIEW",
+              tokenizedInput: tokenizedText.substring(0, 10000),
+              tokenizedOutput: fullContent,
+              detokenizedOutput: detokenized,
+              modelUsed: responseModel,
+              temperature,
+              systemPromptVersion: promptName,
+              verifyFlagCount: verifyFlags,
+              judgmentFlagCount: judgmentFlags,
+              metadata: suggestedDeadlines.length > 0 ? { suggestedDeadlines: suggestedDeadlines as any } as any : undefined,
+            },
+          }),
+          logAIRequest({
+            aiTaskId: aiTask.id,
+            practitionerId: userId,
+            caseId,
+            model: responseModel,
+            requestId,
             systemPromptVersion: promptName,
-            verifyFlagCount: verifyFlags,
-            judgmentFlagCount: judgmentFlags,
-            metadata: suggestedDeadlines.length > 0 ? { suggestedDeadlines: suggestedDeadlines as any } as any : undefined,
-          },
-        })
-
-        // Audit log
-        await logAIRequest({
-          aiTaskId: aiTask.id,
-          practitionerId: userId,
-          caseId,
-          model: responseModel,
-          requestId,
-          systemPromptVersion: promptName,
-          inputTokens,
-          outputTokens,
-        })
+            inputTokens,
+            outputTokens,
+          }),
+        ])
 
         safeSendEvent(controller, {
           status: "complete",
