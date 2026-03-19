@@ -9,6 +9,7 @@ import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/
 import { OIC_TEMPLATE, getExtractionKeys } from "@/lib/templates/oic-working-papers"
 import { z } from "zod"
 import { populateFromAIExtraction } from "@/lib/documents/liability"
+import { getKnowledgeContext } from "@/lib/knowledge/context"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -357,7 +358,22 @@ export async function POST(request: NextRequest) {
         const corePrompt = loadPrompt("core_system_v1")
         const promptName = TASK_TYPE_TO_PROMPT[taskType] || "case_analysis_v1"
         const taskPrompt = loadPrompt(promptName)
-        const systemPrompt = `${corePrompt}\n\n${taskPrompt}`
+        let systemPrompt = `${corePrompt}\n\n${taskPrompt}`
+
+        // Inject knowledge base context
+        try {
+          const knowledgeContext = await getKnowledgeContext(
+            taskType,
+            caseData.caseType,
+            tokenizedDocText.substring(0, 2000),
+            additionalContext
+          )
+          if (knowledgeContext) {
+            systemPrompt += knowledgeContext
+          }
+        } catch (e: any) {
+          console.warn("[AI Analyze] Knowledge context fetch failed:", e.message)
+        }
 
         // Build user message
         let userMessage = `Case Type: ${caseData.caseType}\nCase Number: ${caseData.caseNumber}\n\n`

@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   FileText,
   Download,
+  BookPlus,
+  Loader2,
 } from "lucide-react"
 import { DocumentViewerPanel } from "@/components/review/document-viewer-panel"
 import { DeadlineSuggestions } from "@/components/calendar/deadline-suggestions"
@@ -57,6 +59,8 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
   const [reviewStartedAt] = useState(Date.now())
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [correctionNotes, setCorrectionNotes] = useState("")
+  const [addingToKb, setAddingToKb] = useState(false)
+  const [addedToKb, setAddedToKb] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -350,6 +354,62 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
               All AI output must be reviewed by a licensed practitioner before use.
               No AI-generated content goes directly to clients or the IRS.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add to Knowledge Base — shows for approved tasks */}
+      {task.status === "APPROVED" && !addedToKb && (
+        <Card className="border-green-200 bg-green-50/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Task approved</p>
+                <p className="text-xs text-muted-foreground">
+                  Was this output high quality? Adding it to the knowledge base helps improve future analyses.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAddedToKb(true)}
+                >
+                  Skip
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={addingToKb}
+                  onClick={async () => {
+                    setAddingToKb(true)
+                    try {
+                      const res = await fetch("/api/knowledge/ingest-approved", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ taskId: task.id }),
+                      })
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({}))
+                        throw new Error(err.error || "Failed")
+                      }
+                      const data = await res.json()
+                      addToast({
+                        title: "Added to Knowledge Base",
+                        description: `${data.chunksCreated} chunks created`,
+                      })
+                      setAddedToKb(true)
+                    } catch (error: any) {
+                      addToast({ title: "Error", description: error.message, variant: "destructive" })
+                    } finally {
+                      setAddingToKb(false)
+                    }
+                  }}
+                >
+                  {addingToKb ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <BookPlus className="mr-1 h-3 w-3" />}
+                  Add to Knowledge Base
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
