@@ -36,7 +36,11 @@ import {
   RotateCcw,
   FolderPlus,
   Trash2,
+  Calendar as CalendarIcon,
 } from "lucide-react"
+import { DeadlineCard } from "@/components/calendar/deadline-card"
+import { AddDeadlineDialog } from "@/components/calendar/add-deadline-dialog"
+import { DEADLINE_PRIORITY_DOTS } from "@/types"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
 
 function timeAgo(date: string | Date): string {
@@ -103,10 +107,11 @@ const statusColors: Record<string, string> = {
 
 interface CaseDetailProps {
   caseData: any
-  practitioners: { id: string; name: string }[]
+  practitioners: { id: string; name: string; role?: string }[]
+  deadlines?: any[]
 }
 
-export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
+export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDetailProps) {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -298,6 +303,10 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
             <Download className="mr-1 h-4 w-4" />
             Deliverables ({approvedTasks.length})
           </TabsTrigger>
+          <TabsTrigger value="deadlines">
+            <CalendarIcon className="mr-1 h-4 w-4" />
+            Deadlines ({deadlines.length})
+          </TabsTrigger>
           <TabsTrigger value="timeline">
             <Clock className="mr-1 h-4 w-4" />
             Timeline
@@ -305,6 +314,28 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {(() => {
+            const nextDeadline = deadlines.find((d: any) => d.status !== "COMPLETED" && d.status !== "WAIVED")
+            if (!nextDeadline) return null
+            const due = new Date(nextDeadline.dueDate)
+            const now = new Date()
+            const isOverdue = due < now
+            const dotColor = DEADLINE_PRIORITY_DOTS[nextDeadline.priority] || "bg-gray-400"
+            return (
+              <Card className={isOverdue ? "border-red-200" : ""}>
+                <CardContent className="flex items-center gap-3 p-4">
+                  <div className={`h-3 w-3 rounded-full shrink-0 ${dotColor}`} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Next Deadline</p>
+                    <p className="text-xs text-muted-foreground">
+                      {nextDeadline.title} · Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      {isOverdue ? " · OVERDUE" : ""}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })()}
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
@@ -619,6 +650,57 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
                   </Card>
                 )
               })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="deadlines" className="space-y-4">
+          <div className="flex justify-end">
+            <AddDeadlineDialog
+              cases={[{ id: caseData.id, caseNumber: caseData.caseNumber, clientName: caseData.clientName }]}
+              users={practitioners.map((p) => ({ ...p, role: p.role || "PRACTITIONER" }))}
+              preselectedCaseId={caseData.id}
+            />
+          </div>
+          {deadlines.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <CalendarIcon className="h-12 w-12 text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-semibold">No deadlines</h3>
+                <p className="text-sm text-muted-foreground">
+                  Add deadlines to track important dates for this case.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {deadlines
+                .filter((d: any) => d.status !== "COMPLETED")
+                .map((d: any) => (
+                  <DeadlineCard
+                    key={d.id}
+                    deadline={d}
+                    users={practitioners.map((p) => ({ ...p, role: p.role || "PRACTITIONER" }))}
+                  />
+                ))}
+              {deadlines.filter((d: any) => d.status === "COMPLETED").length > 0 && (
+                <details className="mt-4">
+                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                    Completed ({deadlines.filter((d: any) => d.status === "COMPLETED").length})
+                  </summary>
+                  <div className="space-y-2 mt-2">
+                    {deadlines
+                      .filter((d: any) => d.status === "COMPLETED")
+                      .map((d: any) => (
+                        <DeadlineCard
+                          key={d.id}
+                          deadline={d}
+                          users={practitioners.map((p) => ({ ...p, role: p.role || "PRACTITIONER" }))}
+                        />
+                      ))}
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </TabsContent>

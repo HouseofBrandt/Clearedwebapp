@@ -55,6 +55,81 @@ function extractJSON(text: string): Record<string, any> {
   throw new Error("Could not find valid JSON in AI response")
 }
 
+interface SuggestedDeadline {
+  type: string
+  title: string
+  dueDate: string | null
+  priority: string
+  context: string
+}
+
+function extractDeadlinesFromOutput(text: string): SuggestedDeadline[] {
+  const suggestions: SuggestedDeadline[] = []
+
+  // CDP hearing deadline
+  const cdpMatch = text.match(/CDP.*?(?:deadline|expired|window|request).*?(\w+ \d{1,2},?\s*\d{4})/i)
+  if (cdpMatch) {
+    suggestions.push({
+      type: "CDP_HEARING",
+      title: "CDP Hearing Request Deadline",
+      dueDate: cdpMatch[1],
+      priority: "CRITICAL",
+      context: "Identified from AI analysis of IRS notice",
+    })
+  }
+
+  // Tax Court petition
+  const tcMatch = text.match(/Tax\s*Court.*?(?:petition|deadline|90.day).*?(\w+ \d{1,2},?\s*\d{4})/i)
+  if (tcMatch) {
+    suggestions.push({
+      type: "TAX_COURT_PETITION",
+      title: "Tax Court Petition Deadline",
+      dueDate: tcMatch[1],
+      priority: "CRITICAL",
+      context: "90-day petition deadline identified from notice of deficiency",
+    })
+  }
+
+  // CSED date
+  const csedMatch = text.match(/CSED.*?(?:approximately|calculated|expir)?\s*(\w+ \d{1,2},?\s*\d{4})/i)
+  if (csedMatch) {
+    suggestions.push({
+      type: "CSED_EXPIRATION",
+      title: "Collection Statute Expiration",
+      dueDate: csedMatch[1],
+      priority: "HIGH",
+      context: "CSED identified from transcript analysis",
+    })
+  }
+
+  // Filing compliance
+  if (text.match(/unfiled|delinquent\s*return|must\s*file|compliance\s*required/i)) {
+    suggestions.push({
+      type: "RETURN_DUE",
+      title: "Delinquent Returns — File Before Resolution",
+      dueDate: null,
+      priority: "HIGH",
+      context: "AI identified unfiled returns requiring compliance",
+    })
+  }
+
+  // IRS response deadline
+  const irsResponseMatch = text.match(/(?:respond|response|reply).*?(?:within|by|before).*?(\d+)\s*days/i)
+  if (irsResponseMatch) {
+    const days = parseInt(irsResponseMatch[1])
+    const due = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+    suggestions.push({
+      type: "IRS_RESPONSE",
+      title: `IRS Response — ${days}-Day Deadline`,
+      dueDate: due.toISOString().split("T")[0],
+      priority: "MEDIUM",
+      context: `${days}-day response deadline identified in analysis`,
+    })
+  }
+
+  return suggestions
+}
+
 const VALID_TASK_TYPES = [
   "WORKING_PAPERS",
   "CASE_MEMO",
@@ -507,6 +582,9 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        // Extract suggested deadlines from AI output
+        const suggestedDeadlines = extractDeadlinesFromOutput(detokenized)
+
         // Update AI task with results
         await prisma.aITask.update({
           where: { id: aiTask.id },
@@ -520,6 +598,7 @@ export async function POST(request: NextRequest) {
             systemPromptVersion: promptName,
             verifyFlagCount: verifyFlags,
             judgmentFlagCount: judgmentFlags,
+            metadata: suggestedDeadlines.length > 0 ? { suggestedDeadlines: suggestedDeadlines as any } as any : undefined,
           },
         })
 

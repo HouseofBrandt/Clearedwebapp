@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   FolderOpen,
   ClipboardCheck,
+  Calendar,
   Settings,
   Shield,
 } from "lucide-react"
@@ -16,15 +17,17 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Cases", href: "/cases", icon: FolderOpen },
   { name: "Review Queue", href: "/review", icon: ClipboardCheck },
+  { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 interface SidebarProps {
   user: { name?: string | null; role?: string }
   pendingReviewCount?: number
+  overdueDeadlineCount?: number
 }
 
-export function SidebarContent({ user, pendingReviewCount, onLinkClick }: SidebarProps & { onLinkClick?: () => void }) {
+export function SidebarContent({ user, pendingReviewCount, overdueDeadlineCount, onLinkClick }: SidebarProps & { onLinkClick?: () => void }) {
   const pathname = usePathname()
 
   return (
@@ -56,6 +59,11 @@ export function SidebarContent({ user, pendingReviewCount, onLinkClick }: Sideba
                   {pendingReviewCount > 99 ? "99+" : pendingReviewCount}
                 </span>
               )}
+              {item.name === "Calendar" && overdueDeadlineCount != null && overdueDeadlineCount > 0 && (
+                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-white">
+                  {overdueDeadlineCount > 99 ? "99+" : overdueDeadlineCount}
+                </span>
+              )}
             </Link>
           )
         })}
@@ -75,10 +83,10 @@ export function SidebarContent({ user, pendingReviewCount, onLinkClick }: Sideba
   )
 }
 
-export function Sidebar({ user, pendingReviewCount }: SidebarProps) {
+export function Sidebar({ user, pendingReviewCount, overdueDeadlineCount }: SidebarProps) {
   return (
     <div className="hidden w-64 flex-col border-r bg-card lg:flex">
-      <SidebarContent user={user} pendingReviewCount={pendingReviewCount} />
+      <SidebarContent user={user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
     </div>
   )
 }

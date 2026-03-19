@@ -2,7 +2,7 @@ import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Users, ClipboardCheck, AlertCircle, CheckCircle, ArrowRight } from "lucide-react"
+import { FileText, Users, ClipboardCheck, AlertCircle, CheckCircle, ArrowRight, CalendarClock } from "lucide-react"
 import Link from "next/link"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS } from "@/types"
 
@@ -25,6 +25,8 @@ export default async function DashboardPage() {
   let needsAttention = 0
   let resolvedThisMonth = 0
   let recentCases: any[] = []
+  let overdueCount = 0
+  let upcomingDeadlines: any[] = []
   let dbError = false
 
   try {
@@ -49,6 +51,18 @@ export default async function DashboardPage() {
         orderBy: { updatedAt: "desc" },
         include: { assignedPractitioner: { select: { name: true } } },
       }),
+      prisma.deadline.count({
+        where: { dueDate: { lt: now }, status: { in: ["UPCOMING"] } },
+      }),
+      prisma.deadline.findMany({
+        where: { status: { notIn: ["COMPLETED", "WAIVED"] } },
+        take: 5,
+        orderBy: { dueDate: "asc" },
+        include: {
+          case: { select: { id: true, caseNumber: true } },
+          assignedTo: { select: { id: true, name: true } },
+        },
+      }),
     ])
     totalCases = results[0]
     activeCases = results[1]
@@ -56,6 +70,8 @@ export default async function DashboardPage() {
     needsAttention = results[3]
     resolvedThisMonth = results[4]
     recentCases = results[5]
+    overdueCount = results[6]
+    upcomingDeadlines = results[7]
   } catch (error: any) {
     console.error("Dashboard query error:", error?.message)
     dbError = true
@@ -80,7 +96,7 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
         <Link href="/cases">
           <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -135,7 +151,66 @@ export default async function DashboardPage() {
             <div className="text-2xl font-bold">{resolvedThisMonth}</div>
           </CardContent>
         </Card>
+        <Link href="/calendar">
+          <Card className={`cursor-pointer hover:bg-muted/50 transition-colors ${overdueCount > 0 ? "border-red-200" : ""}`}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Deadlines</CardTitle>
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${overdueCount > 0 ? "text-red-600" : ""}`}>{overdueCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">overdue</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
+
+      {upcomingDeadlines.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Upcoming Deadlines</CardTitle>
+            <Link href="/calendar" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="divide-y">
+              {upcomingDeadlines.map((d: any) => {
+                const due = new Date(d.dueDate)
+                const now = new Date()
+                const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                const isOverdue = diffDays < 0
+                const dotColor: Record<string, string> = { CRITICAL: "bg-red-500", HIGH: "bg-orange-500", MEDIUM: "bg-yellow-500", LOW: "bg-blue-500" }
+
+                return (
+                  <Link key={d.id} href={`/cases/${d.case?.id || d.caseId}`}>
+                    <div className="flex items-center gap-3 py-2.5 hover:bg-muted/50 rounded px-1 transition-colors">
+                      <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotColor[d.priority] || "bg-gray-400"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{d.title}</p>
+                        <p className="text-xs text-muted-foreground">{d.case?.caseNumber}</p>
+                      </div>
+                      {d.assignedTo && (
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium shrink-0" title={d.assignedTo.name}>
+                          {d.assignedTo.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)}
+                        </div>
+                      )}
+                      <div className="text-right shrink-0">
+                        <p className="text-xs text-muted-foreground">
+                          {due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                        <p className={`text-xs font-medium ${isOverdue ? "text-red-600" : diffDays <= 7 ? "text-amber-600" : "text-muted-foreground"}`}>
+                          {isOverdue ? "OVERDUE" : diffDays === 0 ? "Today" : `${diffDays} days`}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
