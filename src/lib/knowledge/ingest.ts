@@ -1,11 +1,15 @@
 import { chunkDocument } from "./chunker"
 import { generateEmbeddings } from "./embeddings"
+import { ensureVectorColumn } from "./vector-setup"
 import { prisma } from "@/lib/db"
 
 export async function ingestDocument(
   documentId: string,
   text: string
 ): Promise<{ chunksCreated: number; error?: string }> {
+  // Ensure pgvector extension and embedding column exist
+  await ensureVectorColumn()
+
   const chunks = chunkDocument(text, {
     maxChunkSize: 2000,
     overlap: 200,

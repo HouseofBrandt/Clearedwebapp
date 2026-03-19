@@ -1,4 +1,5 @@
 import { generateEmbedding } from "./embeddings"
+import { ensureVectorColumn } from "./vector-setup"
 import { prisma } from "@/lib/db"
 
 export interface SearchResult {
@@ -26,6 +27,9 @@ export async function searchKnowledge(
   const { topK = 10, categoryFilter, tagFilter, minScore = 0.2 } = options
 
   if (!query.trim()) return []
+
+  // Ensure pgvector extension and embedding column exist
+  await ensureVectorColumn()
 
   // 1. Generate query embedding
   let queryEmbedding: number[] | null = null
