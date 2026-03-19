@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
+  timeout: 240_000, // 4 minutes — leave headroom within Vercel's 300s limit
 })
 
 interface AIRequestOptions {

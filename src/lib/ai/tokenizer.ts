@@ -213,11 +213,13 @@ export function detokenizeText(
   tokenizedText: string,
   tokenMap: TokenMapping
 ): string {
-  let result = tokenizedText
-  for (const [token, value] of Object.entries(tokenMap)) {
-    result = result.split(token).join(value)
-  }
-  return result
+  const entries = Object.entries(tokenMap)
+  if (entries.length === 0) return tokenizedText
+
+  // Build a single regex that matches any token in one pass — O(n) instead of O(n*m)
+  const escaped = entries.map(([token]) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  const pattern = new RegExp(escaped.join("|"), "g")
+  return tokenizedText.replace(pattern, (match) => tokenMap[match] ?? match)
 }
 
 export function encryptTokenMap(tokenMap: TokenMapping): string {
