@@ -20,6 +20,7 @@ import {
   Download,
 } from "lucide-react"
 import { DocumentViewerPanel } from "@/components/review/document-viewer-panel"
+import { DeadlineSuggestions } from "@/components/calendar/deadline-suggestions"
 
 interface TaskReviewProps {
   task: any
@@ -160,6 +161,15 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             </label>
           </CardContent>
         </Card>
+      )}
+
+      {/* AI-suggested deadlines */}
+      {task.metadata?.suggestedDeadlines?.length > 0 && (
+        <DeadlineSuggestions
+          suggestions={task.metadata.suggestedDeadlines}
+          caseId={task.caseId}
+          taskId={task.id}
+        />
       )}
 
       {/* Output display */}

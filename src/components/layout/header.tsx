@@ -17,9 +17,10 @@ import { SidebarContent } from "@/components/layout/sidebar"
 interface HeaderProps {
   user: { name?: string | null; email?: string | null; role: string }
   pendingReviewCount?: number
+  overdueDeadlineCount?: number
 }
 
-export function Header({ user, pendingReviewCount }: HeaderProps) {
+export function Header({ user, pendingReviewCount, overdueDeadlineCount }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
@@ -84,6 +85,7 @@ export function Header({ user, pendingReviewCount }: HeaderProps) {
             <SidebarContent
               user={user}
               pendingReviewCount={pendingReviewCount}
+              overdueDeadlineCount={overdueDeadlineCount}
               onLinkClick={() => setMobileMenuOpen(false)}
             />
           </div>

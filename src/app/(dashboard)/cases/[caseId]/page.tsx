@@ -52,10 +52,31 @@ export default async function CaseDetailPage({
     if (!caseData) notFound()
   }
 
-  const practitioners = await prisma.user.findMany({
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  })
+  const [practitioners, deadlines] = await Promise.all([
+    prisma.user.findMany({
+      select: { id: true, name: true, role: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.deadline.findMany({
+      where: { caseId: params.caseId },
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+        completedBy: { select: { id: true, name: true } },
+      },
+      orderBy: { dueDate: "asc" },
+    }),
+  ])
 
-  return <CaseDetail caseData={caseData} practitioners={practitioners} />
+  // Serialize dates for client component
+  const serializedDeadlines = deadlines.map((d) => ({
+    ...d,
+    dueDate: d.dueDate.toISOString(),
+    reminderDate: d.reminderDate?.toISOString() || null,
+    completedDate: d.completedDate?.toISOString() || null,
+    irsNoticeDate: d.irsNoticeDate?.toISOString() || null,
+    createdAt: d.createdAt.toISOString(),
+    updatedAt: d.updatedAt.toISOString(),
+  }))
+
+  return <CaseDetail caseData={caseData} practitioners={practitioners} deadlines={serializedDeadlines} />
 }

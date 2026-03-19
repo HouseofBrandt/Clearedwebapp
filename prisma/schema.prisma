@@ -106,6 +106,44 @@ enum ReviewActionType {
   REJECT_MANUAL
 }
 
+enum DeadlineType {
+  CDP_HEARING
+  EQUIVALENT_HEARING
+  TAX_COURT_PETITION
+  CSED_EXPIRATION
+  ASSESSMENT_STATUTE
+  OIC_SUBMISSION
+  OIC_PAYMENT
+  OIC_COMPLIANCE
+  IA_PAYMENT
+  RETURN_DUE
+  EXTENSION_DUE
+  ESTIMATED_TAX
+  IRS_RESPONSE
+  DOCUMENT_REQUEST
+  POA_RENEWAL
+  FOLLOW_UP
+  HEARING_DATE
+  MEETING
+  INTERNAL_REVIEW
+  CUSTOM
+}
+
+enum DeadlinePriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum DeadlineStatus {
+  UPCOMING
+  DUE_SOON
+  OVERDUE
+  COMPLETED
+  WAIVED
+}
+
 model User {
   id             String    @id @default(cuid())
   email          String    @unique
@@ -119,11 +157,14 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  assignedCases  Case[]         @relation("AssignedPractitioner")
-  uploadedDocs   Document[]
-  reviewActions  ReviewAction[]
-  auditLogs      AuditLog[]
-  aiTasks        AITask[]
+  assignedCases       Case[]         @relation("AssignedPractitioner")
+  uploadedDocs        Document[]
+  reviewActions       ReviewAction[]
+  auditLogs           AuditLog[]
+  aiTasks             AITask[]
+  completedDeadlines  Deadline[]     @relation("CompletedDeadlines")
+  assignedDeadlines   Deadline[]     @relation("AssignedDeadlines")
+  createdDeadlines    Deadline[]     @relation("CreatedDeadlines")
 
   @@map("users")
 }
@@ -150,6 +191,7 @@ model Case {
   tokenMaps         TokenMap[]
   auditLogs         AuditLog[]
   liabilityPeriods  LiabilityPeriod[]
+  deadlines         Deadline[]
 
   @@map("cases")
 }
@@ -186,6 +228,7 @@ model AITask {
   verifyFlagCount     Int          @default(0)
   judgmentFlagCount    Int          @default(0)
   requestId           String       @unique @default(uuid())
+  metadata            Json?
   createdById         String?
   createdBy           User?        @relation(fields: [createdById], references: [id])
   createdAt           DateTime     @default(now())
@@ -254,4 +297,38 @@ model TokenMap {
   expiresAt DateTime?
 
   @@map("token_maps")
+}
+
+model Deadline {
+  id              String           @id @default(cuid())
+  caseId          String
+  case            Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  type            DeadlineType
+  priority        DeadlinePriority @default(MEDIUM)
+  status          DeadlineStatus   @default(UPCOMING)
+  title           String
+  description     String?
+  dueDate         DateTime
+  reminderDate    DateTime?
+  completedDate   DateTime?
+  completedById   String?
+  completedBy     User?            @relation("CompletedDeadlines", fields: [completedById], references: [id])
+  assignedToId    String?
+  assignedTo      User?            @relation("AssignedDeadlines", fields: [assignedToId], references: [id])
+  createdById     String?
+  createdBy       User?            @relation("CreatedDeadlines", fields: [createdById], references: [id])
+  source          String?
+  sourceTaskId    String?
+  irsNoticeDate   DateTime?
+  irsNoticeNumber String?
+  taxYear         Int?
+  metadata        Json?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([caseId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([assignedToId])
+  @@map("deadlines")
 }
