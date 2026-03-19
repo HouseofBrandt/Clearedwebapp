@@ -170,8 +170,10 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
 // Tasks that use the template+extraction pipeline (structured JSON output)
 const TEMPLATE_TASKS = ["WORKING_PAPERS"]
 
-// Tasks that produce long detailed output and need more token room
-const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "CASE_MEMO", "OIC_NARRATIVE"]
+// Tasks that produce long detailed output and need more token room (12288 tokens)
+// Note: CASE_MEMO was removed — 8192 tokens is sufficient for memos and avoids
+// Vercel 300s timeout (16384 tokens @ ~80 tok/s ≈ 200s generation alone).
+const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "OIC_NARRATIVE"]
 
 /** Send a JSON line to the stream controller */
 function sendEvent(controller: ReadableStreamDefaultController, data: Record<string, any>) {
@@ -361,15 +363,23 @@ export async function POST(request: NextRequest) {
         let systemPrompt = `${corePrompt}\n\n${taskPrompt}`
 
         // Inject knowledge base context (skip embedding call if KB is empty)
+        // Guard with a 10s timeout so KB issues never stall the analysis
         const kbDocCount = await prisma.knowledgeDocument.count({ where: { isActive: true } })
         if (kbDocCount > 0) {
           try {
-            const knowledgeContext = await getKnowledgeContext(
+            const kbPromise = getKnowledgeContext(
               taskType,
               caseData.caseType,
               tokenizedDocText.substring(0, 2000),
               additionalContext
             )
+            const KB_TIMEOUT = 10_000
+            const knowledgeContext = await Promise.race([
+              kbPromise,
+              new Promise<string>((_, reject) =>
+                setTimeout(() => reject(new Error("Knowledge base search timed out")), KB_TIMEOUT)
+              ),
+            ])
             if (knowledgeContext) {
               systemPrompt += knowledgeContext
             }
@@ -393,7 +403,7 @@ export async function POST(request: NextRequest) {
         const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
         const defaultModel = "claude-sonnet-4-6"
         const model = requestedModel || defaultModel
-        const maxTokens = isTemplateTask ? 8192 : (HIGH_TOKEN_TASKS.includes(taskType) ? 16384 : 8192)
+        const maxTokens = isTemplateTask ? 8192 : (HIGH_TOKEN_TASKS.includes(taskType) ? 12288 : 8192)
         const temperature = isTemplateTask ? 0.1 : 0.2
 
         // Phase 2: Stream Claude API response
