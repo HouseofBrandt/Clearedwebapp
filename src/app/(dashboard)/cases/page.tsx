@@ -1,4 +1,7 @@
+import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+
+export const metadata: Metadata = { title: "Cases | Cleared" }
 import { prisma } from "@/lib/db"
 import { CasesList } from "@/components/cases/cases-list"
 

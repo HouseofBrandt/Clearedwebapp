@@ -1,4 +1,7 @@
+import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+
+export const metadata: Metadata = { title: "Knowledge Base | Cleared" }
 import { prisma } from "@/lib/db"
 import { KnowledgeList } from "@/components/knowledge/knowledge-list"
 

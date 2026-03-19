@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db"
 import { notFound } from "next/navigation"
 import { TaskReview } from "@/components/review/task-review"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, FolderOpen } from "lucide-react"
 import Link from "next/link"
 import { TASK_TYPE_LABELS } from "@/types"
 
@@ -45,14 +45,23 @@ export default async function ReviewTaskPage({
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">
             {TASK_TYPE_LABELS[task.taskType as keyof typeof TASK_TYPE_LABELS] || task.taskType}
           </h1>
-          <p className="text-muted-foreground">
+          <Link
+            href={`/cases/${task.case.id}`}
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
             {task.case.caseNumber} &middot; {task.case.clientName}
-          </p>
+          </Link>
         </div>
+        <Link href={`/cases/${task.case.id}#ai`}>
+          <Button variant="outline" size="sm">
+            <FolderOpen className="mr-1 h-3 w-3" />
+            View Case
+          </Button>
+        </Link>
       </div>
       <TaskReview task={task} documents={task.case.documents} />
     </div>

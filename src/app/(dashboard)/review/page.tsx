@@ -1,4 +1,7 @@
+import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+
+export const metadata: Metadata = { title: "Review Queue | Cleared" }
 import { prisma } from "@/lib/db"
 import { ReviewQueue } from "@/components/review/review-queue"
 
@@ -29,7 +32,9 @@ export default async function ReviewPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Review Queue</h1>
         <p className="text-muted-foreground">
-          AI-generated outputs awaiting practitioner review
+          {serializedTasks.length === 0
+            ? "No AI-generated outputs awaiting review"
+            : `${serializedTasks.length} AI-generated output${serializedTasks.length === 1 ? "" : "s"} awaiting practitioner review`}
         </p>
       </div>
 
