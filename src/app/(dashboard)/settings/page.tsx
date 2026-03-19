@@ -1,4 +1,7 @@
+import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+
+export const metadata: Metadata = { title: "Settings | Cleared" }
 import { UserManagement } from "@/components/settings/user-management"
 import { ProfileForm, PasswordChangeForm, ComplianceSection } from "@/components/settings/settings-forms"
 

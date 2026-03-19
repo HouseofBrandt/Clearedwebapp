@@ -1,4 +1,7 @@
+import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+
+export const metadata: Metadata = { title: "Dashboard | Cleared" }
 import { prisma } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"

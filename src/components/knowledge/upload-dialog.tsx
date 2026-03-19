@@ -51,11 +51,16 @@ export function UploadDialog() {
   const router = useRouter()
   const { addToast } = useToast()
 
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+
+  const TEXT_EXTENSIONS = ["txt", "md", "text", "csv", "rtf"]
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
     setFileName(file.name)
+    setUploadFile(file)
     if (!title) setTitle(file.name.replace(/\.[^.]+$/, ""))
 
     // Auto-detect category from filename
@@ -66,8 +71,14 @@ export function UploadDialog() {
     else if (name.includes("rev proc")) setCategory("REVENUE_PROCEDURE")
     else if (name.includes("template")) setCategory("FIRM_TEMPLATE")
 
-    const text = await file.text()
-    setSourceText(text)
+    // Only read text files on the client; binary files get extracted server-side
+    const ext = file.name.split(".").pop()?.toLowerCase() || ""
+    if (TEXT_EXTENSIONS.includes(ext)) {
+      const text = await file.text()
+      setSourceText(text)
+    } else {
+      setSourceText(`[${ext.toUpperCase()} file — text will be extracted server-side]`)
+    }
   }
 
   function resetForm() {
@@ -77,27 +88,48 @@ export function UploadDialog() {
     setSourceText("")
     setTags("")
     setFileName("")
+    setUploadFile(null)
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!title || !category || !sourceText) return
+    if (!title || !category) return
+
+    const ext = fileName.split(".").pop()?.toLowerCase() || ""
+    const isBinaryFile = uploadFile && !TEXT_EXTENSIONS.includes(ext)
+
+    if (!isBinaryFile && !sourceText) return
 
     setSubmitting(true)
     try {
-      const res = await fetch("/api/knowledge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          category,
-          description: description || undefined,
-          sourceText,
-          tags: tags ? tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean) : [],
-          fileName: fileName || undefined,
-          fileSize: sourceText.length,
-        }),
-      })
+      let res: Response
+      if (isBinaryFile && uploadFile) {
+        // Binary file — send as FormData, let the server extract text
+        const formData = new FormData()
+        formData.append("file", uploadFile)
+        formData.append("title", title)
+        formData.append("category", category)
+        if (description) formData.append("description", description)
+        if (tags) formData.append("tags", JSON.stringify(tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)))
+        res = await fetch("/api/knowledge", {
+          method: "POST",
+          body: formData,
+        })
+      } else {
+        res = await fetch("/api/knowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            category,
+            description: description || undefined,
+            sourceText,
+            tags: tags ? tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean) : [],
+            fileName: fileName || undefined,
+            fileSize: sourceText.length,
+          }),
+        })
+      }
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -133,9 +165,9 @@ export function UploadDialog() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Upload File (text/txt)</Label>
+            <Label>Upload File</Label>
             <div className="flex items-center gap-2">
-              <Input type="file" accept=".txt,.md,.text" onChange={handleFileUpload} className="text-sm" />
+              <Input type="file" accept=".pdf,.docx,.doc,.xlsx,.txt,.md,.text,.rtf,.csv" onChange={handleFileUpload} className="text-sm" />
             </div>
             {fileName && <p className="text-xs text-muted-foreground">{fileName}</p>}
           </div>

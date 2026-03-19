@@ -11,6 +11,13 @@ export async function POST() {
 }
 
 async function seed() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Seed route disabled in production" },
+      { status: 403 }
+    )
+  }
+
   try {
     const existingAdmin = await prisma.user.findUnique({
       where: { email: "admin@cleared.com" },

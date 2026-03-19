@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -111,7 +111,31 @@ interface CaseDetailProps {
   deadlines?: any[]
 }
 
+const VALID_TABS = ["overview", "documents", "ai", "deliverables", "deadlines", "timeline"]
+
 export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDetailProps) {
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.replace("#", "")
+      return VALID_TABS.includes(hash) ? hash : "overview"
+    }
+    return "overview"
+  })
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace("#", "")
+      if (VALID_TABS.includes(hash)) setActiveTab(hash)
+    }
+    window.addEventListener("hashchange", onHashChange)
+    return () => window.removeEventListener("hashchange", onHashChange)
+  }, [])
+
+  function handleTabChange(value: string) {
+    setActiveTab(value)
+    window.history.replaceState(null, "", `#${value}`)
+  }
+
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -288,7 +312,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDeta
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">

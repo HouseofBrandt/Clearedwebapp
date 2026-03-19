@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -64,6 +64,8 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
     warning?: string
   } | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -81,6 +83,10 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
     setResult(null)
     setErrorMessage(null)
     setStatusPhase("Starting analysis...")
+    setElapsedSeconds(0)
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds(s => s + 1)
+    }, 1000)
 
     try {
       const res = await fetch("/api/ai/analyze", {
@@ -99,6 +105,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
       let lineBuffer = ""
+      let gotResult = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -114,6 +121,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
             if (data.status === "processing") {
               setStatusPhase(data.phase || "Processing...")
             } else if (data.status === "complete") {
+              gotResult = true
               setResult(data)
               addToast({
                 title: "Analysis complete",
@@ -136,6 +144,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
         try {
           const data = JSON.parse(lineBuffer)
           if (data.status === "complete") {
+            gotResult = true
             setResult(data)
             addToast({
               title: "Analysis complete",
@@ -149,6 +158,14 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
           if (!(parseError instanceof SyntaxError)) throw parseError
         }
       }
+      // Stream closed without a clear completion signal
+      if (!gotResult && !result) {
+        addToast({
+          title: "Analysis may have completed",
+          description: "Check the AI Tasks tab — the analysis may have saved successfully.",
+        })
+        router.refresh()
+      }
     } catch (error: any) {
       setErrorMessage(error.message || "Analysis failed")
       addToast({
@@ -157,6 +174,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
         variant: "destructive",
       })
     } finally {
+      if (timerRef.current) clearInterval(timerRef.current)
       setLoading(false)
       setStatusPhase("")
     }
@@ -240,7 +258,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {statusPhase || "Analyzing..."}
+                Analyzing...
               </>
             ) : (
               <>
@@ -249,6 +267,17 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
               </>
             )}
           </Button>
+          {loading && (
+            <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2">
+              <div>
+                <p className="text-sm font-medium">{statusPhase}</p>
+                <p className="text-xs text-muted-foreground">
+                  {elapsedSeconds}s elapsed
+                  {elapsedSeconds > 30 && " — complex analyses can take 2-4 minutes"}
+                </p>
+              </div>
+            </div>
+          )}
           {documentCount === 0 && (
             <p className="text-sm text-muted-foreground">
               Upload documents first

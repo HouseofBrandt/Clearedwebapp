@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { ingestDocument } from "@/lib/knowledge/ingest"
+import { extractTextFromBuffer } from "@/lib/documents/extract"
 import { z } from "zod"
 
 const VALID_CATEGORIES = [
@@ -19,6 +20,27 @@ const createSchema = z.object({
   fileName: z.string().optional(),
   fileSize: z.number().optional(),
 })
+
+function detectFileType(mimeType: string, fileName: string, buffer: Buffer): string {
+  const ext = fileName.toLowerCase().split(".").pop() || ""
+  const mime = (mimeType || "").toLowerCase()
+
+  if (buffer.length > 4) {
+    if (buffer.toString("ascii", 0, 5) === "%PDF-") return "PDF"
+    if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
+      if (ext === "xlsx" || ext === "xls" || mime.includes("spreadsheet") || mime.includes("excel")) return "XLSX"
+      if (ext === "docx" || ext === "doc" || mime.includes("wordprocessing") || mime.includes("msword")) return "DOCX"
+      return "DOCX"
+    }
+  }
+
+  if (ext === "pdf" || mime.includes("pdf")) return "PDF"
+  if (["docx", "doc"].includes(ext) || mime.includes("word")) return "DOCX"
+  if (["xlsx", "xls"].includes(ext) || mime.includes("spreadsheet") || mime.includes("excel")) return "XLSX"
+  if (["csv"].includes(ext) || mime.includes("csv")) return "TEXT"
+  if (["rtf"].includes(ext) || mime.includes("rtf")) return "TEXT"
+  return "TEXT"
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth()
@@ -54,6 +76,62 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth()
   if (!auth.authorized) return auth.response
 
+  const contentType = request.headers.get("content-type") || ""
+
+  // Handle binary file uploads via FormData
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData()
+    const file = formData.get("file") as File | null
+    const title = formData.get("title") as string
+    const category = formData.get("category") as string
+    const description = formData.get("description") as string | null
+    const tagsRaw = formData.get("tags") as string | null
+
+    if (!file || !title || !category) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    }
+    if (!VALID_CATEGORIES.includes(category as any)) {
+      return NextResponse.json({ error: "Invalid category" }, { status: 400 })
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const fileType = detectFileType(file.type, file.name, buffer)
+    const sourceText = await extractTextFromBuffer(buffer, fileType)
+
+    if (!sourceText || sourceText.trim().length < 10) {
+      return NextResponse.json(
+        { error: "Could not extract sufficient text from this file. Try uploading a searchable PDF or text file." },
+        { status: 400 }
+      )
+    }
+
+    let tags: string[] = []
+    if (tagsRaw) {
+      try { tags = JSON.parse(tagsRaw) } catch { tags = [] }
+    }
+
+    const doc = await prisma.knowledgeDocument.create({
+      data: {
+        title,
+        description: description || undefined,
+        category: category as any,
+        sourceText,
+        tags,
+        fileName: file.name,
+        fileSize: buffer.length,
+        uploadedById: auth.userId,
+      },
+    })
+
+    const result = await ingestDocument(doc.id, sourceText)
+
+    return NextResponse.json(
+      { id: doc.id, title: doc.title, chunksCreated: result.chunksCreated, warning: result.error },
+      { status: 201 }
+    )
+  }
+
+  // Handle JSON text uploads
   const body = await request.json()
   const parsed = createSchema.safeParse(body)
   if (!parsed.success) {

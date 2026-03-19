@@ -1,4 +1,7 @@
+import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+
+export const metadata: Metadata = { title: "Calendar | Cleared" }
 import { prisma } from "@/lib/db"
 import { CalendarClient } from "@/components/calendar/calendar-client"
 
