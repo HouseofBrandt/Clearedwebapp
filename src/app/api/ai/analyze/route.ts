@@ -102,6 +102,26 @@ function sendEvent(controller: ReadableStreamDefaultController, data: Record<str
   controller.enqueue(new TextEncoder().encode(JSON.stringify(data) + "\n"))
 }
 
+/**
+ * Safe stream helpers — swallow errors when the client has disconnected.
+ * The analysis must complete and save to DB regardless of client state.
+ */
+function safeSendEvent(controller: ReadableStreamDefaultController, data: Record<string, any>) {
+  try {
+    sendEvent(controller, data)
+  } catch {
+    // Client disconnected — safe to ignore
+  }
+}
+
+function safeClose(controller: ReadableStreamDefaultController) {
+  try {
+    controller.close()
+  } catch {
+    // Already closed or errored — safe to ignore
+  }
+}
+
 // Ensure Vercel gives full execution time for streaming AI responses
 export const maxDuration = 60
 
@@ -215,7 +235,7 @@ export async function POST(request: NextRequest) {
 
       try {
         // Phase 1: Setup (fast — DB writes, tokenization)
-        sendEvent(controller, { status: "processing", phase: "Preparing documents..." })
+        safeSendEvent(controller, { status: "processing", phase: "Preparing documents..." })
 
         // Create the AI task record
         const aiTask = await prisma.aITask.create({
@@ -285,7 +305,7 @@ export async function POST(request: NextRequest) {
         const temperature = isTemplateTask ? 0.1 : 0.2
 
         // Phase 2: Stream Claude API response
-        sendEvent(controller, { status: "processing", phase: "AI is generating response..." })
+        safeSendEvent(controller, { status: "processing", phase: "AI is generating response..." })
 
         const { stream: claudeStream, requestId } = callClaudeStream({
           systemPrompt,
@@ -311,16 +331,11 @@ export async function POST(request: NextRequest) {
           chunkCount++
           // Send a keepalive heartbeat every 10 chunks to keep the connection alive
           if (chunkCount % 10 === 0) {
-            try {
-              sendEvent(controller, {
-                status: "processing",
-                phase: "AI is generating response...",
-                progress: fullContent.length,
-              })
-            } catch {
-              // Client may have disconnected — safe to ignore since we still
-              // need the full response for DB storage
-            }
+            safeSendEvent(controller, {
+              status: "processing",
+              phase: "AI is generating response...",
+              progress: fullContent.length,
+            })
           }
         })
 
@@ -346,7 +361,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Phase 3: Process results
-        sendEvent(controller, { status: "processing", phase: "Processing results..." })
+        safeSendEvent(controller, { status: "processing", phase: "Processing results..." })
 
         let detokenized: string
         let verifyFlags: number
@@ -404,14 +419,14 @@ export async function POST(request: NextRequest) {
               outputTokens,
             })
 
-            sendEvent(controller, {
+            safeSendEvent(controller, {
               status: "complete",
               taskId: aiTask.id,
               verifyFlagCount: verifyFlags,
               judgmentFlagCount: judgmentFlags,
               warning: "AI did not return structured data. Output saved as narrative text for review.",
             })
-            controller.close()
+            safeClose(controller)
             return
           }
 
@@ -520,13 +535,13 @@ export async function POST(request: NextRequest) {
           outputTokens,
         })
 
-        sendEvent(controller, {
+        safeSendEvent(controller, {
           status: "complete",
           taskId: aiTask.id,
           verifyFlagCount: verifyFlags,
           judgmentFlagCount: judgmentFlags,
         })
-        controller.close()
+        safeClose(controller)
       } catch (error: any) {
         console.error("[AI Analyze] Error:", error?.status, error?.message || error)
 
@@ -551,8 +566,8 @@ export async function POST(request: NextRequest) {
           }).catch((e) => console.error("Failed to update task status:", e))
         }
 
-        sendEvent(controller, { status: "error", error: errorMessage })
-        controller.close()
+        safeSendEvent(controller, { status: "error", error: errorMessage })
+        safeClose(controller)
       }
     },
   })
