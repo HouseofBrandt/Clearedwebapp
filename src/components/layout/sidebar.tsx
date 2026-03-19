@@ -8,6 +8,7 @@ import {
   FolderOpen,
   ClipboardCheck,
   Calendar,
+  BookOpen,
   Settings,
   Shield,
 } from "lucide-react"
@@ -18,6 +19,7 @@ const navigation = [
   { name: "Cases", href: "/cases", icon: FolderOpen },
   { name: "Review Queue", href: "/review", icon: ClipboardCheck },
   { name: "Calendar", href: "/calendar", icon: Calendar },
+  { name: "Knowledge Base", href: "/knowledge", icon: BookOpen },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 

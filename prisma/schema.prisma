@@ -106,6 +106,23 @@ enum ReviewActionType {
   REJECT_MANUAL
 }
 
+enum KnowledgeCategory {
+  IRC_STATUTE
+  TREASURY_REGULATION
+  IRM_SECTION
+  REVENUE_PROCEDURE
+  REVENUE_RULING
+  CASE_LAW
+  TREATISE
+  FIRM_TEMPLATE
+  WORK_PRODUCT
+  APPROVED_OUTPUT
+  FIRM_PROCEDURE
+  TRAINING_MATERIAL
+  CLIENT_GUIDE
+  CUSTOM
+}
+
 enum DeadlineType {
   CDP_HEARING
   EQUIVALENT_HEARING
@@ -165,6 +182,7 @@ model User {
   completedDeadlines  Deadline[]     @relation("CompletedDeadlines")
   assignedDeadlines   Deadline[]     @relation("AssignedDeadlines")
   createdDeadlines    Deadline[]     @relation("CreatedDeadlines")
+  uploadedKnowledge   KnowledgeDocument[] @relation("UploadedKnowledge")
 
   @@map("users")
 }
@@ -331,4 +349,47 @@ model Deadline {
   @@index([status])
   @@index([assignedToId])
   @@map("deadlines")
+}
+
+model KnowledgeDocument {
+  id              String            @id @default(cuid())
+  title           String
+  description     String?
+  category        KnowledgeCategory
+  fileName        String?
+  filePath        String?
+  fileSize        Int?
+  sourceText      String            @db.Text
+  tags            String[]
+  isActive        Boolean           @default(true)
+  chunkCount      Int               @default(0)
+  hitCount        Int               @default(0)
+  uploadedById    String
+  uploadedBy      User              @relation("UploadedKnowledge", fields: [uploadedById], references: [id])
+  sourceTaskId    String?
+  sourceCaseId    String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  chunks          KnowledgeChunk[]
+
+  @@index([category])
+  @@index([isActive])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id              String            @id @default(cuid())
+  documentId      String
+  document        KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex      Int
+  content         String            @db.Text
+  sectionHeader   String?
+  tokenCount      Int?
+  hitCount        Int               @default(0)
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+
+  @@index([documentId])
+  @@map("knowledge_chunks")
 }
