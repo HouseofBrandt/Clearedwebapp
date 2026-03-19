@@ -63,6 +63,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
     judgmentFlagCount: number
     warning?: string
   } | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -78,6 +79,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
 
     setLoading(true)
     setResult(null)
+    setErrorMessage(null)
     setStatusPhase("Starting analysis...")
 
     try {
@@ -93,16 +95,20 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
         throw new Error(err.error || "Analysis failed")
       }
 
-      // Read the streaming response
+      // Read the streaming response, buffering partial lines across chunks
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
+      let lineBuffer = ""
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split("\n").filter(Boolean)
+        lineBuffer += decoder.decode(value, { stream: true })
+        const lines = lineBuffer.split("\n")
+        // Keep the last element — it may be an incomplete line
+        lineBuffer = lines.pop() || ""
         for (const line of lines) {
+          if (!line.trim()) continue
           try {
             const data = JSON.parse(line)
             if (data.status === "processing") {
@@ -118,14 +124,33 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
               throw new Error(data.error || "Analysis failed")
             }
           } catch (parseError: any) {
-            // If it's a re-thrown error from inside, propagate it
-            if (parseError.message && parseError.message !== "Unexpected end of JSON input") {
-              throw parseError
-            }
+            // Re-throw application errors (from the "error" status handler above)
+            // but silently ignore JSON parse errors from malformed lines
+            if (parseError instanceof SyntaxError) continue
+            throw parseError
           }
         }
       }
+      // Process any remaining buffered data
+      if (lineBuffer.trim()) {
+        try {
+          const data = JSON.parse(lineBuffer)
+          if (data.status === "complete") {
+            setResult(data)
+            addToast({
+              title: "Analysis complete",
+              description: data.warning || "AI output is ready for review.",
+            })
+            router.refresh()
+          } else if (data.status === "error") {
+            throw new Error(data.error || "Analysis failed")
+          }
+        } catch (parseError: any) {
+          if (!(parseError instanceof SyntaxError)) throw parseError
+        }
+      }
     } catch (error: any) {
+      setErrorMessage(error.message || "Analysis failed")
       addToast({
         title: "Analysis failed",
         description: error.message,
@@ -235,6 +260,16 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
             </p>
           )}
         </div>
+
+        {errorMessage && !loading && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <span className="font-medium text-sm text-red-800">Analysis Failed</span>
+            </div>
+            <p className="text-sm text-red-700">{errorMessage}</p>
+          </div>
+        )}
 
         {result && (
           <div className="rounded-lg border bg-muted/30 p-4 space-y-2">

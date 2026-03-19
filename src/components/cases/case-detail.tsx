@@ -538,6 +538,11 @@ export function CaseDetail({ caseData, practitioners }: CaseDetailProps) {
                         {new Date(task.createdAt).toLocaleString()} &middot;{" "}
                         {task.modelUsed || (task.status === "REJECTED" ? "failed" : "starting...")}
                       </p>
+                      {task.status === "REJECTED" && task.detokenizedOutput?.startsWith("Error:") && (
+                        <p className="text-xs text-red-600 mt-1 truncate">
+                          {task.detokenizedOutput.substring(0, 200)}
+                        </p>
+                      )}
                     </Link>
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge className={taskStatusStyles[task.status] || ""} variant="secondary">
