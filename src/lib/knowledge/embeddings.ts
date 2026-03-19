@@ -14,12 +14,21 @@ function getClient(): OpenAI {
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const response = await getClient().embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: text.substring(0, 8000),
-    dimensions: EMBEDDING_DIMENSIONS,
-  })
-  return response.data[0].embedding
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 5000)
+  try {
+    const response = await getClient().embeddings.create(
+      {
+        model: EMBEDDING_MODEL,
+        input: text.substring(0, 8000),
+        dimensions: EMBEDDING_DIMENSIONS,
+      },
+      { signal: controller.signal as any }
+    )
+    return response.data[0].embedding
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {

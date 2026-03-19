@@ -199,7 +199,7 @@ function safeClose(controller: ReadableStreamDefaultController) {
 }
 
 // Ensure Vercel gives full execution time for streaming AI responses
-export const maxDuration = 60
+export const maxDuration = 300
 
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(PRACTITIONER_ROLES)
@@ -360,19 +360,22 @@ export async function POST(request: NextRequest) {
         const taskPrompt = loadPrompt(promptName)
         let systemPrompt = `${corePrompt}\n\n${taskPrompt}`
 
-        // Inject knowledge base context
-        try {
-          const knowledgeContext = await getKnowledgeContext(
-            taskType,
-            caseData.caseType,
-            tokenizedDocText.substring(0, 2000),
-            additionalContext
-          )
-          if (knowledgeContext) {
-            systemPrompt += knowledgeContext
+        // Inject knowledge base context (skip embedding call if KB is empty)
+        const kbDocCount = await prisma.knowledgeDocument.count({ where: { isActive: true } })
+        if (kbDocCount > 0) {
+          try {
+            const knowledgeContext = await getKnowledgeContext(
+              taskType,
+              caseData.caseType,
+              tokenizedDocText.substring(0, 2000),
+              additionalContext
+            )
+            if (knowledgeContext) {
+              systemPrompt += knowledgeContext
+            }
+          } catch (e: any) {
+            console.warn("[AI Analyze] Knowledge context fetch failed:", e.message)
           }
-        } catch (e: any) {
-          console.warn("[AI Analyze] Knowledge context fetch failed:", e.message)
         }
 
         // Build user message
@@ -388,9 +391,7 @@ export async function POST(request: NextRequest) {
 
         // Determine model and token settings
         const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
-        const defaultModel = isTemplateTask
-          ? "claude-sonnet-4-6"
-          : taskType === "OIC_NARRATIVE" ? "claude-opus-4-6" : "claude-sonnet-4-6"
+        const defaultModel = "claude-sonnet-4-6"
         const model = requestedModel || defaultModel
         const maxTokens = isTemplateTask ? 8192 : (HIGH_TOKEN_TASKS.includes(taskType) ? 16384 : 8192)
         const temperature = isTemplateTask ? 0.1 : 0.2
