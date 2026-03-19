@@ -311,11 +311,16 @@ export async function POST(request: NextRequest) {
           chunkCount++
           // Send a keepalive heartbeat every 10 chunks to keep the connection alive
           if (chunkCount % 10 === 0) {
-            sendEvent(controller, {
-              status: "processing",
-              phase: "AI is generating response...",
-              progress: fullContent.length,
-            })
+            try {
+              sendEvent(controller, {
+                status: "processing",
+                phase: "AI is generating response...",
+                progress: fullContent.length,
+              })
+            } catch {
+              // Client may have disconnected — safe to ignore since we still
+              // need the full response for DB storage
+            }
           }
         })
 

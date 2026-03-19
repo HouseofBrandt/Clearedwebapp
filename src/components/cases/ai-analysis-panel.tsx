@@ -95,16 +95,20 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
         throw new Error(err.error || "Analysis failed")
       }
 
-      // Read the streaming response
+      // Read the streaming response, buffering partial lines across chunks
       const reader = res.body!.getReader()
       const decoder = new TextDecoder()
+      let lineBuffer = ""
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split("\n").filter(Boolean)
+        lineBuffer += decoder.decode(value, { stream: true })
+        const lines = lineBuffer.split("\n")
+        // Keep the last element — it may be an incomplete line
+        lineBuffer = lines.pop() || ""
         for (const line of lines) {
+          if (!line.trim()) continue
           try {
             const data = JSON.parse(line)
             if (data.status === "processing") {
@@ -120,11 +124,29 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
               throw new Error(data.error || "Analysis failed")
             }
           } catch (parseError: any) {
-            // If it's a re-thrown error from inside, propagate it
-            if (parseError.message && parseError.message !== "Unexpected end of JSON input") {
-              throw parseError
-            }
+            // Re-throw application errors (from the "error" status handler above)
+            // but silently ignore JSON parse errors from malformed lines
+            if (parseError instanceof SyntaxError) continue
+            throw parseError
           }
+        }
+      }
+      // Process any remaining buffered data
+      if (lineBuffer.trim()) {
+        try {
+          const data = JSON.parse(lineBuffer)
+          if (data.status === "complete") {
+            setResult(data)
+            addToast({
+              title: "Analysis complete",
+              description: data.warning || "AI output is ready for review.",
+            })
+            router.refresh()
+          } else if (data.status === "error") {
+            throw new Error(data.error || "Analysis failed")
+          }
+        } catch (parseError: any) {
+          if (!(parseError instanceof SyntaxError)) throw parseError
         }
       }
     } catch (error: any) {
