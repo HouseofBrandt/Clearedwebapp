@@ -34,29 +34,25 @@ export async function ingestDocument(
   onProgress?.({ phase: "chunking", percent: 10, detail: `${chunks.length} chunks created` })
 
   // Phase 1: Store ALL chunks first (so full-text search works immediately)
+  // Uses createMany + single fetch instead of N sequential inserts
   onProgress?.({ phase: "storing", percent: 12, detail: "Saving chunks to database..." })
 
-  const createdChunks: { id: string }[] = []
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i]
-    const created = await prisma.knowledgeChunk.create({
-      data: {
-        documentId,
-        chunkIndex: chunk.chunkIndex,
-        content: chunk.content,
-        sectionHeader: chunk.sectionHeader || null,
-        tokenCount: Math.ceil(chunk.content.length / 4),
-        metadata: chunk.metadata as any,
-      },
-    })
-    createdChunks.push({ id: created.id })
+  const chunkRecords = chunks.map((chunk) => ({
+    documentId,
+    chunkIndex: chunk.chunkIndex,
+    content: chunk.content,
+    sectionHeader: chunk.sectionHeader || null,
+    tokenCount: Math.ceil(chunk.content.length / 4),
+  }))
+  await prisma.knowledgeChunk.createMany({ data: chunkRecords })
 
-    // Progress: storing spans 12%–25%
-    if (i % 50 === 0 || i === chunks.length - 1) {
-      const pct = 12 + Math.round(((i + 1) / chunks.length) * 13)
-      onProgress?.({ phase: "storing", percent: pct, detail: `Saved ${i + 1}/${chunks.length} chunks` })
-    }
-  }
+  onProgress?.({ phase: "storing", percent: 22, detail: `Saved ${chunks.length} chunks` })
+
+  const createdChunks = await prisma.knowledgeChunk.findMany({
+    where: { documentId },
+    orderBy: { chunkIndex: "asc" },
+    select: { id: true },
+  })
 
   await prisma.knowledgeDocument.update({
     where: { id: documentId },
