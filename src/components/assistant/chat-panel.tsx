@@ -186,16 +186,17 @@ function getSuggestions(caseContext: CaseContext | null): string[] {
     // Generic case-context suggestions
     return [
       "What should I do next with this case?",
-      "What are the requirements for an OIC under DATC?",
-      "Explain CSED calculation and tolling events",
+      "What's the current status of this case?",
+      "What deadlines exist for this case?",
+      "What AI tasks have been run on this case?",
     ]
   }
 
   return [
     "How do I generate OIC working papers?",
     "What's the best workflow for a new case?",
-    "What are the requirements for an OIC under DATC?",
-    "Explain CSED calculation and tolling events",
+    "What deadlines are coming up?",
+    "What's in the review queue?",
   ]
 }
 
