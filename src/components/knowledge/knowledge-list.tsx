@@ -229,8 +229,18 @@ export function KnowledgeList({ documents, stats }: KnowledgeListProps) {
                               <Badge variant="secondary" className={`text-[10px] ${CATEGORY_COLORS[doc.category] || ""}`}>
                                 {CATEGORY_LABELS[doc.category] || doc.category}
                               </Badge>
+                              {doc.processingStatus === "uploading" && (
+                                <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700">Uploading</Badge>
+                              )}
+                              {doc.processingStatus === "processing" && (
+                                <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700">Processing</Badge>
+                              )}
+                              {doc.processingStatus === "failed" && (
+                                <Badge variant="destructive" className="text-[10px]" title={doc.processingError || ""}>Failed</Badge>
+                              )}
                               <span className="text-xs text-muted-foreground">{doc.chunkCount} chunks</span>
                               <span className="text-xs text-muted-foreground">· {doc.hitCount} refs</span>
+                              {doc.fileSize && <span className="text-xs text-muted-foreground">· {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB</span>}
                               {doc.tags?.slice(0, 3).map((tag: string) => (
                                 <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">{tag}</Badge>
                               ))}

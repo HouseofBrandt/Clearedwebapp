@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -47,3 +48,50 @@ export async function deleteFromS3(key: string): Promise<void> {
     })
   )
 }
+
+/**
+ * Generate a presigned PUT URL for direct browser-to-S3 uploads.
+ * Bypasses the serverless function body size limit entirely.
+ */
+export async function getPresignedUploadUrl(
+  key: string,
+  contentType: string,
+  maxSizeBytes?: number
+): Promise<{ url: string; key: string }> {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    ContentType: contentType,
+    ...(maxSizeBytes ? { ContentLength: maxSizeBytes } : {}),
+  })
+  const url = await getSignedUrl(s3, command, { expiresIn: 3600 }) // 1 hour
+  return { url, key }
+}
+
+/**
+ * Generate a presigned GET URL for downloading/reading files from S3.
+ */
+export async function getPresignedDownloadUrl(key: string): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+  })
+  return getSignedUrl(s3, command, { expiresIn: 3600 })
+}
+
+/**
+ * Stream a file from S3 in chunks for processing large files
+ * without loading the entire file into memory.
+ */
+export async function streamFromS3(key: string): Promise<ReadableStream> {
+  const response = await s3.send(
+    new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+    })
+  )
+  if (!response.Body) throw new Error("Empty response from S3")
+  return (response.Body as any).transformToWebStream()
+}
+
+export { BUCKET, s3 }
