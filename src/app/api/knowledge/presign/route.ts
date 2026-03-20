@@ -39,6 +39,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Check that S3 is configured before attempting presigned URL generation
+  if (!process.env.AWS_S3_BUCKET || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    return NextResponse.json(
+      { error: "S3 storage is not configured. Use direct upload instead." },
+      { status: 503 }
+    )
+  }
+
   // Create the knowledge document record in "uploading" state
   const s3Key = `knowledge/${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`
 
