@@ -560,7 +560,7 @@ export function ChatPanel() {
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg hover:scale-105 transition-transform lg:h-14 lg:w-14 h-12 w-12"
           style={{ backgroundColor: "#1B2A4A" }}
-          title="Ask Cleared"
+          title="Ask Junebug"
         >
           <Sparkles className="h-6 w-6 text-white" />
         </button>
@@ -578,7 +578,7 @@ export function ChatPanel() {
           >
             <div className="flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-white" />
-              <h2 className="text-base font-semibold text-white">Ask Cleared</h2>
+              <h2 className="text-base font-semibold text-white">Junebug</h2>
             </div>
             <div className="flex items-center gap-1">
               {/* Model toggle */}
@@ -663,8 +663,8 @@ export function ChatPanel() {
                   <Sparkles className="h-8 w-8 text-gray-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Tax research assistant</p>
-                  <p className="mt-1 text-xs text-gray-500">Ask about tax law, procedures, and strategies</p>
+                  <p className="text-sm font-medium text-gray-700">Junebug</p>
+                  <p className="mt-1 text-xs text-gray-500">Tax research, platform help, and more</p>
                 </div>
                 <div className="mt-2 flex w-full flex-col gap-2">
                   {suggestions.map((s) => (
@@ -737,7 +737,7 @@ export function ChatPanel() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about tax law, procedures, strategies..."
+                placeholder="Ask Junebug anything..."
                 disabled={isStreaming}
                 rows={1}
                 className="flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
