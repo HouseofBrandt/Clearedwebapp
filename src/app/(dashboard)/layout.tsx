@@ -2,6 +2,7 @@ import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
+import { ChatPanel } from "@/components/assistant/chat-panel"
 
 export default async function DashboardLayout({
   children,
@@ -29,14 +30,17 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+    <>
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
+          <main className="flex-1 overflow-y-auto p-6">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+      <ChatPanel />
+    </>
   )
 }
