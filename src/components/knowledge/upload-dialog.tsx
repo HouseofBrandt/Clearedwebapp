@@ -238,22 +238,25 @@ export function UploadDialog() {
           xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
               resolve()
+            } else if (xhr.status === 403) {
+              reject(new Error("S3 upload rejected (403 Forbidden). Check S3 bucket policy and IAM credentials."))
+            } else if (xhr.status === 0) {
+              reject(new Error("S3 upload blocked by browser (CORS). The S3 bucket needs a CORS policy allowing PUT requests from this domain."))
             } else {
-              reject(new Error(`S3 upload failed with status ${xhr.status}`))
+              reject(new Error(`S3 upload failed (HTTP ${xhr.status}). ${xhr.responseText?.slice(0, 200) || ""}`))
             }
           }
 
-          xhr.onerror = () => reject(new Error("Network error during S3 upload"))
+          xhr.onerror = () => reject(new Error("S3 upload blocked by browser (likely CORS). The S3 bucket needs a CORS configuration allowing PUT from this domain."))
           xhr.send(item.file)
         })
-      } catch (s3Error) {
+      } catch (s3Error: any) {
         // S3 upload failed (CORS, credentials, etc.) — fall back to direct upload for small files
         console.warn("[KB Upload] S3 upload failed, falling back to direct upload:", s3Error)
         const DIRECT_UPLOAD_LIMIT = 4.5 * 1024 * 1024
         if (item.file.size > DIRECT_UPLOAD_LIMIT) {
-          throw new Error(
-            `File is too large for direct upload (${formatFileSize(item.file.size)}). S3 storage upload failed — check S3 CORS and credentials configuration.`
-          )
+          // For large files, surface the S3 error directly — FormData fallback won't work
+          throw s3Error
         }
         await uploadViaFormData(item, index)
         return
