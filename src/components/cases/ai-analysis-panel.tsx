@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
+import { Progress } from "@/components/ui/progress"
 import { Brain, Loader2, AlertTriangle, CheckCircle } from "lucide-react"
 
 const TASK_TYPES = [
@@ -57,6 +58,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
   const [additionalContext, setAdditionalContext] = useState("")
   const [loading, setLoading] = useState(false)
   const [statusPhase, setStatusPhase] = useState("")
+  const [analysisPercent, setAnalysisPercent] = useState(0)
   const [result, setResult] = useState<{
     taskId: string
     verifyFlagCount: number
@@ -83,6 +85,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
     setResult(null)
     setErrorMessage(null)
     setStatusPhase("Starting analysis...")
+    setAnalysisPercent(0)
     setElapsedSeconds(0)
     timerRef.current = setInterval(() => {
       setElapsedSeconds(s => s + 1)
@@ -120,6 +123,16 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
             const data = JSON.parse(line)
             if (data.status === "processing") {
               setStatusPhase(data.phase || "Processing...")
+              // Map phases to progress percentages
+              const phase = data.phase || ""
+              if (phase.includes("Preparing")) setAnalysisPercent(10)
+              else if (phase.includes("generating")) {
+                // During generation, estimate progress from content length
+                const chars = data.progress || 0
+                // Typical output is 4000-12000 chars; estimate progress in the 15-85% range
+                setAnalysisPercent(Math.min(85, 15 + Math.round((chars / 8000) * 70)))
+              }
+              else if (phase.includes("Processing results")) setAnalysisPercent(90)
             } else if (data.status === "complete") {
               gotResult = true
               setResult(data)
@@ -268,14 +281,17 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
             )}
           </Button>
           {loading && (
-            <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-2">
-              <div>
-                <p className="text-sm font-medium">{statusPhase}</p>
-                <p className="text-xs text-muted-foreground">
-                  {elapsedSeconds}s elapsed
-                  {elapsedSeconds > 30 && " — complex analyses can take 2-4 minutes"}
-                </p>
-              </div>
+            <div className="flex-1 min-w-0">
+              <Progress
+                value={analysisPercent}
+                size="md"
+                showPercent
+                label={statusPhase}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {elapsedSeconds}s elapsed
+                {elapsedSeconds > 30 && " — complex analyses can take 2-4 minutes"}
+              </p>
             </div>
           )}
           {documentCount === 0 && (

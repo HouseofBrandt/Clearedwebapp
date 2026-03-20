@@ -11,10 +11,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/components/ui/toast"
-import { Upload, FileUp, X } from "lucide-react"
+import { Upload, FileUp, X, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import { DOCUMENT_CATEGORY_LABELS } from "@/types"
 import { autoDetectCategory } from "@/lib/documents/auto-category"
+
+interface FileUploadState {
+  status: "pending" | "uploading" | "done" | "error"
+  progress: number
+  error?: string
+}
 
 interface DocumentUploadProps {
   caseId: string
@@ -23,15 +30,22 @@ interface DocumentUploadProps {
 export function DocumentUpload({ caseId }: DocumentUploadProps) {
   const [files, setFiles] = useState<File[]>([])
   const [fileCategories, setFileCategories] = useState<string[]>([])
+  const [fileStates, setFileStates] = useState<FileUploadState[]>([])
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
+  function updateFileState(index: number, update: Partial<FileUploadState>) {
+    setFileStates((prev) => prev.map((s, i) => (i === index ? { ...s, ...update } : s)))
+  }
+
   const addFiles = useCallback((newFiles: File[]) => {
     const newCats = newFiles.map((f) => autoDetectCategory(f.name))
+    const newStates = newFiles.map(() => ({ status: "pending" as const, progress: 0 }))
     setFiles((prev) => [...prev, ...newFiles])
     setFileCategories((prev) => [...prev, ...newCats])
+    setFileStates((prev) => [...prev, ...newStates])
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -49,6 +63,7 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index))
     setFileCategories((prev) => prev.filter((_, i) => i !== index))
+    setFileStates((prev) => prev.filter((_, i) => i !== index))
   }
 
   async function handleUpload() {
@@ -61,30 +76,61 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
 
       for (let idx = 0; idx < files.length; idx++) {
         const file = files[idx]
+        updateFileState(idx, { status: "uploading", progress: 0 })
+
         const formData = new FormData()
         formData.append("file", file)
         formData.append("caseId", caseId)
         formData.append("documentCategory", fileCategories[idx] || "OTHER")
 
-        const res = await fetch("/api/documents/upload", {
-          method: "POST",
-          body: formData,
-        })
+        // Use XHR for upload progress tracking
+        try {
+          const result = await new Promise<any>((resolve, reject) => {
+            const xhr = new XMLHttpRequest()
+            xhr.open("POST", "/api/documents/upload")
 
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "Upload failed" }))
-          failedFiles.push({ name: file.name, reason: err.error || "Upload failed" })
-          continue
-        }
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 90) // 0-90% for upload, 90-100% for server processing
+                updateFileState(idx, { progress: pct })
+              }
+            }
 
-        const result = await res.json()
-        if (result.hasExtractedText) {
-          extractedCount++
-        } else {
-          failedFiles.push({
-            name: file.name,
-            reason: result.extractionError || "No text could be extracted",
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                updateFileState(idx, { progress: 100 })
+                try {
+                  resolve(JSON.parse(xhr.responseText))
+                } catch {
+                  resolve({})
+                }
+              } else {
+                try {
+                  const err = JSON.parse(xhr.responseText)
+                  reject(new Error(err.error || "Upload failed"))
+                } catch {
+                  reject(new Error("Upload failed"))
+                }
+              }
+            }
+
+            xhr.onerror = () => reject(new Error("Upload failed"))
+            xhr.send(formData)
           })
+
+          updateFileState(idx, { status: "done", progress: 100 })
+
+          if (result.hasExtractedText) {
+            extractedCount++
+          } else {
+            failedFiles.push({
+              name: file.name,
+              reason: result.extractionError || "No text could be extracted",
+            })
+          }
+        } catch (err: any) {
+          updateFileState(idx, { status: "error", error: err.message })
+          failedFiles.push({ name: file.name, reason: err.message })
         }
       }
 
@@ -105,8 +151,6 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
           description: `${files.length} file(s) uploaded and processed.`,
         })
       }
-      setFiles([])
-      setFileCategories([])
       router.refresh()
     } catch (error) {
       addToast({
@@ -118,6 +162,10 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
       setUploading(false)
     }
   }
+
+  const overallProgress = uploading && fileStates.length > 0
+    ? Math.round(fileStates.reduce((sum, s) => sum + s.progress, 0) / fileStates.length)
+    : 0
 
   return (
     <Card>
@@ -151,39 +199,79 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
 
         {files.length > 0 && (
           <div className="mt-4 space-y-3">
+            {/* Overall progress when uploading multiple files */}
+            {uploading && files.length > 1 && (
+              <Progress
+                value={overallProgress}
+                size="md"
+                showPercent
+                label={`Uploading ${files.length} files...`}
+              />
+            )}
+
             <div className="space-y-2">
-              {files.map((file, i) => (
-                <div key={i} className="flex items-center gap-2 border rounded-md px-3 py-2">
-                  <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm truncate flex-1">{file.name}</span>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {(file.size / 1024).toFixed(0)} KB
-                  </span>
-                  <Select value={fileCategories[i] || "OTHER"}
-                    onValueChange={(v) => {
-                      const updated = [...fileCategories]
-                      updated[i] = v
-                      setFileCategories(updated)
-                    }}>
-                    <SelectTrigger className="w-[150px] h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([val, label]) => (
-                        <SelectItem key={val} value={val}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"
-                    onClick={() => removeFile(i)}>
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
+              {files.map((file, i) => {
+                const state = fileStates[i] || { status: "pending", progress: 0 }
+                return (
+                  <div key={i} className="border rounded-md px-3 py-2 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      {state.status === "done" ? (
+                        <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                      ) : state.status === "error" ? (
+                        <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                      ) : state.status === "uploading" ? (
+                        <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+                      ) : (
+                        <FileUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="text-sm truncate flex-1">{file.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {(file.size / 1024).toFixed(0)} KB
+                      </span>
+                      {state.status === "pending" && (
+                        <>
+                          <Select value={fileCategories[i] || "OTHER"}
+                            onValueChange={(v) => {
+                              const updated = [...fileCategories]
+                              updated[i] = v
+                              setFileCategories(updated)
+                            }}>
+                            <SelectTrigger className="w-[150px] h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(DOCUMENT_CATEGORY_LABELS).map(([val, label]) => (
+                                <SelectItem key={val} value={val}>{label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+                            onClick={() => removeFile(i)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {state.status === "uploading" && (
+                      <Progress value={state.progress} size="sm" showPercent />
+                    )}
+                    {state.status === "error" && state.error && (
+                      <p className="text-xs text-destructive">{state.error}</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             <Button onClick={handleUpload} disabled={uploading}>
-              {uploading ? "Uploading..." : `Upload ${files.length} file(s)`}
+              {uploading ? (
+                <>
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                `Upload ${files.length} file(s)`
+              )}
             </Button>
           </div>
         )}

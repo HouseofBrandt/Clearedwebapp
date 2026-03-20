@@ -31,7 +31,10 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
 }
 
-export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
+export async function generateEmbeddings(
+  texts: string[],
+  onProgress?: (completed: number, total: number) => void,
+): Promise<number[][]> {
   const allEmbeddings: number[][] = []
   // Smaller batches to stay under OpenAI's TPM rate limit on large documents
   const batchSize = 20
@@ -49,6 +52,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
           dimensions: EMBEDDING_DIMENSIONS,
         })
         allEmbeddings.push(...response.data.map((d) => d.embedding))
+        onProgress?.(allEmbeddings.length, texts.length)
         break
       } catch (error: any) {
         // Retry on 429 rate limit errors with exponential backoff

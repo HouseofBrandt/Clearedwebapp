@@ -3,9 +3,16 @@ import { generateEmbeddings } from "./embeddings"
 import { ensureVectorColumn } from "./vector-setup"
 import { prisma } from "@/lib/db"
 
+export interface IngestProgress {
+  phase: "chunking" | "embedding" | "storing"
+  percent: number
+  detail?: string
+}
+
 export async function ingestDocument(
   documentId: string,
-  text: string
+  text: string,
+  onProgress?: (progress: IngestProgress) => void,
 ): Promise<{ chunksCreated: number; error?: string }> {
   // Ensure pgvector extension and embedding column exist
   await ensureVectorColumn()
@@ -20,15 +27,23 @@ export async function ingestDocument(
     return { chunksCreated: 0, error: "No extractable content" }
   }
 
+  onProgress?.({ phase: "chunking", percent: 15, detail: `${chunks.length} chunks created` })
+
   // Generate embeddings for all chunks (batched)
   const texts = chunks.map((c) => c.content)
   let embeddings: number[][] | null = null
 
   try {
-    embeddings = await generateEmbeddings(texts)
+    embeddings = await generateEmbeddings(texts, (completed, total) => {
+      // Embedding phase spans 15%–85%
+      const pct = 15 + Math.round((completed / total) * 70)
+      onProgress?.({ phase: "embedding", percent: pct, detail: `Embedding ${completed}/${total} chunks` })
+    })
   } catch (error: any) {
     console.error("[Knowledge] Embedding generation failed:", error.message)
   }
+
+  onProgress?.({ phase: "storing", percent: 85, detail: "Saving chunks to database" })
 
   // Store chunks — with embeddings if available, without if not
   for (let i = 0; i < chunks.length; i++) {
