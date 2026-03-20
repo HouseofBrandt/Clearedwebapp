@@ -134,6 +134,44 @@ export function UploadDialog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globalCategory])
 
+  /**
+   * Upload via FormData directly to the server (fallback when S3 isn't available).
+   * Works for files within the serverless body size limit (~10MB).
+   */
+  async function uploadViaFormData(item: FileUploadItem, index: number) {
+    updateFile(index, { status: "uploading", progress: 50 })
+
+    const formData = new FormData()
+    formData.append("file", item.file)
+    formData.append("title", item.title)
+    formData.append("category", item.category)
+    if (item.description) formData.append("description", item.description)
+    if (item.tags) {
+      const tags = item.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
+      formData.append("tags", JSON.stringify(tags))
+    }
+
+    const res = await fetch("/api/knowledge", {
+      method: "POST",
+      body: formData,
+    })
+
+    updateFile(index, { progress: 100 })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || "Upload failed")
+    }
+
+    const result = await res.json()
+    updateFile(index, {
+      status: "done",
+      documentId: result.id,
+      chunksCreated: result.chunksCreated,
+      error: result.warning,
+    })
+  }
+
   async function uploadSingleFile(item: FileUploadItem, index: number) {
     if (!item.category) {
       updateFile(index, { status: "error", error: "Category is required" })
@@ -161,37 +199,46 @@ export function UploadDialog() {
       })
 
       if (!presignRes.ok) {
-        const err = await presignRes.json().catch(() => ({}))
-        throw new Error(err.error || "Failed to get upload URL")
+        // S3 presign failed — fall back to direct FormData upload
+        console.warn("[KB Upload] Presign failed, falling back to direct upload")
+        await uploadViaFormData(item, index)
+        return
       }
 
       const { documentId, uploadUrl } = await presignRes.json()
       updateFile(index, { documentId })
 
       // Step 2: Upload directly to S3 with progress
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.open("PUT", uploadUrl)
-        xhr.setRequestHeader("Content-Type", item.file.type || "application/octet-stream")
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest()
+          xhr.open("PUT", uploadUrl)
+          xhr.setRequestHeader("Content-Type", item.file.type || "application/octet-stream")
 
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const pct = Math.round((e.loaded / e.total) * 100)
-            updateFile(index, { progress: pct })
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 100)
+              updateFile(index, { progress: pct })
+            }
           }
-        }
 
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve()
-          } else {
-            reject(new Error(`S3 upload failed with status ${xhr.status}`))
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve()
+            } else {
+              reject(new Error(`S3 upload failed with status ${xhr.status}`))
+            }
           }
-        }
 
-        xhr.onerror = () => reject(new Error("Network error during upload"))
-        xhr.send(item.file)
-      })
+          xhr.onerror = () => reject(new Error("Network error during S3 upload"))
+          xhr.send(item.file)
+        })
+      } catch (s3Error) {
+        // S3 upload failed (CORS, credentials, etc.) — fall back to direct upload
+        console.warn("[KB Upload] S3 upload failed, falling back to direct upload:", s3Error)
+        await uploadViaFormData(item, index)
+        return
+      }
 
       // Step 3: Trigger server-side processing
       updateFile(index, { status: "processing", progress: 100 })
