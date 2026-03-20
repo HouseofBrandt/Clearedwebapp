@@ -199,8 +199,21 @@ export function UploadDialog() {
       })
 
       if (!presignRes.ok) {
-        // S3 presign failed — fall back to direct FormData upload
-        console.warn("[KB Upload] Presign failed, falling back to direct upload")
+        // S3 presign failed — fall back to direct FormData upload for small files
+        const presignErr = await presignRes.json().catch(() => ({}))
+        const s3NotConfigured = presignRes.status === 503
+        console.warn("[KB Upload] Presign failed:", presignErr.error || presignRes.status)
+
+        // Direct upload only works for files under ~4.5MB (Vercel serverless limit)
+        const DIRECT_UPLOAD_LIMIT = 4.5 * 1024 * 1024
+        if (item.file.size > DIRECT_UPLOAD_LIMIT) {
+          throw new Error(
+            s3NotConfigured
+              ? `File is too large for direct upload (${formatFileSize(item.file.size)}). S3 storage must be configured for files over 4.5MB. Contact your administrator.`
+              : presignErr.error || "Failed to get upload URL"
+          )
+        }
+
         await uploadViaFormData(item, index)
         return
       }
@@ -234,8 +247,14 @@ export function UploadDialog() {
           xhr.send(item.file)
         })
       } catch (s3Error) {
-        // S3 upload failed (CORS, credentials, etc.) — fall back to direct upload
+        // S3 upload failed (CORS, credentials, etc.) — fall back to direct upload for small files
         console.warn("[KB Upload] S3 upload failed, falling back to direct upload:", s3Error)
+        const DIRECT_UPLOAD_LIMIT = 4.5 * 1024 * 1024
+        if (item.file.size > DIRECT_UPLOAD_LIMIT) {
+          throw new Error(
+            `File is too large for direct upload (${formatFileSize(item.file.size)}). S3 storage upload failed — check S3 CORS and credentials configuration.`
+          )
+        }
         await uploadViaFormData(item, index)
         return
       }
