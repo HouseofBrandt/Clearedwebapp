@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
-import { prisma } from "@/lib/db"
+import { prisma, startDbKeepalive } from "@/lib/db"
 import { callClaudeStream } from "@/lib/ai/client"
 import { tokenizeText, encryptTokenMap, detokenizeText, validateTokenization } from "@/lib/ai/tokenizer"
 import { logAIRequest } from "@/lib/ai/audit"
@@ -308,6 +308,7 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       let aiTaskId: string | null = null
+      let stopKeepalive: (() => void) | null = null
 
       try {
         // Phase 1: Setup (fast — DB writes, tokenization)
@@ -413,6 +414,10 @@ export async function POST(request: NextRequest) {
         console.log("[AI Analyze] Calling Claude:", model, "maxTokens:", maxTokens, "input:", userMessage.length, "chars")
         safeSendEvent(controller, { status: "processing", phase: "AI is generating response..." })
 
+        // Keep DB connection warm during the potentially long Claude API call
+        // so the Neon WebSocket doesn't go stale
+        stopKeepalive = startDbKeepalive(30_000)
+
         const { stream: claudeStream, requestId } = callClaudeStream({
           systemPrompt,
           userMessage,
@@ -470,6 +475,9 @@ export async function POST(request: NextRequest) {
         } finally {
           clearInterval(heartbeat)
         }
+
+        // Claude is done — stop the DB keepalive
+        stopKeepalive()
 
         const responseModel = finalMessage.model
         const inputTokens = finalMessage.usage.input_tokens
@@ -607,7 +615,9 @@ export async function POST(request: NextRequest) {
           }
         } else {
           // --- NARRATIVE PIPELINE ---
+          console.log("[AI Analyze] Starting narrative detokenization...")
           detokenized = detokenizeText(fullContent, tokenMap)
+          console.log("[AI Analyze] Detokenization complete:", detokenized.length, "chars")
           verifyFlags = (fullContent.match(/\[VERIFY\]/g) || []).length
           judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
 
@@ -634,33 +644,41 @@ export async function POST(request: NextRequest) {
         // Persist to DB and notify the client in parallel — run the DB update
         // and audit log concurrently so post-processing is as fast as possible.
         // Send the "complete" event right after to minimize total function time.
-        await Promise.all([
-          prisma.aITask.update({
-            where: { id: aiTask.id },
-            data: {
-              status: "READY_FOR_REVIEW",
-              tokenizedInput: tokenizedText.substring(0, 10000),
-              tokenizedOutput: fullContent,
-              detokenizedOutput: detokenized,
-              modelUsed: responseModel,
-              temperature,
+        console.log("[AI Analyze] Starting DB persist...")
+        const DB_TIMEOUT = 30_000  // 30s timeout for DB operations
+        await Promise.race([
+          Promise.all([
+            prisma.aITask.update({
+              where: { id: aiTask.id },
+              data: {
+                status: "READY_FOR_REVIEW",
+                tokenizedInput: tokenizedText.substring(0, 10000),
+                tokenizedOutput: fullContent,
+                detokenizedOutput: detokenized,
+                modelUsed: responseModel,
+                temperature,
+                systemPromptVersion: promptName,
+                verifyFlagCount: verifyFlags,
+                judgmentFlagCount: judgmentFlags,
+                metadata: suggestedDeadlines.length > 0 ? { suggestedDeadlines: suggestedDeadlines as any } as any : undefined,
+              },
+            }),
+            logAIRequest({
+              aiTaskId: aiTask.id,
+              practitionerId: userId,
+              caseId,
+              model: responseModel,
+              requestId,
               systemPromptVersion: promptName,
-              verifyFlagCount: verifyFlags,
-              judgmentFlagCount: judgmentFlags,
-              metadata: suggestedDeadlines.length > 0 ? { suggestedDeadlines: suggestedDeadlines as any } as any : undefined,
-            },
-          }),
-          logAIRequest({
-            aiTaskId: aiTask.id,
-            practitionerId: userId,
-            caseId,
-            model: responseModel,
-            requestId,
-            systemPromptVersion: promptName,
-            inputTokens,
-            outputTokens,
-          }),
+              inputTokens,
+              outputTokens,
+            }),
+          ]),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("DB persist timed out after 30s")), DB_TIMEOUT)
+          ),
         ])
+        console.log("[AI Analyze] DB persist complete")
 
         safeSendEvent(controller, {
           status: "complete",
@@ -670,6 +688,7 @@ export async function POST(request: NextRequest) {
         })
         safeClose(controller)
       } catch (error: any) {
+        if (stopKeepalive) stopKeepalive()
         console.error("[AI Analyze] FATAL:", error)
         console.error("[AI Analyze] Stack:", error?.stack)
 
