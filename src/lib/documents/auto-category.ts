@@ -4,6 +4,8 @@
  */
 export function autoDetectCategory(fileName: string): string {
   const n = fileName.toLowerCase()
+  if (n.includes("rejection") || n.includes("reject") || n.includes("denial") ||
+      n.includes("denied") || n.includes("13711") || n.includes("appeal")) return "IRS_REJECTION"
   if (n.includes("irs") || n.includes("notice") || n.includes("letter") ||
       n.includes("cp") || n.includes("lt11") || n.includes("1058") ||
       n.includes("transcript")) return "IRS_NOTICE"

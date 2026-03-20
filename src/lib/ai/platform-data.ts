@@ -8,6 +8,7 @@ interface DataQuery {
   knowledgeBase?: boolean
   inbox?: boolean
   users?: boolean
+  errors?: boolean
 }
 
 export function detectDataNeeds(message: string): DataQuery {
@@ -46,6 +47,10 @@ export function detectDataNeeds(message: string): DataQuery {
 
   if (m.match(/team|user|practitioner|who|assign|staff/)) {
     query.users = true
+  }
+
+  if (m.match(/error|bug|fail|broke|crash|not working|issue|problem/)) {
+    query.errors = true
   }
 
   return query
@@ -267,6 +272,39 @@ export async function fetchPlatformData(
     let text = `TEAM (${users.length} users):\n`
     for (const u of users) {
       text += `  - ${u.name} · ${u.role} · ${u.email}\n`
+    }
+    sections.push(text)
+  }
+
+  if (query.errors) {
+    const recent = await prisma.appError.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        route: true,
+        errorMessage: true,
+        statusCode: true,
+        createdAt: true,
+        metadata: true,
+        user: { select: { name: true } },
+      },
+    })
+
+    let text = `RECENT ERRORS (last ${recent.length}):\n`
+    if (recent.length === 0) {
+      text += "No errors recorded.\n"
+    } else {
+      for (const e of recent) {
+        const time = e.createdAt.toLocaleString()
+        const meta = e.metadata as any
+        text += `  - [${time}] ${e.route} — ${e.errorMessage}`
+        if (e.statusCode) text += ` (HTTP ${e.statusCode})`
+        if (meta?.taskType) text += ` · Task: ${meta.taskType}`
+        if (meta?.model) text += ` · Model: ${meta.model}`
+        if (meta?.phase) text += ` · Phase: ${meta.phase}`
+        if (e.user?.name) text += ` · User: ${e.user.name}`
+        text += "\n"
+      }
     }
     sections.push(text)
   }

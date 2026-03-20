@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { getFromS3 } from "@/lib/storage"
 import { extractTextFromBuffer } from "@/lib/documents/extract"
 import { ingestDocument } from "@/lib/knowledge/ingest"
+import { trackError } from "@/lib/error-tracking"
 
 // Allow up to 5 minutes for large file processing (download from S3 + text extraction + chunking)
 export const maxDuration = 300
@@ -155,6 +156,13 @@ export async function POST(request: NextRequest) {
             processingStatus: "failed",
             processingError: err.message,
           },
+        }).catch(() => {})
+
+        trackError({
+          route: "/api/knowledge/process",
+          error: err,
+          userId: auth.userId,
+          metadata: { documentId, fileName: doc.fileName },
         }).catch(() => {})
 
         sendEvent(controller, {

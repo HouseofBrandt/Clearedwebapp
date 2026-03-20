@@ -11,6 +11,8 @@ import { z } from "zod"
 import { populateFromAIExtraction } from "@/lib/documents/liability"
 import { getKnowledgeContext } from "@/lib/knowledge/context"
 import { notify } from "@/lib/notifications"
+import { trackError } from "@/lib/error-tracking"
+import { getAppealsContext } from "@/lib/knowledge/appeals-context"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -142,6 +144,7 @@ const VALID_TASK_TYPES = [
   "CNC_ANALYSIS",
   "TFRP_ANALYSIS",
   "INNOCENT_SPOUSE_ANALYSIS",
+  "APPEALS_REBUTTAL",
 ] as const
 
 const VALID_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"] as const
@@ -166,13 +169,14 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
   CNC_ANALYSIS: "cnc_analysis_v1",
   TFRP_ANALYSIS: "tfrp_analysis_v1",
   INNOCENT_SPOUSE_ANALYSIS: "innocent_spouse_v1",
+  APPEALS_REBUTTAL: "appeals_rebuttal_v1",
 }
 
 // Tasks that use the template+extraction pipeline (structured JSON output)
 const TEMPLATE_TASKS = ["WORKING_PAPERS"]
 
 // Tasks that produce long detailed output and need more token room (12288 tokens)
-const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "CASE_MEMO", "OIC_NARRATIVE"]
+const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "CASE_MEMO", "OIC_NARRATIVE", "APPEALS_REBUTTAL"]
 
 /** Send a JSON line to the stream controller */
 function sendEvent(controller: ReadableStreamDefaultController, data: Record<string, any>) {
@@ -369,25 +373,42 @@ export async function POST(request: NextRequest) {
         // Guard with a 10s timeout so KB issues never stall the analysis
         const kbDocCount = await prisma.knowledgeDocument.count({ where: { isActive: true } })
         if (kbDocCount > 0) {
-          try {
-            const kbPromise = getKnowledgeContext(
-              taskType,
-              caseData.caseType,
-              tokenizedDocText.substring(0, 2000),
-              additionalContext
-            )
-            const KB_TIMEOUT = 10_000
-            const knowledgeContext = await Promise.race([
-              kbPromise,
-              new Promise<string>((_, reject) =>
-                setTimeout(() => reject(new Error("Knowledge base search timed out")), KB_TIMEOUT)
-              ),
-            ])
-            if (knowledgeContext) {
-              systemPrompt += knowledgeContext
+          // For appeals rebuttals, use smart multi-query search that identifies
+          // specific rejection reasons and pulls targeted KB material for each one
+          if (taskType === "APPEALS_REBUTTAL") {
+            try {
+              const appealsContext = await getAppealsContext(
+                tokenizedDocText,
+                caseData.caseType,
+                additionalContext
+              )
+              if (appealsContext) {
+                systemPrompt += appealsContext
+              }
+            } catch (e: any) {
+              console.warn("[AI Analyze] Appeals context failed:", e.message)
             }
-          } catch (e: any) {
-            console.warn("[AI Analyze] Knowledge context fetch failed:", e.message)
+          } else {
+            try {
+              const kbPromise = getKnowledgeContext(
+                taskType,
+                caseData.caseType,
+                tokenizedDocText.substring(0, 2000),
+                additionalContext
+              )
+              const KB_TIMEOUT = 10_000
+              const knowledgeContext = await Promise.race([
+                kbPromise,
+                new Promise<string>((_, reject) =>
+                  setTimeout(() => reject(new Error("Knowledge base search timed out")), KB_TIMEOUT)
+                ),
+              ])
+              if (knowledgeContext) {
+                systemPrompt += knowledgeContext
+              }
+            } catch (e: any) {
+              console.warn("[AI Analyze] Knowledge context fetch failed:", e.message)
+            }
           }
         }
 
@@ -703,6 +724,15 @@ export async function POST(request: NextRequest) {
         if (stopKeepalive) stopKeepalive()
         console.error("[AI Analyze] FATAL:", error)
         console.error("[AI Analyze] Stack:", error?.stack)
+
+        trackError({
+          route: "/api/ai/analyze",
+          error,
+          userId,
+          caseId,
+          aiTaskId: aiTaskId || undefined,
+          metadata: { taskType, model: requestedModel, phase: "stream" },
+        }).catch(() => {})
 
         let errorMessage = error.message || "AI analysis failed"
         if (error?.status === 401) {

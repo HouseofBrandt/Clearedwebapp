@@ -64,6 +64,7 @@ enum FileType {
 
 enum DocumentCategory {
   IRS_NOTICE
+  IRS_REJECTION
   BANK_STATEMENT
   TAX_RETURN
   PAYROLL
@@ -89,6 +90,7 @@ enum AITaskType {
   CNC_ANALYSIS
   TFRP_ANALYSIS
   INNOCENT_SPOUSE_ANALYSIS
+  APPEALS_REBUTTAL
 }
 
 enum AITaskStatus {
@@ -204,6 +206,7 @@ model User {
   uploadedKnowledge   KnowledgeDocument[] @relation("UploadedKnowledge")
   sentMessages        Message[]          @relation("SentMessages")
   receivedMessages    Message[]          @relation("ReceivedMessages")
+  appErrors           AppError[]         @relation("UserErrors")
 
   @@map("users")
 }
@@ -424,6 +427,26 @@ model KnowledgeChunk {
 
   @@index([documentId])
   @@map("knowledge_chunks")
+}
+
+model AppError {
+  id            String   @id @default(cuid())
+  route         String
+  method        String
+  errorMessage  String   @db.Text
+  errorStack    String?  @db.Text
+  statusCode    Int?
+  userId        String?
+  user          User?    @relation("UserErrors", fields: [userId], references: [id])
+  caseId        String?
+  aiTaskId      String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([route])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("app_errors")
 }
 
 model Message {
