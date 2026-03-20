@@ -28,8 +28,26 @@ export async function ensureVectorColumn(): Promise<boolean> {
       END $$;
     `)
 
+    // Add search_vector tsvector column for full-text search
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'knowledge_chunks' AND column_name = 'search_vector'
+        ) THEN
+          ALTER TABLE knowledge_chunks ADD COLUMN search_vector tsvector
+          GENERATED ALWAYS AS (
+            to_tsvector('english', content || ' ' || COALESCE("sectionHeader", ''))
+          ) STORED;
+          CREATE INDEX IF NOT EXISTS idx_knowledge_chunks_fts
+          ON knowledge_chunks USING GIN (search_vector);
+        END IF;
+      END $$;
+    `)
+
     _vectorReady = true
-    console.log("[Knowledge] Vector column ready")
+    console.log("[Knowledge] Vector and search_vector columns ready")
     return true
   } catch (error: any) {
     console.error("[Knowledge] Failed to set up vector column:", error.message)

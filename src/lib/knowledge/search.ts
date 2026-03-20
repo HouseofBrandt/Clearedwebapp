@@ -134,7 +134,13 @@ export async function searchKnowledge(
 
   sql += ` ORDER BY score DESC LIMIT ${topK}`
 
-  const results = (await prisma.$queryRawUnsafe(sql, ...params)) as SearchResult[]
+  let results: SearchResult[] = []
+  try {
+    results = (await prisma.$queryRawUnsafe(sql, ...params)) as SearchResult[]
+  } catch (err: any) {
+    console.error("[Knowledge Search] Raw query failed:", err.message)
+    return []
+  }
   const filtered = results.filter((r) => r.score >= minScore)
 
   // Fire-and-forget hit counter updates
