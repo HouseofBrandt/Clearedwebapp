@@ -45,6 +45,10 @@ export function detectDataNeeds(message: string): DataQuery {
     query.inbox = true
   }
 
+  if (m.match(/implement|shipped|deployed|built|merged|status.*(?:bug|feature|request)|(?:bug|feature).*(?:status|done|fixed|resolved)/)) {
+    query.inbox = true
+  }
+
   if (m.match(/team|user|practitioner|who|assign|staff/)) {
     query.users = true
   }
@@ -234,32 +238,65 @@ export async function fetchPlatformData(
   }
 
   if (query.inbox) {
-    const [unread, recentBugs, recentFeatures] = await Promise.all([
+    const [unread, bugs, features] = await Promise.all([
       prisma.message.count({
         where: { recipientId: userId, read: false, archived: false },
       }),
       prisma.message.findMany({
         where: { type: "BUG_REPORT" },
-        select: { subject: true, createdAt: true, sender: { select: { name: true } } },
+        select: {
+          subject: true,
+          createdAt: true,
+          implementationStatus: true,
+          implementationNotes: true,
+          sender: { select: { name: true } },
+        },
         orderBy: { createdAt: "desc" },
-        take: 5,
+        take: 10,
       }),
       prisma.message.findMany({
         where: { type: "FEATURE_REQUEST" },
-        select: { subject: true, createdAt: true, sender: { select: { name: true } } },
+        select: {
+          subject: true,
+          createdAt: true,
+          implementationStatus: true,
+          implementationNotes: true,
+          sender: { select: { name: true } },
+        },
         orderBy: { createdAt: "desc" },
-        take: 5,
+        take: 10,
       }),
     ])
 
-    let text = `INBOX:\n`
+    let text = `INBOX & TRACKING:\n`
     text += `${unread} unread messages\n`
-    if (recentBugs.length > 0) {
-      text += `Recent bug reports: ${recentBugs.map(b => b.subject).join("; ")}\n`
+
+    if (bugs.length > 0) {
+      text += `\nBug Reports (${bugs.length}):\n`
+      for (const b of bugs) {
+        const status = b.implementationStatus || "open"
+        text += `  - ${b.subject} [${status.toUpperCase()}]`
+        if (b.implementationNotes) text += ` — ${b.implementationNotes}`
+        text += `\n`
+      }
     }
-    if (recentFeatures.length > 0) {
-      text += `Recent feature requests: ${recentFeatures.map(f => f.subject).join("; ")}\n`
+
+    if (features.length > 0) {
+      text += `\nFeature Requests (${features.length}):\n`
+      for (const f of features) {
+        const status = f.implementationStatus || "open"
+        text += `  - ${f.subject} [${status.toUpperCase()}]`
+        if (f.implementationNotes) text += ` — ${f.implementationNotes}`
+        text += `\n`
+      }
     }
+
+    const allItems = [...bugs, ...features]
+    const open = allItems.filter(i => !i.implementationStatus || i.implementationStatus === "open").length
+    const inProgress = allItems.filter(i => i.implementationStatus === "in_progress").length
+    const done = allItems.filter(i => i.implementationStatus === "implemented").length
+    text += `\nSummary: ${open} open, ${inProgress} in progress, ${done} implemented\n`
+
     sections.push(text)
   }
 

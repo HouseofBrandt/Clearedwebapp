@@ -78,6 +78,11 @@ export async function GET(request: NextRequest) {
     if (msg.tags.length > 0) {
       md += `Tags: ${msg.tags.join(", ")}\n`
     }
+    const implStatus = (msg as any).implementationStatus || "open"
+    md += `**Status: ${implStatus.charAt(0).toUpperCase() + implStatus.slice(1).replace("_", " ")}**\n`
+    if ((msg as any).implementationNotes) {
+      md += `Notes: ${(msg as any).implementationNotes}\n`
+    }
     md += `\n${msg.body}\n\n---\n\n`
   }
 

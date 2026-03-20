@@ -16,11 +16,25 @@ export async function PATCH(
       where: { id: params.messageId },
     })
 
-    if (!message || message.recipientId !== auth.userId) {
+    if (!message) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 })
     }
 
     const body = await request.json()
+
+    // Implementation status updates require admin role
+    if ("implementationStatus" in body || "implementationNotes" in body) {
+      const user = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { role: true },
+      })
+      if (user?.role !== "ADMIN") {
+        return NextResponse.json({ error: "Only admins can update implementation status" }, { status: 403 })
+      }
+    } else if (message.recipientId !== auth.userId) {
+      return NextResponse.json({ error: "Message not found" }, { status: 404 })
+    }
+
     const updateData: any = {}
 
     if (body.read === true) {
@@ -34,9 +48,24 @@ export async function PATCH(
       updateData.archived = false
     }
 
+    // Implementation tracking fields
+    if (body.implementationStatus !== undefined) {
+      updateData.implementationStatus = body.implementationStatus
+      if (body.implementationStatus === "implemented" && !message.implementedAt) {
+        updateData.implementedAt = new Date()
+        updateData.implementedById = auth.userId
+      }
+    }
+    if (body.implementationNotes !== undefined) {
+      updateData.implementationNotes = body.implementationNotes
+    }
+
     const updated = await prisma.message.update({
       where: { id: params.messageId },
       data: updateData,
+      include: {
+        implementedBy: { select: { name: true } },
+      },
     })
 
     return NextResponse.json(updated)

@@ -207,6 +207,7 @@ model User {
   sentMessages        Message[]          @relation("SentMessages")
   receivedMessages    Message[]          @relation("ReceivedMessages")
   appErrors           AppError[]         @relation("UserErrors")
+  implementedMessages Message[]          @relation("ImplementedMessages")
 
   @@map("users")
 }
@@ -478,6 +479,13 @@ model Message {
 
   tags          String[]
   metadata      Json?
+
+  // Implementation tracking (for BUG_REPORT and FEATURE_REQUEST)
+  implementationStatus  String?
+  implementationNotes   String?   @db.Text
+  implementedAt         DateTime?
+  implementedById       String?
+  implementedBy         User?     @relation("ImplementedMessages", fields: [implementedById], references: [id])
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
