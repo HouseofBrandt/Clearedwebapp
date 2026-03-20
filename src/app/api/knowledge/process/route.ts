@@ -61,8 +61,9 @@ export async function POST(request: NextRequest) {
     console.log(`[KB Process] Downloaded ${buffer.length} bytes, extracting text...`)
     const fileType = detectFileType(doc.fileName || "file.txt")
 
-    // Extract text
-    const sourceText = await extractTextFromBuffer(buffer, fileType)
+    // Extract text and strip null bytes (PostgreSQL rejects \0x00 in text columns)
+    const rawText = await extractTextFromBuffer(buffer, fileType)
+    const sourceText = rawText.replace(/\0/g, "")
     if (!sourceText || sourceText.trim().length < 10) {
       await prisma.knowledgeDocument.update({
         where: { id: documentId },
