@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { getFromS3 } from "@/lib/storage"
@@ -30,21 +30,48 @@ function detectFileType(fileName: string): string {
   return extMap[ext] || "TEXT"
 }
 
+function sendEvent(controller: ReadableStreamDefaultController, data: Record<string, any>) {
+  try {
+    controller.enqueue(new TextEncoder().encode(JSON.stringify(data) + "\n"))
+  } catch {
+    // Client disconnected
+  }
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth()
   if (!auth.authorized) return auth.response
 
-  const { documentId } = await request.json()
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  const { documentId } = body
   if (!documentId) {
-    return NextResponse.json({ error: "documentId required" }, { status: 400 })
+    return new Response(JSON.stringify({ error: "documentId required" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   const doc = await prisma.knowledgeDocument.findUnique({ where: { id: documentId } })
   if (!doc) {
-    return NextResponse.json({ error: "Document not found" }, { status: 404 })
+    return new Response(JSON.stringify({ error: "Document not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    })
   }
   if (!doc.s3Key) {
-    return NextResponse.json({ error: "No S3 file associated with this document" }, { status: 400 })
+    return new Response(JSON.stringify({ error: "No S3 file associated with this document" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
   }
 
   // Mark as processing
@@ -53,66 +80,96 @@ export async function POST(request: NextRequest) {
     data: { processingStatus: "processing" },
   })
 
-  try {
-    // Download from S3
-    const fileSizeMB = (doc.fileSize || 0) / (1024 * 1024)
-    console.log(`[KB Process] Downloading ${doc.fileName} (${fileSizeMB.toFixed(1)}MB) from S3: ${doc.s3Key}`)
-    const buffer = await getFromS3(doc.s3Key)
-    console.log(`[KB Process] Downloaded ${buffer.length} bytes, extracting text...`)
-    const fileType = detectFileType(doc.fileName || "file.txt")
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        // Phase 1: Download from S3
+        const fileSizeMB = (doc.fileSize || 0) / (1024 * 1024)
+        sendEvent(controller, { status: "processing", phase: "Downloading file...", percent: 0 })
+        console.log(`[KB Process] Downloading ${doc.fileName} (${fileSizeMB.toFixed(1)}MB) from S3: ${doc.s3Key}`)
+        const buffer = await getFromS3(doc.s3Key!)
+        console.log(`[KB Process] Downloaded ${buffer.length} bytes, extracting text...`)
 
-    // Extract text and strip null bytes (PostgreSQL rejects \0x00 in text columns)
-    const rawText = await extractTextFromBuffer(buffer, fileType)
-    const sourceText = rawText.replace(/\0/g, "")
-    if (!sourceText || sourceText.trim().length < 10) {
-      await prisma.knowledgeDocument.update({
-        where: { id: documentId },
-        data: {
-          processingStatus: "failed",
-          processingError: "Could not extract sufficient text from this file.",
-        },
-      })
-      return NextResponse.json(
-        { error: "Could not extract sufficient text from this file." },
-        { status: 400 }
-      )
-    }
+        // Phase 2: Extract text
+        sendEvent(controller, { status: "processing", phase: "Extracting text...", percent: 5 })
+        const fileType = detectFileType(doc.fileName || "file.txt")
+        const rawText = await extractTextFromBuffer(buffer, fileType)
+        const sourceText = rawText.replace(/\0/g, "")
 
-    // Store extracted text
-    await prisma.knowledgeDocument.update({
-      where: { id: documentId },
-      data: { sourceText },
-    })
+        if (!sourceText || sourceText.trim().length < 10) {
+          await prisma.knowledgeDocument.update({
+            where: { id: documentId },
+            data: {
+              processingStatus: "failed",
+              processingError: "Could not extract sufficient text from this file.",
+            },
+          })
+          sendEvent(controller, {
+            status: "error",
+            error: "Could not extract sufficient text from this file.",
+          })
+          controller.close()
+          return
+        }
 
-    // Chunk and embed
-    const result = await ingestDocument(documentId, sourceText)
+        sendEvent(controller, { status: "processing", phase: "Saving extracted text...", percent: 10 })
 
-    // Mark as ready
-    await prisma.knowledgeDocument.update({
-      where: { id: documentId },
-      data: {
-        processingStatus: "ready",
-        processingError: result.error || null,
-      },
-    })
+        // Store extracted text
+        await prisma.knowledgeDocument.update({
+          where: { id: documentId },
+          data: { sourceText },
+        })
 
-    return NextResponse.json({
-      id: documentId,
-      chunksCreated: result.chunksCreated,
-      textLength: sourceText.length,
-      warning: result.error,
-    })
-  } catch (err: any) {
-    await prisma.knowledgeDocument.update({
-      where: { id: documentId },
-      data: {
-        processingStatus: "failed",
-        processingError: err.message,
-      },
-    })
-    return NextResponse.json(
-      { error: `Processing failed: ${err.message}` },
-      { status: 500 }
-    )
-  }
+        // Phase 3: Chunk and embed (with progress callback)
+        const result = await ingestDocument(documentId, sourceText, (progress) => {
+          sendEvent(controller, {
+            status: "processing",
+            phase: progress.detail || progress.phase,
+            percent: progress.percent,
+          })
+        })
+
+        // Mark as ready
+        await prisma.knowledgeDocument.update({
+          where: { id: documentId },
+          data: {
+            processingStatus: "ready",
+            processingError: result.error || null,
+          },
+        })
+
+        sendEvent(controller, {
+          status: "complete",
+          id: documentId,
+          chunksCreated: result.chunksCreated,
+          textLength: sourceText.length,
+          warning: result.error,
+          percent: 100,
+        })
+        controller.close()
+      } catch (err: any) {
+        await prisma.knowledgeDocument.update({
+          where: { id: documentId },
+          data: {
+            processingStatus: "failed",
+            processingError: err.message,
+          },
+        }).catch(() => {})
+
+        sendEvent(controller, {
+          status: "error",
+          error: `Processing failed: ${err.message}`,
+        })
+        try { controller.close() } catch {}
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  })
 }

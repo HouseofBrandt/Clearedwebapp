@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/components/ui/toast"
+import { Progress } from "@/components/ui/progress"
 import { Plus, Loader2, Upload, X, FileText, CheckCircle, AlertCircle, CloudUpload } from "lucide-react"
 
 const CATEGORIES = [
@@ -49,6 +50,7 @@ interface FileUploadItem {
   tags: string
   status: "pending" | "uploading" | "processing" | "done" | "error"
   progress: number
+  progressPhase?: string
   error?: string
   documentId?: string
   chunksCreated?: number
@@ -262,8 +264,8 @@ export function UploadDialog() {
         return
       }
 
-      // Step 3: Trigger server-side processing
-      updateFile(index, { status: "processing", progress: 100 })
+      // Step 3: Trigger server-side processing (streamed progress)
+      updateFile(index, { status: "processing", progress: 0, progressPhase: "Starting processing..." })
 
       const processRes = await fetch("/api/knowledge/process", {
         method: "POST",
@@ -276,12 +278,61 @@ export function UploadDialog() {
         throw new Error(err.error || "Processing failed")
       }
 
-      const result = await processRes.json()
-      updateFile(index, {
-        status: "done",
-        chunksCreated: result.chunksCreated,
-        error: result.warning,
-      })
+      // Read streamed progress events
+      const reader = processRes.body!.getReader()
+      const decoder = new TextDecoder()
+      let lineBuffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        lineBuffer += decoder.decode(value, { stream: true })
+        const lines = lineBuffer.split("\n")
+        lineBuffer = lines.pop() || ""
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          try {
+            const data = JSON.parse(line)
+            if (data.status === "processing") {
+              updateFile(index, {
+                progress: data.percent ?? 0,
+                progressPhase: data.phase || "Processing...",
+              })
+            } else if (data.status === "complete") {
+              updateFile(index, {
+                status: "done",
+                progress: 100,
+                chunksCreated: data.chunksCreated,
+                error: data.warning,
+              })
+            } else if (data.status === "error") {
+              throw new Error(data.error || "Processing failed")
+            }
+          } catch (e: any) {
+            if (e instanceof SyntaxError) continue
+            throw e
+          }
+        }
+      }
+      // Process remaining buffer
+      if (lineBuffer.trim()) {
+        try {
+          const data = JSON.parse(lineBuffer)
+          if (data.status === "complete") {
+            updateFile(index, {
+              status: "done",
+              progress: 100,
+              chunksCreated: data.chunksCreated,
+              error: data.warning,
+            })
+          } else if (data.status === "error") {
+            throw new Error(data.error || "Processing failed")
+          }
+        } catch (e: any) {
+          if (!(e instanceof SyntaxError)) throw e
+        }
+      }
     } catch (err: any) {
       updateFile(index, { status: "error", error: err.message })
     }
@@ -479,21 +530,17 @@ export function UploadDialog() {
 
                 {/* Progress bar */}
                 {(item.status === "uploading" || item.status === "processing") && (
-                  <div className="space-y-1">
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-300 ${
-                          item.status === "processing" ? "bg-amber-500 animate-pulse" : "bg-primary"
-                        }`}
-                        style={{ width: `${item.progress}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {item.status === "uploading"
-                        ? `Uploading... ${item.progress}%`
-                        : "Processing — extracting text and creating embeddings..."}
-                    </p>
-                  </div>
+                  <Progress
+                    value={item.progress}
+                    size="sm"
+                    variant={item.status === "processing" ? "warning" : "default"}
+                    showPercent
+                    label={
+                      item.status === "uploading"
+                        ? "Uploading to storage..."
+                        : item.progressPhase || "Processing..."
+                    }
+                  />
                 )}
 
                 {/* Result info */}
