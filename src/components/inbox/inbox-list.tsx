@@ -8,6 +8,14 @@ import {
   ArchiveX, Reply, ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { MESSAGE_TYPE_LABELS, MESSAGE_TYPE_COLORS, MESSAGE_PRIORITY_LABELS } from "@/types"
 import { ComposeDialog } from "./compose-dialog"
 import { ExportDialog } from "./message-detail"
@@ -32,6 +40,10 @@ interface MessageData {
   aiTaskId?: string | null
   parentId?: string | null
   tags: string[]
+  implementationStatus?: string | null
+  implementationNotes?: string | null
+  implementedAt?: string | null
+  implementedBy?: { name: string } | null
   createdAt: string
 }
 
@@ -262,9 +274,13 @@ export function InboxList({
         {selected ? (
           <MessageDetail
             message={selected}
+            isAdmin={isAdmin}
             onBack={() => setSelectedId(null)}
             onArchive={() => archiveMessage(selected.id)}
             onReply={() => setShowCompose(true)}
+            onUpdateMessage={(updated) => {
+              setMessages((prev) => prev.map((m) => m.id === updated.id ? { ...m, ...updated } : m))
+            }}
           />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
@@ -296,16 +312,36 @@ export function InboxList({
 // -------------------------------------------------------------------
 // Message Detail (inline)
 // -------------------------------------------------------------------
+const IMPL_STATUS_COLORS: Record<string, string> = {
+  open: "bg-amber-100 text-amber-800",
+  in_progress: "bg-blue-100 text-blue-800",
+  implemented: "bg-green-100 text-green-800",
+  wont_fix: "bg-gray-100 text-gray-700",
+  duplicate: "bg-gray-100 text-gray-700",
+}
+
+const IMPL_STATUS_LABELS: Record<string, string> = {
+  open: "Open",
+  in_progress: "In Progress",
+  implemented: "Implemented",
+  wont_fix: "Won't Fix",
+  duplicate: "Duplicate",
+}
+
 function MessageDetail({
   message,
+  isAdmin,
   onBack,
   onArchive,
   onReply,
+  onUpdateMessage,
 }: {
   message: MessageData
+  isAdmin: boolean
   onBack: () => void
   onArchive: () => void
   onReply: () => void
+  onUpdateMessage: (updated: Partial<MessageData> & { id: string }) => void
 }) {
   const dateStr = new Date(message.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
@@ -372,6 +408,79 @@ function MessageDetail({
             </a>
           )}
         </div>
+
+        {/* Implementation status for bugs & features */}
+        {(message.type === "BUG_REPORT" || message.type === "FEATURE_REQUEST") && (
+          <div className="mt-6 border-t pt-4 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Implementation Status
+            </p>
+            {isAdmin ? (
+              <div className="flex items-center gap-3">
+                <Select
+                  value={message.implementationStatus || "open"}
+                  onValueChange={async (v) => {
+                    const res = await fetch(`/api/messages/${message.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ implementationStatus: v }),
+                    })
+                    if (res.ok) {
+                      const data = await res.json()
+                      onUpdateMessage({
+                        id: message.id,
+                        implementationStatus: data.implementationStatus,
+                        implementedAt: data.implementedAt,
+                        implementedBy: data.implementedBy,
+                      })
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[160px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="implemented">Implemented</SelectItem>
+                    <SelectItem value="wont_fix">Won&apos;t Fix</SelectItem>
+                    <SelectItem value="duplicate">Duplicate</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  placeholder="Notes (e.g., deployed 3/20)"
+                  className="h-8 text-xs flex-1"
+                  defaultValue={message.implementationNotes || ""}
+                  onBlur={async (e) => {
+                    const val = e.target.value
+                    if (val !== (message.implementationNotes || "")) {
+                      await fetch(`/api/messages/${message.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ implementationNotes: val }),
+                      })
+                      onUpdateMessage({ id: message.id, implementationNotes: val })
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${IMPL_STATUS_COLORS[message.implementationStatus || "open"]}`}>
+                  {IMPL_STATUS_LABELS[message.implementationStatus || "open"]}
+                </span>
+                {message.implementationNotes && (
+                  <span className="text-xs text-muted-foreground">{message.implementationNotes}</span>
+                )}
+              </div>
+            )}
+            {message.implementedAt && message.implementedBy && (
+              <p className="text-xs text-muted-foreground">
+                Marked implemented by {message.implementedBy.name} on {new Date(message.implementedAt).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Action bar */}

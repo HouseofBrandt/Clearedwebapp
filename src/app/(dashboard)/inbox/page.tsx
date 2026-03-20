@@ -12,6 +12,7 @@ export default async function InboxPage() {
       include: {
         sender: { select: { id: true, name: true } },
         case: { select: { id: true, caseNumber: true } },
+        implementedBy: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 50,
