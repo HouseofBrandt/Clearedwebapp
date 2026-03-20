@@ -18,9 +18,10 @@ interface HeaderProps {
   user: { name?: string | null; email?: string | null; role: string }
   pendingReviewCount?: number
   overdueDeadlineCount?: number
+  unreadMessageCount?: number
 }
 
-export function Header({ user, pendingReviewCount, overdueDeadlineCount }: HeaderProps) {
+export function Header({ user, pendingReviewCount, overdueDeadlineCount, unreadMessageCount }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
@@ -86,6 +87,7 @@ export function Header({ user, pendingReviewCount, overdueDeadlineCount }: Heade
               user={user}
               pendingReviewCount={pendingReviewCount}
               overdueDeadlineCount={overdueDeadlineCount}
+              unreadMessageCount={unreadMessageCount}
               onLinkClick={() => setMobileMenuOpen(false)}
             />
           </div>

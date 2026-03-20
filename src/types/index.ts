@@ -130,6 +130,40 @@ export const DEADLINE_DEFAULT_PRIORITY: Record<string, DeadlinePriority> = {
   INTERNAL_REVIEW: "LOW",
 }
 
+export type MessageType = "DIRECT_MESSAGE" | "BUG_REPORT" | "FEATURE_REQUEST" | "DEADLINE_REMINDER" | "REVIEW_ASSIGNED" | "TASK_APPROVED" | "TASK_REJECTED" | "SYSTEM_ANNOUNCEMENT" | "CASE_NOTE"
+export type MessagePriority = "LOW" | "NORMAL" | "HIGH" | "URGENT"
+
+export const MESSAGE_TYPE_LABELS: Record<string, string> = {
+  DIRECT_MESSAGE: "Message",
+  BUG_REPORT: "Bug Report",
+  FEATURE_REQUEST: "Feature Request",
+  DEADLINE_REMINDER: "Deadline Reminder",
+  REVIEW_ASSIGNED: "Review Ready",
+  TASK_APPROVED: "Approved",
+  TASK_REJECTED: "Rejected",
+  SYSTEM_ANNOUNCEMENT: "Announcement",
+  CASE_NOTE: "Case Note",
+}
+
+export const MESSAGE_TYPE_COLORS: Record<string, string> = {
+  DIRECT_MESSAGE: "bg-blue-100 text-blue-800",
+  BUG_REPORT: "bg-red-100 text-red-800",
+  FEATURE_REQUEST: "bg-purple-100 text-purple-800",
+  DEADLINE_REMINDER: "bg-amber-100 text-amber-800",
+  REVIEW_ASSIGNED: "bg-blue-100 text-blue-800",
+  TASK_APPROVED: "bg-green-100 text-green-800",
+  TASK_REJECTED: "bg-red-100 text-red-700",
+  SYSTEM_ANNOUNCEMENT: "bg-gray-100 text-gray-800",
+  CASE_NOTE: "bg-gray-100 text-gray-700",
+}
+
+export const MESSAGE_PRIORITY_LABELS: Record<string, string> = {
+  LOW: "Low",
+  NORMAL: "Normal",
+  HIGH: "High",
+  URGENT: "Urgent",
+}
+
 export const DEADLINE_DEFAULT_TITLES: Record<string, string> = {
   CDP_HEARING: "CDP Hearing Request",
   TAX_COURT_PETITION: "Tax Court Petition",

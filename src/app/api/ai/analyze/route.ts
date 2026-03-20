@@ -10,6 +10,7 @@ import { OIC_TEMPLATE, getExtractionKeys } from "@/lib/templates/oic-working-pap
 import { z } from "zod"
 import { populateFromAIExtraction } from "@/lib/documents/liability"
 import { getKnowledgeContext } from "@/lib/knowledge/context"
+import { notify } from "@/lib/notifications"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -679,6 +680,17 @@ export async function POST(request: NextRequest) {
           ),
         ])
         console.log("[AI Analyze] DB persist complete")
+
+        // Fire-and-forget notification
+        const practitionerId = caseData.assignedPractitionerId || userId
+        notify({
+          recipientId: practitionerId,
+          type: "REVIEW_ASSIGNED",
+          subject: `${taskType.replace(/_/g, " ")} ready for review`,
+          body: `AI analysis for ${caseData.caseNumber} is ready for review.`,
+          caseId,
+          aiTaskId: aiTask.id,
+        }).catch(() => {})
 
         safeSendEvent(controller, {
           status: "complete",

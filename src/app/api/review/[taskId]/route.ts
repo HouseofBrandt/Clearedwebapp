@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logReviewAction } from "@/lib/ai/audit"
+import { notify } from "@/lib/notifications"
 
 export async function POST(
   request: NextRequest,
@@ -86,6 +87,36 @@ export async function POST(
       action,
       reviewNotes,
     })
+
+    // Fire-and-forget notification to the task creator
+    if (task.createdById && task.createdById !== auth.userId) {
+      const taskLabel = task.taskType.replace(/_/g, " ")
+      const caseInfo = await prisma.case.findUnique({
+        where: { id: task.caseId },
+        select: { caseNumber: true },
+      })
+      const caseNumber = caseInfo?.caseNumber || task.caseId
+
+      if (newStatus === "APPROVED") {
+        notify({
+          recipientId: task.createdById,
+          type: "TASK_APPROVED",
+          subject: `${taskLabel} approved`,
+          body: `Your ${taskLabel} for ${caseNumber} has been approved and is now a deliverable.`,
+          caseId: task.caseId,
+          aiTaskId: task.id,
+        }).catch(() => {})
+      } else {
+        notify({
+          recipientId: task.createdById,
+          type: "TASK_REJECTED",
+          subject: `${taskLabel} rejected`,
+          body: `Your ${taskLabel} for ${caseNumber} was rejected.${reviewNotes ? ` Notes: ${reviewNotes}` : ""}`,
+          caseId: task.caseId,
+          aiTaskId: task.id,
+        }).catch(() => {})
+      }
+    }
 
     return NextResponse.json({
       reviewAction,

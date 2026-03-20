@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
-import { X, Trash2, Copy, Check, ChevronDown, Send, Sparkles } from "lucide-react"
+import { X, Trash2, Copy, Check, ChevronDown, Send, Sparkles, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
 
 // -------------------------------------------------------------------
 // Types
@@ -183,13 +183,19 @@ function getSuggestions(caseContext: CaseContext | null): string[] {
         "How often does the IRS review CNC accounts?",
       ]
     }
+    // Generic case-context suggestions
+    return [
+      "What should I do next with this case?",
+      "What are the requirements for an OIC under DATC?",
+      "Explain CSED calculation and tolling events",
+    ]
   }
 
   return [
+    "How do I generate OIC working papers?",
+    "What's the best workflow for a new case?",
     "What are the requirements for an OIC under DATC?",
     "Explain CSED calculation and tolling events",
-    "Compare PPIA vs OIC for large liability",
-    "What makes someone responsible under IRC § 6672?",
   ]
 }
 
@@ -226,6 +232,121 @@ function StreamingDots() {
       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "150ms" }} />
       <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "300ms" }} />
     </span>
+  )
+}
+
+// -------------------------------------------------------------------
+// Message draft parser and card
+// -------------------------------------------------------------------
+interface MessageDraft {
+  type: string
+  subject: string
+  body: string
+  priority?: string
+  tags?: string
+}
+
+function parseMessageDraft(content: string): { before: string; draft: MessageDraft | null; after: string } {
+  const match = content.match(/:::message\n([\s\S]*?):::/)
+  if (!match) return { before: content, draft: null, after: "" }
+
+  const before = content.slice(0, match.index)
+  const after = content.slice((match.index || 0) + match[0].length)
+  const block = match[1]
+
+  const draft: any = {}
+  const bodyMatch = block.match(/body:\s*([\s\S]*?)(?=\n[a-z]+:|$)/i)
+  if (bodyMatch) draft.body = bodyMatch[1].trim()
+
+  for (const line of block.split("\n")) {
+    const kv = line.match(/^(\w+):\s*(.+)$/)
+    if (kv && kv[1] !== "body") {
+      draft[kv[1]] = kv[2].trim()
+    }
+  }
+
+  if (!draft.type || !draft.subject) return { before: content, draft: null, after: "" }
+  return { before: before.trim(), draft: draft as MessageDraft, after: after.trim() }
+}
+
+function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onStatusChange?: (status: "sent" | "cancelled") => void }) {
+  const [status, setStatus] = useState<"draft" | "sending" | "sent" | "cancelled">("draft")
+
+  const typeConfig: Record<string, { icon: React.ElementType; label: string; border: string }> = {
+    BUG_REPORT: { icon: Bug, label: "Bug Report", border: "border-l-red-400" },
+    FEATURE_REQUEST: { icon: Lightbulb, label: "Feature Request", border: "border-l-purple-400" },
+    DIRECT_MESSAGE: { icon: MessageSquare, label: "Direct Message", border: "border-l-blue-400" },
+  }
+  const config = typeConfig[draft.type] || typeConfig.DIRECT_MESSAGE
+  const Icon = config.icon
+
+  const handleSend = async () => {
+    setStatus("sending")
+    try {
+      const res = await fetch("/api/messages/from-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: draft.type,
+          subject: draft.subject,
+          body: draft.body,
+          priority: draft.priority || (draft.type === "BUG_REPORT" ? "HIGH" : "NORMAL"),
+          tags: draft.tags ? draft.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      setStatus("sent")
+      onStatusChange?.("sent")
+    } catch {
+      setStatus("draft")
+      alert("Failed to send. Please try again.")
+    }
+  }
+
+  if (status === "sent") {
+    const target = draft.type === "DIRECT_MESSAGE" ? "recipient" : "administrators"
+    return (
+      <div className="flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-2 text-sm text-green-700">
+        <CheckCircle2 className="h-4 w-4" />
+        {config.label} sent to {target}
+      </div>
+    )
+  }
+
+  if (status === "cancelled") return null
+
+  return (
+    <div className={`rounded-lg border border-l-4 ${config.border} bg-white p-3`}>
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" />
+        {config.label}
+      </div>
+      <p className="mt-1.5 text-sm font-medium">{draft.subject}</p>
+      <p className="mt-1 line-clamp-4 text-sm text-muted-foreground">{draft.body}</p>
+      {(draft.priority || draft.tags) && (
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {draft.priority && `Priority: ${draft.priority}`}
+          {draft.priority && draft.tags && " · "}
+          {draft.tags && `Tags: ${draft.tags}`}
+        </p>
+      )}
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={handleSend}
+          disabled={status === "sending"}
+          className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+          style={{ backgroundColor: "#1B2A4A" }}
+        >
+          {status === "sending" ? "Sending..." : "Send"}
+        </button>
+        <button
+          onClick={() => { setStatus("cancelled"); onStatusChange?.("cancelled") }}
+          className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -575,9 +696,23 @@ export function ChatPanel() {
                       {msg.role === "assistant" ? (
                         <>
                           {msg.content ? (
-                            <div className="prose prose-sm max-w-none">
-                              {renderMarkdown(msg.content)}
-                            </div>
+                            (() => {
+                              const { before, draft, after } = parseMessageDraft(msg.content)
+                              if (draft) {
+                                return (
+                                  <div className="space-y-2">
+                                    {before && <div className="prose prose-sm max-w-none">{renderMarkdown(before)}</div>}
+                                    <MessageDraftCard draft={draft} />
+                                    {after && <div className="prose prose-sm max-w-none">{renderMarkdown(after)}</div>}
+                                  </div>
+                                )
+                              }
+                              return (
+                                <div className="prose prose-sm max-w-none">
+                                  {renderMarkdown(msg.content)}
+                                </div>
+                              )
+                            })()
                           ) : isStreaming && msg === messages[messages.length - 1] ? (
                             <StreamingDots />
                           ) : null}
