@@ -33,16 +33,44 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const allEmbeddings: number[][] = []
-  const batchSize = 100
+  // Smaller batches to stay under OpenAI's TPM rate limit on large documents
+  const batchSize = 20
 
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize).map((t) => t.substring(0, 8000))
-    const response = await getClient().embeddings.create({
-      model: EMBEDDING_MODEL,
-      input: batch,
-      dimensions: EMBEDDING_DIMENSIONS,
-    })
-    allEmbeddings.push(...response.data.map((d) => d.embedding))
+
+    let retries = 0
+    const maxRetries = 5
+    while (true) {
+      try {
+        const response = await getClient().embeddings.create({
+          model: EMBEDDING_MODEL,
+          input: batch,
+          dimensions: EMBEDDING_DIMENSIONS,
+        })
+        allEmbeddings.push(...response.data.map((d) => d.embedding))
+        break
+      } catch (error: any) {
+        // Retry on 429 rate limit errors with exponential backoff
+        if (error?.status === 429 && retries < maxRetries) {
+          retries++
+          // Parse retry-after hint from error message, or use exponential backoff
+          const retryMatch = error.message?.match(/try again in (\d+(?:\.\d+)?)(?:ms|s)/i)
+          let waitMs: number
+          if (retryMatch) {
+            const value = parseFloat(retryMatch[1])
+            waitMs = error.message.includes("ms") ? value : value * 1000
+            waitMs = Math.max(waitMs, 500) // minimum 500ms
+          } else {
+            waitMs = 1000 * Math.pow(2, retries - 1) // 1s, 2s, 4s, 8s, 16s
+          }
+          console.log(`[Knowledge] Rate limited, retry ${retries}/${maxRetries} in ${waitMs}ms`)
+          await new Promise((resolve) => setTimeout(resolve, waitMs))
+          continue
+        }
+        throw error
+      }
+    }
   }
 
   return allEmbeddings
