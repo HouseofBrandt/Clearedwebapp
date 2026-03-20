@@ -171,9 +171,7 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
 const TEMPLATE_TASKS = ["WORKING_PAPERS"]
 
 // Tasks that produce long detailed output and need more token room (12288 tokens)
-// Note: CASE_MEMO was removed — 8192 tokens is sufficient for memos and avoids
-// Vercel 300s timeout (16384 tokens @ ~80 tok/s ≈ 200s generation alone).
-const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "OIC_NARRATIVE"]
+const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "CASE_MEMO", "OIC_NARRATIVE"]
 
 /** Send a JSON line to the stream controller */
 function sendEvent(controller: ReadableStreamDefaultController, data: Record<string, any>) {
@@ -325,6 +323,7 @@ export async function POST(request: NextRequest) {
           },
         })
         aiTaskId = aiTask.id
+        console.log("[AI Analyze] Task created:", aiTask.id, "type:", taskType)
 
         // Tokenize PII
         const knownNames = [caseData.clientName].filter(Boolean) as string[]
@@ -343,6 +342,7 @@ export async function POST(request: NextRequest) {
         const tokenizedText = tokenizedContext
           ? `${tokenizedDocText}\n\n${tokenizedContext}`
           : tokenizedDocText
+        console.log("[AI Analyze] Tokenized:", tokenizedText.length, "chars")
 
         // Store encrypted token map
         const encryptedMap = encryptTokenMap(tokenMap)
@@ -361,6 +361,7 @@ export async function POST(request: NextRequest) {
         const promptName = TASK_TYPE_TO_PROMPT[taskType] || "case_analysis_v1"
         const taskPrompt = loadPrompt(promptName)
         let systemPrompt = `${corePrompt}\n\n${taskPrompt}`
+        console.log("[AI Analyze] Prompts loaded, system:", systemPrompt.length, "chars")
 
         // Inject knowledge base context (skip embedding call if KB is empty)
         // Guard with a 10s timeout so KB issues never stall the analysis
@@ -388,6 +389,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        console.log("[AI Analyze] KB done, system prompt now:", systemPrompt.length, "chars")
+
         // Build user message
         let userMessage = `Case Type: ${caseData.caseType}\nCase Number: ${caseData.caseNumber}\n\n`
         userMessage += `Documents:\n${tokenizedDocText}`
@@ -407,6 +410,7 @@ export async function POST(request: NextRequest) {
         const temperature = isTemplateTask ? 0.1 : 0.2
 
         // Phase 2: Stream Claude API response
+        console.log("[AI Analyze] Calling Claude:", model, "maxTokens:", maxTokens, "input:", userMessage.length, "chars")
         safeSendEvent(controller, { status: "processing", phase: "AI is generating response..." })
 
         const { stream: claudeStream, requestId } = callClaudeStream({
@@ -470,6 +474,7 @@ export async function POST(request: NextRequest) {
         const responseModel = finalMessage.model
         const inputTokens = finalMessage.usage.input_tokens
         const outputTokens = finalMessage.usage.output_tokens
+        console.log("[AI Analyze] Claude returned:", fullContent.length, "chars")
 
         if (DEBUG) {
           console.log(`[AI Analyze] Claude response: ${fullContent.length} chars, model=${responseModel}, inputTokens=${inputTokens}, outputTokens=${outputTokens}`)
@@ -665,7 +670,8 @@ export async function POST(request: NextRequest) {
         })
         safeClose(controller)
       } catch (error: any) {
-        console.error("[AI Analyze] Error:", error?.status, error?.message || error)
+        console.error("[AI Analyze] FATAL:", error)
+        console.error("[AI Analyze] Stack:", error?.stack)
 
         let errorMessage = error.message || "AI analysis failed"
         if (error?.status === 401) {
