@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { searchKnowledge } from "@/lib/knowledge/search"
+import { detectDataNeeds, fetchPlatformData } from "@/lib/ai/platform-data"
 import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
@@ -46,6 +47,24 @@ export async function POST(request: NextRequest) {
     }
   } catch {
     // Knowledge base search failed — continue without it
+  }
+
+  // Fetch live platform data if the question is about the app
+  try {
+    const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop()
+    if (lastUserMsg) {
+      const dataNeeds = detectDataNeeds(lastUserMsg.content)
+      const hasDataNeeds = Object.values(dataNeeds).some(Boolean)
+      if (hasDataNeeds) {
+        const userId = (session.user as any).id
+        const platformData = await fetchPlatformData(dataNeeds, userId)
+        if (platformData) {
+          systemPrompt += platformData
+        }
+      }
+    }
+  } catch (e: any) {
+    console.warn("[Chat] Platform data fetch failed:", e.message)
   }
 
   // Stream response
