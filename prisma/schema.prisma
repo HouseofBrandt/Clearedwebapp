@@ -394,6 +394,11 @@ model KnowledgeChunk {
   metadata        Json?
   createdAt       DateTime          @default(now())
 
+  // Managed via raw SQL in vector-setup.ts (pgvector extension)
+  embedding       Unsupported("vector(1536)")?
+  // Generated tsvector column for full-text search (created in vector-setup.ts)
+  search_vector   Unsupported("tsvector")?
+
   @@index([documentId])
   @@map("knowledge_chunks")
 }
