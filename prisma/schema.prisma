@@ -123,6 +123,25 @@ enum KnowledgeCategory {
   CUSTOM
 }
 
+enum MessageType {
+  DIRECT_MESSAGE
+  BUG_REPORT
+  FEATURE_REQUEST
+  DEADLINE_REMINDER
+  REVIEW_ASSIGNED
+  TASK_APPROVED
+  TASK_REJECTED
+  SYSTEM_ANNOUNCEMENT
+  CASE_NOTE
+}
+
+enum MessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 enum DeadlineType {
   CDP_HEARING
   EQUIVALENT_HEARING
@@ -183,6 +202,8 @@ model User {
   assignedDeadlines   Deadline[]     @relation("AssignedDeadlines")
   createdDeadlines    Deadline[]     @relation("CreatedDeadlines")
   uploadedKnowledge   KnowledgeDocument[] @relation("UploadedKnowledge")
+  sentMessages        Message[]          @relation("SentMessages")
+  receivedMessages    Message[]          @relation("ReceivedMessages")
 
   @@map("users")
 }
@@ -210,6 +231,7 @@ model Case {
   auditLogs         AuditLog[]
   liabilityPeriods  LiabilityPeriod[]
   deadlines         Deadline[]
+  messages          Message[]
 
   @@map("cases")
 }
@@ -402,4 +424,44 @@ model KnowledgeChunk {
 
   @@index([documentId])
   @@map("knowledge_chunks")
+}
+
+model Message {
+  id            String          @id @default(cuid())
+  type          MessageType
+  priority      MessagePriority @default(NORMAL)
+  subject       String
+  body          String          @db.Text
+
+  senderId      String?
+  sender        User?           @relation("SentMessages", fields: [senderId], references: [id])
+  senderName    String?
+
+  recipientId   String
+  recipient     User            @relation("ReceivedMessages", fields: [recipientId], references: [id])
+
+  read          Boolean         @default(false)
+  readAt        DateTime?
+  archived      Boolean         @default(false)
+
+  caseId        String?
+  case          Case?           @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  deadlineId    String?
+  aiTaskId      String?
+
+  parentId      String?
+  parent        Message?        @relation("Replies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies       Message[]       @relation("Replies")
+
+  tags          String[]
+  metadata      Json?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([recipientId, read])
+  @@index([recipientId, type])
+  @@index([type, createdAt])
+  @@index([caseId])
+  @@map("messages")
 }

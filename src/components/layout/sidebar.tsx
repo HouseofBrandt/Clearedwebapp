@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   Calendar,
   BookOpen,
+  Inbox,
   Settings,
   Shield,
 } from "lucide-react"
@@ -20,6 +21,7 @@ const navigation = [
   { name: "Review Queue", href: "/review", icon: ClipboardCheck },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Knowledge Base", href: "/knowledge", icon: BookOpen },
+  { name: "Inbox", href: "/inbox", icon: Inbox },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 
@@ -27,9 +29,10 @@ interface SidebarProps {
   user: { name?: string | null; role?: string }
   pendingReviewCount?: number
   overdueDeadlineCount?: number
+  unreadMessageCount?: number
 }
 
-export function SidebarContent({ user, pendingReviewCount, overdueDeadlineCount, onLinkClick }: SidebarProps & { onLinkClick?: () => void }) {
+export function SidebarContent({ user, pendingReviewCount, overdueDeadlineCount, unreadMessageCount, onLinkClick }: SidebarProps & { onLinkClick?: () => void }) {
   const pathname = usePathname()
 
   return (
@@ -66,6 +69,11 @@ export function SidebarContent({ user, pendingReviewCount, overdueDeadlineCount,
                   {overdueDeadlineCount > 99 ? "99+" : overdueDeadlineCount}
                 </span>
               )}
+              {item.name === "Inbox" && unreadMessageCount != null && unreadMessageCount > 0 && (
+                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-white">
+                  {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
+                </span>
+              )}
             </Link>
           )
         })}
@@ -85,10 +93,10 @@ export function SidebarContent({ user, pendingReviewCount, overdueDeadlineCount,
   )
 }
 
-export function Sidebar({ user, pendingReviewCount, overdueDeadlineCount }: SidebarProps) {
+export function Sidebar({ user, pendingReviewCount, overdueDeadlineCount, unreadMessageCount }: SidebarProps) {
   return (
     <div className="hidden w-64 flex-col border-r bg-card lg:flex">
-      <SidebarContent user={user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
+      <SidebarContent user={user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} unreadMessageCount={unreadMessageCount} />
     </div>
   )
 }

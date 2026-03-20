@@ -13,8 +13,9 @@ export default async function DashboardLayout({
 
   let pendingReviewCount = 0
   let overdueDeadlineCount = 0
+  let unreadMessageCount = 0
   try {
-    const [reviews, overdue] = await Promise.all([
+    const [reviews, overdue, unread] = await Promise.all([
       prisma.aITask.count({ where: { status: "READY_FOR_REVIEW" } }),
       prisma.deadline.count({
         where: {
@@ -22,9 +23,17 @@ export default async function DashboardLayout({
           status: { in: ["UPCOMING"] },
         },
       }),
+      prisma.message.count({
+        where: {
+          recipientId: session.user.id,
+          read: false,
+          archived: false,
+        },
+      }).catch(() => 0),
     ])
     pendingReviewCount = reviews
     overdueDeadlineCount = overdue
+    unreadMessageCount = unread
   } catch {
     // If the table doesn't exist yet or query fails, default to 0
   }
@@ -32,9 +41,9 @@ export default async function DashboardLayout({
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
+        <Sidebar user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} unreadMessageCount={unreadMessageCount} />
         <div className="flex flex-1 flex-col overflow-hidden">
-          <Header user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} />
+          <Header user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} unreadMessageCount={unreadMessageCount} />
           <main className="flex-1 overflow-y-auto p-6">
             {children}
           </main>
