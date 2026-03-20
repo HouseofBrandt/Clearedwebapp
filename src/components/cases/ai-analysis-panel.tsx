@@ -28,6 +28,7 @@ const TASK_TYPES = [
   { value: "CNC_ANALYSIS", label: "Currently Not Collectible Analysis", caseTypes: ["CNC"] },
   { value: "TFRP_ANALYSIS", label: "Trust Fund Recovery Penalty Analysis", caseTypes: ["TFRP"] },
   { value: "INNOCENT_SPOUSE_ANALYSIS", label: "Innocent Spouse Relief Analysis", caseTypes: ["INNOCENT_SPOUSE"] },
+  { value: "APPEALS_REBUTTAL", label: "Appeals Rebuttal Packet", caseTypes: ["OIC", "IA", "PENALTY", "CDP", "CNC", "TFRP", "INNOCENT_SPOUSE"] },
 ] as const
 
 interface AIAnalysisPanelProps {

@@ -2,6 +2,7 @@ import { chunkDocument } from "./chunker"
 import { generateEmbeddings } from "./embeddings"
 import { ensureVectorColumn } from "./vector-setup"
 import { prisma } from "@/lib/db"
+import { trackError } from "@/lib/error-tracking"
 
 export interface IngestProgress {
   phase: "chunking" | "embedding" | "storing"
@@ -89,6 +90,11 @@ export async function ingestDocument(
       embeddedCount += batchEmbeddings.length
     } catch (err: any) {
       console.error(`[Knowledge] Embedding batch ${i} failed:`, err.message)
+      trackError({
+        route: "knowledge/ingest",
+        error: err,
+        metadata: { documentId, batchIndex: i, chunksTotal: chunks.length },
+      }).catch(() => {})
       // If rate limited, wait longer and retry this batch
       if (err.message?.includes("rate") || err?.status === 429) {
         await new Promise(r => setTimeout(r, 5000))

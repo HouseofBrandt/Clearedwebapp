@@ -2,7 +2,7 @@ export type CaseStatus = "INTAKE" | "ANALYSIS" | "REVIEW" | "ACTIVE" | "RESOLVED
 export type CaseType = "OIC" | "IA" | "PENALTY" | "INNOCENT_SPOUSE" | "CNC" | "TFRP" | "ERC" | "UNFILED" | "AUDIT" | "CDP" | "AMENDED" | "VOLUNTARY_DISCLOSURE" | "OTHER"
 export type FilingStatus = "SINGLE" | "MFJ" | "MFS" | "HOH" | "QSS"
 export type Role = "PRACTITIONER" | "SENIOR" | "ADMIN" | "SUPPORT_STAFF"
-export type AITaskType = "WORKING_PAPERS" | "CASE_MEMO" | "PENALTY_LETTER" | "OIC_NARRATIVE" | "GENERAL_ANALYSIS" | "IA_ANALYSIS" | "CNC_ANALYSIS" | "TFRP_ANALYSIS" | "INNOCENT_SPOUSE_ANALYSIS"
+export type AITaskType = "WORKING_PAPERS" | "CASE_MEMO" | "PENALTY_LETTER" | "OIC_NARRATIVE" | "GENERAL_ANALYSIS" | "IA_ANALYSIS" | "CNC_ANALYSIS" | "TFRP_ANALYSIS" | "INNOCENT_SPOUSE_ANALYSIS" | "APPEALS_REBUTTAL"
 export type AITaskStatus = "QUEUED" | "PROCESSING" | "READY_FOR_REVIEW" | "APPROVED" | "REJECTED"
 
 export const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
@@ -40,6 +40,7 @@ export const TASK_TYPE_LABELS: Record<AITaskType, string> = {
   CNC_ANALYSIS: "Currently Not Collectible Analysis",
   TFRP_ANALYSIS: "TFRP Analysis",
   INNOCENT_SPOUSE_ANALYSIS: "Innocent Spouse Analysis",
+  APPEALS_REBUTTAL: "Appeals Rebuttal Packet",
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -51,6 +52,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const DOCUMENT_CATEGORY_LABELS: Record<string, string> = {
   IRS_NOTICE: "IRS Notice",
+  IRS_REJECTION: "IRS Rejection Letter",
   BANK_STATEMENT: "Bank Statement",
   TAX_RETURN: "Tax Return",
   PAYROLL: "Payroll Records",

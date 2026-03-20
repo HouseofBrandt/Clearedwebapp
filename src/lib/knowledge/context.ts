@@ -23,6 +23,7 @@ export async function getKnowledgeContext(
     CNC_ANALYSIS: "currently not collectible hardship",
     TFRP_ANALYSIS: "trust fund recovery penalty responsible person willfulness",
     INNOCENT_SPOUSE_ANALYSIS: "innocent spouse relief IRC 6015",
+    APPEALS_REBUTTAL: "OIC rejection rebuttal appeals",
   }
 
   const caseSearchTerms: Record<string, string> = {

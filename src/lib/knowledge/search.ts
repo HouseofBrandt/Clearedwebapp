@@ -1,6 +1,7 @@
 import { generateEmbedding } from "./embeddings"
 import { ensureVectorColumn } from "./vector-setup"
 import { prisma } from "@/lib/db"
+import { trackError } from "@/lib/error-tracking"
 
 export interface SearchResult {
   chunkId: string
@@ -139,6 +140,11 @@ export async function searchKnowledge(
     results = (await prisma.$queryRawUnsafe(sql, ...params)) as SearchResult[]
   } catch (err: any) {
     console.error("[Knowledge Search] Raw query failed:", err.message)
+    trackError({
+      route: "knowledge/search",
+      error: err,
+      metadata: { queryLength: query.length },
+    }).catch(() => {})
     return []
   }
   const filtered = results.filter((r) => r.score >= minScore)
