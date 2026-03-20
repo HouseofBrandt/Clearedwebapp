@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const fileType = detectFileType(file.type, file.name, buffer)
-    const sourceText = await extractTextFromBuffer(buffer, fileType)
+    // Strip null bytes — PostgreSQL text columns reject \0x00
+    const sourceText = (await extractTextFromBuffer(buffer, fileType)).replace(/\0/g, "")
 
     if (!sourceText || sourceText.trim().length < 10) {
       return NextResponse.json(
