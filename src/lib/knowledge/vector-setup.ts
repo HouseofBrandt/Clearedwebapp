@@ -46,6 +46,30 @@ export async function ensureVectorColumn(): Promise<boolean> {
       END $$;
     `)
 
+    // Create approximate nearest neighbor index if enough data exists
+    try {
+      await prisma.$executeRawUnsafe(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes
+            WHERE tablename = 'knowledge_chunks'
+            AND indexname = 'idx_knowledge_chunks_embedding'
+          ) THEN
+            IF (SELECT count(*) FROM knowledge_chunks WHERE embedding IS NOT NULL) >= 50 THEN
+              CREATE INDEX idx_knowledge_chunks_embedding
+              ON knowledge_chunks
+              USING ivfflat (embedding vector_cosine_ops)
+              WITH (lists = 50);
+            END IF;
+          END IF;
+        END $$;
+      `)
+    } catch (e: any) {
+      // Non-fatal — searches still work without the index, just slower
+      console.warn("[Knowledge] IVFFlat index creation skipped:", e.message)
+    }
+
     _vectorReady = true
     console.log("[Knowledge] Vector and search_vector columns ready")
     return true

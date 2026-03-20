@@ -394,6 +394,12 @@ model KnowledgeChunk {
   metadata        Json?
   createdAt       DateTime          @default(now())
 
+  // Managed via raw SQL in vector-setup.ts (pgvector extension)
+  embedding       Unsupported("vector(1536)")?
+  // search_vector is a GENERATED ALWAYS AS ... STORED tsvector column.
+  // It cannot be declared here because Prisma tries to ALTER generated columns.
+  // It is dropped before `prisma db push` and recreated by setup-vector.mjs.
+
   @@index([documentId])
   @@map("knowledge_chunks")
 }

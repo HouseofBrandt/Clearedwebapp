@@ -32,5 +32,21 @@ export function scrubForKnowledgeBase(
   scrubbed = scrubbed.replace(/\b\d{2}-\d{7}\b/g, "[EIN]")
   scrubbed = scrubbed.replace(/\*{2,}\d{4}/g, "[ACCT]")
 
+  // Phone numbers
+  scrubbed = scrubbed.replace(
+    /\b\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, "[PHONE]"
+  )
+
+  // Email addresses
+  scrubbed = scrubbed.replace(
+    /\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g, "[EMAIL]"
+  )
+
+  // Street addresses (number + street name pattern)
+  scrubbed = scrubbed.replace(
+    /\b\d{1,5}\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:St|Ave|Blvd|Dr|Ln|Rd|Way|Ct|Pl|Cir|Pkwy|Hwy|Ter)\.?\b/g,
+    "[ADDRESS]"
+  )
+
   return scrubbed
 }
