@@ -396,8 +396,9 @@ model KnowledgeChunk {
 
   // Managed via raw SQL in vector-setup.ts (pgvector extension)
   embedding       Unsupported("vector(1536)")?
-  // Generated tsvector column for full-text search (created in vector-setup.ts)
-  search_vector   Unsupported("tsvector")?
+  // search_vector is a GENERATED ALWAYS AS ... STORED tsvector column.
+  // It cannot be declared here because Prisma tries to ALTER generated columns.
+  // It is dropped before `prisma db push` and recreated by setup-vector.mjs.
 
   @@index([documentId])
   @@map("knowledge_chunks")
