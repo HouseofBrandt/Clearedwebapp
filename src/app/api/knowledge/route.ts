@@ -15,7 +15,7 @@ const createSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   category: z.enum(VALID_CATEGORIES),
-  sourceText: z.string().min(10, "Content must be at least 10 characters"),
+  sourceText: z.string().min(10, "Content must be at least 10 characters").optional(),
   tags: z.array(z.string()).optional(),
   fileName: z.string().optional(),
   fileSize: z.number().optional(),
@@ -142,6 +142,13 @@ export async function POST(request: NextRequest) {
   }
 
   const data = parsed.data
+
+  if (!data.sourceText) {
+    return NextResponse.json(
+      { error: "sourceText is required for JSON uploads. Use the presign endpoint for file uploads." },
+      { status: 400 }
+    )
+  }
 
   const doc = await prisma.knowledgeDocument.create({
     data: {

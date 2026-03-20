@@ -359,7 +359,10 @@ model KnowledgeDocument {
   fileName        String?
   filePath        String?
   fileSize        Int?
-  sourceText      String            @db.Text
+  s3Key           String?
+  processingStatus String           @default("ready") // uploading | processing | ready | failed
+  processingError String?
+  sourceText      String            @db.Text @default("")
   tags            String[]
   isActive        Boolean           @default(true)
   chunkCount      Int               @default(0)
@@ -375,6 +378,7 @@ model KnowledgeDocument {
 
   @@index([category])
   @@index([isActive])
+  @@index([processingStatus])
   @@map("knowledge_documents")
 }
 
