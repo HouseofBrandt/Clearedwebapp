@@ -55,12 +55,14 @@ interface KnowledgeListProps {
     approvedOutputs: number
     topDocuments: { title: string; hitCount: number }[]
   }
+  embeddingCounts?: Record<string, number>
 }
 
-export function KnowledgeList({ documents, stats }: KnowledgeListProps) {
+export function KnowledgeList({ documents, stats, embeddingCounts = {} }: KnowledgeListProps) {
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [reindexing, setReindexing] = useState<string | null>(null)
+  const [backfilling, setBackfilling] = useState<string | null>(null)
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
   const router = useRouter()
   const { addToast } = useToast()
@@ -103,6 +105,27 @@ export function KnowledgeList({ documents, stats }: KnowledgeListProps) {
       addToast({ title: "Re-index failed", variant: "destructive" })
     } finally {
       setReindexing(null)
+    }
+  }
+
+  async function handleBackfillEmbeddings(id: string) {
+    setBackfilling(id)
+    try {
+      const res = await fetch(`/api/knowledge/${id}/reindex?embedOnly=true`, { method: "POST" })
+      const data = await res.json()
+      if (data.message) {
+        addToast({ title: data.message })
+      } else {
+        addToast({
+          title: "Embeddings backfilled",
+          description: `${data.embeddedCount} embedded${data.remaining > 0 ? `, ${data.remaining} remaining` : ""}`,
+        })
+      }
+      router.refresh()
+    } catch {
+      addToast({ title: "Backfill failed", variant: "destructive" })
+    } finally {
+      setBackfilling(null)
     }
   }
 
@@ -238,7 +261,12 @@ export function KnowledgeList({ documents, stats }: KnowledgeListProps) {
                               {doc.processingStatus === "failed" && (
                                 <Badge variant="destructive" className="text-[10px]" title={doc.processingError || ""}>Failed</Badge>
                               )}
-                              <span className="text-xs text-muted-foreground">{doc.chunkCount} chunks</span>
+                              <span className="text-xs text-muted-foreground">
+                                {doc.chunkCount} chunks
+                                {doc.chunkCount > 0 && embeddingCounts[doc.id] != null && embeddingCounts[doc.id] < doc.chunkCount && (
+                                  <span className="text-amber-600"> ({embeddingCounts[doc.id]}/{doc.chunkCount} embedded)</span>
+                                )}
+                              </span>
                               <span className="text-xs text-muted-foreground">· {doc.hitCount} refs</span>
                               {doc.fileSize && <span className="text-xs text-muted-foreground">· {(doc.fileSize / (1024 * 1024)).toFixed(1)} MB</span>}
                               {doc.tags?.slice(0, 3).map((tag: string) => (
@@ -253,6 +281,20 @@ export function KnowledgeList({ documents, stats }: KnowledgeListProps) {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          {doc.chunkCount > 0 && (embeddingCounts[doc.id] ?? 0) < doc.chunkCount && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => handleBackfillEmbeddings(doc.id)}
+                              disabled={backfilling === doc.id}
+                            >
+                              {backfilling === doc.id ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : null}
+                              Backfill ({embeddingCounts[doc.id] ?? 0}/{doc.chunkCount})
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

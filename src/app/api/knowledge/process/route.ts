@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
           status: "complete",
           id: documentId,
           chunksCreated: result.chunksCreated,
+          embeddedCount: result.embeddedCount,
           textLength: sourceText.length,
           warning: result.error,
           percent: 100,

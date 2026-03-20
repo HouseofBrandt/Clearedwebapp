@@ -26,6 +26,21 @@ export default async function KnowledgePage() {
     }),
   ])
 
+  // Get embedding counts per document for backfill status
+  const docIds = documents.map(d => d.id)
+  let embeddingCounts: Record<string, number> = {}
+  if (docIds.length > 0) {
+    const counts = await prisma.$queryRawUnsafe(`
+      SELECT "documentId", COUNT(embedding)::int as embedded_count
+      FROM knowledge_chunks
+      WHERE "documentId" = ANY($1::text[])
+      GROUP BY "documentId"
+    `, docIds) as { documentId: string; embedded_count: number }[]
+    for (const row of counts) {
+      embeddingCounts[row.documentId] = row.embedded_count
+    }
+  }
+
   const stats = {
     totalDocs: documents.length,
     totalChunks,
@@ -33,5 +48,5 @@ export default async function KnowledgePage() {
     topDocuments,
   }
 
-  return <KnowledgeList documents={documents} stats={stats} />
+  return <KnowledgeList documents={documents} stats={stats} embeddingCounts={embeddingCounts} />
 }

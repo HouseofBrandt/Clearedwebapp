@@ -9,11 +9,15 @@ export interface IngestProgress {
   detail?: string
 }
 
+const EMBED_BATCH_SIZE = 50   // chunks per OpenAI call
+const EMBED_DELAY_MS = 1000   // 1 second between batches
+const MAX_EMBED_TIME_MS = 180_000 // 3 minute budget for embeddings
+
 export async function ingestDocument(
   documentId: string,
   text: string,
   onProgress?: (progress: IngestProgress) => void,
-): Promise<{ chunksCreated: number; error?: string }> {
+): Promise<{ chunksCreated: number; embeddedCount: number; error?: string }> {
   // Ensure pgvector extension and embedding column exist
   await ensureVectorColumn()
 
@@ -24,31 +28,17 @@ export async function ingestDocument(
   })
 
   if (chunks.length === 0) {
-    return { chunksCreated: 0, error: "No extractable content" }
+    return { chunksCreated: 0, embeddedCount: 0, error: "No extractable content" }
   }
 
-  onProgress?.({ phase: "chunking", percent: 15, detail: `${chunks.length} chunks created` })
+  onProgress?.({ phase: "chunking", percent: 10, detail: `${chunks.length} chunks created` })
 
-  // Generate embeddings for all chunks (batched)
-  const texts = chunks.map((c) => c.content)
-  let embeddings: number[][] | null = null
+  // Phase 1: Store ALL chunks first (so full-text search works immediately)
+  onProgress?.({ phase: "storing", percent: 12, detail: "Saving chunks to database..." })
 
-  try {
-    embeddings = await generateEmbeddings(texts, (completed, total) => {
-      // Embedding phase spans 15%–85%
-      const pct = 15 + Math.round((completed / total) * 70)
-      onProgress?.({ phase: "embedding", percent: pct, detail: `Embedding ${completed}/${total} chunks` })
-    })
-  } catch (error: any) {
-    console.error("[Knowledge] Embedding generation failed:", error.message)
-  }
-
-  onProgress?.({ phase: "storing", percent: 85, detail: "Saving chunks to database" })
-
-  // Store chunks — with embeddings if available, without if not
+  const createdChunks: { id: string }[] = []
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i]
-
     const created = await prisma.knowledgeChunk.create({
       data: {
         documentId,
@@ -59,17 +49,12 @@ export async function ingestDocument(
         metadata: chunk.metadata as any,
       },
     })
+    createdChunks.push({ id: created.id })
 
-    // Set embedding via raw SQL (Prisma doesn't support vector type)
-    if (embeddings && embeddings[i]) {
-      const embeddingStr = `[${embeddings[i].join(",")}]`
-      await prisma.$executeRawUnsafe(
-        `UPDATE knowledge_chunks SET embedding = $1::vector WHERE id = $2`,
-        embeddingStr,
-        created.id
-      ).catch((e: any) => {
-        console.error("[Knowledge] Failed to set embedding for chunk:", e.message)
-      })
+    // Progress: storing spans 12%–25%
+    if (i % 50 === 0 || i === chunks.length - 1) {
+      const pct = 12 + Math.round(((i + 1) / chunks.length) * 13)
+      onProgress?.({ phase: "storing", percent: pct, detail: `Saved ${i + 1}/${chunks.length} chunks` })
     }
   }
 
@@ -78,12 +63,73 @@ export async function ingestDocument(
     data: { chunkCount: chunks.length },
   })
 
-  if (!embeddings) {
+  // Phase 2: Progressive embedding with time budget
+  const texts = chunks.map((c) => c.content)
+  const embedStart = Date.now()
+  let embeddedCount = 0
+
+  for (let i = 0; i < texts.length; i += EMBED_BATCH_SIZE) {
+    // Check time budget
+    if (Date.now() - embedStart > MAX_EMBED_TIME_MS) {
+      console.warn(`[Knowledge] Embedding time budget exceeded at chunk ${i}/${texts.length}. Remaining chunks will use text-only search.`)
+      break
+    }
+
+    const batch = texts.slice(i, i + EMBED_BATCH_SIZE)
+    try {
+      const batchEmbeddings = await generateEmbeddings(batch)
+      // Write these embeddings immediately
+      for (let j = 0; j < batchEmbeddings.length; j++) {
+        const chunkIdx = i + j
+        if (createdChunks[chunkIdx]) {
+          const embStr = `[${batchEmbeddings[j].join(",")}]`
+          await prisma.$executeRawUnsafe(
+            `UPDATE knowledge_chunks SET embedding = $1::vector WHERE id = $2`,
+            embStr,
+            createdChunks[chunkIdx].id
+          ).catch(() => {})
+        }
+      }
+      embeddedCount += batchEmbeddings.length
+    } catch (err: any) {
+      console.error(`[Knowledge] Embedding batch ${i} failed:`, err.message)
+      // If rate limited, wait longer and retry this batch
+      if (err.message?.includes("rate") || err?.status === 429) {
+        await new Promise(r => setTimeout(r, 5000))
+        i -= EMBED_BATCH_SIZE // retry this batch
+        continue
+      }
+      // Other errors: stop embedding, chunks still saved for full-text search
+      break
+    }
+
+    // Progress: embedding spans 25%–95%
+    const pct = 25 + Math.round((embeddedCount / texts.length) * 70)
+    onProgress?.({ phase: "embedding", percent: pct, detail: `Embedding ${embeddedCount}/${texts.length} chunks` })
+
+    // Delay between batches to avoid rate limits
+    if (i + EMBED_BATCH_SIZE < texts.length) {
+      await new Promise(r => setTimeout(r, EMBED_DELAY_MS))
+    }
+  }
+
+  console.log(`[Knowledge] Embedded ${embeddedCount}/${chunks.length} chunks`)
+
+  if (embeddedCount === 0) {
     return {
       chunksCreated: chunks.length,
+      embeddedCount: 0,
       error: "Chunks created but embeddings failed. Full-text search will still work.",
     }
   }
 
-  return { chunksCreated: chunks.length }
+  if (embeddedCount < chunks.length) {
+    return {
+      chunksCreated: chunks.length,
+      embeddedCount,
+      error: `Embedded ${embeddedCount}/${chunks.length} chunks (time budget reached). Use "Backfill Embeddings" to complete the rest.`,
+    }
+  }
+
+  return { chunksCreated: chunks.length, embeddedCount }
 }

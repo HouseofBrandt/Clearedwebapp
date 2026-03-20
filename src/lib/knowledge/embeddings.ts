@@ -15,7 +15,7 @@ function getClient(): OpenAI {
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 5000)
+  const timeout = setTimeout(() => controller.abort(), 60000)
   try {
     const response = await getClient().embeddings.create(
       {
@@ -36,8 +36,7 @@ export async function generateEmbeddings(
   onProgress?: (completed: number, total: number) => void,
 ): Promise<number[][]> {
   const allEmbeddings: number[][] = []
-  // Smaller batches to stay under OpenAI's TPM rate limit on large documents
-  const batchSize = 20
+  const batchSize = 50
 
   for (let i = 0; i < texts.length; i += batchSize) {
     const batch = texts.slice(i, i + batchSize).map((t) => t.substring(0, 8000))
@@ -45,12 +44,17 @@ export async function generateEmbeddings(
     let retries = 0
     const maxRetries = 5
     while (true) {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60000)
       try {
-        const response = await getClient().embeddings.create({
-          model: EMBEDDING_MODEL,
-          input: batch,
-          dimensions: EMBEDDING_DIMENSIONS,
-        })
+        const response = await getClient().embeddings.create(
+          {
+            model: EMBEDDING_MODEL,
+            input: batch,
+            dimensions: EMBEDDING_DIMENSIONS,
+          },
+          { signal: controller.signal as any }
+        )
         allEmbeddings.push(...response.data.map((d) => d.embedding))
         onProgress?.(allEmbeddings.length, texts.length)
         break
@@ -73,6 +77,8 @@ export async function generateEmbeddings(
           continue
         }
         throw error
+      } finally {
+        clearTimeout(timeout)
       }
     }
   }

@@ -560,6 +560,13 @@ export function UploadDialog() {
           </div>
         )}
 
+        {/* Large file warning */}
+        {files.some((f) => f.file.size > 10 * 1024 * 1024 && f.status === "pending") && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+            Large files may take several minutes to process. If embedding fails due to rate limits, you can backfill embeddings later from the document&apos;s menu.
+          </p>
+        )}
+
         {/* Actions */}
         <div className="flex justify-between items-center pt-2">
           <p className="text-xs text-muted-foreground">
