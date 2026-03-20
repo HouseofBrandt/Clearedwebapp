@@ -5,6 +5,9 @@ import { getFromS3 } from "@/lib/storage"
 import { extractTextFromBuffer } from "@/lib/documents/extract"
 import { ingestDocument } from "@/lib/knowledge/ingest"
 
+// Allow up to 5 minutes for large file processing (download from S3 + text extraction + chunking)
+export const maxDuration = 300
+
 const MIME_TO_TYPE: Record<string, string> = {
   "application/pdf": "PDF",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
@@ -52,7 +55,10 @@ export async function POST(request: NextRequest) {
 
   try {
     // Download from S3
+    const fileSizeMB = (doc.fileSize || 0) / (1024 * 1024)
+    console.log(`[KB Process] Downloading ${doc.fileName} (${fileSizeMB.toFixed(1)}MB) from S3: ${doc.s3Key}`)
     const buffer = await getFromS3(doc.s3Key)
+    console.log(`[KB Process] Downloaded ${buffer.length} bytes, extracting text...`)
     const fileType = detectFileType(doc.fileName || "file.txt")
 
     // Extract text

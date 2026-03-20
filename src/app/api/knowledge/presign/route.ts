@@ -66,11 +66,19 @@ export async function POST(request: NextRequest) {
   })
 
   // Generate presigned URL for direct browser upload
-  const { url } = await getPresignedUploadUrl(s3Key, fileType)
-
-  return NextResponse.json({
-    documentId: doc.id,
-    uploadUrl: url,
-    s3Key,
-  })
+  try {
+    const { url } = await getPresignedUploadUrl(s3Key, fileType)
+    return NextResponse.json({
+      documentId: doc.id,
+      uploadUrl: url,
+      s3Key,
+    })
+  } catch (err: any) {
+    // Clean up the orphaned DB record
+    await prisma.knowledgeDocument.delete({ where: { id: doc.id } }).catch(() => {})
+    return NextResponse.json(
+      { error: `Failed to generate upload URL: ${err.message}` },
+      { status: 500 }
+    )
+  }
 }
