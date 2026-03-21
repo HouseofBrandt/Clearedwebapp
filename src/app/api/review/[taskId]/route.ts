@@ -3,6 +3,15 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logReviewAction } from "@/lib/ai/audit"
 import { notify } from "@/lib/notifications"
+import { z } from "zod"
+
+const reviewSchema = z.object({
+  action: z.enum(["APPROVE", "EDIT_APPROVE", "REJECT_REPROMPT", "REJECT_MANUAL"]),
+  editedOutput: z.string().optional(),
+  reviewNotes: z.string().optional(),
+  reviewStartedAt: z.string().optional(),
+  flagsAcknowledged: z.boolean().optional(),
+})
 
 export async function POST(
   request: NextRequest,
@@ -18,16 +27,11 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { action, editedOutput, reviewNotes, reviewStartedAt, flagsAcknowledged } = body
-
-    if (!action) {
-      return NextResponse.json({ error: "Action is required" }, { status: 400 })
+    const parsed = reviewSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
     }
-
-    const validActions = ["APPROVE", "EDIT_APPROVE", "REJECT_REPROMPT", "REJECT_MANUAL"]
-    if (!validActions.includes(action)) {
-      return NextResponse.json({ error: "Invalid action" }, { status: 400 })
-    }
+    const { action, editedOutput, reviewNotes, reviewStartedAt, flagsAcknowledged } = parsed.data
 
     const task = await prisma.aITask.findUnique({
       where: { id: params.taskId },

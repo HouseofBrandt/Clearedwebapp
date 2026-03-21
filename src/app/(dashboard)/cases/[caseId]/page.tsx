@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
+import { decryptCasePII } from "@/lib/encryption"
 import { notFound } from "next/navigation"
 import { CaseDetail } from "@/components/cases/case-detail"
 
@@ -78,5 +79,5 @@ export default async function CaseDetailPage({
     updatedAt: d.updatedAt.toISOString(),
   }))
 
-  return <CaseDetail caseData={caseData} practitioners={practitioners} deadlines={serializedDeadlines} />
+  return <CaseDetail caseData={decryptCasePII(caseData)} practitioners={practitioners} deadlines={serializedDeadlines} />
 }

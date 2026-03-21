@@ -2,7 +2,20 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { encryptField } from "@/lib/encryption"
+import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
+import { z } from "zod"
+
+const updateCaseSchema = z.object({
+  clientName: z.string().min(1).optional(),
+  caseType: z.enum(["OIC", "IA", "PENALTY", "INNOCENT_SPOUSE", "CNC", "TFRP", "ERC", "UNFILED", "AUDIT", "CDP", "AMENDED", "VOLUNTARY_DISCLOSURE", "OTHER"]).optional(),
+  status: z.enum(["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE", "RESOLVED", "CLOSED"]).optional(),
+  filingStatus: z.enum(["SINGLE", "MFJ", "MFS", "HOH", "QSS"]).optional().nullable(),
+  clientEmail: z.string().email().optional().or(z.literal("")).nullable(),
+  clientPhone: z.string().optional().nullable(),
+  totalLiability: z.number().optional().nullable(),
+  assignedPractitionerId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+})
 
 export async function GET(
   request: NextRequest,
@@ -36,7 +49,7 @@ export async function GET(
     return NextResponse.json({ error: "Case not found" }, { status: 404 })
   }
 
-  return NextResponse.json(caseData)
+  return NextResponse.json(decryptCasePII(caseData))
 }
 
 export async function PATCH(
@@ -50,11 +63,15 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const { clientName, caseType, status, notes, assignedPractitionerId, filingStatus, clientEmail, clientPhone, totalLiability } = body
+    const parsed = updateCaseSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
+    }
+    const { clientName, caseType, status, notes, assignedPractitionerId, filingStatus, clientEmail, clientPhone, totalLiability } = parsed.data
 
     const updateData: any = {}
     if (clientName !== undefined) {
-      updateData.clientName = clientName
+      updateData.clientName = encryptField(clientName)
       updateData.clientNameEncrypted = encryptField(clientName)
     }
     if (caseType !== undefined) updateData.caseType = caseType
@@ -62,8 +79,8 @@ export async function PATCH(
     if (notes !== undefined) updateData.notes = notes
     if (assignedPractitionerId !== undefined) updateData.assignedPractitionerId = assignedPractitionerId
     if (filingStatus !== undefined) updateData.filingStatus = filingStatus || null
-    if (clientEmail !== undefined) updateData.clientEmail = clientEmail || null
-    if (clientPhone !== undefined) updateData.clientPhone = clientPhone || null
+    if (clientEmail !== undefined) updateData.clientEmail = clientEmail ? encryptField(clientEmail) : null
+    if (clientPhone !== undefined) updateData.clientPhone = clientPhone ? encryptField(clientPhone) : null
     if (totalLiability !== undefined) updateData.totalLiability = totalLiability != null ? totalLiability : null
 
     const updated = await prisma.case.update({
@@ -74,7 +91,7 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json(updated)
+    return NextResponse.json(decryptCasePII(updated))
   } catch (error) {
     console.error("Update case error:", error)
     return NextResponse.json({ error: "Failed to update case" }, { status: 500 })

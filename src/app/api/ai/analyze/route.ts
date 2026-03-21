@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma, startDbKeepalive } from "@/lib/db"
 import { callClaudeStream } from "@/lib/ai/client"
@@ -724,6 +725,11 @@ export async function POST(request: NextRequest) {
         if (stopKeepalive) stopKeepalive()
         console.error("[AI Analyze] FATAL:", error)
         console.error("[AI Analyze] Stack:", error?.stack)
+
+        Sentry.captureException(error, {
+          tags: { route: "ai/analyze", taskType, caseId },
+          extra: { model: requestedModel, phase: "stream" },
+        })
 
         trackError({
           route: "/api/ai/analyze",

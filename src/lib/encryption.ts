@@ -33,16 +33,47 @@ export function encryptField(plaintext: string): string {
 }
 
 export function decryptField(encrypted: string): string {
+  if (!encrypted) return encrypted
   const key = getKey()
   const [ivHex, authTagHex, ciphertext] = encrypted.split(":")
   if (!ivHex || !authTagHex || !ciphertext) {
-    throw new Error("Invalid encrypted field format")
+    // Not encrypted (legacy plaintext) — return as-is
+    return encrypted
   }
-  const iv = Buffer.from(ivHex, "hex")
-  const authTag = Buffer.from(authTagHex, "hex")
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv)
-  decipher.setAuthTag(authTag)
-  let decrypted = decipher.update(ciphertext, "hex", "utf8")
-  decrypted += decipher.final("utf8")
+  try {
+    const iv = Buffer.from(ivHex, "hex")
+    const authTag = Buffer.from(authTagHex, "hex")
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv)
+    decipher.setAuthTag(authTag)
+    let decrypted = decipher.update(ciphertext, "hex", "utf8")
+    decrypted += decipher.final("utf8")
+    return decrypted
+  } catch {
+    // Decryption failed — likely plaintext, return as-is
+    return encrypted
+  }
+}
+
+/**
+ * Encrypt PII fields on a Case object before writing to DB.
+ */
+export function encryptCasePII(data: any): any {
+  const encrypted = { ...data }
+  if (data.clientName) encrypted.clientName = encryptField(data.clientName)
+  if (data.clientEmail) encrypted.clientEmail = encryptField(data.clientEmail)
+  if (data.clientPhone) encrypted.clientPhone = encryptField(data.clientPhone)
+  return encrypted
+}
+
+/**
+ * Decrypt PII fields on a Case object after reading from DB.
+ * Safe to call on already-decrypted or plaintext data.
+ */
+export function decryptCasePII(caseData: any): any {
+  if (!caseData) return caseData
+  const decrypted = { ...caseData }
+  if (caseData.clientName) decrypted.clientName = decryptField(caseData.clientName)
+  if (caseData.clientEmail) decrypted.clientEmail = decryptField(caseData.clientEmail)
+  if (caseData.clientPhone) decrypted.clientPhone = decryptField(caseData.clientPhone)
   return decrypted
 }

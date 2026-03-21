@@ -2,6 +2,7 @@ import { generateEmbedding } from "./embeddings"
 import { ensureVectorColumn } from "./vector-setup"
 import { prisma } from "@/lib/db"
 import { trackError } from "@/lib/error-tracking"
+import * as Sentry from "@sentry/nextjs"
 
 export interface SearchResult {
   chunkId: string
@@ -140,6 +141,7 @@ export async function searchKnowledge(
     results = (await prisma.$queryRawUnsafe(sql, ...params)) as SearchResult[]
   } catch (err: any) {
     console.error("[Knowledge Search] Raw query failed:", err.message)
+    Sentry.captureException(err, { tags: { route: "knowledge/search" } })
     trackError({
       route: "knowledge/search",
       error: err,
