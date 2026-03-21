@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/date-utils"
 
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
 import { prisma } from "@/lib/db"
+import { decryptCasePII } from "@/lib/encryption"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Users, ClipboardCheck, AlertCircle, CheckCircle, ArrowRight, CalendarClock } from "lucide-react"
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
     pendingReviews = results[2]
     needsAttention = results[3]
     resolvedThisMonth = results[4]
-    recentCases = results[5]
+    recentCases = (results[5] as any[]).map(decryptCasePII)
     overdueCount = results[6]
     upcomingDeadlines = results[7]
   } catch (error: any) {

@@ -2,7 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { encryptField } from "@/lib/encryption"
+import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
+import { z } from "zod"
+
+const createCaseSchema = z.object({
+  clientName: z.string().min(1, "Client name is required"),
+  caseType: z.enum(["OIC", "IA", "PENALTY", "INNOCENT_SPOUSE", "CNC", "TFRP", "ERC", "UNFILED", "AUDIT", "CDP", "AMENDED", "VOLUNTARY_DISCLOSURE", "OTHER"]),
+  filingStatus: z.enum(["SINGLE", "MFJ", "MFS", "HOH", "QSS"]).optional().nullable(),
+  clientEmail: z.string().email().optional().or(z.literal("")).nullable(),
+  clientPhone: z.string().optional().nullable(),
+  totalLiability: z.number().optional().nullable(),
+  assignedPractitionerId: z.string().optional(),
+  notes: z.string().optional().nullable(),
+})
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -21,10 +33,7 @@ export async function GET(request: NextRequest) {
   if (status) where.status = status
   if (caseType) where.caseType = caseType
   if (search) {
-    where.OR = [
-      { caseNumber: { contains: search, mode: "insensitive" } },
-      { clientName: { contains: search, mode: "insensitive" } },
-    ]
+    where.caseNumber = { contains: search, mode: "insensitive" }
   }
 
   const [cases, total] = await Promise.all([
@@ -41,7 +50,7 @@ export async function GET(request: NextRequest) {
     prisma.case.count({ where }),
   ])
 
-  return NextResponse.json({ cases, total, page, limit })
+  return NextResponse.json({ cases: cases.map(decryptCasePII), total, page, limit })
 }
 
 export async function POST(request: NextRequest) {
@@ -52,14 +61,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { clientName, caseType, notes, filingStatus, clientEmail, clientPhone, totalLiability } = body
-
-    if (!clientName || !caseType) {
-      return NextResponse.json(
-        { error: "Client name and case type are required" },
-        { status: 400 }
-      )
+    const parsed = createCaseSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
     }
+
+    const data = parsed.data
 
     // Generate case number: CLR-YYYY-MM-NNNN
     const now = new Date()
@@ -80,18 +87,25 @@ export async function POST(request: NextRequest) {
 
     const caseNumber = `${prefix}${String(sequence).padStart(4, "0")}`
 
+    // Encrypt PII fields
+    const piiFields = encryptCasePII({
+      clientName: data.clientName,
+      clientEmail: data.clientEmail,
+      clientPhone: data.clientPhone,
+    })
+
     const newCase = await prisma.case.create({
       data: {
         caseNumber,
-        clientName,
-        clientNameEncrypted: encryptField(clientName),
-        caseType,
-        notes: notes || null,
-        filingStatus: filingStatus || null,
-        clientEmail: clientEmail || null,
-        clientPhone: clientPhone || null,
-        totalLiability: totalLiability != null ? totalLiability : null,
-        assignedPractitionerId: (session.user as any).id,
+        clientName: piiFields.clientName,
+        clientNameEncrypted: encryptField(data.clientName),
+        caseType: data.caseType,
+        notes: data.notes || null,
+        filingStatus: data.filingStatus || null,
+        clientEmail: piiFields.clientEmail || null,
+        clientPhone: piiFields.clientPhone || null,
+        totalLiability: data.totalLiability != null ? data.totalLiability : null,
+        assignedPractitionerId: data.assignedPractitionerId || (session.user as any).id,
         status: "INTAKE",
       },
       include: {
@@ -99,7 +113,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(newCase, { status: 201 })
+    return NextResponse.json(decryptCasePII(newCase), { status: 201 })
   } catch (error) {
     console.error("Create case error:", error)
     return NextResponse.json({ error: "Failed to create case" }, { status: 500 })

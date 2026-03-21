@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth/session"
 
 export const metadata: Metadata = { title: "Cases | Cleared" }
 import { prisma } from "@/lib/db"
+import { decryptCasePII } from "@/lib/encryption"
 import { CasesList } from "@/components/cases/cases-list"
 
 export default async function CasesPage() {
@@ -23,5 +24,5 @@ export default async function CasesPage() {
     }),
   ])
 
-  return <CasesList initialCases={cases} practitioners={practitioners} />
+  return <CasesList initialCases={cases.map(decryptCasePII)} practitioners={practitioners} />
 }
