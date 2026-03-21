@@ -8,7 +8,7 @@ import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
 import { generateDocx, generateTemplateDocx } from "@/lib/documents/docx"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 
-const SPREADSHEET_TASKS = ["WORKING_PAPERS", "OIC_NARRATIVE"]
+const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
 
 export async function GET(
   request: NextRequest,

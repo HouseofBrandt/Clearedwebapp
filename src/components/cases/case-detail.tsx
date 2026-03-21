@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
+import { formatDate, formatDateTime } from "@/lib/date-utils"
 import { DocumentUpload } from "@/components/documents/document-upload"
 import { DocumentList } from "@/components/documents/document-list"
 import { AIAnalysisPanel } from "@/components/cases/ai-analysis-panel"
@@ -65,7 +66,7 @@ function formatTaskType(taskType: string): string {
   return TASK_TYPE_LABELS[taskType as keyof typeof TASK_TYPE_LABELS] || taskType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-const SPREADSHEET_TASK_TYPES = new Set(["WORKING_PAPERS", "OIC_NARRATIVE"])
+const SPREADSHEET_TASK_TYPES = new Set(["WORKING_PAPERS"])
 
 const taskStatusStyles: Record<string, string> = {
   QUEUED: "bg-gray-100 text-gray-700",
@@ -352,7 +353,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDeta
                   <div className="flex-1">
                     <p className="text-sm font-medium">Next Deadline</p>
                     <p className="text-xs text-muted-foreground">
-                      {nextDeadline.title} · Due {due.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      {nextDeadline.title} · Due {formatDate(due, { month: "short", day: "numeric", year: "numeric" })}
                       {isOverdue ? " · OVERDUE" : ""}
                     </p>
                   </div>
@@ -512,11 +513,11 @@ export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDeta
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Created</p>
-                    <p>{new Date(caseData.createdAt).toLocaleDateString()}</p>
+                    <p>{formatDate(caseData.createdAt)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Last Updated</p>
-                    <p>{new Date(caseData.updatedAt).toLocaleDateString()}</p>
+                    <p>{formatDate(caseData.updatedAt)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -590,7 +591,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDeta
                     <Link href={`/review/${task.id}`} className="flex-1 min-w-0">
                       <p className="font-medium">{formatTaskType(task.taskType)}</p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(task.createdAt).toLocaleString()} &middot;{" "}
+                        {formatDateTime(task.createdAt)} &middot;{" "}
                         {task.modelUsed || (task.status === "REJECTED" ? "failed" : "starting...")}
                       </p>
                       {task.status === "REJECTED" && task.detokenizedOutput?.startsWith("Error:") && (

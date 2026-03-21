@@ -163,7 +163,7 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
   WORKING_PAPERS: "oic_extraction_v1",
   CASE_MEMO: "case_memo_v1",
   PENALTY_LETTER: "penalty_abatement_v1",
-  OIC_NARRATIVE: "oic_analysis_v1",
+  OIC_NARRATIVE: "oic_narrative_v1",
   GENERAL_ANALYSIS: "case_analysis_v1",
   IA_ANALYSIS: "ia_analysis_v1",
   CNC_ANALYSIS: "cnc_analysis_v1",
@@ -176,7 +176,7 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
 const TEMPLATE_TASKS = ["WORKING_PAPERS"]
 
 // Tasks that produce long detailed output and need more token room (12288 tokens)
-const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "CASE_MEMO", "OIC_NARRATIVE", "APPEALS_REBUTTAL"]
+const HIGH_TOKEN_TASKS = ["GENERAL_ANALYSIS", "TFRP_ANALYSIS", "CASE_MEMO", "OIC_NARRATIVE", "APPEALS_REBUTTAL", "INNOCENT_SPOUSE_ANALYSIS"]
 
 /** Send a JSON line to the stream controller */
 function sendEvent(controller: ReadableStreamDefaultController, data: Record<string, any>) {

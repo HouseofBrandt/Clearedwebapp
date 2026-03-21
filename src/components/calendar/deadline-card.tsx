@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { formatDate } from "@/lib/date-utils"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -46,9 +47,6 @@ function formatRelativeDate(dueDate: string | Date): string {
   return `In ${Math.ceil(diffDays / 30)} months`
 }
 
-function formatDate(date: string | Date): string {
-  return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-}
 
 function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -145,7 +143,7 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
           </div>
         )}
         <div className="text-right shrink-0">
-          <p className="text-xs text-muted-foreground">{formatDate(deadline.dueDate)}</p>
+          <p className="text-xs text-muted-foreground">{formatDate(deadline.dueDate, { month: "short", day: "numeric", year: "numeric" })}</p>
           <p className={`text-xs font-medium ${isOverdue ? "text-red-600" : isDueSoon ? "text-amber-600" : "text-muted-foreground"}`}>
             {formatRelativeDate(deadline.dueDate)}
           </p>
@@ -185,7 +183,7 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
               </Link>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-sm">{formatDate(deadline.dueDate)}</p>
+              <p className="text-sm">{formatDate(deadline.dueDate, { month: "short", day: "numeric", year: "numeric" })}</p>
               {isOverdue && <p className="text-xs font-semibold text-red-600">OVERDUE</p>}
             </div>
           </div>

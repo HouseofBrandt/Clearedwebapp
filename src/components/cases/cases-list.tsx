@@ -36,23 +36,9 @@ import { Plus, Search, FileText, FolderOpen, Trash2 } from "lucide-react"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS } from "@/types"
 import { useToast } from "@/components/ui/toast"
 
-function timeAgo(date: string | Date): string {
-  const now = new Date()
-  const then = new Date(date)
-  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000)
+import { formatRelative } from "@/lib/date-utils"
 
-  if (seconds < 60) return "just now"
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  const years = Math.floor(months / 12)
-  return `${years}y ago`
-}
+const timeAgo = formatRelative
 
 function formatCurrency(value: number | string | null | undefined): string {
   if (value == null || value === "") return "-"

@@ -23,13 +23,14 @@ import {
 } from "lucide-react"
 import { DocumentViewerPanel } from "@/components/review/document-viewer-panel"
 import { DeadlineSuggestions } from "@/components/calendar/deadline-suggestions"
+import { formatDateTime } from "@/lib/date-utils"
 
 interface TaskReviewProps {
   task: any
   documents?: any[]
 }
 
-const SPREADSHEET_TASKS = ["WORKING_PAPERS", "OIC_NARRATIVE"]
+const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
 const MEMO_TASKS = [
   "CASE_MEMO", "PENALTY_LETTER", "GENERAL_ANALYSIS",
   "IA_ANALYSIS", "CNC_ANALYSIS", "TFRP_ANALYSIS", "INNOCENT_SPOUSE_ANALYSIS",
@@ -440,7 +441,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(ra.reviewCompletedAt || ra.reviewStartedAt).toLocaleString()}
+                    {formatDateTime(ra.reviewCompletedAt || ra.reviewStartedAt)}
                   </span>
                 </div>
               ))}
