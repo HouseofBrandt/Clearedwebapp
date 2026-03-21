@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+import { formatDate } from "@/lib/date-utils"
 
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
 import { prisma } from "@/lib/db"
@@ -200,7 +201,7 @@ export default async function DashboardPage() {
                       )}
                       <div className="text-right shrink-0">
                         <p className="text-xs text-muted-foreground">
-                          {due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          {formatDate(due, { month: "short", day: "numeric" })}
                         </p>
                         <p className={`text-xs font-medium ${isOverdue ? "text-red-600" : diffDays <= 7 ? "text-amber-600" : "text-muted-foreground"}`}>
                           {isOverdue ? "OVERDUE" : diffDays === 0 ? "Today" : `${diffDays} days`}

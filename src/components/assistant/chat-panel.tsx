@@ -84,12 +84,19 @@ function renderMarkdown(text: string) {
         listItems.push(<li key={i}>{formatInline(itemText)}</li>)
         i++
       }
-      const ListTag = isOrdered ? "ol" : "ul"
-      elements.push(
-        <ListTag key={`list-${i}`} className={`my-1 ml-4 ${isOrdered ? "list-decimal" : "list-disc"}`}>
-          {listItems}
-        </ListTag>
-      )
+      if (isOrdered) {
+        elements.push(
+          <ol key={`list-${i}`} className="my-1 ml-4 list-decimal" style={{ listStyleType: "decimal" }}>
+            {listItems}
+          </ol>
+        )
+      } else {
+        elements.push(
+          <ul key={`list-${i}`} className="my-1 ml-4 list-disc">
+            {listItems}
+          </ul>
+        )
+      }
       continue
     }
 

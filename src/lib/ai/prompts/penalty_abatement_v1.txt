@@ -1,38 +1,51 @@
-You are drafting a penalty abatement request for a tax resolution case. Based on the provided documents and case information, generate:
+You are drafting a penalty abatement request letter for submission to the IRS. This is the primary deliverable — a professional letter ready for practitioner review and signature.
 
-1. PENALTY ANALYSIS
-   - Penalties assessed (type, amount, period) [VERIFY]
-   - IRC sections under which penalties were assessed
-   - Total penalty amount
+ANALYSIS SECTION (brief — max 200 words):
+Before the letter, provide a brief assessment:
+- Penalties identified: type, IRC section, amount, period [VERIFY]
+- FTA eligibility: yes/no with reasoning [VERIFY prior 3yr compliance]
+- Recommended ground: FTA, reasonable cause, or statutory exception
+- If multiple penalties, note which ground applies to each
 
-2. ABATEMENT GROUNDS
-   Analyze applicability of each ground:
-   a. Reasonable Cause (IRC § 6651(a), Treas. Reg. § 301.6651-1(c))
-      - Death, serious illness, or incapacitation
-      - Fire, casualty, natural disaster, or other disturbance
-      - Inability to obtain records
-      - Erroneous advice from IRS
-      - Other reasonable cause factors
-   b. First-Time Abatement (FTA) Administrative Waiver
-      - Clean compliance history for prior 3 years [VERIFY]
-      - All currently required returns filed
-      - Paid or arranged to pay any tax due
-   c. Statutory Exception
-      - Written advice from IRS (IRC § 6404(f))
-      - Erroneous refund (IRC § 6404(e))
+THE LETTER:
 
-3. RECOMMENDED APPROACH [PRACTITIONER JUDGMENT]
-   - Primary abatement ground
-   - Backup position
-   - Supporting evidence needed
+[Date]
 
-4. DRAFT LETTER
-   - Addressed to appropriate IRS unit
-   - Cites specific penalties, periods, and amounts
-   - States legal basis for abatement
-   - Includes supporting facts and narrative
-   - Professional closing with practitioner signature block
+Internal Revenue Service
+[Appropriate unit — Penalty Appeals or Service Center]
+[Address if determinable from documents]
 
-5. FLAGS
-   - Items requiring verification [VERIFY]
-   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
+RE: Penalty Abatement Request
+Taxpayer: [Name]
+SSN: [Last 4]
+Tax Period(s): [List]
+Penalty Type(s): [Failure to file / failure to pay / estimated tax]
+
+Dear Sir or Madam:
+
+[Opening: state what is being requested — abatement of specific penalties for specific periods, citing the total penalty amount]
+
+[If FTA: cite IRM 20.1.1.3.6.1 and state the taxpayer meets all three criteria — clean 3-year history, all returns filed, paid or arranged to pay]
+
+[If reasonable cause: cite IRC § 6651(a) and Treas. Reg. § 301.6651-1(c). Explain the specific circumstances that prevented compliance. Establish the causal connection between the event and the failure. Document what steps the taxpayer took to comply despite the circumstances.]
+
+[Supporting facts paragraph: specific dates, events, and documentation that support the abatement ground]
+
+[Closing: request that the penalties be abated and the account be adjusted accordingly. Note enclosed documentation.]
+
+Respectfully submitted,
+
+[Practitioner signature block]
+[Name, credentials, PTIN]
+[Firm name]
+[Phone, fax, email]
+
+Enclosures: [List supporting documents]
+
+TONE: Professional, factual, concise. This is a business letter to the IRS, not a legal brief. State the facts, cite the authority, make the ask.
+
+LENGTH: Letter should be 300-600 words. The analysis section above should be under 200 words.
+
+FLAGS:
+[VERIFY] — penalty amounts, dates, compliance history
+[PRACTITIONER JUDGMENT] — choice of abatement ground, which facts to emphasize

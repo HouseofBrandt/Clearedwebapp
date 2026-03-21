@@ -1,45 +1,45 @@
-You are performing a general case analysis for a tax resolution matter. Based on the provided documents, generate a structured analysis that includes:
+You are performing a general case analysis for a tax resolution matter. Produce a focused analysis that helps the practitioner understand the case and decide on a strategy. Prioritize critical findings over comprehensiveness.
 
-1. CASE SUMMARY
-   - Brief overview of the taxpayer's situation
-   - Tax periods involved
-   - Current collection status (if known)
+STRUCTURE:
 
-2. ISSUE IDENTIFICATION
-   - Primary tax issues identified
-   - Secondary issues or complications
-   - Statute of limitations considerations [VERIFY]
+CASE SNAPSHOT
+Two to three sentences: who the taxpayer is, what they owe, what tax periods are involved, and what stage of collection the IRS is at. Include total liability. This is the 30-second summary a practitioner reads first.
 
-3. DOCUMENT REVIEW
-   - Summary of documents provided
-   - Key findings from each document
-   - Missing documents needed
+CRITICAL FINDINGS
+The 3-5 most important things the practitioner needs to know from the documents. Not a document-by-document summary — a synthesized list of the facts that drive the resolution strategy. Examples:
+- CSED expires May 2032 — 6 years remaining [VERIFY]
+- CDP hearing deadline was February 5 — appears expired [VERIFY]
+- Client transferred BMW to family member after assessment — potential dissipated asset issue
+- Client has $85K in 401(k) that IRS will include in RCP
+- Penalties represent $67K of the total liability — FTA may be available [VERIFY prior 3-year compliance]
 
-4. RESOLUTION OPTIONS
-   - Available resolution pathways [PRACTITIONER JUDGMENT]
-   - Pros and cons of each option
-   - Recommended approach with rationale
+Present these as a prioritized list, most impactful first. Each finding should be one to two sentences with the relevant authority or flag.
 
-5. FINANCIAL ANALYSIS
-   For each identified issue:
-   - State the specific IRC section, regulation, or IRM provision
-   - Analyze how the client's specific facts apply to the legal standard
-   - Assess the strength of the client's position (strong/moderate/weak) with reasoning
-   - Identify the strongest counterargument the IRS would make
-   - Recommend specific next steps with deadlines where applicable
+FINANCIAL OVERVIEW
+A concise summary of the taxpayer's financial position using data from bank statements, pay stubs, and financial documents. Present as:
+- Monthly income: $X (sources: wages, self-employment, etc.)
+- Monthly expenses: $X (approximate, based on available data)
+- Monthly disposable income: $X
+- Key assets: list with approximate values
+- Key liabilities: list with balances
 
-   For financial data extracted from bank statements or tax returns:
-   - Present income and expense data in structured tables
-   - Clearly label the source document for each figure
-   - Note any discrepancies between documents (e.g., bank statement balance vs. client-reported amount)
-   - Calculate monthly averages where single-month data is provided and note that multiple months are needed for OIC/IA purposes
+Do NOT reproduce every line item from every document. Synthesize into the numbers that matter for resolution.
 
-6. ACTION ITEMS
-   - Immediate next steps
-   - Information/documents to request from client
-   - IRS actions to take (transcripts, POA, etc.)
+RESOLUTION OPTIONS [PRACTITIONER JUDGMENT]
+For each viable option (OIC, IA, CNC, penalty abatement, CSED wait-out, etc.), provide:
+- One-line summary of why it may work
+- Key advantage
+- Key risk or obstacle
+- Estimated likelihood (strong/moderate/weak) with reasoning
 
-7. FLAGS
-   - Items requiring verification [VERIFY]
-   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
-   - Time-sensitive deadlines
+Recommend a primary strategy and explain why.
+
+ACTION ITEMS
+Numbered list of specific next steps, most urgent first. Each item should be actionable: "Pull account transcripts for TY2019-2023" not "Consider obtaining transcripts." Include any deadlines.
+
+FLAGS
+Consolidate all [VERIFY] and [PRACTITIONER JUDGMENT] items from above into a single list at the end for easy scanning.
+
+TONE: Direct, analytical, concise. A senior practitioner should be able to read this in 3-5 minutes and know exactly what the case is about and what to do next.
+
+LENGTH: 800-1500 words. Not longer. If the analysis needs more depth on a specific area, recommend running a targeted analysis type (Case Memo, OIC Working Papers, etc.).

@@ -14,6 +14,7 @@ import {
   Shield,
 } from "lucide-react"
 import { ROLE_LABELS } from "@/types"
+import { UnreadBadge } from "@/components/layout/unread-badge"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -69,10 +70,8 @@ export function SidebarContent({ user, pendingReviewCount, overdueDeadlineCount,
                   {overdueDeadlineCount > 99 ? "99+" : overdueDeadlineCount}
                 </span>
               )}
-              {item.name === "Inbox" && unreadMessageCount != null && unreadMessageCount > 0 && (
-                <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-white">
-                  {unreadMessageCount > 99 ? "99+" : unreadMessageCount}
-                </span>
+              {item.name === "Inbox" && (
+                <UnreadBadge initialCount={unreadMessageCount || 0} />
               )}
             </Link>
           )

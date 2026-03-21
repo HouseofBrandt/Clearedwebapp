@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   Inbox, Clock, ClipboardCheck, CheckCircle2, XCircle,
   Bug, Lightbulb, MessageSquare, Megaphone, ArrowLeft,
-  ArchiveX, Reply, ExternalLink,
+  ArchiveX, Reply, ExternalLink, RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,19 +90,7 @@ const BORDER_COLORS: Record<string, string> = {
 
 type FilterType = "ALL" | "UNREAD" | "BUGS_AND_FEATURES" | "NOTIFICATIONS"
 
-function relativeTime(dateStr: string): string {
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = now - then
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return "just now"
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-}
+import { formatRelative, formatDateTime } from "@/lib/date-utils"
 
 export function InboxList({
   initialMessages,
@@ -122,6 +110,14 @@ export function InboxList({
   const { addToast } = useToast()
 
   const isAdmin = currentUserRole === "ADMIN"
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh()
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [router])
 
   const selected = messages.find((m) => m.id === selectedId) || null
 
@@ -194,6 +190,15 @@ export function InboxList({
               <span className="text-sm text-muted-foreground">({unreadCount} unread)</span>
             )}
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => router.refresh()}
+            title="Refresh inbox"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Filter pills */}
@@ -239,7 +244,7 @@ export function InboxList({
                       {msg.subject}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {relativeTime(msg.createdAt)}
+                      {formatRelative(msg.createdAt)}
                       {" · "}
                       {msg.sender?.name || msg.senderName || MESSAGE_TYPE_LABELS[msg.type] || "System"}
                     </p>
@@ -343,13 +348,7 @@ function MessageDetail({
   onReply: () => void
   onUpdateMessage: (updated: Partial<MessageData> & { id: string }) => void
 }) {
-  const dateStr = new Date(message.createdAt).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  })
+  const dateStr = formatDateTime(message.createdAt, { month: "long" })
 
   const typeColor = MESSAGE_TYPE_COLORS[message.type] || "bg-gray-100 text-gray-800"
   const borderColor = BORDER_COLORS[message.type] || "border-l-gray-400"

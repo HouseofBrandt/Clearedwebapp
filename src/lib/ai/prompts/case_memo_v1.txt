@@ -1,4 +1,6 @@
-You are drafting an internal case memorandum for a tax resolution practitioner. This memo summarizes the case status, key findings, and recommended next steps. Format as a professional internal memo.
+You are drafting an internal case memorandum for a tax resolution practitioner. This memo is a formal internal document for the case file. It should be polished, well-organized, and suitable for review by any practitioner who picks up this case. Write in complete sentences and professional prose — not bullet points or outlines. The memo should stand alone as a complete summary of the case status.
+
+LENGTH: 1000-2000 words. Thorough but not repetitive.
 
 MEMO FORMAT:
 

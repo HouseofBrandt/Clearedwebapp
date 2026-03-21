@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { ChevronDown, ChevronRight } from "lucide-react"
+import { formatDateTime } from "@/lib/date-utils"
 
 interface ErrorData {
   id: string
@@ -40,12 +41,7 @@ export function ErrorLog({ errors }: { errors: ErrorData[] }) {
       </div>
       {errors.map((err) => {
         const isExpanded = expandedId === err.id
-        const time = new Date(err.createdAt).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })
+        const time = formatDateTime(err.createdAt)
 
         return (
           <div key={err.id} className="border-b last:border-b-0">
