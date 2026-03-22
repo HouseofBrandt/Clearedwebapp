@@ -1,8 +1,10 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { formatDate } from "@/lib/date-utils"
 import { Badge } from "@/components/ui/badge"
 import {
   Table,
@@ -30,6 +32,8 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  CheckSquare,
+  ArrowUpDown,
 } from "lucide-react"
 import { DOCUMENT_CATEGORY_LABELS } from "@/types"
 
@@ -45,9 +49,90 @@ interface DocumentListProps {
   documents: any[]
 }
 
+type SortField = "name" | "category" | "type" | "date"
+type SortDir = "asc" | "desc"
+
 export function DocumentList({ documents }: DocumentListProps) {
   const router = useRouter()
   const { addToast } = useToast()
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [sortBy, setSortBy] = useState<SortField>("date")
+  const [sortDir, setSortDir] = useState<SortDir>("desc")
+
+  const sortedDocuments = useMemo(() => {
+    const sorted = [...documents].sort((a, b) => {
+      let cmp = 0
+      switch (sortBy) {
+        case "name":
+          cmp = (a.fileName || "").localeCompare(b.fileName || "")
+          break
+        case "category":
+          cmp = (a.documentCategory || "").localeCompare(b.documentCategory || "")
+          break
+        case "type": {
+          const extA = a.fileName?.split(".").pop()?.toLowerCase() || ""
+          const extB = b.fileName?.split(".").pop()?.toLowerCase() || ""
+          cmp = extA.localeCompare(extB)
+          break
+        }
+        case "date":
+          cmp = new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime()
+          break
+      }
+      return sortDir === "asc" ? cmp : -cmp
+    })
+    return sorted
+  }, [documents, sortBy, sortDir])
+
+  function toggleSort(field: SortField) {
+    if (sortBy === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(field)
+      setSortDir(field === "date" ? "desc" : "asc")
+    }
+  }
+
+  function toggleDoc(docId: string) {
+    setSelectedDocs((prev) => {
+      const next = new Set(prev)
+      if (next.has(docId)) next.delete(docId)
+      else next.add(docId)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selectedDocs.size === documents.length) {
+      setSelectedDocs(new Set())
+    } else {
+      setSelectedDocs(new Set(documents.map((d) => d.id)))
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Delete ${selectedDocs.size} selected documents?`)) return
+
+    setBulkDeleting(true)
+    try {
+      const res = await fetch("/api/documents/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentIds: Array.from(selectedDocs) }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      addToast({ title: `${selectedDocs.size} documents deleted` })
+      setSelectedDocs(new Set())
+      setSelectMode(false)
+      router.refresh()
+    } catch {
+      addToast({ title: "Error", description: "Failed to delete documents", variant: "destructive" })
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
 
   async function handleCategoryChange(docId: string, newCategory: string) {
     const res = await fetch(`/api/documents/${docId}/update`, {
@@ -92,20 +177,65 @@ export function DocumentList({ documents }: DocumentListProps) {
     (d) => d.extractedText && d.extractedText.trim().length > 0
   ).length
 
+  const sortIndicator = (field: SortField) =>
+    sortBy === field ? (sortDir === "asc" ? " \u2191" : " \u2193") : ""
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Documents ({documents.length})</CardTitle>
-          <span className="text-sm text-muted-foreground">
-            {docsWithText}/{documents.length} ready for AI analysis
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {docsWithText}/{documents.length} ready for AI
+            </span>
+            <Button
+              variant={selectMode ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => {
+                if (selectMode) {
+                  setSelectMode(false)
+                  setSelectedDocs(new Set())
+                } else {
+                  setSelectMode(true)
+                }
+              }}
+            >
+              <CheckSquare className="mr-1.5 h-4 w-4" />
+              {selectMode ? "Cancel" : "Select"}
+            </Button>
+          </div>
+        </div>
+        {/* Sort controls */}
+        <div className="flex items-center gap-1.5 pt-1">
+          <span className="text-xs text-muted-foreground mr-1">Sort:</span>
+          {(["name", "category", "type", "date"] as SortField[]).map((field) => (
+            <button
+              key={field}
+              onClick={() => toggleSort(field)}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                sortBy === field ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {field.charAt(0).toUpperCase() + field.slice(1)}{sortIndicator(field)}
+            </button>
+          ))}
         </div>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
+              {selectMode && (
+                <TableHead className="w-8">
+                  <input
+                    type="checkbox"
+                    checked={selectedDocs.size === documents.length}
+                    onChange={toggleAll}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </TableHead>
+              )}
               <TableHead>File</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Text Extracted</TableHead>
@@ -116,10 +246,20 @@ export function DocumentList({ documents }: DocumentListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documents.map((doc) => {
+            {sortedDocuments.map((doc) => {
               const Icon = fileTypeIcons[doc.fileType] || File
               return (
-                <TableRow key={doc.id}>
+                <TableRow key={doc.id} className={selectedDocs.has(doc.id) ? "bg-muted/40" : undefined}>
+                  {selectMode && (
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedDocs.has(doc.id)}
+                        onChange={() => toggleDoc(doc.id)}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4 text-muted-foreground" />
@@ -169,7 +309,7 @@ export function DocumentList({ documents }: DocumentListProps) {
                   </TableCell>
                   <TableCell className="text-sm">{doc.uploadedBy?.name}</TableCell>
                   <TableCell className="text-sm">
-                    {new Date(doc.uploadedAt).toLocaleDateString()}
+                    {formatDate(doc.uploadedAt)}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -188,6 +328,23 @@ export function DocumentList({ documents }: DocumentListProps) {
             })}
           </TableBody>
         </Table>
+
+        {/* Bulk action bar */}
+        {selectMode && selectedDocs.size > 0 && (
+          <div className="sticky bottom-0 mt-3 flex items-center justify-between rounded-lg border bg-background p-3">
+            <span className="text-sm text-muted-foreground">
+              {selectedDocs.size} selected
+            </span>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setSelectedDocs(new Set()); setSelectMode(false) }}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={bulkDeleting}>
+                {bulkDeleting ? "Deleting..." : "Delete Selected"}
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

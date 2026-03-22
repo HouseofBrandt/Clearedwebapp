@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { formatDate } from "@/lib/date-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
@@ -96,7 +97,7 @@ export function DeadlineSuggestions({ suggestions, caseId, taskId }: DeadlineSug
                 <span className="text-sm font-medium">{s.title}</span>
                 {s.dueDate && (
                   <span className="text-xs text-muted-foreground">
-                    — Due {new Date(s.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    — Due {formatDate(s.dueDate, { month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 )}
                 {!s.dueDate && (

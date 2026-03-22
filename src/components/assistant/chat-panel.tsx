@@ -86,13 +86,13 @@ function renderMarkdown(text: string) {
       }
       if (isOrdered) {
         elements.push(
-          <ol key={`list-${i}`} className="my-1 ml-4 list-decimal" style={{ listStyleType: "decimal" }}>
+          <ol key={`list-${i}`} className="my-1 ml-4 list-decimal [&>li]:pl-1" style={{ listStyleType: "decimal" }}>
             {listItems}
           </ol>
         )
       } else {
         elements.push(
-          <ul key={`list-${i}`} className="my-1 ml-4 list-disc">
+          <ul key={`list-${i}`} className="my-1 ml-4 list-disc [&>li]:pl-1" style={{ listStyleType: "disc" }}>
             {listItems}
           </ul>
         )
@@ -576,7 +576,7 @@ export function ChatPanel() {
       {/* Slide-out panel */}
       {isOpen && (
         <div
-          className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl lg:w-[420px]"
+          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl lg:w-[420px]"
         >
           {/* Header */}
           <div
@@ -601,7 +601,7 @@ export function ChatPanel() {
                   <ChevronDown className="h-3 w-3" />
                 </button>
                 {showModelDropdown && (
-                  <div className="absolute right-0 top-full mt-1 w-36 rounded-md border bg-white py-1 shadow-lg">
+                  <div className="absolute right-0 top-full mt-1 w-36 rounded-md border bg-white py-1 shadow-lg z-[60]">
                     <button
                       onClick={() => { setModel("claude-sonnet-4-6"); setShowModelDropdown(false) }}
                       className={`flex w-full items-center justify-between px-3 py-1.5 text-sm hover:bg-gray-100 ${

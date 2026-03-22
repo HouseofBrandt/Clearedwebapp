@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DEADLINE_PRIORITY_DOTS, DEADLINE_TYPE_LABELS } from "@/types"
+import { formatDate as formatDateUtil } from "@/lib/date-utils"
 
 interface MonthViewProps {
   deadlines: any[]
@@ -20,7 +21,7 @@ function getFirstDayOfWeek(year: number, month: number) {
 }
 
 function formatDate(d: Date) {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  return formatDateUtil(d, { month: "short", day: "numeric", year: "numeric" })
 }
 
 export function MonthView({ deadlines, users }: MonthViewProps) {
@@ -31,7 +32,7 @@ export function MonthView({ deadlines, users }: MonthViewProps) {
 
   const daysInMonth = getDaysInMonth(year, month)
   const firstDay = getFirstDayOfWeek(year, month)
-  const monthName = new Date(year, month).toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  const monthName = formatDateUtil(new Date(year, month), { month: "long", year: "numeric" })
 
   // Group deadlines by day
   const deadlinesByDay: Record<number, any[]> = {}
@@ -123,7 +124,7 @@ export function MonthView({ deadlines, users }: MonthViewProps) {
       {selectedDay && (
         <div className="rounded-lg border p-4">
           <h4 className="font-medium mb-3">
-            {new Date(year, month, selectedDay).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {formatDateUtil(new Date(year, month, selectedDay), { weekday: "long", month: "long", day: "numeric" })}
           </h4>
           {selectedDeadlines.length === 0 ? (
             <p className="text-sm text-muted-foreground">No deadlines on this day.</p>
