@@ -41,6 +41,8 @@ import {
 } from "lucide-react"
 import { DeadlineCard } from "@/components/calendar/deadline-card"
 import { AddDeadlineDialog } from "@/components/calendar/add-deadline-dialog"
+import { SmartStatusCard } from "@/components/cases/smart-status-card"
+import { ActivityFeed } from "@/components/cases/activity-feed"
 import { DEADLINE_PRIORITY_DOTS } from "@/types"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
 
@@ -110,11 +112,13 @@ interface CaseDetailProps {
   caseData: any
   practitioners: { id: string; name: string; role?: string }[]
   deadlines?: any[]
+  intelligence?: any | null
+  activities?: any[]
 }
 
-const VALID_TABS = ["overview", "documents", "ai", "deliverables", "deadlines", "timeline"]
+const VALID_TABS = ["overview", "documents", "ai", "deliverables", "deadlines", "activity"]
 
-export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDetailProps) {
+export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [] }: CaseDetailProps) {
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.replace("#", "")
@@ -313,6 +317,9 @@ export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDeta
         </div>
       </div>
 
+      {/* Smart Status Card */}
+      <SmartStatusCard caseData={caseData} intelligence={intelligence} />
+
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -332,9 +339,9 @@ export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDeta
             <CalendarIcon className="mr-1 h-4 w-4" />
             Deadlines ({deadlines.length})
           </TabsTrigger>
-          <TabsTrigger value="timeline">
+          <TabsTrigger value="activity">
             <Clock className="mr-1 h-4 w-4" />
-            Timeline
+            Activity
           </TabsTrigger>
         </TabsList>
 
@@ -730,69 +737,18 @@ export function CaseDetail({ caseData, practitioners, deadlines = [] }: CaseDeta
           )}
         </TabsContent>
 
-        <TabsContent value="timeline" className="space-y-4">
-          {timelineEvents.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Clock className="h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">No activity yet</h3>
-                <p className="text-sm text-muted-foreground">
-                  Activity will appear here as you work on this case.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-6">
-                <div className="relative">
-                  {/* Vertical line */}
-                  <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-border" />
-
-                  <div className="space-y-6">
-                    {timelineEvents.map((event, index) => {
-                      let dotColor = "bg-blue-500"
-                      let EventIcon = FolderPlus
-
-                      if (event.type === "document") {
-                        dotColor = "bg-green-500"
-                        EventIcon = Upload
-                      } else if (event.type === "ai") {
-                        dotColor = "bg-purple-500"
-                        EventIcon = Brain
-                      } else if (event.type === "review") {
-                        dotColor = reviewActionColors[event.action || ""] || "bg-yellow-500"
-                        EventIcon = reviewActionIcons[event.action || ""] || CheckCircle
-                      }
-
-                      return (
-                        <div key={index} className="relative flex gap-4 pl-8">
-                          {/* Dot */}
-                          <div
-                            className={`absolute left-0 top-1 h-5 w-5 rounded-full ${dotColor} flex items-center justify-center`}
-                          >
-                            <EventIcon className="h-3 w-3 text-white" />
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-medium">{event.title}</p>
-                              <p className="text-xs text-muted-foreground whitespace-nowrap">
-                                {timeAgo(event.date)}
-                              </p>
-                            </div>
-                            {event.description && (
-                              <p className="text-sm text-muted-foreground">{event.description}</p>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="activity" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Activity Feed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ActivityFeed activities={activities} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

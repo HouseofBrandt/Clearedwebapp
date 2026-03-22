@@ -92,6 +92,18 @@ export async function POST(
       reviewNotes,
     })
 
+    // Log activity (fire-and-forget)
+    const taskLabel = task.taskType.replace(/_/g, " ")
+    prisma.caseActivity.create({
+      data: {
+        caseId: task.caseId,
+        userId: auth.userId,
+        action: "REVIEW_COMPLETED",
+        description: `${action === "APPROVE" || action === "EDIT_APPROVE" ? "Approved" : "Rejected"} ${taskLabel}`,
+        metadata: { taskId: task.id, action: action },
+      },
+    }).catch(() => {})
+
     // Fire-and-forget notification to the task creator
     if (task.createdById && task.createdById !== auth.userId) {
       const taskLabel = task.taskType.replace(/_/g, " ")

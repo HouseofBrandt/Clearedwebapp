@@ -208,6 +208,7 @@ model User {
   receivedMessages    Message[]          @relation("ReceivedMessages")
   appErrors           AppError[]         @relation("UserErrors")
   implementedMessages Message[]          @relation("ImplementedMessages")
+  caseActivities      CaseActivity[]     @relation("CaseActivities")
 
   @@map("users")
 }
@@ -236,6 +237,8 @@ model Case {
   liabilityPeriods  LiabilityPeriod[]
   deadlines         Deadline[]
   messages          Message[]
+  intelligence      CaseIntelligence?
+  activities        CaseActivity[]
 
   @@map("cases")
 }
@@ -496,4 +499,76 @@ model Message {
   @@index([type, createdAt])
   @@index([caseId])
   @@map("messages")
+}
+
+model CaseIntelligence {
+  id                    String    @id @default(cuid())
+  caseId                String    @unique
+  case                  Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  // Resolution tracking
+  resolutionType        String?
+  resolutionPhase       String    @default("GATHERING_DOCUMENTS")
+
+  // IRS position tracking
+  irsLastAction         String?
+  irsLastActionDate     DateTime?
+  irsNextExpectedAction String?
+  irsAssignedUnit       String?
+  irsAssignedEmployee   String?
+  irsEmployeeId         String?
+
+  // Document completeness
+  docsRequired          Json      @default("[]")
+  docsReceivedCount     Int       @default(0)
+  docsRequiredCount     Int       @default(0)
+  docCompleteness       Float     @default(0)
+
+  // Financial readiness
+  financialsComplete    Boolean   @default(false)
+  rpcEstimate           Decimal?
+  offerAmount           Decimal?
+
+  // Compliance status
+  allReturnsFiled       Boolean   @default(false)
+  currentOnEstimates    Boolean   @default(false)
+  poaOnFile             Boolean   @default(false)
+  poaExpirationDate     DateTime?
+
+  // Risk indicators
+  levyThreatActive      Boolean   @default(false)
+  liensFiledActive      Boolean   @default(false)
+  csedEarliest          DateTime?
+  csedLatest            DateTime?
+
+  // Last AI assessment
+  lastAssessmentDate    DateTime?
+  lastAssessmentSummary String?   @db.Text
+
+  // Activity
+  lastActivityDate      DateTime  @default(now())
+  lastActivityBy        String?
+  lastActivityAction    String?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("case_intelligence")
+}
+
+model CaseActivity {
+  id          String   @id @default(cuid())
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation("CaseActivities", fields: [userId], references: [id])
+
+  action      String
+  description String
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([caseId, createdAt])
+  @@map("case_activities")
 }
