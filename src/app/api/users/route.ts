@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, ADMIN_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 
@@ -80,6 +81,13 @@ export async function POST(request: NextRequest) {
         licenseNumber: true,
         createdAt: true,
       },
+    })
+
+    logAudit({
+      userId: auth.userId,
+      action: AUDIT_ACTIONS.USER_CREATED,
+      metadata: { newUserId: user.id, newUserEmail: user.email, role: user.role },
+      ipAddress: getClientIP(),
     })
 
     return NextResponse.json(user, { status: 201 })

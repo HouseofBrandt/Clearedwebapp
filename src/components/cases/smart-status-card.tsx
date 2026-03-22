@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import { RESOLUTION_PHASES, RESOLUTION_PHASE_LABELS } from "@/lib/case-intelligence/phases"
 import { formatDate, formatRelative } from "@/lib/date-utils"
-import { AlertTriangle, CheckCircle, XCircle, Shield, FileText } from "lucide-react"
+import { AlertTriangle, CheckCircle, XCircle, Shield, FileText, ChevronDown, ChevronRight, AlertCircle, Check, X } from "lucide-react"
 
 interface SmartStatusCardProps {
   caseData: any
@@ -10,6 +11,7 @@ interface SmartStatusCardProps {
 }
 
 export function SmartStatusCard({ caseData, intelligence }: SmartStatusCardProps) {
+  const [docsExpanded, setDocsExpanded] = useState(false)
   const intel = intelligence
 
   const currentPhase = intel?.resolutionPhase || "GATHERING_DOCUMENTS"
@@ -104,6 +106,45 @@ export function SmartStatusCard({ caseData, intelligence }: SmartStatusCardProps
           />
         </div>
       </div>
+
+      {/* Document checklist (expandable) */}
+      {intel?.docsRequired && (intel.docsRequired as any[]).length > 0 && (
+        <div>
+          <button
+            onClick={() => setDocsExpanded(!docsExpanded)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {docsExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            {intel?.docsReceivedCount || 0} of {intel?.docsRequiredCount || 0} required documents
+          </button>
+          {docsExpanded && (
+            <div className="mt-2 space-y-1 pl-1">
+              {(intel.docsRequired as any[]).map((doc: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  {doc.received ? (
+                    <Check className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : doc.critical ? (
+                    <AlertCircle className="h-3 w-3 text-red-400 flex-shrink-0" />
+                  ) : (
+                    <X className="h-3 w-3 text-muted-foreground/50 flex-shrink-0" />
+                  )}
+                  <span className={doc.received
+                    ? "text-muted-foreground line-through"
+                    : doc.critical
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground"
+                  }>
+                    {doc.label}
+                    {doc.critical && !doc.received && (
+                      <span className="text-red-400 ml-1">(required)</span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* IRS Position */}
       {intel?.irsLastAction && (

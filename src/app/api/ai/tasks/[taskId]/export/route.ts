@@ -7,6 +7,7 @@ import { generateOICWorkbook } from "@/lib/documents/excel"
 import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
 import { generateDocx, generateTemplateDocx } from "@/lib/documents/docx"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
 
@@ -41,8 +42,17 @@ export async function GET(
     )
   }
   const output = task.detokenizedOutput
-
   const format = request.nextUrl.searchParams.get("format") || "xlsx"
+
+  // Audit log for export (fire-and-forget)
+  logAudit({
+    userId: (session.user as any).id,
+    action: AUDIT_ACTIONS.DELIVERABLE_EXPORTED,
+    caseId: task.caseId,
+    aiTaskId: params.taskId,
+    metadata: { taskType: task.taskType, format },
+    ipAddress: getClientIP(),
+  })
 
   // Excel export for OIC working papers
   if (format === "xlsx" && SPREADSHEET_TASKS.includes(task.taskType)) {

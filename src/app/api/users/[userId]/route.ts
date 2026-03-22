@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 
@@ -88,6 +89,23 @@ export async function PATCH(
       },
     })
 
+    // Audit: role change vs general update
+    if (rest.role && rest.role !== existing.role) {
+      logAudit({
+        userId: (session.user as any).id,
+        action: AUDIT_ACTIONS.USER_ROLE_CHANGED,
+        metadata: { targetUserId: params.userId, oldRole: existing.role, newRole: rest.role },
+        ipAddress: getClientIP(),
+      })
+    } else {
+      logAudit({
+        userId: (session.user as any).id,
+        action: password ? AUDIT_ACTIONS.PASSWORD_CHANGED : AUDIT_ACTIONS.USER_UPDATED,
+        metadata: { targetUserId: params.userId, fieldsChanged: Object.keys(parsed.data) },
+        ipAddress: getClientIP(),
+      })
+    }
+
     return NextResponse.json(user)
   } catch (error) {
     console.error("Update user error:", error)
@@ -115,6 +133,14 @@ export async function DELETE(
 
   try {
     await prisma.user.delete({ where: { id: params.userId } })
+
+    logAudit({
+      userId: (session.user as any).id,
+      action: AUDIT_ACTIONS.USER_DEACTIVATED,
+      metadata: { targetUserId: params.userId },
+      ipAddress: getClientIP(),
+    })
+
     return NextResponse.json({ message: "User deleted" })
   } catch (error) {
     console.error("Delete user error:", error)

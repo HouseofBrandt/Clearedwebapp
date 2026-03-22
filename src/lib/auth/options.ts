@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/db"
+import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -21,6 +22,7 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user) {
+          logAudit({ userId: "unknown", action: AUDIT_ACTIONS.LOGIN_FAILURE, metadata: { email: credentials.email, reason: "user_not_found" } })
           throw new Error("Invalid email or password")
         }
 
@@ -30,8 +32,11 @@ export const authOptions: NextAuthOptions = {
         )
 
         if (!isValid) {
+          logAudit({ userId: user.id, action: AUDIT_ACTIONS.LOGIN_FAILURE, metadata: { email: credentials.email, reason: "invalid_password" } })
           throw new Error("Invalid email or password")
         }
+
+        logAudit({ userId: user.id, action: AUDIT_ACTIONS.LOGIN_SUCCESS, metadata: { email: user.email } })
 
         return {
           id: user.id,

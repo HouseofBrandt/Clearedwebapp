@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { z } from "zod"
 
 const updateCaseSchema = z.object({
@@ -104,6 +105,14 @@ export async function PATCH(
       },
     })
 
+    logAudit({
+      userId: (session.user as any).id,
+      action: status ? AUDIT_ACTIONS.CASE_STATUS_CHANGED : AUDIT_ACTIONS.CASE_UPDATED,
+      caseId: params.caseId,
+      metadata: { fieldsChanged: Object.keys(updateData), ...(status ? { newStatus: status } : {}) },
+      ipAddress: getClientIP(),
+    })
+
     return NextResponse.json(decryptCasePII(updated))
   } catch (error) {
     console.error("Update case error:", error)
@@ -127,6 +136,14 @@ export async function DELETE(
 
   try {
     await prisma.case.delete({ where: { id: params.caseId } })
+
+    logAudit({
+      userId: (session.user as any).id,
+      action: AUDIT_ACTIONS.CASE_DELETED,
+      caseId: params.caseId,
+      ipAddress: getClientIP(),
+    })
+
     return NextResponse.json({ message: "Case deleted" })
   } catch (error) {
     console.error("Delete case error:", error)

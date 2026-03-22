@@ -7,6 +7,8 @@ import { extractWithDetails } from "@/lib/documents/extract"
 import { populateFromTranscript } from "@/lib/documents/liability"
 import { autoDetectCategory } from "@/lib/documents/auto-category"
 import { triageDocument, processTriageResult } from "@/lib/case-intelligence/document-triage"
+import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -152,6 +154,20 @@ export async function POST(request: NextRequest) {
         console.error("Transcript parsing failed (non-blocking):", err.message)
       }
     }
+
+    // Fire-and-forget: recalculate doc completeness
+    recalculateDocCompleteness(caseId).catch(() => {})
+
+    // Fire-and-forget: audit log
+    logAudit({
+      userId: (session.user as any).id,
+      action: AUDIT_ACTIONS.DOCUMENT_UPLOADED,
+      caseId,
+      resourceId: document.id,
+      resourceType: "Document",
+      metadata: { fileName: document.fileName, fileSize: buffer.length, fileType },
+      ipAddress: getClientIP(),
+    })
 
     // Fire-and-forget: AI document triage
     if (extractedText && extractedText.length > 50) {

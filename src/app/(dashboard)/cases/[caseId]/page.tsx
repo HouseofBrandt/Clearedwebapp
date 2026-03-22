@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { decryptCasePII } from "@/lib/encryption"
+import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
+import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { notFound } from "next/navigation"
 import { CaseDetail } from "@/components/cases/case-detail"
 
@@ -26,7 +28,10 @@ export default async function CaseDetailPage({
 }: {
   params: { caseId: string }
 }) {
-  await requireAuth()
+  const session = await requireAuth()
+
+  // Recalculate doc completeness on page load (ensures accuracy for pre-triage uploads)
+  await recalculateDocCompleteness(params.caseId).catch(() => {})
 
   let caseData = await prisma.case.findUnique({
     where: { id: params.caseId },
@@ -52,6 +57,14 @@ export default async function CaseDetailPage({
     })
     if (!caseData) notFound()
   }
+
+  // Fire-and-forget: audit log for case view
+  logAudit({
+    userId: (session.user as any).id,
+    action: AUDIT_ACTIONS.CASE_VIEWED,
+    caseId: params.caseId,
+    metadata: { caseNumber: caseData.caseNumber },
+  })
 
   const [practitioners, deadlines, intelligence, activities] = await Promise.all([
     prisma.user.findMany({

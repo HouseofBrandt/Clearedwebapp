@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { z } from "zod"
 
 const createCaseSchema = z.object({
@@ -127,6 +128,14 @@ export async function POST(request: NextRequest) {
       include: {
         assignedPractitioner: { select: { id: true, name: true } },
       },
+    })
+
+    logAudit({
+      userId: (session.user as any).id,
+      action: AUDIT_ACTIONS.CASE_CREATED,
+      caseId: newCase.id,
+      metadata: { caseNumber, caseType: data.caseType },
+      ipAddress: getClientIP(),
     })
 
     return NextResponse.json(decryptCasePII(newCase), { status: 201 })
