@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { formatDate, formatDateTime } from "@/lib/date-utils"
+import { decryptField } from "@/lib/encryption"
 import {
   getNextSteps,
   assessCaseHealth,
@@ -25,6 +26,11 @@ interface DataQuery {
   strategyMatch?: boolean
   infrastructure?: boolean
   codebase?: boolean
+}
+
+function decryptName(val: string | null | undefined): string {
+  if (!val) return "Unknown"
+  try { return decryptField(val) } catch { return val }
 }
 
 export function detectDataNeeds(message: string): DataQuery {
@@ -140,7 +146,7 @@ export async function fetchPlatformData(
       text += `⚠ ${overdue.length} OVERDUE:\n`
       for (const d of overdue) {
         const daysOver = Math.floor((now.getTime() - d.dueDate.getTime()) / 86400000)
-        text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName}) — ${daysOver} days overdue · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)}) — ${daysOver} days overdue · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
         const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
         if (consequence) {
           text += `    ⚠ CONSEQUENCE: ${consequence}\n`
@@ -151,7 +157,7 @@ export async function fetchPlatformData(
       text += `Upcoming (${upcoming.length}):\n`
       for (const d of upcoming.slice(0, 10)) {
         const daysUntil = Math.floor((d.dueDate.getTime() - now.getTime()) / 86400000)
-        text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName}) — in ${daysUntil} days · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)}) — in ${daysUntil} days · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
         const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
         if (consequence && daysUntil <= 7) {
           text += `    ⚠ IF MISSED: ${consequence}\n`
@@ -201,7 +207,7 @@ export async function fetchPlatformData(
     text += `By type: ${byType.map(t => `${t.caseType} (${t._count})`).join(", ")}\n`
     text += `Recent cases:\n`
     for (const c of recent) {
-      text += `  - ${c.caseNumber}${c.tabsNumber ? ` · TABS ${c.tabsNumber}` : ""} · ${c.clientName} · ${c.caseType} · ${c.status}`
+      text += `  - ${c.caseNumber}${c.tabsNumber ? ` · TABS ${c.tabsNumber}` : ""} · ${decryptName(c.clientName)} · ${c.caseType} · ${c.status}`
       if (c.totalLiability) text += ` · $${Number(c.totalLiability).toLocaleString()}`
       text += ` · ${c._count.documents} docs · ${c._count.aiTasks} tasks`
       text += ` · Assigned: ${c.assignedPractitioner?.name || "Unassigned"}\n`
@@ -214,8 +220,8 @@ export async function fetchPlatformData(
     const caseData = await prisma.case.findFirst({
       where: {
         OR: [
-          { caseNumber: { equals: searchTerm, mode: "insensitive" } },
-          { clientName: { contains: searchTerm, mode: "insensitive" } },
+          { caseNumber: { contains: searchTerm, mode: "insensitive" } },
+          { tabsNumber: { contains: searchTerm, mode: "insensitive" } },
         ],
       },
       include: {
@@ -285,12 +291,12 @@ export async function fetchPlatformData(
 
     if (caseData) {
       let text = `CASE DETAIL — ${caseData.caseNumber}${caseData.tabsNumber ? ` (TABS: ${caseData.tabsNumber})` : ""}:\n`
-      text += `Client: ${caseData.clientName}\n`
+      text += `Client: ${decryptName(caseData.clientName)}\n`
       text += `Type: ${caseData.caseType} · Status: ${caseData.status}\n`
       if (caseData.filingStatus) text += `Filing Status: ${caseData.filingStatus}\n`
       if (caseData.totalLiability) text += `Total Liability: $${Number(caseData.totalLiability).toLocaleString()}\n`
-      if (caseData.clientEmail) text += `Email: ${caseData.clientEmail}\n`
-      if (caseData.clientPhone) text += `Phone: ${caseData.clientPhone}\n`
+      if (caseData.clientEmail) text += `Email: ${decryptName(caseData.clientEmail)}\n`
+      if (caseData.clientPhone) text += `Phone: ${decryptName(caseData.clientPhone)}\n`
       text += `Assigned: ${caseData.assignedPractitioner?.name || "Unassigned"}\n`
 
       // Documents — structured manifest grouped by category
@@ -400,7 +406,7 @@ export async function fetchPlatformData(
 
     let text = `REVIEW QUEUE (${tasks.length} pending):\n`
     for (const t of tasks) {
-      text += `  - ${t.taskType} · ${t.case.caseNumber} · ${t.case.clientName} · ${t.modelUsed || "pending"} · ${formatDate(t.createdAt)}\n`
+      text += `  - ${t.taskType} · ${t.case.caseNumber} · ${decryptName(t.case.clientName)} · ${t.modelUsed || "pending"} · ${formatDate(t.createdAt)}\n`
     }
     if (tasks.length === 0) {
       text += "No tasks pending review.\n"
@@ -595,7 +601,7 @@ export async function fetchPlatformData(
       text += `🔴 ${overdueDeadlines.length} OVERDUE DEADLINE(S):\n`
       for (const d of overdueDeadlines) {
         const daysOver = Math.floor((now.getTime() - d.dueDate.getTime()) / 86400000)
-        text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName}) — ${daysOver} days overdue\n`
+        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)}) — ${daysOver} days overdue\n`
         const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
         if (consequence) text += `    ⚠ ${consequence}\n`
       }
@@ -605,7 +611,7 @@ export async function fetchPlatformData(
     if (todayDeadlines.length > 0) {
       text += `📅 DUE TODAY (${todayDeadlines.length}):\n`
       for (const d of todayDeadlines) {
-        text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName})\n`
+        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)})\n`
       }
       text += "\n"
     }
@@ -627,7 +633,7 @@ export async function fetchPlatformData(
     if (staleCases.length > 0) {
       actions.push(`${staleCases.length} case(s) with no activity in 14+ days:`)
       for (const c of staleCases.slice(0, 5)) {
-        actions.push(`    ${c.caseNumber} · ${c.clientName} · ${c.status}`)
+        actions.push(`    ${c.caseNumber} · ${decryptName(c.clientName)} · ${c.status}`)
       }
     }
     if (recentErrors > 0) actions.push(`${recentErrors} system error(s) in the last 24 hours`)
@@ -653,7 +659,7 @@ export async function fetchPlatformData(
         where: {
           OR: [
             { caseNumber: { equals: query.caseDetail, mode: "insensitive" } },
-            { clientName: { contains: query.caseDetail, mode: "insensitive" } },
+            { tabsNumber: { contains: query.caseDetail, mode: "insensitive" } },
           ],
         },
         include: {
@@ -687,7 +693,7 @@ export async function fetchPlatformData(
         where: {
           OR: [
             { caseNumber: { equals: query.caseDetail, mode: "insensitive" } },
-            { clientName: { contains: query.caseDetail, mode: "insensitive" } },
+            { tabsNumber: { contains: query.caseDetail, mode: "insensitive" } },
           ],
         },
         include: {

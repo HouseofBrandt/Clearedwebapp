@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { z } from "zod"
 
 const updateSchema = z.object({
@@ -89,6 +90,16 @@ export async function PATCH(
     },
   })
 
+  logAudit({
+    userId: auth.userId,
+    action: AUDIT_ACTIONS.DEADLINE_UPDATED,
+    caseId: existing.caseId,
+    resourceId: params.deadlineId,
+    resourceType: "Deadline",
+    metadata: { fieldsChanged: Object.keys(parsed.data) },
+    ipAddress: getClientIP(),
+  })
+
   return NextResponse.json(updated)
 }
 
@@ -105,5 +116,16 @@ export async function DELETE(
   }
 
   await prisma.deadline.delete({ where: { id: params.deadlineId } })
+
+  logAudit({
+    userId: auth.userId,
+    action: AUDIT_ACTIONS.DEADLINE_DELETED,
+    caseId: existing.caseId,
+    resourceId: params.deadlineId,
+    resourceType: "Deadline",
+    metadata: { title: existing.title },
+    ipAddress: getClientIP(),
+  })
+
   return NextResponse.json({ success: true })
 }
