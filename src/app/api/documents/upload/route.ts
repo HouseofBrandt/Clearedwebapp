@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     const documentCategory = userCat === "OTHER" ? autoDetectCategory(file.name) : userCat
 
     // Verify case exists
-    const caseExists = await prisma.case.findUnique({ where: { id: caseId } })
+    const caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true, tabsNumber: true } })
     if (!caseExists) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
@@ -108,9 +108,12 @@ export async function POST(request: NextRequest) {
     // Detect file type robustly
     const fileType = detectFileType(file.type, file.name, buffer)
 
-    // Upload to S3 (non-blocking for text extraction)
+    // Upload to S3 — use TABS number in path when available
     const uniqueName = `${Date.now()}-${file.name}`
-    const s3Key = `documents/${caseId}/${uniqueName}`
+    const prefix = caseExists.tabsNumber
+      ? `documents/tabs/${caseExists.tabsNumber}/${caseId}`
+      : `documents/${caseId}`
+    const s3Key = `${prefix}/${uniqueName}`
 
     // Run S3 upload and text extraction in parallel
     const [, extractionResult] = await Promise.all([

@@ -14,6 +14,7 @@ const createCaseSchema = z.object({
   totalLiability: z.number().optional().nullable(),
   assignedPractitionerId: z.string().optional(),
   notes: z.string().optional().nullable(),
+  tabsNumber: z.string().optional().nullable(),
 })
 
 export async function GET(request: NextRequest) {
@@ -33,7 +34,10 @@ export async function GET(request: NextRequest) {
   if (status) where.status = status
   if (caseType) where.caseType = caseType
   if (search) {
-    where.caseNumber = { contains: search, mode: "insensitive" }
+    where.OR = [
+      { caseNumber: { contains: search, mode: "insensitive" } },
+      { tabsNumber: { contains: search, mode: "insensitive" } },
+    ]
   }
 
   const [cases, total] = await Promise.all([
@@ -87,6 +91,17 @@ export async function POST(request: NextRequest) {
 
     const caseNumber = `${prefix}${String(sequence).padStart(4, "0")}`
 
+    // Check TABS number uniqueness
+    if (data.tabsNumber) {
+      const existingTabs = await prisma.case.findUnique({ where: { tabsNumber: data.tabsNumber } })
+      if (existingTabs) {
+        return NextResponse.json(
+          { error: `TABS number ${data.tabsNumber} is already assigned to case ${existingTabs.caseNumber}` },
+          { status: 400 }
+        )
+      }
+    }
+
     // Encrypt PII fields
     const piiFields = encryptCasePII({
       clientName: data.clientName,
@@ -97,6 +112,7 @@ export async function POST(request: NextRequest) {
     const newCase = await prisma.case.create({
       data: {
         caseNumber,
+        tabsNumber: data.tabsNumber || null,
         clientName: piiFields.clientName,
         clientNameEncrypted: encryptField(data.clientName),
         caseType: data.caseType,

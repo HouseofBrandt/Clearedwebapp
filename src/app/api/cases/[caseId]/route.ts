@@ -15,6 +15,7 @@ const updateCaseSchema = z.object({
   totalLiability: z.number().optional().nullable(),
   assignedPractitionerId: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  tabsNumber: z.string().optional().nullable(),
 })
 
 export async function GET(
@@ -67,9 +68,21 @@ export async function PATCH(
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
     }
-    const { clientName, caseType, status, notes, assignedPractitionerId, filingStatus, clientEmail, clientPhone, totalLiability } = parsed.data
+    const { clientName, caseType, status, notes, assignedPractitionerId, filingStatus, clientEmail, clientPhone, totalLiability, tabsNumber } = parsed.data
+
+    // Check TABS number uniqueness if changing
+    if (tabsNumber) {
+      const existingTabs = await prisma.case.findUnique({ where: { tabsNumber } })
+      if (existingTabs && existingTabs.id !== params.caseId) {
+        return NextResponse.json(
+          { error: `TABS number ${tabsNumber} is already assigned to case ${existingTabs.caseNumber}` },
+          { status: 400 }
+        )
+      }
+    }
 
     const updateData: any = {}
+    if (tabsNumber !== undefined) updateData.tabsNumber = tabsNumber || null
     if (clientName !== undefined) {
       updateData.clientName = encryptField(clientName)
       updateData.clientNameEncrypted = encryptField(clientName)

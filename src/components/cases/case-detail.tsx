@@ -145,6 +145,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     clientName: caseData.clientName,
+    tabsNumber: caseData.tabsNumber || "",
     caseType: caseData.caseType,
     status: caseData.status,
     notes: caseData.notes || "",
@@ -258,6 +259,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          tabsNumber: form.tabsNumber || undefined,
           filingStatus: form.filingStatus || undefined,
           clientEmail: form.clientEmail || undefined,
           clientPhone: form.clientPhone || undefined,
@@ -383,6 +385,18 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                     />
                   ) : (
                     <p className="text-sm">{caseData.clientName}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>TABS Number</Label>
+                  {editing ? (
+                    <Input
+                      value={form.tabsNumber}
+                      onChange={(e) => setForm({ ...form, tabsNumber: e.target.value })}
+                      placeholder="e.g. 12345.001"
+                    />
+                  ) : (
+                    <p className="text-sm">{caseData.tabsNumber || <span className="text-muted-foreground">Not set</span>}</p>
                   )}
                 </div>
                 <div className="space-y-2">
