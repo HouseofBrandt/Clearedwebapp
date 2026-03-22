@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   const task = await prisma.aITask.findUnique({
     where: { id: taskId },
     include: {
-      case: { select: { id: true, caseNumber: true, clientName: true, caseType: true } },
+      case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
     },
   })
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   const scrubbed = scrubForKnowledgeBase(
     task.detokenizedOutput,
     task.case.clientName,
-    task.case.caseNumber
+    task.case.tabsNumber
   )
 
   const taskLabel = TASK_TYPE_LABELS[task.taskType as keyof typeof TASK_TYPE_LABELS] || task.taskType
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   const doc = await prisma.knowledgeDocument.create({
     data: {
-      title: `${taskLabel} — ${task.case.caseNumber} (${date})`,
+      title: `${taskLabel} — ${task.case.tabsNumber} (${date})`,
       description: `Approved ${taskLabel.toLowerCase()} for ${caseTypeLabel} case. Added to knowledge base by ${auth.name}.`,
       category: "APPROVED_OUTPUT",
       sourceText: scrubbed,

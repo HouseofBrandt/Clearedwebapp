@@ -134,7 +134,7 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{deadline.title}</p>
           <Link href={`/cases/${deadline.case?.id || deadline.caseId}`} className="text-xs text-muted-foreground hover:underline">
-            {deadline.case?.caseNumber}
+            {deadline.case?.tabsNumber}
           </Link>
         </div>
         {deadline.assignedTo && (
@@ -178,7 +178,7 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
             <div>
               <p className={`font-medium ${isCompleted ? "line-through text-muted-foreground" : ""}`}>{deadline.title}</p>
               <Link href={`/cases/${deadline.case?.id || deadline.caseId}`} className="text-sm text-muted-foreground hover:underline">
-                {deadline.case?.caseNumber} · {deadline.case?.clientName}
+                {deadline.case?.tabsNumber} · {deadline.case?.clientName}
                 {deadline.case?.caseType && ` (${CASE_TYPE_LABELS[deadline.case.caseType as keyof typeof CASE_TYPE_LABELS] || deadline.case.caseType})`}
               </Link>
             </div>

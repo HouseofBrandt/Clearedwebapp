@@ -16,7 +16,7 @@ export default async function ReviewPage() {
       createdAt: true,
       verifyFlagCount: true,
       judgmentFlagCount: true,
-      case: { select: { id: true, caseNumber: true, clientName: true, caseType: true } },
+      case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
     },
     orderBy: { createdAt: "asc" },
   })

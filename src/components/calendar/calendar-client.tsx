@@ -16,7 +16,7 @@ import { AddDeadlineDialog } from "./add-deadline-dialog"
 interface CalendarClientProps {
   deadlines: any[]
   users: { id: string; name: string; role: string }[]
-  cases: { id: string; caseNumber: string; clientName: string }[]
+  cases: { id: string; tabsNumber: string; clientName: string }[]
   currentUserId: string
 }
 

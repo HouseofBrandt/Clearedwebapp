@@ -30,7 +30,7 @@ import {
 } from "@/types"
 
 interface AddDeadlineDialogProps {
-  cases: { id: string; caseNumber: string; clientName: string }[]
+  cases: { id: string; tabsNumber: string; clientName: string }[]
   users: { id: string; name: string; role: string }[]
   preselectedCaseId?: string
   trigger?: React.ReactNode
@@ -160,7 +160,7 @@ export function AddDeadlineDialog({ cases, users, preselectedCaseId, trigger }: 
               <SelectContent>
                 {cases.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.caseNumber} — {c.clientName}
+                    {c.tabsNumber} — {c.clientName}
                   </SelectItem>
                 ))}
               </SelectContent>

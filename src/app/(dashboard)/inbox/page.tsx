@@ -11,7 +11,7 @@ export default async function InboxPage() {
       where: { recipientId: userId, archived: false },
       include: {
         sender: { select: { id: true, name: true } },
-        case: { select: { id: true, caseNumber: true } },
+        case: { select: { id: true, tabsNumber: true } },
         implementedBy: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -28,7 +28,7 @@ export default async function InboxPage() {
 
   // Fetch cases for compose dialog
   const cases = await prisma.case.findMany({
-    select: { id: true, caseNumber: true, clientName: true },
+    select: { id: true, tabsNumber: true, clientName: true },
     orderBy: { createdAt: "desc" },
     take: 100,
   })

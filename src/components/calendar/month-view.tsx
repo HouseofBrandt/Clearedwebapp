@@ -137,7 +137,7 @@ export function MonthView({ deadlines, users }: MonthViewProps) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{d.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {d.case?.caseNumber} · {DEADLINE_TYPE_LABELS[d.type] || d.type}
+                        {d.case?.tabsNumber} · {DEADLINE_TYPE_LABELS[d.type] || d.type}
                         {d.assignedTo ? ` · ${d.assignedTo.name}` : ""}
                       </p>
                     </div>

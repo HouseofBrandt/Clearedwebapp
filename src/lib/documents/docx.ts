@@ -393,7 +393,7 @@ function renderCodeBlock(token: Tokens.Code): Paragraph {
 // ── Cover block ─────────────────────────────────────────────
 
 function buildCoverBlock(
-  caseNumber: string,
+  tabsNumber: string,
   clientName: string,
   taskType: string
 ): DocChild[] {
@@ -460,7 +460,7 @@ function buildCoverBlock(
     new Paragraph({
       children: [
         new TextRun({ text: "Case: ", font: FONT, size: 24, color: DARK_GRAY }),
-        new TextRun({ text: caseNumber, font: FONT, size: 24, bold: true, color: NAVY }),
+        new TextRun({ text: tabsNumber, font: FONT, size: 24, bold: true, color: NAVY }),
       ],
       alignment: AlignmentType.CENTER,
       spacing: { after: 60 },
@@ -521,13 +521,13 @@ function buildCoverBlock(
 
 // ── Header / Footer ─────────────────────────────────────────
 
-function buildHeader(caseNumber: string): Header {
+function buildHeader(tabsNumber: string): Header {
   return new Header({
     children: [
       new Paragraph({
         children: [
           new TextRun({
-            text: `Cleared \u2014 ${caseNumber}`,
+            text: `Cleared \u2014 ${tabsNumber}`,
             font: FONT,
             size: SMALL_SIZE,
             color: HEADER_GRAY,
@@ -577,7 +577,7 @@ function buildFooter(): Footer {
 function buildDocument(
   coverBlock: DocChild[],
   bodyElements: DocChild[],
-  caseNumber: string
+  tabsNumber: string
 ): Document {
   return new Document({
     styles: {
@@ -636,7 +636,7 @@ function buildDocument(
             pageNumbers: { start: 1, formatType: NumberFormat.DECIMAL },
           },
         },
-        headers: { default: buildHeader(caseNumber) },
+        headers: { default: buildHeader(tabsNumber) },
         footers: { default: buildFooter() },
         children: [...coverBlock, ...bodyElements],
       },
@@ -658,14 +658,14 @@ function buildDocument(
  */
 export async function generateDocx(
   content: string,
-  caseNumber: string,
+  tabsNumber: string,
   clientName: string,
   taskType: string
 ): Promise<Buffer> {
   const tokens = marked.lexer(content)
-  const coverBlock = buildCoverBlock(caseNumber, clientName, taskType)
+  const coverBlock = buildCoverBlock(tabsNumber, clientName, taskType)
   const bodyElements = renderTokens(tokens)
-  const doc = buildDocument(coverBlock, bodyElements, caseNumber)
+  const doc = buildDocument(coverBlock, bodyElements, tabsNumber)
   const buffer = await Packer.toBuffer(doc)
   return Buffer.from(buffer)
 }
@@ -1019,10 +1019,10 @@ function renderLiabilityTable(taxLiability: Array<Record<string, any>>): DocChil
  */
 export async function generateTemplateDocx(
   merged: MergeResult,
-  caseNumber: string,
+  tabsNumber: string,
   clientName: string
 ): Promise<Buffer> {
-  const coverBlock = buildCoverBlock(caseNumber, clientName, "WORKING_PAPERS")
+  const coverBlock = buildCoverBlock(tabsNumber, clientName, "WORKING_PAPERS")
   const bodyElements: DocChild[] = []
 
   // Summary section first (most important)
@@ -1082,7 +1082,7 @@ export async function generateTemplateDocx(
     }
   }
 
-  const doc = buildDocument(coverBlock, bodyElements, caseNumber)
+  const doc = buildDocument(coverBlock, bodyElements, tabsNumber)
   const buffer = await Packer.toBuffer(doc)
   return Buffer.from(buffer)
 }

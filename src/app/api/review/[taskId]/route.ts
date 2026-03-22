@@ -111,17 +111,17 @@ export async function POST(
       if (task.createdById && task.createdById !== auth.userId) {
         const caseInfo = await prisma.case.findUnique({
           where: { id: task.caseId },
-          select: { caseNumber: true },
+          select: { tabsNumber: true },
         })
-        const caseNumber = caseInfo?.caseNumber || task.caseId
+        const tabsNumber = caseInfo?.tabsNumber || task.caseId
 
         notify({
           recipientId: task.createdById,
           type: newStatus === "APPROVED" ? "TASK_APPROVED" : "TASK_REJECTED",
           subject: `${taskLabel} ${newStatus === "APPROVED" ? "approved" : "rejected"}`,
           body: newStatus === "APPROVED"
-            ? `Your ${taskLabel} for ${caseNumber} has been approved.`
-            : `Your ${taskLabel} for ${caseNumber} was rejected.${reviewNotes ? ` Notes: ${reviewNotes}` : ""}`,
+            ? `Your ${taskLabel} for ${tabsNumber} has been approved.`
+            : `Your ${taskLabel} for ${tabsNumber} was rejected.${reviewNotes ? ` Notes: ${reviewNotes}` : ""}`,
           caseId: task.caseId,
           aiTaskId: task.id,
         }).catch(() => {})

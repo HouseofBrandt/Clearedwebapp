@@ -5,11 +5,5 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCaseNumber(date: Date, sequence: number): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const seq = String(sequence).padStart(4, "0")
-  return `CLR-${year}-${month}-${seq}`
-}
 
 export { formatDate, formatDateTime } from "@/lib/date-utils"

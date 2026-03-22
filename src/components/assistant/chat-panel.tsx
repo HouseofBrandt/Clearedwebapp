@@ -16,7 +16,7 @@ interface ChatMessage {
 
 interface CaseContext {
   caseId: string
-  caseNumber: string
+  tabsNumber: string
   caseType: string
   status: string
   filingStatus?: string
@@ -532,7 +532,7 @@ export function ChatPanel() {
         .then((data) => {
           setCaseContext({
             caseId: data.id,
-            caseNumber: data.caseNumber,
+            tabsNumber: data.tabsNumber,
             caseType: data.caseType,
             status: data.status,
             filingStatus: data.filingStatus,
@@ -776,7 +776,7 @@ export function ChatPanel() {
           {caseContext && (
             <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
-                {caseContext.caseNumber} &middot; {caseContext.caseType}
+                {caseContext.tabsNumber} &middot; {caseContext.caseType}
                 {caseContext.totalLiability != null && (
                   <> &middot; ${Number(caseContext.totalLiability).toLocaleString()}</>
                 )}

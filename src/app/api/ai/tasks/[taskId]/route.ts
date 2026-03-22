@@ -15,7 +15,7 @@ export async function GET(
   const task = await prisma.aITask.findUnique({
     where: { id: params.taskId },
     include: {
-      case: { select: { caseNumber: true, clientName: true, caseType: true } },
+      case: { select: { tabsNumber: true, clientName: true, caseType: true } },
       reviewActions: {
         include: { practitioner: { select: { name: true } } },
         orderBy: { reviewStartedAt: "desc" },

@@ -43,8 +43,8 @@ function toNum(val: any): number {
   return isNaN(parsed) ? 0 : parsed
 }
 
-function styleSheet(ws: ExcelJS.Worksheet, caseNumber: string) {
-  ws.headerFooter.oddHeader = `&L&"${FONT}"&8CLEARED \u2014 ${caseNumber}`
+function styleSheet(ws: ExcelJS.Worksheet, tabsNumber: string) {
+  ws.headerFooter.oddHeader = `&L&"${FONT}"&8CLEARED \u2014 ${tabsNumber}`
   ws.headerFooter.oddFooter = `&C&"${FONT}"&8Confidential`
   ws.pageSetup.fitToPage = true
   ws.pageSetup.fitToWidth = 1
@@ -130,16 +130,16 @@ function colHeaderRow(ws: ExcelJS.Worksheet, row: number, headers: string[]) {
 // ─── Sheet Builders ──────────────────────────────────────────────
 
 function buildCover(
-  wb: ExcelJS.Workbook, caseNumber: string, clientName: string
+  wb: ExcelJS.Workbook, tabsNumber: string, clientName: string
 ) {
   const ws = wb.addWorksheet("Cover")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
 
   ws.getCell("A1").value = "CLEARED"
   ws.getCell("A1").font = { name: FONT, bold: true, size: 20, color: { argb: NAVY } }
   ws.getCell("A2").value = "Offer in Compromise Working Papers"
   ws.getCell("A2").font = { name: FONT, bold: true, size: 14, color: { argb: "FF2E75B6" } }
-  ws.getCell("A4").value = `Case: ${caseNumber}`
+  ws.getCell("A4").value = `Case: ${tabsNumber}`
   ws.getCell("A4").font = { name: FONT, size: 12 }
   ws.getCell("A5").value = `Client: ${clientName}`
   ws.getCell("A5").font = { name: FONT, size: 12 }
@@ -172,10 +172,10 @@ function buildCover(
 
 function buildSummary(
   wb: ExcelJS.Workbook, data: ExtractedData, summary: MergeResult["summary"],
-  caseNumber: string
+  tabsNumber: string
 ) {
   const ws = wb.addWorksheet("Summary")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 40
   ws.getColumn(2).width = 20
   ws.getColumn(3).width = 30
@@ -275,10 +275,10 @@ function buildSummary(
 }
 
 function buildLiability(
-  wb: ExcelJS.Workbook, data: ExtractedData, caseNumber: string
+  wb: ExcelJS.Workbook, data: ExtractedData, tabsNumber: string
 ): { totalRow: number; totalCol: string } {
   const ws = wb.addWorksheet("Liability")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 12
   ws.getColumn(2).width = 10
   ws.getColumn(3).width = 18
@@ -349,10 +349,10 @@ function buildLiability(
 }
 
 function buildTPInfo(
-  wb: ExcelJS.Workbook, data: ExtractedData, caseNumber: string
+  wb: ExcelJS.Workbook, data: ExtractedData, tabsNumber: string
 ) {
   const ws = wb.addWorksheet("TP Info")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 35
   ws.getColumn(2).width = 35
   ws.getColumn(3).width = 30
@@ -460,10 +460,10 @@ function buildTPInfo(
 
 function buildPersonalIE(
   wb: ExcelJS.Workbook, data: ExtractedData, summary: MergeResult["summary"],
-  caseNumber: string
+  tabsNumber: string
 ): { netRow: number } {
   const ws = wb.addWorksheet("Personal I&E")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 40
   ws.getColumn(2).width = 18
   ws.getColumn(3).width = 18
@@ -572,10 +572,10 @@ function buildPersonalIE(
 }
 
 function buildPersonalAssets(
-  wb: ExcelJS.Workbook, data: ExtractedData, caseNumber: string
+  wb: ExcelJS.Workbook, data: ExtractedData, tabsNumber: string
 ): { equityRow: number } {
   const ws = wb.addWorksheet("Personal Assets")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 30
   ws.getColumn(2).width = 18
   ws.getColumn(3).width = 18
@@ -801,10 +801,10 @@ function buildPersonalAssets(
 }
 
 function buildBusinessInfo(
-  wb: ExcelJS.Workbook, data: ExtractedData, caseNumber: string
+  wb: ExcelJS.Workbook, data: ExtractedData, tabsNumber: string
 ) {
   const ws = wb.addWorksheet("Business Info")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 35
   ws.getColumn(2).width = 40
   ws.getColumn(3).width = 25
@@ -861,10 +861,10 @@ function buildBusinessInfo(
 }
 
 function buildBusinessIE(
-  wb: ExcelJS.Workbook, data: ExtractedData, caseNumber: string
+  wb: ExcelJS.Workbook, data: ExtractedData, tabsNumber: string
 ) {
   const ws = wb.addWorksheet("Business I&E")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 35
   ws.getColumn(2).width = 18
   ws.getColumn(3).width = 25
@@ -941,10 +941,10 @@ function buildBusinessIE(
 }
 
 function buildBusinessAssets(
-  wb: ExcelJS.Workbook, data: ExtractedData, caseNumber: string
+  wb: ExcelJS.Workbook, data: ExtractedData, tabsNumber: string
 ): { equityRow: number } {
   const ws = wb.addWorksheet("Business Assets")
-  styleSheet(ws, caseNumber)
+  styleSheet(ws, tabsNumber)
   ws.getColumn(1).width = 30
   ws.getColumn(2).width = 18
   ws.getColumn(3).width = 18
@@ -1069,7 +1069,7 @@ function buildBusinessAssets(
 export async function generateOICWorkingPapersExcel(
   extracted: ExtractedData,
   merged: MergeResult,
-  caseNumber: string,
+  tabsNumber: string,
   clientName: string
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook()
@@ -1077,22 +1077,22 @@ export async function generateOICWorkingPapersExcel(
   wb.created = new Date()
 
   // Build all sheets in order
-  buildCover(wb, caseNumber, clientName)
+  buildCover(wb, tabsNumber, clientName)
 
-  const summaryRefs = buildSummary(wb, extracted, merged.summary, caseNumber)
+  const summaryRefs = buildSummary(wb, extracted, merged.summary, tabsNumber)
 
-  const { totalRow: liabTotalRow } = buildLiability(wb, extracted, caseNumber)
+  const { totalRow: liabTotalRow } = buildLiability(wb, extracted, tabsNumber)
 
-  buildTPInfo(wb, extracted, caseNumber)
+  buildTPInfo(wb, extracted, tabsNumber)
 
-  const { netRow: ieNetRow } = buildPersonalIE(wb, extracted, merged.summary, caseNumber)
+  const { netRow: ieNetRow } = buildPersonalIE(wb, extracted, merged.summary, tabsNumber)
 
-  const { equityRow: personalEquityRow } = buildPersonalAssets(wb, extracted, caseNumber)
+  const { equityRow: personalEquityRow } = buildPersonalAssets(wb, extracted, tabsNumber)
 
-  buildBusinessInfo(wb, extracted, caseNumber)
-  buildBusinessIE(wb, extracted, caseNumber)
+  buildBusinessInfo(wb, extracted, tabsNumber)
+  buildBusinessIE(wb, extracted, tabsNumber)
 
-  const { equityRow: businessEquityRow } = buildBusinessAssets(wb, extracted, caseNumber)
+  const { equityRow: businessEquityRow } = buildBusinessAssets(wb, extracted, tabsNumber)
 
   // ─── Fix cross-sheet references on Summary ───
   // Now that all sheets exist, update the Summary formulas

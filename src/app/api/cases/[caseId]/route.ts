@@ -71,22 +71,10 @@ export async function PATCH(
     }
     const { clientName, caseType, status, notes, assignedPractitionerId, filingStatus, clientEmail, clientPhone, totalLiability, tabsNumber } = parsed.data
 
-    // Check TABS number uniqueness if changing
-    if (tabsNumber) {
-      const existingTabs = await prisma.case.findUnique({ where: { tabsNumber } })
-      if (existingTabs && existingTabs.id !== params.caseId) {
-        return NextResponse.json(
-          { error: `TABS number ${tabsNumber} is already assigned to case ${existingTabs.caseNumber}` },
-          { status: 400 }
-        )
-      }
-    }
-
     const updateData: any = {}
     if (tabsNumber !== undefined) updateData.tabsNumber = tabsNumber || null
     if (clientName !== undefined) {
       updateData.clientName = encryptField(clientName)
-      updateData.clientNameEncrypted = encryptField(clientName)
     }
     if (caseType !== undefined) updateData.caseType = caseType
     if (status !== undefined) updateData.status = status

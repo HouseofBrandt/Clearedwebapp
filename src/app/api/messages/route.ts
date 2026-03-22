@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         sender: { select: { id: true, name: true } },
-        case: { select: { id: true, caseNumber: true } },
+        case: { select: { id: true, tabsNumber: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 50,

@@ -12,7 +12,7 @@ export default async function CalendarPage() {
   const [deadlines, users, cases] = await Promise.all([
     prisma.deadline.findMany({
       include: {
-        case: { select: { id: true, caseNumber: true, clientName: true, caseType: true } },
+        case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
         assignedTo: { select: { id: true, name: true } },
         completedBy: { select: { id: true, name: true } },
       },
@@ -23,9 +23,9 @@ export default async function CalendarPage() {
       orderBy: { name: "asc" },
     }),
     prisma.case.findMany({
-      select: { id: true, caseNumber: true, clientName: true },
+      select: { id: true, tabsNumber: true, clientName: true },
       where: { status: { notIn: ["CLOSED"] } },
-      orderBy: { caseNumber: "asc" },
+      orderBy: { tabsNumber: "asc" },
     }),
   ])
 
