@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 export async function GET(
   request: NextRequest,
@@ -50,6 +51,20 @@ export async function DELETE(
   const auth = await requireApiAuth()
   if (!auth.authorized) return auth.response
 
+  const doc = await prisma.knowledgeDocument.findUnique({
+    where: { id: params.documentId },
+    select: { id: true, title: true },
+  })
+
   await prisma.knowledgeDocument.delete({ where: { id: params.documentId } })
+
+  logAudit({
+    userId: auth.userId,
+    action: AUDIT_ACTIONS.KB_DOCUMENT_DELETED,
+    resourceId: params.documentId,
+    resourceType: "KnowledgeDocument",
+    metadata: { title: doc?.title },
+  })
+
   return NextResponse.json({ success: true })
 }

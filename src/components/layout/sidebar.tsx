@@ -12,6 +12,7 @@ import {
   Inbox,
   Settings,
   Shield,
+  ScrollText,
 } from "lucide-react"
 import { ROLE_LABELS } from "@/types"
 import { UnreadBadge } from "@/components/layout/unread-badge"
@@ -24,6 +25,7 @@ const navigation = [
   { name: "Knowledge Base", href: "/knowledge", icon: BookOpen },
   { name: "Inbox", href: "/inbox", icon: Inbox },
   { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, adminOnly: true },
 ]
 
 interface SidebarProps {
@@ -43,7 +45,7 @@ export function SidebarContent({ user, pendingReviewCount, overdueDeadlineCount,
         <span className="text-lg font-bold text-white">Cleared</span>
       </div>
       <nav className="flex-1 space-y-1 p-4">
-        {navigation.map((item) => {
+        {navigation.filter((item) => !(item as any).adminOnly || user.role === "ADMIN").map((item) => {
           const isActive = pathname.startsWith(item.href)
           return (
             <Link

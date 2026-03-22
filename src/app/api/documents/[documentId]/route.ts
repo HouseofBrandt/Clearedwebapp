@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { getFromS3, deleteFromS3 } from "@/lib/storage"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
 
 export async function GET(
   request: NextRequest,
@@ -20,6 +22,16 @@ export async function GET(
   if (!document) {
     return NextResponse.json({ error: "Document not found" }, { status: 404 })
   }
+
+  logAudit({
+    userId: (session.user as any).id,
+    action: AUDIT_ACTIONS.DOCUMENT_DOWNLOADED,
+    caseId: document.caseId,
+    resourceId: params.documentId,
+    resourceType: "Document",
+    metadata: { fileName: document.fileName },
+    ipAddress: getClientIP(),
+  })
 
   try {
     const fileBuffer = await getFromS3(document.filePath)
@@ -63,6 +75,19 @@ export async function DELETE(
   try {
     await deleteFromS3(document.filePath).catch(() => {})
     await prisma.document.delete({ where: { id: params.documentId } })
+
+    logAudit({
+      userId: (session.user as any).id,
+      action: AUDIT_ACTIONS.DOCUMENT_DELETED,
+      caseId: document.caseId,
+      resourceId: params.documentId,
+      resourceType: "Document",
+      metadata: { fileName: document.fileName },
+      ipAddress: getClientIP(),
+    })
+
+    recalculateDocCompleteness(document.caseId).catch(() => {})
+
     return NextResponse.json({ message: "Document deleted" })
   } catch (error) {
     console.error("Delete document error:", error)
