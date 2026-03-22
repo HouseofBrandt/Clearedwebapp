@@ -6,6 +6,8 @@ import {
   analyzeDocumentGaps,
   DEADLINE_CONSEQUENCES,
 } from "@/lib/ai/workflow-intelligence"
+import { fetchRecentLogs, fetchDeployments } from "@/lib/infrastructure/vercel-logs"
+import { getFileContents, searchCode, getRecentCommits, getCommitDetails, getFileTree } from "@/lib/infrastructure/github-api"
 
 interface DataQuery {
   deadlines?: boolean
@@ -21,6 +23,8 @@ interface DataQuery {
   documentGap?: boolean
   compliance?: boolean
   strategyMatch?: boolean
+  infrastructure?: boolean
+  codebase?: boolean
 }
 
 export function detectDataNeeds(message: string): DataQuery {
@@ -90,6 +94,17 @@ export function detectDataNeeds(message: string): DataQuery {
     query.users = true
   }
 
+  // ── Infrastructure / debugging ──
+  if (m.match(/backend|server|vercel|deploy|log|runtime|500|timeout|not working|broke|crash|what.*happen|debug|diagnos|why.*fail|check.*server|health.*check.*server|infra/)) {
+    query.infrastructure = true
+    query.errors = true
+  }
+
+  // ── Codebase / code inspection ──
+  if (m.match(/code|codebase|source|file.*content|show.*file|read.*file|look.*at.*code|implement|built|merged|commit|pull request|what.*changed|recent.*change|diff|branch|github|repo/)) {
+    query.codebase = true
+  }
+
   if (m.match(/error|bug|fail|broke|crash|not working|issue|problem/)) {
     query.errors = true
   }
@@ -99,9 +114,11 @@ export function detectDataNeeds(message: string): DataQuery {
 
 export async function fetchPlatformData(
   query: DataQuery,
-  userId: string
+  userId: string,
+  userMessage?: string
 ): Promise<string> {
-  const sections: string[] = []
+  const sections: string[] = [];
+  (query as any)._userMessage = userMessage || ""
 
   if (query.deadlines) {
     const deadlines = await prisma.deadline.findMany({
@@ -795,6 +812,194 @@ export async function fetchPlatformData(
     } catch {
       // KB search failed, skip
     }
+  }
+
+  // ── INFRASTRUCTURE STATUS ──
+  if (query.infrastructure) {
+    const thirtyMinAgo = Date.now() - 30 * 60 * 1000
+    let text = "INFRASTRUCTURE STATUS:\n\n"
+
+    // Deployments
+    try {
+      const { deployments, error } = await fetchDeployments(5)
+      if (error) {
+        text += `⚠ Deployment data unavailable: ${error}\n`
+      } else if (deployments.length > 0) {
+        text += "RECENT DEPLOYMENTS:\n"
+        for (const d of deployments) {
+          text += `  - ${d.state.toUpperCase()} · ${d.createdAt}`
+          if (d.commitMessage) text += ` · "${d.commitMessage}"`
+          if (d.branch) text += ` (${d.branch})`
+          text += `\n`
+        }
+        text += "\n"
+      }
+    } catch {}
+
+    // Runtime logs
+    try {
+      const { logs, error } = await fetchRecentLogs({ limit: 40, since: thirtyMinAgo })
+      if (error) {
+        text += `⚠ Runtime logs unavailable: ${error}\n`
+      } else if (logs.length > 0) {
+        const errors = logs.filter(l =>
+          l.level === "error" ||
+          l.message.toLowerCase().includes("error") ||
+          l.message.includes("FATAL") ||
+          (l.statusCode && l.statusCode >= 500)
+        )
+        const warnings = logs.filter(l =>
+          l.level === "warning" ||
+          l.message.toLowerCase().includes("timeout") ||
+          l.message.toLowerCase().includes("rate limit") ||
+          (l.statusCode && l.statusCode >= 400 && l.statusCode < 500)
+        )
+
+        if (errors.length > 0) {
+          text += `🔴 ERRORS IN LAST 30 MIN (${errors.length}):\n`
+          for (const e of errors.slice(0, 15)) {
+            text += `  [${e.timestamp}] ${e.path || ""} ${e.statusCode ? `(${e.statusCode})` : ""}\n`
+            text += `    ${e.message}\n`
+          }
+          text += "\n"
+        }
+
+        if (warnings.length > 0) {
+          text += `🟡 WARNINGS (${warnings.length}):\n`
+          for (const w of warnings.slice(0, 10)) {
+            text += `  [${w.timestamp}] ${w.path || ""}: ${w.message}\n`
+          }
+          text += "\n"
+        }
+
+        if (errors.length === 0 && warnings.length === 0) {
+          text += "✅ No errors or warnings in the last 30 minutes.\n\n"
+        }
+
+        // Show recent function calls for context
+        const recentCalls = logs.filter(l => l.path).slice(0, 10)
+        if (recentCalls.length > 0) {
+          text += "RECENT API CALLS:\n"
+          for (const r of recentCalls) {
+            text += `  [${r.timestamp}] ${r.path} → ${r.statusCode || "ok"}\n`
+          }
+          text += "\n"
+        }
+      } else {
+        text += "No log entries in the last 30 minutes.\n"
+      }
+    } catch {}
+
+    sections.push(text)
+  }
+
+  // ── CODEBASE ACCESS ──
+  if (query.codebase) {
+    let text = "CODEBASE ACCESS:\n\n"
+    const msgRaw = (query as any)._userMessage || ""
+    const msgLower = msgRaw.toLowerCase()
+
+    // Always show recent commits for context
+    try {
+      const { commits, error } = await getRecentCommits({ limit: 10 })
+      if (error) {
+        text += `⚠ GitHub unavailable: ${error}\n`
+      } else if (commits.length > 0) {
+        text += "RECENT COMMITS:\n"
+        for (const c of commits) {
+          text += `  ${c.sha} · ${c.date ? new Date(c.date).toLocaleDateString() : ""} · ${c.author} · ${c.message}\n`
+        }
+        text += "\n"
+      }
+    } catch {}
+
+    // If asking about a specific file
+    const filePathMatch = msgRaw.match(/(?:src\/[^\s"']+\.tsx?|prisma\/[^\s"']+)/i)
+    if (filePathMatch) {
+      try {
+        const { content, size, error } = await getFileContents(filePathMatch[0], { maxLength: 6000 })
+        if (error) {
+          text += `⚠ Could not read ${filePathMatch[0]}: ${error}\n`
+        } else {
+          text += `FILE: ${filePathMatch[0]} (${size} bytes):\n`
+          text += "```\n" + content + "\n```\n\n"
+        }
+      } catch {}
+    }
+
+    // If user is asking "was X implemented" or "does the code have X"
+    if (msgLower.match(/implement|built|exist|have.*feature|does.*code|was.*added|is.*there/)) {
+      const searchQuery = msgRaw
+        .replace(/was|is|does|the|code|have|implement|built|feature|added|there|it|a|an|for|in|our/gi, "")
+        .trim()
+        .split(/\s+/)
+        .filter((w: string) => w.length > 3)
+        .slice(0, 3)
+        .join(" ")
+
+      if (searchQuery.length > 3) {
+        try {
+          const { results, totalCount, error } = await searchCode(searchQuery, {
+            extension: "ts",
+            path: "src",
+            maxResults: 5,
+          })
+          if (!error && results.length > 0) {
+            text += `CODE SEARCH: "${searchQuery}" (${totalCount} matches):\n`
+            for (const r of results) {
+              text += `  📄 ${r.file}\n`
+              for (const m of r.matches.slice(0, 2)) {
+                text += `     ...${m.substring(0, 150)}...\n`
+              }
+            }
+            text += "\n"
+          } else if (!error) {
+            text += `CODE SEARCH: "${searchQuery}" — no matches found in src/\n\n`
+          }
+        } catch {}
+      }
+    }
+
+    // If asking about project structure
+    if (msgLower.match(/structure|file tree|how.*organized|what files|project layout/)) {
+      try {
+        const { files } = await getFileTree()
+        if (files.length > 0) {
+          const dirs: Record<string, number> = {}
+          for (const f of files) {
+            const topDir = f.split("/").slice(0, 3).join("/")
+            dirs[topDir] = (dirs[topDir] || 0) + 1
+          }
+          text += `PROJECT STRUCTURE (${files.length} source files):\n`
+          const sortedDirs = Object.entries(dirs).sort((a, b) => b[1] - a[1])
+          for (const [dir, count] of sortedDirs.slice(0, 30)) {
+            text += `  ${dir}${count > 1 ? ` (${count} files)` : ""}\n`
+          }
+          text += "\n"
+        }
+      } catch {}
+    }
+
+    // If asking about what changed recently
+    if (msgLower.match(/what.*changed|recent.*change|diff|what.*deploy|last.*push|last.*commit/)) {
+      try {
+        const { commits } = await getRecentCommits({ limit: 3 })
+        for (const c of commits.slice(0, 2)) {
+          const details = await getCommitDetails(c.sha)
+          if (details.files.length > 0) {
+            text += `COMMIT ${c.sha}: ${details.message}\n`
+            text += `  Changed files:\n`
+            for (const f of details.files.slice(0, 15)) {
+              text += `    ${f.status === "added" ? "+" : f.status === "removed" ? "-" : "~"} ${f.filename}\n`
+            }
+            if (details.files.length > 15) text += `    ... and ${details.files.length - 15} more\n`
+            text += "\n"
+          }
+        }
+      } catch {}
+    }
+
+    sections.push(text)
   }
 
   if (sections.length === 0) return ""

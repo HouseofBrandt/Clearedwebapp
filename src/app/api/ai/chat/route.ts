@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       const hasDataNeeds = Object.values(dataNeeds).some(Boolean)
       if (hasDataNeeds) {
         const userId = (session.user as any).id
-        const platformData = await fetchPlatformData(dataNeeds, userId)
+        const platformData = await fetchPlatformData(dataNeeds, userId, lastUserMsg.content)
         if (platformData) {
           systemPrompt += platformData
         }
@@ -77,7 +77,8 @@ export async function POST(request: NextRequest) {
         if ((extraNeeds.nextSteps || extraNeeds.documentGap) && !extraNeeds.caseDetail) {
           const extraData = await fetchPlatformData(
             { caseDetail: caseContext.caseNumber, nextSteps: extraNeeds.nextSteps, documentGap: extraNeeds.documentGap },
-            (session.user as any).id
+            (session.user as any).id,
+            lastUserMsg?.content
           )
           if (extraData) systemPrompt += extraData
         }
