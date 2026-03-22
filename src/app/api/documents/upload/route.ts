@@ -6,6 +6,7 @@ import { uploadToS3 } from "@/lib/storage"
 import { extractWithDetails } from "@/lib/documents/extract"
 import { populateFromTranscript } from "@/lib/documents/liability"
 import { autoDetectCategory } from "@/lib/documents/auto-category"
+import { triageDocument, processTriageResult } from "@/lib/case-intelligence/document-triage"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -147,6 +148,27 @@ export async function POST(request: NextRequest) {
       } catch (err: any) {
         console.error("Transcript parsing failed (non-blocking):", err.message)
       }
+    }
+
+    // Fire-and-forget: AI document triage
+    if (extractedText && extractedText.length > 50) {
+      triageDocument({
+        documentId: document.id,
+        caseId,
+        fileName: document.fileName,
+        extractedText,
+        documentCategory: document.documentCategory,
+      }).then(result => {
+        processTriageResult(result, {
+          documentId: document.id,
+          caseId,
+          fileName: document.fileName,
+          userId: (session.user as any).id,
+          userName: session.user?.name || "Unknown",
+        })
+      }).catch(err => {
+        console.error("[DocumentTriage] Background triage failed:", err.message)
+      })
     }
 
     return NextResponse.json({

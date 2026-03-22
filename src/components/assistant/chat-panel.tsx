@@ -359,6 +359,180 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
 }
 
 // -------------------------------------------------------------------
+// Action parser and card (:::action blocks)
+// -------------------------------------------------------------------
+interface ChatAction {
+  type: string
+  caseId?: string
+  [key: string]: any
+}
+
+function parseActionBlocks(content: string): { text: string; actions: ChatAction[] } {
+  const actions: ChatAction[] = []
+  let text = content
+
+  const regex = /:::action\n([\s\S]*?):::/g
+  let match
+  while ((match = regex.exec(content)) !== null) {
+    text = text.replace(match[0], "")
+    const block = match[1]
+    const action: any = {}
+
+    // Parse YAML-like fields
+    const lines = block.split("\n")
+    let currentKey = ""
+    let arrayItems: any[] = []
+    let inArray = false
+
+    for (const line of lines) {
+      const kvMatch = line.match(/^(\w+):\s*(.*)$/)
+      if (kvMatch) {
+        if (inArray && currentKey) {
+          action[currentKey] = arrayItems
+          arrayItems = []
+          inArray = false
+        }
+        currentKey = kvMatch[1]
+        const val = kvMatch[2].trim()
+        if (val) action[currentKey] = val
+      } else if (line.trim().startsWith("- label:")) {
+        inArray = true
+        const label = line.replace(/^\s*-\s*label:\s*/, "").trim()
+        arrayItems.push({ label, critical: false })
+      } else if (line.trim().startsWith("critical:") && arrayItems.length > 0) {
+        arrayItems[arrayItems.length - 1].critical = line.includes("true")
+      }
+    }
+    if (inArray && currentKey) {
+      action[currentKey] = arrayItems
+    }
+
+    if (action.type) actions.push(action as ChatAction)
+  }
+
+  return { text: text.trim(), actions }
+}
+
+function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: CaseContext | null }) {
+  const [status, setStatus] = useState<"pending" | "executing" | "done" | "cancelled">("pending")
+  const [resultMsg, setResultMsg] = useState("")
+
+  const caseId = action.caseId || caseContext?.caseId
+
+  const handleExecute = async () => {
+    if (!caseId) return
+    setStatus("executing")
+    try {
+      const payload: any = { ...action }
+      delete payload.type
+      delete payload.caseId
+
+      const res = await fetch("/api/ai/chat-actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: action.type, caseId, payload }),
+      })
+      if (!res.ok) throw new Error("Action failed")
+      const data = await res.json()
+      setStatus("done")
+      setResultMsg(data.message || "Action completed")
+    } catch {
+      setStatus("pending")
+      alert("Action failed. Please try again.")
+    }
+  }
+
+  if (status === "done") {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-2 text-sm text-green-700">
+        <CheckCircle2 className="h-4 w-4" />
+        {resultMsg || "Action completed"}
+      </div>
+    )
+  }
+  if (status === "cancelled") return null
+
+  const configs: Record<string, { icon: string; label: string; border: string }> = {
+    GENERATE_DOCUMENT_REQUEST: { icon: "📋", label: "Document Request", border: "border-l-blue-400" },
+    UPDATE_CASE_STATUS: { icon: "📊", label: "Update Case Status", border: "border-l-purple-400" },
+    CREATE_DEADLINE: { icon: "📅", label: "Create Deadline", border: "border-l-amber-400" },
+    UPDATE_IRS_STATUS: { icon: "🏛️", label: "Update IRS Status", border: "border-l-red-400" },
+    ADD_CASE_NOTE: { icon: "📝", label: "Add Case Note", border: "border-l-gray-400" },
+  }
+  const config = configs[action.type] || { icon: "⚡", label: action.type, border: "border-l-gray-400" }
+
+  const buttonLabels: Record<string, string> = {
+    GENERATE_DOCUMENT_REQUEST: "Generate & Add to Deliverables",
+    UPDATE_CASE_STATUS: "Update Status",
+    CREATE_DEADLINE: "Create Deadline",
+    UPDATE_IRS_STATUS: "Update IRS Status",
+    ADD_CASE_NOTE: "Add Note",
+  }
+
+  return (
+    <div className={`rounded-lg border border-l-4 ${config.border} bg-white p-3`}>
+      <div className="text-xs font-medium text-muted-foreground">
+        {config.icon} {config.label}
+      </div>
+
+      <div className="mt-2 space-y-1 text-sm">
+        {action.type === "GENERATE_DOCUMENT_REQUEST" && action.missingDocs && (
+          <>
+            <p className="font-medium">{action.clientName || "Client"}</p>
+            {(action.missingDocs as any[]).map((doc: any, i: number) => (
+              <div key={i} className="flex items-center gap-1.5 text-xs">
+                <span>{doc.critical ? "❌" : "⬜"}</span>
+                <span>{doc.label}</span>
+              </div>
+            ))}
+          </>
+        )}
+        {action.type === "UPDATE_CASE_STATUS" && (
+          <>
+            <p>Move to: <span className="font-medium">{action.phase}</span></p>
+            {action.notes && <p className="text-xs text-muted-foreground">Note: {action.notes}</p>}
+          </>
+        )}
+        {action.type === "CREATE_DEADLINE" && (
+          <>
+            <p className="font-medium">{action.title}</p>
+            <p className="text-xs text-muted-foreground">Due: {action.dueDate} · Priority: {action.priority || "MEDIUM"}</p>
+            {action.description && <p className="text-xs text-muted-foreground">{action.description}</p>}
+          </>
+        )}
+        {action.type === "UPDATE_IRS_STATUS" && (
+          <>
+            {action.irsLastAction && <p className="font-medium">{action.irsLastAction}</p>}
+            {action.irsAssignedUnit && <p className="text-xs text-muted-foreground">Unit: {action.irsAssignedUnit}</p>}
+            {action.notes && <p className="text-xs text-muted-foreground">{action.notes}</p>}
+          </>
+        )}
+        {action.type === "ADD_CASE_NOTE" && (
+          <p>{action.note}</p>
+        )}
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={handleExecute}
+          disabled={status === "executing" || !caseId}
+          className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+          style={{ backgroundColor: "#1B2A4A" }}
+        >
+          {status === "executing" ? "Executing..." : buttonLabels[action.type] || "Execute"}
+        </button>
+        <button
+          onClick={() => setStatus("cancelled")}
+          className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// -------------------------------------------------------------------
 // Main ChatPanel component
 // -------------------------------------------------------------------
 export function ChatPanel() {
@@ -705,13 +879,21 @@ export function ChatPanel() {
                         <>
                           {msg.content ? (
                             (() => {
-                              const { before, draft, after } = parseMessageDraft(msg.content)
-                              if (draft) {
+                              // Parse action blocks first
+                              const { text: textWithoutActions, actions } = parseActionBlocks(msg.content)
+                              const { before, draft, after } = parseMessageDraft(textWithoutActions)
+                              const hasSpecialContent = draft || actions.length > 0
+
+                              if (hasSpecialContent) {
+                                const textContent = draft ? before : textWithoutActions
                                 return (
                                   <div className="space-y-2">
-                                    {before && <div className="prose prose-sm max-w-none">{renderMarkdown(before)}</div>}
-                                    <MessageDraftCard draft={draft} />
-                                    {after && <div className="prose prose-sm max-w-none">{renderMarkdown(after)}</div>}
+                                    {textContent && <div className="prose prose-sm max-w-none">{renderMarkdown(textContent)}</div>}
+                                    {draft && <MessageDraftCard draft={draft} />}
+                                    {draft && after && <div className="prose prose-sm max-w-none">{renderMarkdown(after)}</div>}
+                                    {actions.map((action, idx) => (
+                                      <ActionCard key={idx} action={action} caseContext={caseContext} />
+                                    ))}
                                   </div>
                                 )
                               }

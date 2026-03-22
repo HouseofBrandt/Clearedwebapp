@@ -53,7 +53,7 @@ export default async function CaseDetailPage({
     if (!caseData) notFound()
   }
 
-  const [practitioners, deadlines] = await Promise.all([
+  const [practitioners, deadlines, intelligence, activities] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, role: true },
       orderBy: { name: "asc" },
@@ -65,6 +65,15 @@ export default async function CaseDetailPage({
         completedBy: { select: { id: true, name: true } },
       },
       orderBy: { dueDate: "asc" },
+    }),
+    prisma.caseIntelligence.findUnique({
+      where: { caseId: params.caseId },
+    }),
+    prisma.caseActivity.findMany({
+      where: { caseId: params.caseId },
+      include: { user: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
     }),
   ])
 
@@ -79,5 +88,31 @@ export default async function CaseDetailPage({
     updatedAt: d.updatedAt.toISOString(),
   }))
 
-  return <CaseDetail caseData={decryptCasePII(caseData)} practitioners={practitioners} deadlines={serializedDeadlines} />
+  // Serialize intelligence dates
+  const serializedIntelligence = intelligence ? {
+    ...intelligence,
+    irsLastActionDate: intelligence.irsLastActionDate?.toISOString() || null,
+    poaExpirationDate: intelligence.poaExpirationDate?.toISOString() || null,
+    csedEarliest: intelligence.csedEarliest?.toISOString() || null,
+    csedLatest: intelligence.csedLatest?.toISOString() || null,
+    lastAssessmentDate: intelligence.lastAssessmentDate?.toISOString() || null,
+    lastActivityDate: intelligence.lastActivityDate?.toISOString() || null,
+    createdAt: intelligence.createdAt.toISOString(),
+    updatedAt: intelligence.updatedAt.toISOString(),
+  } : null
+
+  const serializedActivities = activities.map((a) => ({
+    ...a,
+    createdAt: a.createdAt.toISOString(),
+  }))
+
+  return (
+    <CaseDetail
+      caseData={decryptCasePII(caseData)}
+      practitioners={practitioners}
+      deadlines={serializedDeadlines}
+      intelligence={serializedIntelligence}
+      activities={serializedActivities}
+    />
+  )
 }

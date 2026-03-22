@@ -139,5 +139,16 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  // Log activity (fire-and-forget)
+  prisma.caseActivity.create({
+    data: {
+      caseId: data.caseId,
+      userId: auth.userId,
+      action: "DEADLINE_CREATED",
+      description: `Created deadline: ${data.title}`,
+      metadata: { deadlineId: deadline.id, type: data.type, dueDate: data.dueDate },
+    },
+  }).catch(() => {})
+
   return NextResponse.json(deadline, { status: 201 })
 }

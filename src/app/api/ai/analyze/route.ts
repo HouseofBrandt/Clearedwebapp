@@ -342,6 +342,17 @@ export async function POST(request: NextRequest) {
         aiTaskId = aiTask.id
         console.log("[AI Analyze] Task created:", aiTask.id, "type:", taskType)
 
+        // Log activity (fire-and-forget)
+        prisma.caseActivity.create({
+          data: {
+            caseId,
+            userId,
+            action: "ANALYSIS_RUN",
+            description: `Ran ${taskType} analysis`,
+            metadata: { taskId: aiTask.id, taskType, model: requestedModel },
+          },
+        }).catch(() => {})
+
         // Tokenize PII
         const knownNames = [caseData.clientName].filter(Boolean) as string[]
         const { tokenizedText: tokenizedDocText, tokenMap: docTokenMap } =
