@@ -320,7 +320,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
       </div>
 
       {/* Smart Status Card */}
-      <SmartStatusCard caseData={caseData} intelligence={intelligence} />
+      <SmartStatusCard caseData={caseData} intelligence={intelligence} documents={caseData.documents || []} />
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
