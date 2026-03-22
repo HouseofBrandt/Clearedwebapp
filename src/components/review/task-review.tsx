@@ -100,16 +100,19 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
         }),
       })
 
-      if (!res.ok) throw new Error("Review action failed")
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || err.error || "Review action failed")
+      }
 
       addToast({
         title: `Task ${action === "APPROVE" || action === "EDIT_APPROVE" ? "approved" : "rejected"}`,
       })
       router.refresh()
-    } catch {
+    } catch (err: any) {
       addToast({
-        title: "Error",
-        description: "Failed to submit review",
+        title: "Review failed",
+        description: err.message || "Failed to submit review",
         variant: "destructive",
       })
     } finally {

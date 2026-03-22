@@ -158,7 +158,18 @@ export async function fetchPlatformData(
       },
       include: {
         assignedPractitioner: { select: { name: true } },
-        documents: { select: { fileName: true, documentCategory: true } },
+        documents: {
+          select: {
+            id: true,
+            fileName: true,
+            documentCategory: true,
+            fileType: true,
+            fileSize: true,
+            uploadedAt: true,
+            extractedText: true,
+          },
+          orderBy: { uploadedAt: "desc" },
+        },
         aiTasks: {
           select: { taskType: true, status: true, modelUsed: true, createdAt: true },
           orderBy: { createdAt: "desc" },
@@ -167,6 +178,34 @@ export async function fetchPlatformData(
         deadlines: {
           select: { title: true, type: true, dueDate: true, status: true, priority: true },
           orderBy: { dueDate: "asc" },
+        },
+        intelligence: {
+          select: {
+            resolutionPhase: true,
+            resolutionType: true,
+            irsLastAction: true,
+            irsLastActionDate: true,
+            irsNextExpectedAction: true,
+            irsAssignedUnit: true,
+            docsRequired: true,
+            docsReceivedCount: true,
+            docsRequiredCount: true,
+            docCompleteness: true,
+            financialsComplete: true,
+            rpcEstimate: true,
+            offerAmount: true,
+            allReturnsFiled: true,
+            currentOnEstimates: true,
+            poaOnFile: true,
+            levyThreatActive: true,
+            liensFiledActive: true,
+            csedEarliest: true,
+            csedLatest: true,
+            lastAssessmentSummary: true,
+            lastActivityDate: true,
+            lastActivityBy: true,
+            lastActivityAction: true,
+          },
         },
         _count: { select: { documents: true, aiTasks: true } },
       },
@@ -181,8 +220,71 @@ export async function fetchPlatformData(
       if (caseData.clientEmail) text += `Email: ${caseData.clientEmail}\n`
       if (caseData.clientPhone) text += `Phone: ${caseData.clientPhone}\n`
       text += `Assigned: ${caseData.assignedPractitioner?.name || "Unassigned"}\n`
-      text += `Documents (${caseData._count.documents}): ${caseData.documents.map(d => `${d.fileName} [${d.documentCategory}]`).join(", ")}\n`
-      text += `AI Tasks (${caseData._count.aiTasks}): ${caseData.aiTasks.map(t => `${t.taskType} (${t.status})`).join(", ")}\n`
+
+      // Documents — structured manifest grouped by category
+      text += `\nDOCUMENTS (${caseData._count.documents} files):\n`
+      const docsByCategory: Record<string, any[]> = {}
+      for (const d of caseData.documents) {
+        const cat = d.documentCategory || "OTHER"
+        if (!docsByCategory[cat]) docsByCategory[cat] = []
+        docsByCategory[cat].push(d)
+      }
+      for (const [category, docs] of Object.entries(docsByCategory)) {
+        text += `  ${category} (${docs.length}):\n`
+        for (const d of docs) {
+          const size = d.fileSize ? `${Math.round(d.fileSize / 1024)}KB` : ""
+          const date = d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString() : ""
+          const hasText = d.extractedText && d.extractedText.length > 50 ? "✓ text extracted" : "⚠ no text"
+          text += `    - ${d.fileName} [${d.fileType}] ${size} · ${date} · ${hasText}\n`
+        }
+      }
+      const docCategoryCounts = caseData.documents.reduce((acc: Record<string, number>, d: any) => {
+        acc[d.documentCategory] = (acc[d.documentCategory] || 0) + 1
+        return acc
+      }, {})
+      text += `Document category summary: ${Object.entries(docCategoryCounts).map(([k, v]) => `${k}: ${v}`).join(", ")}\n`
+
+      // Smart Status / Intelligence
+      if (caseData.intelligence) {
+        const intel = caseData.intelligence
+        text += `\nSMART STATUS:\n`
+        text += `Phase: ${intel.resolutionPhase}\n`
+        text += `Document completeness: ${Math.round((intel.docCompleteness || 0) * 100)}% (${intel.docsReceivedCount}/${intel.docsRequiredCount})\n`
+        if (intel.irsLastAction) {
+          text += `IRS position: ${intel.irsLastAction}`
+          if (intel.irsLastActionDate) text += ` (${new Date(intel.irsLastActionDate).toLocaleDateString()})`
+          text += `\n`
+        }
+        if (intel.irsAssignedUnit) text += `IRS unit: ${intel.irsAssignedUnit}\n`
+
+        const risks: string[] = []
+        if (intel.levyThreatActive) risks.push("⚠ LEVY THREAT ACTIVE")
+        if (intel.liensFiledActive) risks.push("⚠ LIEN FILED")
+        if (!intel.allReturnsFiled) risks.push("❌ Returns not fully verified")
+        if (!intel.currentOnEstimates) risks.push("❌ Estimated taxes not verified")
+        if (!intel.poaOnFile) risks.push("⚠ No POA on file")
+        if (risks.length > 0) text += `Risk flags: ${risks.join(" · ")}\n`
+
+        if (intel.csedEarliest && intel.csedLatest) {
+          text += `CSED range: ${new Date(intel.csedEarliest).toLocaleDateString()} — ${new Date(intel.csedLatest).toLocaleDateString()}\n`
+        }
+        if (intel.rpcEstimate) text += `Preliminary RCP: $${Number(intel.rpcEstimate).toLocaleString()}\n`
+        if (intel.lastActivityAction) text += `Last activity: ${intel.lastActivityAction} by ${intel.lastActivityBy}\n`
+
+        // Missing docs from structured checklist
+        if (intel.docsRequired) {
+          const required = intel.docsRequired as any[]
+          const missing = required.filter((d: any) => !d.received)
+          if (missing.length > 0) {
+            text += `\nMISSING DOCUMENTS (from Smart Status checklist):\n`
+            for (const d of missing) {
+              text += `  ${d.critical ? "❌" : "⬜"} ${d.label}${d.critical ? " — REQUIRED" : ""}\n`
+            }
+          }
+        }
+      }
+
+      text += `\nAI Tasks (${caseData._count.aiTasks}): ${caseData.aiTasks.map(t => `${t.taskType} (${t.status})`).join(", ")}\n`
       if (caseData.deadlines.length > 0) {
         text += `Deadlines:\n`
         for (const d of caseData.deadlines) {
