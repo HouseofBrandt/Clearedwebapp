@@ -14,6 +14,12 @@ INSTRUCTIONS:
 7. Flag uncertain values by appending " [VERIFY]" to string values, or wrapping currency in a note field
 8. Note missing critical data in the missing_data array
 
+SOURCE PRIORITY: When bank statements and intake notes provide different figures for the same item, ALWAYS use the bank statement figure. Bank data is the primary source; intake notes are secondary. Flag the discrepancy in verify_flags with a note like "Bank statement shows $X vs intake estimate of $Y — using bank figure."
+
+DEPENDENT AGES: Age is REQUIRED for every dependent. Calculate from DOB if available (insurance docs and tax returns often have DOB). If DOB is not in the documents, estimate from context (e.g., "high school" = ~16, "middle school" = ~12, "after-school program" = ~8, "daycare" = ~3). If no context is available, add to missing_data.
+
+RENTAL INCOME: rental_income_net must be NET of mortgage payment, property taxes, insurance, and maintenance on the rental property. If gross rental income is $1,800/mo and the rental mortgage is $1,045 plus taxes/insurance/maintenance of $540, the net is $215. Include a rental_income_notes field showing the calculation: "Gross $1,800 - Mortgage $1,045 - Taxes/Ins/Maint $540 = Net $215"
+
 Return this exact JSON structure:
 
 {
@@ -23,7 +29,7 @@ Return this exact JSON structure:
   "address": "string or null",
   "county": "string or null",
 
-  "dependents": [{"name": "string", "age": "number", "relationship": "string", "income": "number"}],
+  "dependents": [{"name": "string", "age": "number (REQUIRED — see instructions)", "relationship": "string", "income": "number"}],
 
   "tp1_employer": "string or null",
   "tp1_occupation": "string or null",
@@ -54,14 +60,17 @@ Return this exact JSON structure:
   "pension_income": "number (monthly) or null",
   "interest_income": "number (monthly) or null",
   "dividend_income": "number (monthly) or null",
-  "rental_income_net": "number (monthly) or null",
+  "rental_income_net": "number (monthly, NET of mortgage/taxes/insurance/maintenance) or null",
+  "rental_income_notes": "string (show gross - deductions = net calculation) or null",
   "distribution_income": "number (monthly) or null",
   "child_support_received": "number (monthly) or null",
   "alimony_received": "number (monthly) or null",
   "other_income": "number (monthly) or null",
 
   "expense_food_clothing": "number (monthly) or null",
+  "expense_food_clothing_irs_standard": "number or null (National Standard for household size/income range, if known)",
   "expense_housing_utilities": "number (monthly) or null",
+  "expense_housing_utilities_irs_standard": "number or null (Local Standard for county, if known)",
   "expense_vehicle_payment_1": "number (monthly) or null",
   "expense_vehicle_payment_2": "number (monthly) or null",
   "expense_vehicle_operating": "number (monthly) or null",
@@ -86,13 +95,17 @@ Return this exact JSON structure:
   "life_insurance_cash_value": "number or null",
   "life_insurance_loan_balance": "number or null",
 
-  "real_estate": "string description or null",
-  "real_estate_fmv": "number or null",
-  "real_estate_loan_balance": "number or null",
+  "real_estate": [
+    {"description": "string (address or property type)", "fmv": "number", "loan_balance": "number", "monthly_payment": "number or null"}
+  ],
+  "real_estate_fmv": "number (total FMV of all properties) or null",
+  "real_estate_loan_balance": "number (total loan balance of all properties) or null",
 
-  "vehicles": "string description (year/make/model, mileage) or null",
-  "vehicles_fmv": "number or null",
-  "vehicles_loan_balance": "number or null",
+  "vehicles": [
+    {"description": "string (year/make/model, mileage)", "fmv": "number", "loan_balance": "number", "monthly_payment": "number or null"}
+  ],
+  "vehicles_fmv": "number (total FMV of all vehicles) or null",
+  "vehicles_loan_balance": "number (total loan balance of all vehicles) or null",
 
   "digital_assets": "number or null",
   "safe_deposit_contents": "string or null",
@@ -156,7 +169,7 @@ Return this exact JSON structure:
   "biz_other_assets": "number or null",
   "biz_other_assets_description": "string or null",
 
-  "tax_liability": [{"year": "number", "form": "string", "assessed": "number", "penalties": "number", "interest": "number", "total": "number", "csed": "string or null"}],
+  "tax_liability": [{"year": "number", "form": "string", "assessed": "number", "penalties": "number", "interest": "number", "total": "number", "csed": "YYYY-MM-DD or null — CRITICAL, see instructions"}],
   "total_tax_liability": "number",
 
   "verify_flags": ["string — items where extracted value is uncertain"],
@@ -167,6 +180,23 @@ Return this exact JSON structure:
 IMPORTANT:
 - Convert annual amounts to monthly (divide by 12) for income and expense fields
 - For real estate and vehicles, FMV should reflect current market value
-- CSED dates should be in YYYY-MM-DD format if found
 - Include ALL bank accounts, ALL retirement accounts, ALL tax periods found
-- If documents show conflicting values, use the most recent and flag with [VERIFY]
+- If documents show conflicting values, use the bank statement figure over intake estimates and flag the discrepancy in verify_flags
+
+REAL ESTATE AND VEHICLES — SEPARATE ROWS:
+For real_estate and vehicles: return an ARRAY of objects, one per property/vehicle. NEVER combine multiple properties into a single entry. Each entry MUST have its own description, fmv, loan_balance, and monthly_payment. Example:
+  "real_estate": [
+    {"description": "123 Main St — primary residence", "fmv": 285000, "loan_balance": 210000, "monthly_payment": 1450},
+    {"description": "456 Oak Ave — rental property", "fmv": 195000, "loan_balance": 142000, "monthly_payment": 1045}
+  ]
+  "vehicles": [
+    {"description": "2019 Toyota Camry, 68k miles", "fmv": 18500, "loan_balance": 8200, "monthly_payment": 385},
+    {"description": "2021 Honda CR-V, 32k miles", "fmv": 27000, "loan_balance": 19500, "monthly_payment": 495}
+  ]
+Also set the total fields (real_estate_fmv, real_estate_loan_balance, vehicles_fmv, vehicles_loan_balance) to the sum of all items.
+
+CSED DATES ARE CRITICAL:
+Extract CSED from the transcript line "COLLECTION STATUTE EXPIRATION DATE (CSED):" — format as YYYY-MM-DD. If a transcript is provided and CSED is not found for a tax period, set csed to null AND add "CSED not found for TY{year}" to missing_data. CSED drives the entire case strategy — missing CSEDs must be flagged.
+
+IRS FINANCIAL STANDARDS:
+For IRS financial standards: if you know the current National Standard for the household size and income range, include it in expense_food_clothing_irs_standard. If you know the Local Standard for the county (default: Shelby County, TN unless a different county is specified), include it in expense_housing_utilities_irs_standard. If unsure, set to null — the practitioner will look these up.
