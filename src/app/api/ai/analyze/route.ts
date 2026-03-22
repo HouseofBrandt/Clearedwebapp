@@ -150,6 +150,14 @@ const VALID_TASK_TYPES = [
 
 const VALID_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"] as const
 
+const casePostureSchema = z.object({
+  collectionStage: z.string().optional(),
+  deadlinesApproaching: z.array(z.string()).optional(),
+  reliefSought: z.string().optional(),
+  priorAttempts: z.array(z.string()).optional(),
+  additionalContext: z.string().optional(),
+}).optional()
+
 const analyzeSchema = z.object({
   caseId: z.string().min(1, "caseId is required"),
   taskType: z.enum(VALID_TASK_TYPES, {
@@ -157,6 +165,7 @@ const analyzeSchema = z.object({
   }),
   additionalContext: z.string().optional(),
   model: z.enum(VALID_MODELS).optional(),
+  casePosture: casePostureSchema,
 })
 
 // Each task type maps to its specific prompt file
@@ -243,7 +252,7 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const { caseId, taskType, additionalContext, model: requestedModel } = parsed.data
+  const { caseId, taskType, additionalContext, model: requestedModel, casePosture } = parsed.data
   const userId = auth.userId
 
   // Fetch case with documents
@@ -327,6 +336,7 @@ export async function POST(request: NextRequest) {
             taskType,
             status: "PROCESSING",
             createdById: userId,
+            casePosture: casePosture || undefined,
           },
         })
         aiTaskId = aiTask.id
@@ -416,7 +426,25 @@ export async function POST(request: NextRequest) {
         console.log("[AI Analyze] KB done, system prompt now:", systemPrompt.length, "chars")
 
         // Build user message
-        let userMessage = `Case Type: ${caseData.caseType}\nCase Number: ${caseData.caseNumber}\n\n`
+        let userMessage = ""
+
+        // Prepend case posture if provided
+        if (casePosture && (casePosture.collectionStage || casePosture.reliefSought)) {
+          userMessage += "CASE POSTURE (provided by practitioner):\n"
+          if (casePosture.collectionStage)
+            userMessage += `Collection Stage: ${casePosture.collectionStage}\n`
+          if (casePosture.deadlinesApproaching && casePosture.deadlinesApproaching.length > 0)
+            userMessage += `Key Deadlines: ${casePosture.deadlinesApproaching.join(", ")}\n`
+          if (casePosture.reliefSought)
+            userMessage += `Relief Sought: ${casePosture.reliefSought}\n`
+          if (casePosture.priorAttempts && casePosture.priorAttempts.length > 0)
+            userMessage += `Prior Attempts: ${casePosture.priorAttempts.join(", ")}\n`
+          if (casePosture.additionalContext)
+            userMessage += `Additional Context: ${casePosture.additionalContext}\n`
+          userMessage += "\nIMPORTANT: Tailor your analysis to this specific procedural posture. Do not analyze relief options that are procedurally unavailable given the current stage. If a CDP deadline is approaching, flag it as the #1 priority.\n\n"
+        }
+
+        userMessage += `Case Type: ${caseData.caseType}\nCase Number: ${caseData.caseNumber}\n\n`
         userMessage += `Documents:\n${tokenizedDocText}`
         if (tokenizedContext) {
           userMessage += `\n\nAdditional Context:\n${tokenizedContext}`

@@ -273,6 +273,7 @@ model AITask {
   judgmentFlagCount    Int          @default(0)
   requestId           String       @unique @default(uuid())
   metadata            Json?
+  casePosture         Json?
   createdById         String?
   createdBy           User?        @relation(fields: [createdById], references: [id])
   createdAt           DateTime     @default(now())

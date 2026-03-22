@@ -45,6 +45,8 @@ export interface MergeResult {
     retirement_accounts: any[]
     dependents: any[]
     tax_liability: any[]
+    real_estate: any[]
+    vehicles: any[]
   }
   summary: {
     totalAssetEquity: number
@@ -360,6 +362,8 @@ export function mergeTemplateWithData(data: ExtractedData): MergeResult {
       retirement_accounts: data.retirement_accounts || [],
       dependents: data.dependents || [],
       tax_liability: data.tax_liability || [],
+      real_estate: Array.isArray(data.real_estate) ? data.real_estate : [],
+      vehicles: Array.isArray(data.vehicles) ? data.vehicles : [],
     },
     summary: {
       totalAssetEquity: formulas.TOTAL_ASSETS,
@@ -410,6 +414,36 @@ export function mergedToSpreadsheetData(merged: MergeResult): {
       rows,
     }
   })
+
+  // Add real estate detail rows
+  if (merged.extractedArrays.real_estate?.length > 0) {
+    const reRows = merged.extractedArrays.real_estate.map((p: any) => [
+      String(p.description || ""),
+      p.fmv != null ? `$${Number(p.fmv).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
+      p.loan_balance != null ? `$${Number(p.loan_balance).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
+      p.monthly_payment != null ? `$${Number(p.monthly_payment).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
+    ])
+    tabs.push({
+      name: "Real Estate Detail",
+      columns: ["Property", "FMV", "Loan Balance", "Monthly Payment"],
+      rows: reRows,
+    })
+  }
+
+  // Add vehicles detail rows
+  if (merged.extractedArrays.vehicles?.length > 0) {
+    const vehRows = merged.extractedArrays.vehicles.map((p: any) => [
+      String(p.description || ""),
+      p.fmv != null ? `$${Number(p.fmv).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
+      p.loan_balance != null ? `$${Number(p.loan_balance).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
+      p.monthly_payment != null ? `$${Number(p.monthly_payment).toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "",
+    ])
+    tabs.push({
+      name: "Vehicles Detail",
+      columns: ["Vehicle", "FMV", "Loan Balance", "Monthly Payment"],
+      rows: vehRows,
+    })
+  }
 
   // Add array data tabs (liability periods, bank accounts, etc.)
   if (merged.extractedArrays.tax_liability.length > 0) {

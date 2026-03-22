@@ -90,7 +90,7 @@ const BORDER_COLORS: Record<string, string> = {
 
 type FilterType = "ALL" | "UNREAD" | "BUGS_AND_FEATURES" | "NOTIFICATIONS"
 
-import { formatRelative, formatDateTime } from "@/lib/date-utils"
+import { formatDate, formatRelative, formatDateTime } from "@/lib/date-utils"
 
 export function InboxList({
   initialMessages,
@@ -475,7 +475,7 @@ function MessageDetail({
             )}
             {message.implementedAt && message.implementedBy && (
               <p className="text-xs text-muted-foreground">
-                Marked implemented by {message.implementedBy.name} on {new Date(message.implementedAt).toLocaleDateString()}
+                Marked implemented by {message.implementedBy.name} on {formatDate(message.implementedAt)}
               </p>
             )}
           </div>

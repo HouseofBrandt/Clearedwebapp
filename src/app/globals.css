@@ -73,3 +73,8 @@
 .animate-progress-indeterminate {
   animation: progress-indeterminate 1.5s ease-in-out infinite;
 }
+
+/* Restore list styles stripped by Tailwind Preflight */
+.prose ol { list-style-type: decimal; }
+.prose ul { list-style-type: disc; }
+.prose ol > li, .prose ul > li { display: list-item; }
