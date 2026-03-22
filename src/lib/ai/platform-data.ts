@@ -33,7 +33,7 @@ export function detectDataNeeds(message: string): DataQuery {
   }
 
   // ── Next steps ──
-  if (m.match(/what.*next|next step|what.*do now|what.*should|plan|priorit|what.*order|workflow/)) {
+  if (m.match(/what.*next|next step|what.*do now|what.*should|plan|priorit|workflow|what.*order/)) {
     query.nextSteps = true
   }
 
@@ -43,12 +43,12 @@ export function detectDataNeeds(message: string): DataQuery {
   }
 
   // ── Compliance / practice health ──
-  if (m.match(/compliance|practice.*health|all cases|firm.*status|portfolio|caseload|overview.*cases/)) {
+  if (m.match(/compliance|practice.*health|all cases|firm.*status|portfolio|caseload|overview.*case/)) {
     query.compliance = true
   }
 
   // ── Strategy / pattern matching ──
-  if (m.match(/similar case|precedent|what.*worked|strategy.*for|how.*handled|past.*case|approach|what.*done before/)) {
+  if (m.match(/similar case|precedent|what.*worked|strategy|how.*handled|past.*case|approach|done before/)) {
     query.strategyMatch = true
   }
 
@@ -682,8 +682,7 @@ export async function fetchPlatformData(
     if (targetCase) {
       const gap = analyzeDocumentGaps(targetCase)
       let text = `\nDOCUMENT GAP ANALYSIS — ${(targetCase as any).caseType}:\n`
-      text += `Completeness: ${Math.round(gap.completeness * 100)}%\n`
-      text += `${gap.summary}\n\n`
+      text += `Completeness: ${Math.round(gap.completeness * 100)}% · ${gap.summary}\n\n`
 
       if (gap.missing.length > 0) {
         text += "MISSING:\n"
@@ -694,7 +693,7 @@ export async function fetchPlatformData(
       }
       text += "PRESENT:\n"
       for (const p of gap.present) {
-        text += `  ✅ ${p.category} (${p.count}): ${p.fileName}\n`
+        text += `  ✅ ${p.category} (${p.count}): ${p.files.join(", ")}\n`
       }
       sections.push(text)
     }
