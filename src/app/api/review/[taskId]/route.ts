@@ -9,7 +9,7 @@ const reviewSchema = z.object({
   action: z.enum(["APPROVE", "EDIT_APPROVE", "REJECT_REPROMPT", "REJECT_MANUAL"]),
   editedOutput: z.string().optional(),
   reviewNotes: z.string().optional(),
-  reviewStartedAt: z.string().optional(),
+  reviewStartedAt: z.union([z.string(), z.number()]).optional(),
   flagsAcknowledged: z.boolean().optional(),
 })
 
