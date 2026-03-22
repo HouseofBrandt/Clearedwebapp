@@ -19,23 +19,21 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
-import { formatDate, formatDateTime } from "@/lib/date-utils"
+import { formatDate } from "@/lib/date-utils"
 import { DocumentUpload } from "@/components/documents/document-upload"
 import { DocumentList } from "@/components/documents/document-list"
-import { AIAnalysisPanel } from "@/components/cases/ai-analysis-panel"
+import { BanjoPanel } from "@/components/banjo/banjo-panel"
+import { BanjoIcon } from "@/components/banjo/banjo-icon"
 import {
   ArrowLeft,
   Save,
   FileText,
-  Brain,
   Clock,
   Download,
-  Upload,
   CheckCircle,
   XCircle,
   PenLine,
   RotateCcw,
-  FolderPlus,
   Trash2,
   Calendar as CalendarIcon,
 } from "lucide-react"
@@ -116,12 +114,14 @@ interface CaseDetailProps {
   activities?: any[]
 }
 
-const VALID_TABS = ["overview", "documents", "ai", "deliverables", "deadlines", "activity"]
+const VALID_TABS = ["overview", "documents", "banjo", "ai", "deliverables", "deadlines", "activity"]
 
 export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [] }: CaseDetailProps) {
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined") {
-      const hash = window.location.hash.replace("#", "")
+      let hash = window.location.hash.replace("#", "")
+      // Backwards compat: old "ai" hash redirects to "banjo"
+      if (hash === "ai") hash = "banjo"
       return VALID_TABS.includes(hash) ? hash : "overview"
     }
     return "overview"
@@ -329,9 +329,9 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             <FileText className="mr-1 h-4 w-4" />
             Documents ({caseData.documents.length})
           </TabsTrigger>
-          <TabsTrigger value="ai">
-            <Brain className="mr-1 h-4 w-4" />
-            AI Tasks ({caseData.aiTasks.length})
+          <TabsTrigger value="banjo">
+            <BanjoIcon className="mr-1 h-4 w-4" />
+            Banjo
           </TabsTrigger>
           <TabsTrigger value="deliverables">
             <Download className="mr-1 h-4 w-4" />
@@ -578,13 +578,26 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
           <DocumentList documents={caseData.documents} />
         </TabsContent>
 
-        <TabsContent value="ai" className="space-y-4">
-          <AIAnalysisPanel
+        <TabsContent value="banjo" className="space-y-4">
+          <BanjoPanel
             caseId={caseData.id}
             caseType={caseData.caseType}
+            caseData={{
+              caseNumber: caseData.tabsNumber || caseData.id,
+              clientName: caseData.clientName,
+              filingStatus: caseData.filingStatus,
+              status: caseData.status,
+            }}
             documentCount={caseData.documents.length}
             documentsWithTextCount={caseData.documents.filter((d: any) => d.extractedText && d.extractedText.trim().length > 0).length}
-            documents={caseData.documents.map((d: any) => ({ id: d.id, fileName: d.fileName, documentCategory: d.documentCategory }))}
+            existingTasks={caseData.aiTasks.map((t: any) => ({
+              id: t.id,
+              taskType: t.taskType,
+              status: t.status,
+              createdAt: t.createdAt,
+              banjoAssignmentId: t.banjoAssignmentId || null,
+              banjoStepLabel: t.banjoStepLabel || null,
+            }))}
           />
           {failedTasks.length > 1 && (
             <div className="flex justify-end">
@@ -593,49 +606,6 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                 <Trash2 className="mr-1 h-3 w-3" />
                 Clear {failedTasks.length} failed tasks
               </Button>
-            </div>
-          )}
-          {caseData.aiTasks.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Brain className="h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">No AI tasks yet</h3>
-                <p className="text-sm text-muted-foreground">
-                  Upload documents and run AI analysis to generate working papers and memos.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {caseData.aiTasks.map((task: any) => (
-                <Card key={task.id} className="hover:bg-muted/50 transition-colors">
-                  <CardContent className="flex items-center justify-between p-4">
-                    <Link href={`/review/${task.id}`} className="flex-1 min-w-0">
-                      <p className="font-medium">{formatTaskType(task.taskType)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDateTime(task.createdAt)} &middot;{" "}
-                        {task.modelUsed || (task.status === "REJECTED" ? "failed" : "starting...")}
-                      </p>
-                      {task.status === "REJECTED" && task.detokenizedOutput?.startsWith("Error:") && (
-                        <p className="text-xs text-red-600 mt-1 truncate">
-                          {task.detokenizedOutput.substring(0, 200)}
-                        </p>
-                      )}
-                    </Link>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge className={taskStatusStyles[task.status] || ""} variant="secondary">
-                        {task.status.replace(/_/g, " ")}
-                      </Badge>
-                      {task.status !== "APPROVED" && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8"
-                          onClick={(e) => { e.preventDefault(); handleDeleteTask(task.id) }}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
             </div>
           )}
         </TabsContent>
