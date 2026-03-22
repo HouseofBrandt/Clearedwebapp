@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { formatDate } from "@/lib/date-utils"
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth()
@@ -21,12 +22,19 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") // BUG_REPORT, FEATURE_REQUEST, or null for both
   const format = searchParams.get("format") || "markdown"
   const days = parseInt(searchParams.get("days") || "0", 10)
+  const includeResolved = searchParams.get("includeResolved") === "true"
 
   const where: any = {}
   if (type) {
     where.type = type
   } else {
     where.type = { in: ["BUG_REPORT", "FEATURE_REQUEST"] }
+  }
+  if (!includeResolved) {
+    where.OR = [
+      { implementationStatus: null },
+      { implementationStatus: { in: ["open", "in_progress"] } },
+    ]
   }
   if (days > 0) {
     where.createdAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) }
@@ -52,27 +60,22 @@ export async function GET(request: NextRequest) {
   // Markdown format
   const bugCount = messages.filter((m) => m.type === "BUG_REPORT").length
   const featureCount = messages.filter((m) => m.type === "FEATURE_REQUEST").length
-  const dateStr = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  })
+  const dateStr = formatDate(new Date(), { year: "numeric", month: "long", day: "numeric" })
 
   const typeSummary = []
   if (bugCount > 0) typeSummary.push(`${bugCount} bug${bugCount !== 1 ? "s" : ""}`)
   if (featureCount > 0) typeSummary.push(`${featureCount} feature request${featureCount !== 1 ? "s" : ""}`)
 
+  const filterNote = includeResolved ? "All items (including resolved)" : "Open and In Progress only"
+
   let md = `# Cleared Platform — Bug Reports & Feature Requests\n`
   md += `# Exported ${dateStr}\n`
-  md += `# Total: ${messages.length} items (${typeSummary.join(", ")})\n\n`
+  md += `# Total: ${messages.length} items (${typeSummary.join(", ")})\n`
+  md += `# Filter: ${filterNote}\n\n`
 
   for (const msg of messages) {
     const prefix = msg.type === "BUG_REPORT" ? "BUG" : "FEATURE"
-    const msgDate = new Date(msg.createdAt).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    const msgDate = formatDate(msg.createdAt, { year: "numeric", month: "short", day: "numeric" })
     md += `## ${prefix}: ${msg.subject}\n`
     md += `From: ${msg.sender?.name || msg.senderName || "Unknown"} | ${msgDate} | Priority: ${msg.priority}\n`
     if (msg.tags.length > 0) {

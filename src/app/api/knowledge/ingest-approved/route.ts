@@ -3,6 +3,7 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { ingestDocument } from "@/lib/knowledge/ingest"
 import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
+import { formatDate } from "@/lib/date-utils"
 import { TASK_TYPE_LABELS, CASE_TYPE_LABELS } from "@/types"
 
 export async function POST(request: NextRequest) {
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   const taskLabel = TASK_TYPE_LABELS[task.taskType as keyof typeof TASK_TYPE_LABELS] || task.taskType
   const caseTypeLabel = CASE_TYPE_LABELS[task.case.caseType as keyof typeof CASE_TYPE_LABELS] || task.case.caseType
-  const date = new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  const date = formatDate(task.createdAt, { month: "short", day: "numeric", year: "numeric" })
 
   const doc = await prisma.knowledgeDocument.create({
     data: {

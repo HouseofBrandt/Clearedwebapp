@@ -75,6 +75,6 @@
 }
 
 /* Restore list styles stripped by Tailwind Preflight */
-.prose ol { list-style-type: decimal; }
-.prose ul { list-style-type: disc; }
+.prose ol { list-style-type: decimal !important; }
+.prose ul { list-style-type: disc !important; }
 .prose ol > li, .prose ul > li { display: list-item; }

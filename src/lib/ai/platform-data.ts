@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db"
+import { formatDate, formatDateTime } from "@/lib/date-utils"
 
 interface DataQuery {
   deadlines?: boolean
@@ -207,6 +208,16 @@ export async function fetchPlatformData(
             lastActivityAction: true,
           },
         },
+        activities: {
+          select: {
+            action: true,
+            description: true,
+            createdAt: true,
+            user: { select: { name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+        },
         _count: { select: { documents: true, aiTasks: true } },
       },
     })
@@ -233,7 +244,7 @@ export async function fetchPlatformData(
         text += `  ${category} (${docs.length}):\n`
         for (const d of docs) {
           const size = d.fileSize ? `${Math.round(d.fileSize / 1024)}KB` : ""
-          const date = d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString() : ""
+          const date = d.uploadedAt ? formatDate(d.uploadedAt) : ""
           const hasText = d.extractedText && d.extractedText.length > 50 ? "✓ text extracted" : "⚠ no text"
           text += `    - ${d.fileName} [${d.fileType}] ${size} · ${date} · ${hasText}\n`
         }
@@ -252,7 +263,7 @@ export async function fetchPlatformData(
         text += `Document completeness: ${Math.round((intel.docCompleteness || 0) * 100)}% (${intel.docsReceivedCount}/${intel.docsRequiredCount})\n`
         if (intel.irsLastAction) {
           text += `IRS position: ${intel.irsLastAction}`
-          if (intel.irsLastActionDate) text += ` (${new Date(intel.irsLastActionDate).toLocaleDateString()})`
+          if (intel.irsLastActionDate) text += ` (${formatDate(intel.irsLastActionDate)})`
           text += `\n`
         }
         if (intel.irsAssignedUnit) text += `IRS unit: ${intel.irsAssignedUnit}\n`
@@ -266,7 +277,7 @@ export async function fetchPlatformData(
         if (risks.length > 0) text += `Risk flags: ${risks.join(" · ")}\n`
 
         if (intel.csedEarliest && intel.csedLatest) {
-          text += `CSED range: ${new Date(intel.csedEarliest).toLocaleDateString()} — ${new Date(intel.csedLatest).toLocaleDateString()}\n`
+          text += `CSED range: ${formatDate(intel.csedEarliest)} — ${formatDate(intel.csedLatest)}\n`
         }
         if (intel.rpcEstimate) text += `Preliminary RCP: $${Number(intel.rpcEstimate).toLocaleString()}\n`
         if (intel.lastActivityAction) text += `Last activity: ${intel.lastActivityAction} by ${intel.lastActivityBy}\n`
@@ -288,9 +299,17 @@ export async function fetchPlatformData(
       if (caseData.deadlines.length > 0) {
         text += `Deadlines:\n`
         for (const d of caseData.deadlines) {
-          text += `  - ${d.title} · ${d.type} · Due: ${d.dueDate.toLocaleDateString()} · ${d.status} · ${d.priority}\n`
+          text += `  - ${d.title} · ${d.type} · Due: ${formatDate(d.dueDate)} · ${d.status} · ${d.priority}\n`
         }
       }
+
+      if (caseData.activities && caseData.activities.length > 0) {
+        text += `\nRECENT ACTIVITY:\n`
+        for (const a of caseData.activities.slice(0, 10)) {
+          text += `  - ${formatDate(a.createdAt)} · ${a.user?.name || "System"} · ${a.description}\n`
+        }
+      }
+
       sections.push(text)
     } else {
       sections.push(`No case found matching "${searchTerm}".\n`)
@@ -309,7 +328,7 @@ export async function fetchPlatformData(
 
     let text = `REVIEW QUEUE (${tasks.length} pending):\n`
     for (const t of tasks) {
-      text += `  - ${t.taskType} · ${t.case.caseNumber} · ${t.case.clientName} · ${t.modelUsed || "pending"} · ${t.createdAt.toLocaleDateString()}\n`
+      text += `  - ${t.taskType} · ${t.case.caseNumber} · ${t.case.clientName} · ${t.modelUsed || "pending"} · ${formatDate(t.createdAt)}\n`
     }
     if (tasks.length === 0) {
       text += "No tasks pending review.\n"
@@ -435,7 +454,7 @@ export async function fetchPlatformData(
       text += "No errors recorded.\n"
     } else {
       for (const e of recent) {
-        const time = e.createdAt.toLocaleString()
+        const time = formatDateTime(e.createdAt)
         const meta = e.metadata as any
         text += `  - [${time}] ${e.route} — ${e.errorMessage}`
         if (e.statusCode) text += ` (HTTP ${e.statusCode})`
