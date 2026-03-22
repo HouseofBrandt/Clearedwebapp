@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/db"
 import { formatDate, formatDateTime } from "@/lib/date-utils"
+import {
+  getNextSteps,
+  assessCaseHealth,
+  analyzeDocumentGaps,
+  DEADLINE_CONSEQUENCES,
+} from "@/lib/ai/workflow-intelligence"
 
 interface DataQuery {
   deadlines?: boolean
@@ -10,11 +16,41 @@ interface DataQuery {
   inbox?: boolean
   users?: boolean
   errors?: boolean
+  briefing?: boolean
+  nextSteps?: boolean
+  documentGap?: boolean
+  compliance?: boolean
+  strategyMatch?: boolean
 }
 
 export function detectDataNeeds(message: string): DataQuery {
   const m = message.toLowerCase()
   const query: DataQuery = {}
+
+  // ── Morning briefing ──
+  if (m.match(/morning|brief|catch me up|what.*going on|daily|summary|what.*know|start.*day|what.*today|what.*attention|priorities/)) {
+    query.briefing = true
+  }
+
+  // ── Next steps ──
+  if (m.match(/what.*next|next step|what.*do now|what.*should|plan|priorit|what.*order|workflow/)) {
+    query.nextSteps = true
+  }
+
+  // ── Document gap analysis ──
+  if (m.match(/missing.*doc|what.*need|document.*gap|what.*upload|checklist|what.*missing|document request/)) {
+    query.documentGap = true
+  }
+
+  // ── Compliance / practice health ──
+  if (m.match(/compliance|practice.*health|all cases|firm.*status|portfolio|caseload|overview.*cases/)) {
+    query.compliance = true
+  }
+
+  // ── Strategy / pattern matching ──
+  if (m.match(/similar case|precedent|what.*worked|strategy.*for|how.*handled|past.*case|approach|what.*done before/)) {
+    query.strategyMatch = true
+  }
 
   if (m.match(/deadline|calendar|due|overdue|upcoming|cdp.*hear|csed|statute/)) {
     query.deadlines = true
@@ -88,6 +124,10 @@ export async function fetchPlatformData(
       for (const d of overdue) {
         const daysOver = Math.floor((now.getTime() - d.dueDate.getTime()) / 86400000)
         text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName}) — ${daysOver} days overdue · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
+        if (consequence) {
+          text += `    ⚠ CONSEQUENCE: ${consequence}\n`
+        }
       }
     }
     if (upcoming.length > 0) {
@@ -95,6 +135,10 @@ export async function fetchPlatformData(
       for (const d of upcoming.slice(0, 10)) {
         const daysUntil = Math.floor((d.dueDate.getTime() - now.getTime()) / 86400000)
         text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName}) — in ${daysUntil} days · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
+        if (consequence && daysUntil <= 7) {
+          text += `    ⚠ IF MISSED: ${consequence}\n`
+        }
       }
       if (upcoming.length > 10) {
         text += `  ... and ${upcoming.length - 10} more\n`
@@ -310,6 +354,17 @@ export async function fetchPlatformData(
         }
       }
 
+      // ── Case health check (always runs on case detail) ──
+      const healthIssues = assessCaseHealth(caseData)
+      if (healthIssues.length > 0) {
+        text += "\nCASE HEALTH CHECK:\n"
+        for (const issue of healthIssues) {
+          text += `  ⚠ ${issue}\n`
+        }
+      } else {
+        text += "\n✅ Case health: no issues detected.\n"
+      }
+
       sections.push(text)
     } else {
       sections.push(`No case found matching "${searchTerm}".\n`)
@@ -466,6 +521,281 @@ export async function fetchPlatformData(
       }
     }
     sections.push(text)
+  }
+
+  // ── MORNING BRIEFING ──
+  if (query.briefing) {
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const endOfToday = new Date(startOfToday.getTime() + 86400000)
+    const weekFromNow = new Date(now.getTime() + 7 * 86400000)
+
+    const [
+      overdueDeadlines,
+      todayDeadlines,
+      weekDeadlines,
+      pendingReviews,
+      staleCases,
+      recentErrors,
+      unreadMessages,
+    ] = await Promise.all([
+      prisma.deadline.findMany({
+        where: { dueDate: { lt: now }, status: "UPCOMING" },
+        include: { case: { select: { caseNumber: true, clientName: true } } },
+        orderBy: { dueDate: "asc" },
+        take: 10,
+      }),
+      prisma.deadline.findMany({
+        where: { dueDate: { gte: startOfToday, lt: endOfToday }, status: "UPCOMING" },
+        include: { case: { select: { caseNumber: true, clientName: true } } },
+      }),
+      prisma.deadline.findMany({
+        where: { dueDate: { gte: now, lt: weekFromNow }, status: "UPCOMING" },
+        include: { case: { select: { caseNumber: true, clientName: true } }, assignedTo: { select: { name: true } } },
+        orderBy: { dueDate: "asc" },
+        take: 15,
+      }),
+      prisma.aITask.count({ where: { status: "READY_FOR_REVIEW" } }),
+      prisma.case.findMany({
+        where: {
+          status: { notIn: ["RESOLVED", "CLOSED"] },
+          updatedAt: { lt: new Date(now.getTime() - 14 * 86400000) },
+        },
+        select: { caseNumber: true, clientName: true, createdAt: true, status: true },
+        take: 10,
+      }),
+      prisma.appError.count({
+        where: { createdAt: { gte: new Date(now.getTime() - 86400000) } },
+      }),
+      prisma.message.count({
+        where: { recipientId: userId, read: false, archived: false },
+      }),
+    ])
+
+    let text = "DAILY BRIEFING:\n\n"
+
+    if (overdueDeadlines.length > 0) {
+      text += `🔴 ${overdueDeadlines.length} OVERDUE DEADLINE(S):\n`
+      for (const d of overdueDeadlines) {
+        const daysOver = Math.floor((now.getTime() - d.dueDate.getTime()) / 86400000)
+        text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName}) — ${daysOver} days overdue\n`
+        const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
+        if (consequence) text += `    ⚠ ${consequence}\n`
+      }
+      text += "\n"
+    }
+
+    if (todayDeadlines.length > 0) {
+      text += `📅 DUE TODAY (${todayDeadlines.length}):\n`
+      for (const d of todayDeadlines) {
+        text += `  - ${d.title} (${d.case.caseNumber} · ${d.case.clientName})\n`
+      }
+      text += "\n"
+    }
+
+    if (weekDeadlines.length > 0) {
+      text += `📋 DUE THIS WEEK (${weekDeadlines.length}):\n`
+      for (const d of weekDeadlines) {
+        const daysUntil = Math.floor((d.dueDate.getTime() - now.getTime()) / 86400000)
+        text += `  - ${d.title} (${d.case.caseNumber}) — in ${daysUntil} day(s) · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
+        if (consequence && daysUntil <= 3) text += `    ⚠ IF MISSED: ${consequence}\n`
+      }
+      text += "\n"
+    }
+
+    const actions: string[] = []
+    if (pendingReviews > 0) actions.push(`${pendingReviews} AI output(s) waiting for review`)
+    if (unreadMessages > 0) actions.push(`${unreadMessages} unread message(s)`)
+    if (staleCases.length > 0) {
+      actions.push(`${staleCases.length} case(s) with no activity in 14+ days:`)
+      for (const c of staleCases.slice(0, 5)) {
+        actions.push(`    ${c.caseNumber} · ${c.clientName} · ${c.status}`)
+      }
+    }
+    if (recentErrors > 0) actions.push(`${recentErrors} system error(s) in the last 24 hours`)
+
+    if (actions.length > 0) {
+      text += "NEEDS ATTENTION:\n"
+      for (const a of actions) text += `  - ${a}\n`
+      text += "\n"
+    }
+
+    if (overdueDeadlines.length === 0 && todayDeadlines.length === 0 && actions.length === 0) {
+      text += "✅ All clear — no urgent items today.\n"
+    }
+
+    sections.push(text)
+  }
+
+  // ── NEXT STEPS ──
+  if (query.nextSteps) {
+    let targetCase = null
+    if (query.caseDetail) {
+      targetCase = await prisma.case.findFirst({
+        where: {
+          OR: [
+            { caseNumber: { equals: query.caseDetail, mode: "insensitive" } },
+            { clientName: { contains: query.caseDetail, mode: "insensitive" } },
+          ],
+        },
+        include: {
+          documents: { select: { documentCategory: true, fileName: true } },
+          aiTasks: { select: { taskType: true, status: true }, orderBy: { createdAt: "desc" } },
+          deadlines: { select: { title: true, type: true, dueDate: true, status: true, priority: true } },
+          intelligence: true,
+        },
+      })
+    }
+
+    if (targetCase) {
+      const steps = getNextSteps(targetCase)
+      if (steps.length > 0) {
+        let text = "\nRECOMMENDED NEXT STEPS:\n"
+        for (const step of steps) {
+          const icon = step.priority === "CRITICAL" ? "🔴" : step.priority === "HIGH" ? "🟡" : "🔵"
+          text += `\n${icon} [${step.priority}] ${step.action}\n`
+          text += `   ${step.reason}\n`
+        }
+        sections.push(text)
+      }
+    }
+  }
+
+  // ── DOCUMENT GAP ANALYSIS ──
+  if (query.documentGap) {
+    let targetCase = null
+    if (query.caseDetail) {
+      targetCase = await prisma.case.findFirst({
+        where: {
+          OR: [
+            { caseNumber: { equals: query.caseDetail, mode: "insensitive" } },
+            { clientName: { contains: query.caseDetail, mode: "insensitive" } },
+          ],
+        },
+        include: {
+          documents: { select: { documentCategory: true, fileName: true } },
+        },
+      })
+    }
+
+    if (targetCase) {
+      const gap = analyzeDocumentGaps(targetCase)
+      let text = `\nDOCUMENT GAP ANALYSIS — ${(targetCase as any).caseType}:\n`
+      text += `Completeness: ${Math.round(gap.completeness * 100)}%\n`
+      text += `${gap.summary}\n\n`
+
+      if (gap.missing.length > 0) {
+        text += "MISSING:\n"
+        for (const m of gap.missing) {
+          text += `  ${m.critical ? "❌" : "⬜"} ${m.label}${m.critical ? " — REQUIRED" : ""}\n`
+        }
+        text += "\n"
+      }
+      text += "PRESENT:\n"
+      for (const p of gap.present) {
+        text += `  ✅ ${p.category} (${p.count}): ${p.fileName}\n`
+      }
+      sections.push(text)
+    }
+  }
+
+  // ── COMPLIANCE MONITOR ──
+  if (query.compliance) {
+    const now = new Date()
+    const [
+      totalCases,
+      casesByStatus,
+      casesNoActivity30,
+      casesNoDeadlines,
+      overdueCount,
+      pendingOver48h,
+      intakeOver30,
+    ] = await Promise.all([
+      prisma.case.count({ where: { status: { notIn: ["CLOSED"] } } }),
+      prisma.case.groupBy({ by: ["status"], _count: true }),
+      prisma.case.count({
+        where: {
+          status: { notIn: ["RESOLVED", "CLOSED"] },
+          updatedAt: { lt: new Date(now.getTime() - 30 * 86400000) },
+        },
+      }),
+      prisma.case.count({
+        where: {
+          status: { notIn: ["RESOLVED", "CLOSED"] },
+          deadlines: { none: {} },
+        },
+      }),
+      prisma.deadline.count({
+        where: { dueDate: { lt: now }, status: "UPCOMING" },
+      }),
+      prisma.aITask.count({
+        where: {
+          status: "READY_FOR_REVIEW",
+          createdAt: { lt: new Date(now.getTime() - 48 * 3600000) },
+        },
+      }),
+      prisma.case.count({
+        where: {
+          status: "INTAKE",
+          createdAt: { lt: new Date(now.getTime() - 30 * 86400000) },
+        },
+      }),
+    ])
+
+    let text = "PRACTICE COMPLIANCE DASHBOARD:\n"
+    text += `Total active cases: ${totalCases}\n`
+    text += `By status: ${casesByStatus.map(s => `${s.status} (${s._count})`).join(", ")}\n\n`
+
+    const warnings: string[] = []
+    if (overdueCount > 0) warnings.push(`${overdueCount} overdue deadline(s) across all cases`)
+    if (pendingOver48h > 0) warnings.push(`${pendingOver48h} AI output(s) pending review for 48+ hours`)
+    if (casesNoActivity30 > 0) warnings.push(`${casesNoActivity30} active case(s) with no activity in 30+ days`)
+    if (intakeOver30 > 0) warnings.push(`${intakeOver30} case(s) stuck in INTAKE for 30+ days`)
+    if (casesNoDeadlines > 0) warnings.push(`${casesNoDeadlines} active case(s) with no deadlines set`)
+
+    if (warnings.length > 0) {
+      text += "⚠ WARNINGS:\n"
+      for (const w of warnings) text += `  - ${w}\n`
+    } else {
+      text += "✅ No compliance warnings.\n"
+    }
+
+    sections.push(text)
+  }
+
+  // ── STRATEGY PATTERN MATCHING ──
+  if (query.strategyMatch) {
+    try {
+      const approvedDocs = await prisma.knowledgeDocument.findMany({
+        where: {
+          category: "APPROVED_OUTPUT",
+          isActive: true,
+        },
+        select: {
+          title: true,
+          description: true,
+          createdAt: true,
+          hitCount: true,
+          tags: true,
+        },
+        orderBy: { hitCount: "desc" },
+        take: 8,
+      })
+
+      if (approvedDocs.length > 0) {
+        let text = "SIMILAR APPROVED WORK PRODUCT IN KNOWLEDGE BASE:\n"
+        for (const doc of approvedDocs) {
+          text += `  - ${doc.title} (${formatDate(doc.createdAt)}) — referenced ${doc.hitCount} times\n`
+          if (doc.description) text += `    ${doc.description}\n`
+          if (doc.tags.length > 0) text += `    Tags: ${doc.tags.join(", ")}\n`
+        }
+        text += "\nThe AI analysis engine automatically uses these as reference material for new analyses of the same case type.\n"
+        sections.push(text)
+      }
+    } catch {
+      // KB search failed, skip
+    }
   }
 
   if (sections.length === 0) return ""

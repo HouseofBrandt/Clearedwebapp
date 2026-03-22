@@ -67,6 +67,26 @@ export async function POST(request: NextRequest) {
     console.warn("[Chat] Platform data fetch failed:", e.message)
   }
 
+  // If we're on a case page and asking about next steps or documents,
+  // auto-inject the case number for data lookup
+  if (caseContext?.caseNumber) {
+    try {
+      const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop()
+      if (lastUserMsg) {
+        const extraNeeds = detectDataNeeds(lastUserMsg.content)
+        if ((extraNeeds.nextSteps || extraNeeds.documentGap) && !extraNeeds.caseDetail) {
+          const extraData = await fetchPlatformData(
+            { caseDetail: caseContext.caseNumber, nextSteps: extraNeeds.nextSteps, documentGap: extraNeeds.documentGap },
+            (session.user as any).id
+          )
+          if (extraData) systemPrompt += extraData
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // Stream response
   const stream = anthropic.messages.stream({
     model: model || "claude-sonnet-4-6",
