@@ -141,68 +141,54 @@ function formatInline(text: string): React.ReactNode {
 function getSuggestions(caseContext: CaseContext | null): string[] {
   if (caseContext) {
     const type = caseContext.caseType
-    if (type === "OIC") {
-      return [
-        "What's the RCP calculation methodology?",
-        "Explain dissipated asset rules for OIC",
-        "What are IRS National Standards for a family of 5?",
-      ]
-    }
-    if (type === "IA") {
-      return [
-        "When does a taxpayer qualify for a streamlined IA?",
-        "What is a PPIA and when should we consider one?",
-        "Explain the IA user fee and financial hardship waiver",
-      ]
-    }
-    if (type === "PENALTY") {
-      return [
-        "What are the requirements for First Time Abate?",
-        "How does reasonable cause work under Treas. Reg. § 301.6651-1(c)?",
-        "Can we stack FTA with reasonable cause?",
-      ]
-    }
-    if (type === "CDP") {
-      return [
-        "What are the CDP hearing request deadlines?",
+    // First suggestion is always operational, rest are legal
+    const operational = [
+      "What should I do next on this case?",
+      "What documents am I missing?",
+      "Run a health check on this case",
+    ]
+
+    const legal: Record<string, string[]> = {
+      OIC: [
+        "Explain the RCP calculation for this case",
+        "What are the dissipated asset rules?",
+      ],
+      IA: [
+        "Does this client qualify for a streamlined IA?",
+        "What is a PPIA and when should we use one?",
+      ],
+      PENALTY: [
+        "What are the FTA requirements?",
+        "Draft reasonable cause language for this case",
+      ],
+      CDP: [
         "What issues can be raised at a CDP hearing?",
         "Explain equivalent hearing vs timely CDP request",
-      ]
+      ],
+      TFRP: [
+        "What makes someone a responsible person under § 6672?",
+        "How do we prepare for a Form 4180 interview?",
+      ],
+      INNOCENT_SPOUSE: [
+        "Compare § 6015(b) vs (c) vs (f) relief",
+        "What are the Rev. Proc. 2013-34 factors?",
+      ],
+      CNC: [
+        "What qualifies a taxpayer for CNC status?",
+        "How does CNC interact with CSED expiration?",
+      ],
     }
-    if (type === "TFRP") {
-      return [
-        "What makes someone a responsible person under IRC § 6672?",
-        "How is willfulness determined for TFRP?",
-        "Can we appeal a proposed TFRP assessment?",
-      ]
-    }
-    if (type === "INNOCENT_SPOUSE") {
-      return [
-        "Compare relief under IRC § 6015(b), (c), and (f)",
-        "What factors does Rev. Proc. 2013-34 weigh?",
-        "What is the deadline to request innocent spouse relief?",
-      ]
-    }
-    if (type === "CNC") {
-      return [
-        "What are the criteria for CNC hardship designation?",
-        "Does CNC status stop the CSED?",
-        "How often does the IRS review CNC accounts?",
-      ]
-    }
-    // Generic case-context suggestions
-    return [
-      "What should I do next with this case?",
-      "What's the current status of this case?",
-      "What deadlines exist for this case?",
-      "What AI tasks have been run on this case?",
-    ]
+
+    // Pick 1 operational + 2 legal (or 3 operational if no legal)
+    const legalQ = legal[type] || ["What resolution options are available?", "What are the key deadlines?"]
+    return [operational[0], legalQ[0], operational[1]]
   }
 
+  // No case context — practice-level suggestions
   return [
-    "How do I generate OIC working papers?",
-    "What's the best workflow for a new case?",
-    "What deadlines are coming up?",
+    "Good morning — what needs my attention today?",
+    "Any overdue deadlines across my cases?",
+    "Show me the practice compliance dashboard",
     "What's in the review queue?",
   ]
 }
