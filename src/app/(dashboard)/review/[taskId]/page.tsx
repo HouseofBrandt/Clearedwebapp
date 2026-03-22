@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import { notFound } from "next/navigation"
 import { TaskReview } from "@/components/review/task-review"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, FolderOpen } from "lucide-react"
 import Link from "next/link"
 import { TASK_TYPE_LABELS } from "@/types"
@@ -35,6 +36,30 @@ export default async function ReviewTaskPage({
 
   if (!task) {
     notFound()
+  }
+
+  if (task.status !== "READY_FOR_REVIEW") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/review">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <h1 className="text-2xl font-bold">Task Already Reviewed</h1>
+        </div>
+        <div className="rounded-lg border p-6 text-center space-y-4">
+          <p className="text-muted-foreground">This task has already been reviewed.</p>
+          <Badge variant="outline">{task.status.replace(/_/g, " ")}</Badge>
+          <div>
+            <Link href="/review" className="text-sm text-primary hover:underline">
+              Back to Review Queue
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
