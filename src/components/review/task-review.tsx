@@ -95,7 +95,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
           action,
           editedOutput: editing ? output : undefined,
           reviewNotes: action === "REJECT_REPROMPT" ? correctionNotes : reviewNotes,
-          reviewStartedAt,
+          reviewStartedAt: new Date(reviewStartedAt).toISOString(),
           flagsAcknowledged: allFlagsAcknowledged,
         }),
       })
