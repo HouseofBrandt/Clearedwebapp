@@ -83,13 +83,15 @@ export async function POST(
       },
     })
 
-    // Audit log
-    await logReviewAction({
+    // Audit log (fire-and-forget — don't block review on audit logging)
+    logReviewAction({
       aiTaskId: params.taskId,
       practitionerId: auth.userId,
       caseId: task.caseId,
       action,
-      reviewNotes,
+      reviewNotes: reviewNotes || undefined,
+    }).catch((err) => {
+      console.error("[Review] Audit log failed (non-blocking):", err.message)
     })
 
     // Log activity (fire-and-forget)
@@ -105,41 +107,40 @@ export async function POST(
     }).catch(() => {})
 
     // Fire-and-forget notification to the task creator
-    if (task.createdById && task.createdById !== auth.userId) {
-      const taskLabel = task.taskType.replace(/_/g, " ")
-      const caseInfo = await prisma.case.findUnique({
-        where: { id: task.caseId },
-        select: { caseNumber: true },
-      })
-      const caseNumber = caseInfo?.caseNumber || task.caseId
+    try {
+      if (task.createdById && task.createdById !== auth.userId) {
+        const caseInfo = await prisma.case.findUnique({
+          where: { id: task.caseId },
+          select: { caseNumber: true },
+        })
+        const caseNumber = caseInfo?.caseNumber || task.caseId
 
-      if (newStatus === "APPROVED") {
         notify({
           recipientId: task.createdById,
-          type: "TASK_APPROVED",
-          subject: `${taskLabel} approved`,
-          body: `Your ${taskLabel} for ${caseNumber} has been approved and is now a deliverable.`,
-          caseId: task.caseId,
-          aiTaskId: task.id,
-        }).catch(() => {})
-      } else {
-        notify({
-          recipientId: task.createdById,
-          type: "TASK_REJECTED",
-          subject: `${taskLabel} rejected`,
-          body: `Your ${taskLabel} for ${caseNumber} was rejected.${reviewNotes ? ` Notes: ${reviewNotes}` : ""}`,
+          type: newStatus === "APPROVED" ? "TASK_APPROVED" : "TASK_REJECTED",
+          subject: `${taskLabel} ${newStatus === "APPROVED" ? "approved" : "rejected"}`,
+          body: newStatus === "APPROVED"
+            ? `Your ${taskLabel} for ${caseNumber} has been approved.`
+            : `Your ${taskLabel} for ${caseNumber} was rejected.${reviewNotes ? ` Notes: ${reviewNotes}` : ""}`,
           caseId: task.caseId,
           aiTaskId: task.id,
         }).catch(() => {})
       }
+    } catch (notifyErr: any) {
+      console.error("[Review] Notification failed (non-blocking):", notifyErr.message)
     }
 
     return NextResponse.json({
       reviewAction,
       taskStatus: newStatus,
     })
-  } catch (error) {
-    console.error("Review error:", error)
-    return NextResponse.json({ error: "Review action failed" }, { status: 500 })
+  } catch (error: any) {
+    console.error("[Review] Action failed:", error.message)
+    console.error("[Review] Stack:", error.stack)
+    console.error("[Review] Task:", params.taskId)
+    return NextResponse.json(
+      { error: "Review action failed", detail: error.message },
+      { status: 500 }
+    )
   }
 }
