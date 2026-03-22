@@ -166,6 +166,8 @@ const analyzeSchema = z.object({
   additionalContext: z.string().optional(),
   model: z.enum(VALID_MODELS).optional(),
   casePosture: casePostureSchema,
+  rejectionDocumentId: z.string().optional(),
+  strategyNotes: z.string().optional(),
 })
 
 // Each task type maps to its specific prompt file
@@ -252,7 +254,7 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const { caseId, taskType, additionalContext, model: requestedModel, casePosture } = parsed.data
+  const { caseId, taskType, additionalContext, model: requestedModel, casePosture, rejectionDocumentId, strategyNotes } = parsed.data
   const userId = auth.userId
 
   // Fetch case with documents
@@ -456,6 +458,26 @@ export async function POST(request: NextRequest) {
         }
 
         userMessage += `Case Type: ${caseData.caseType}\nTABS: ${caseData.tabsNumber}\n\n`
+
+        // For appeals rebuttals, highlight the rejection letter and include strategy notes
+        if (taskType === "APPEALS_REBUTTAL") {
+          if (rejectionDocumentId) {
+            const rejectionDoc = caseData.documents.find(d => d.id === rejectionDocumentId)
+            if (rejectionDoc && rejectionDoc.extractedText) {
+              const { tokenizedText: tokenizedRejection } = tokenizeText(rejectionDoc.extractedText, knownNames)
+              userMessage += `--- PRIMARY REJECTION LETTER (${rejectionDoc.fileName}) ---\n`
+              userMessage += `${tokenizedRejection}\n`
+              userMessage += `--- END REJECTION LETTER ---\n\n`
+              userMessage += `IMPORTANT: The above is the IRS rejection letter to rebut. Focus your point-by-point rebuttal on every reason stated in this document.\n\n`
+            }
+          }
+          if (strategyNotes) {
+            const { tokenizedText: tokenizedNotes } = tokenizeText(strategyNotes, knownNames)
+            userMessage += `PRACTITIONER STRATEGY NOTES:\n${tokenizedNotes}\n\n`
+            userMessage += `IMPORTANT: Incorporate the practitioner's strategic guidance above into the rebuttal.\n\n`
+          }
+        }
+
         userMessage += `Documents:\n${tokenizedDocText}`
         if (tokenizedContext) {
           userMessage += `\n\nAdditional Context:\n${tokenizedContext}`

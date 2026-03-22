@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import {
   Inbox, Clock, ClipboardCheck, CheckCircle2, XCircle,
   Bug, Lightbulb, MessageSquare, Megaphone, ArrowLeft,
-  ArchiveX, Reply, ExternalLink, RefreshCw,
+  ArchiveX, Reply, ExternalLink, RefreshCw, Trash2,
+  Mail, MailOpen, Archive, CheckSquare,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -103,9 +104,11 @@ export function InboxList({
   const [messages, setMessages] = useState<MessageData[]>(initialMessages)
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<FilterType>("ALL")
   const [showCompose, setShowCompose] = useState(false)
   const [showExport, setShowExport] = useState(false)
+  const [bulkLoading, setBulkLoading] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -172,6 +175,69 @@ export function InboxList({
     router.refresh()
   }
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === filteredMessages.length && filteredMessages.length > 0) {
+        return new Set()
+      }
+      return new Set(filteredMessages.map((m) => m.id))
+    })
+  }, [filteredMessages])
+
+  const bulkUpdate = useCallback(async (updates: { archived?: boolean; read?: boolean; implementationStatus?: string }) => {
+    if (selectedIds.size === 0) return
+    setBulkLoading(true)
+    try {
+      const res = await fetch("/api/messages/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageIds: Array.from(selectedIds), updates }),
+      })
+      if (!res.ok) throw new Error("Bulk update failed")
+      const data = await res.json()
+      setSelectedIds(new Set())
+      router.refresh()
+      addToast({ title: `Updated ${data.updated} message${data.updated === 1 ? "" : "s"}` })
+    } catch {
+      addToast({ title: "Bulk update failed", variant: "destructive" })
+    } finally {
+      setBulkLoading(false)
+    }
+  }, [selectedIds, router, addToast])
+
+  const bulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    setBulkLoading(true)
+    try {
+      const res = await fetch("/api/messages/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageIds: Array.from(selectedIds) }),
+      })
+      if (!res.ok) throw new Error("Bulk delete failed")
+      const data = await res.json()
+      setSelectedIds(new Set())
+      router.refresh()
+      addToast({ title: `Deleted ${data.deleted} message${data.deleted === 1 ? "" : "s"}` })
+    } catch {
+      addToast({ title: "Bulk delete failed", variant: "destructive" })
+    } finally {
+      setBulkLoading(false)
+    }
+  }, [selectedIds, router, addToast])
+
   const filters: { key: FilterType; label: string }[] = [
     { key: "ALL", label: "All" },
     { key: "UNREAD", label: "Unread" },
@@ -223,6 +289,77 @@ export function InboxList({
           ))}
         </div>
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/10 px-4 py-2">
+            <input
+              type="checkbox"
+              checked={selectedIds.size === filteredMessages.length && filteredMessages.length > 0}
+              onChange={toggleSelectAll}
+              className="h-4 w-4 rounded border-gray-300 accent-primary"
+            />
+            <span className="text-xs font-medium text-muted-foreground">
+              {selectedIds.size} selected
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={bulkLoading}
+                onClick={() => {
+                  const allRead = Array.from(selectedIds).every(
+                    (id) => messages.find((m) => m.id === id)?.read
+                  )
+                  bulkUpdate({ read: !allRead })
+                }}
+              >
+                {Array.from(selectedIds).every((id) => messages.find((m) => m.id === id)?.read) ? (
+                  <><MailOpen className="mr-1 h-3.5 w-3.5" />Mark Unread</>
+                ) : (
+                  <><Mail className="mr-1 h-3.5 w-3.5" />Mark Read</>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={bulkLoading}
+                onClick={() => bulkUpdate({ archived: true })}
+              >
+                <Archive className="mr-1 h-3.5 w-3.5" />
+                Archive
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-destructive hover:text-destructive"
+                disabled={bulkLoading}
+                onClick={bulkDelete}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                Delete
+              </Button>
+              {isAdmin && (
+                <Select
+                  onValueChange={(v) => bulkUpdate({ implementationStatus: v })}
+                >
+                  <SelectTrigger className="h-7 w-[140px] text-xs">
+                    <SelectValue placeholder="Set Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="implemented">Implemented</SelectItem>
+                    <SelectItem value="wont_fix">Won&apos;t Fix</SelectItem>
+                    <SelectItem value="duplicate">Duplicate</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Message list */}
         <div className="flex-1 overflow-y-auto">
           {filteredMessages.length === 0 ? (
@@ -235,32 +372,44 @@ export function InboxList({
             filteredMessages.map((msg) => {
               const Icon = TYPE_ICONS[msg.type] || MessageSquare
               const iconColor = TYPE_ICON_COLORS[msg.type] || "text-muted-foreground"
-              const isSelected = selectedId === msg.id
+              const isViewing = selectedId === msg.id
+              const isChecked = selectedIds.has(msg.id)
               return (
-                <button
+                <div
                   key={msg.id}
-                  onClick={() => selectMessage(msg)}
-                  className={`flex w-full items-start gap-3 border-b border-l-[3px] px-4 py-3 text-left transition-colors ${
-                    isSelected ? "bg-muted/60" : msg.read ? "border-l-transparent hover:bg-muted/30" : `${BORDER_COLORS[msg.type] || "border-l-primary"} bg-primary/5 hover:bg-primary/10`
+                  className={`flex w-full items-start gap-2 border-b border-l-[3px] px-4 py-3 text-left transition-colors ${
+                    isViewing ? "bg-muted/60" : msg.read ? "border-l-transparent hover:bg-muted/30" : `${BORDER_COLORS[msg.type] || "border-l-primary"} bg-primary/5 hover:bg-primary/10`
                   }`}
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className={`truncate text-sm ${msg.read ? "font-normal" : "font-medium"}`}>
-                      {msg.subject}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {formatRelative(msg.createdAt)}
-                      {" · "}
-                      {msg.sender?.name || msg.senderName || MESSAGE_TYPE_LABELS[msg.type] || "System"}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {(msg.priority === "HIGH" || msg.priority === "URGENT") && (
-                      <span className={`h-2 w-2 rounded-full ${msg.priority === "URGENT" ? "bg-red-500" : "bg-orange-500"}`} />
-                    )}
-                    <Icon className={`h-4 w-4 ${iconColor}`} />
-                  </div>
-                </button>
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => toggleSelect(msg.id)}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-primary cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button
+                    onClick={() => selectMessage(msg)}
+                    className="flex flex-1 items-start gap-3 min-w-0"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className={`truncate text-sm ${msg.read ? "font-normal" : "font-medium"}`}>
+                        {msg.subject}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {formatRelative(msg.createdAt)}
+                        {" · "}
+                        {msg.sender?.name || msg.senderName || MESSAGE_TYPE_LABELS[msg.type] || "System"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {(msg.priority === "HIGH" || msg.priority === "URGENT") && (
+                        <span className={`h-2 w-2 rounded-full ${msg.priority === "URGENT" ? "bg-red-500" : "bg-orange-500"}`} />
+                      )}
+                      <Icon className={`h-4 w-4 ${iconColor}`} />
+                    </div>
+                  </button>
+                </div>
               )
             })
           )}

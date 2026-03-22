@@ -34,8 +34,10 @@ import {
   AlertTriangle,
   CheckSquare,
   ArrowUpDown,
+  Clock,
 } from "lucide-react"
 import { DOCUMENT_CATEGORY_LABELS } from "@/types"
+import { getFreshnessLabel } from "@/lib/case-intelligence/document-freshness"
 
 const fileTypeIcons: Record<string, any> = {
   PDF: FileText,
@@ -263,7 +265,30 @@ export function DocumentList({ documents }: DocumentListProps) {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{doc.fileName}</span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{doc.fileName}</span>
+                          {doc.freshnessStatus && (() => {
+                            const { label, color } = getFreshnessLabel(doc.freshnessStatus)
+                            if (!label) return null
+                            const colorClasses =
+                              color === "green" ? "bg-green-100 text-green-800" :
+                              color === "yellow" ? "bg-yellow-100 text-yellow-800" :
+                              color === "red" ? "bg-red-100 text-red-800" : ""
+                            return (
+                              <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${colorClasses}`}>
+                                <Clock className="h-2.5 w-2.5" />
+                                {label}
+                              </span>
+                            )
+                          })()}
+                        </div>
+                        {doc.statementDate && (
+                          <span className="text-[11px] text-muted-foreground">
+                            Statement: {new Date(doc.statementDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>

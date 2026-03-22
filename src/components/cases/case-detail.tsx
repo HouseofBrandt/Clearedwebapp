@@ -584,6 +584,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             caseType={caseData.caseType}
             documentCount={caseData.documents.length}
             documentsWithTextCount={caseData.documents.filter((d: any) => d.extractedText && d.extractedText.trim().length > 0).length}
+            documents={caseData.documents.map((d: any) => ({ id: d.id, fileName: d.fileName, documentCategory: d.documentCategory }))}
           />
           {failedTasks.length > 1 && (
             <div className="flex justify-end">

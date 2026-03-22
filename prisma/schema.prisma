@@ -254,6 +254,9 @@ model Document {
   fileSize         Int
   documentCategory DocumentCategory @default(OTHER)
   extractedText    String?
+  statementDate    DateTime?
+  expiresAt        DateTime?
+  freshnessStatus  String?          // "fresh" | "expiring_soon" | "expired"
   uploadedById     String
   uploadedBy       User             @relation(fields: [uploadedById], references: [id])
   uploadedAt       DateTime         @default(now())
