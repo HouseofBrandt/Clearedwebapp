@@ -36,7 +36,9 @@ export function SmartStatusCard({ caseData, intelligence }: SmartStatusCardProps
       <div className="flex items-start justify-between">
         <div>
           <h3 className="font-semibold text-sm">
-            {caseData.caseNumber} · {caseData.caseType}
+            {caseData.caseNumber}
+            {caseData.tabsNumber && <span className="text-muted-foreground"> · TABS {caseData.tabsNumber}</span>}
+            {" · "}{caseData.caseType}
             {intel?.resolutionType && <span className="text-muted-foreground"> ({intel.resolutionType})</span>}
           </h3>
         </div>

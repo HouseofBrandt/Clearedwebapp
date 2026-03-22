@@ -76,6 +76,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
     clientEmail: "",
     clientPhone: "",
     totalLiability: "",
+    tabsNumber: "",
   })
   const [currentPage, setCurrentPage] = useState(1)
   const PAGE_SIZE = 25
@@ -89,6 +90,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
       const s = search.toLowerCase()
       return (
         c.caseNumber.toLowerCase().includes(s) ||
+        (c.tabsNumber && c.tabsNumber.toLowerCase().includes(s)) ||
         c.clientName.toLowerCase().includes(s)
       )
     }
@@ -120,6 +122,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
           clientEmail: newCase.clientEmail || undefined,
           clientPhone: newCase.clientPhone || undefined,
           totalLiability: newCase.totalLiability ? parseFloat(newCase.totalLiability) : undefined,
+          tabsNumber: newCase.tabsNumber || undefined,
         }),
       })
 
@@ -128,7 +131,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
       const created = await res.json()
       setCases([created, ...cases])
       setDialogOpen(false)
-      setNewCase({ clientName: "", caseType: "OTHER", notes: "", filingStatus: "", clientEmail: "", clientPhone: "", totalLiability: "" })
+      setNewCase({ clientName: "", caseType: "OTHER", notes: "", filingStatus: "", clientEmail: "", clientPhone: "", totalLiability: "", tabsNumber: "" })
       addToast({ title: "Case created", description: `Case ${created.caseNumber} has been created.` })
       router.refresh()
     } catch {
@@ -165,6 +168,16 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                   onChange={(e) => setNewCase({ ...newCase, clientName: e.target.value })}
                   placeholder="Enter client name"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tabsNumber">TABS Number</Label>
+                <Input
+                  id="tabsNumber"
+                  value={newCase.tabsNumber}
+                  onChange={(e) => setNewCase({ ...newCase, tabsNumber: e.target.value })}
+                  placeholder="e.g. 12345.001"
+                />
+                <p className="text-xs text-muted-foreground">PracticeMaster client ID (required for filing)</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="caseType">Case Type</Label>
@@ -262,7 +275,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search cases..."
+                placeholder="Search by case # or TABS #..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -315,6 +328,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Case #</TableHead>
+                  <TableHead className="hidden lg:table-cell">TABS</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead className="hidden xl:table-cell">Filing Status</TableHead>
@@ -330,6 +344,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                 {filteredCases.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((c) => (
                   <TableRow key={c.id} className="cursor-pointer" onClick={() => router.push(`/cases/${c.id}`)}>
                     <TableCell className="font-medium">{c.caseNumber}</TableCell>
+                    <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{c.tabsNumber || "—"}</TableCell>
                     <TableCell>{c.clientName}</TableCell>
                     <TableCell>
                       <span className="text-sm">{CASE_TYPE_LABELS[c.caseType as keyof typeof CASE_TYPE_LABELS] || c.caseType}</span>

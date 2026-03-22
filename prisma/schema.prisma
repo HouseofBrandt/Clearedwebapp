@@ -216,6 +216,7 @@ model User {
 model Case {
   id                    String     @id @default(cuid())
   caseNumber            String     @unique
+  tabsNumber            String?    @unique
   clientName            String
   clientNameEncrypted   String?
   status                CaseStatus @default(INTAKE)
@@ -240,6 +241,7 @@ model Case {
   intelligence      CaseIntelligence?
   activities        CaseActivity[]
 
+  @@index([tabsNumber])
   @@map("cases")
 }
 

@@ -119,6 +119,7 @@ export async function fetchPlatformData(
       prisma.case.findMany({
         select: {
           caseNumber: true,
+          tabsNumber: true,
           clientName: true,
           caseType: true,
           status: true,
@@ -138,7 +139,7 @@ export async function fetchPlatformData(
     text += `By type: ${byType.map(t => `${t.caseType} (${t._count})`).join(", ")}\n`
     text += `Recent cases:\n`
     for (const c of recent) {
-      text += `  - ${c.caseNumber} · ${c.clientName} · ${c.caseType} · ${c.status}`
+      text += `  - ${c.caseNumber}${c.tabsNumber ? ` · TABS ${c.tabsNumber}` : ""} · ${c.clientName} · ${c.caseType} · ${c.status}`
       if (c.totalLiability) text += ` · $${Number(c.totalLiability).toLocaleString()}`
       text += ` · ${c._count.documents} docs · ${c._count.aiTasks} tasks`
       text += ` · Assigned: ${c.assignedPractitioner?.name || "Unassigned"}\n`
@@ -172,7 +173,7 @@ export async function fetchPlatformData(
     })
 
     if (caseData) {
-      let text = `CASE DETAIL — ${caseData.caseNumber}:\n`
+      let text = `CASE DETAIL — ${caseData.caseNumber}${caseData.tabsNumber ? ` (TABS: ${caseData.tabsNumber})` : ""}:\n`
       text += `Client: ${caseData.clientName}\n`
       text += `Type: ${caseData.caseType} · Status: ${caseData.status}\n`
       if (caseData.filingStatus) text += `Filing Status: ${caseData.filingStatus}\n`
