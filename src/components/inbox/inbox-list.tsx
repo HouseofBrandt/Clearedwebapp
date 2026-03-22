@@ -110,6 +110,7 @@ export function InboxList({
   const { addToast } = useToast()
 
   const isAdmin = currentUserRole === "ADMIN"
+  const [refreshing, setRefreshing] = useState(false)
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
@@ -194,10 +195,14 @@ export function InboxList({
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => router.refresh()}
+            onClick={() => {
+              setRefreshing(true)
+              router.refresh()
+              setTimeout(() => setRefreshing(false), 1000)
+            }}
             title="Refresh inbox"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
           </Button>
         </div>
 

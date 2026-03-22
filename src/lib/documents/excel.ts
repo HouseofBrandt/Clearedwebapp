@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs"
+import { formatDate } from "@/lib/date-utils"
 
 const FONT = "Times New Roman"
 const HEADER_BG = "FF1B2A4A"
@@ -48,7 +49,7 @@ export async function generateOICWorkbook(
   cover.getCell("A4").font = { name: FONT, size: 12 }
   cover.getCell("A5").value = `Client: ${clientName}`
   cover.getCell("A5").font = { name: FONT, size: 12 }
-  cover.getCell("A6").value = `Generated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`
+  cover.getCell("A6").value = `Generated: ${formatDate(new Date(), { year: "numeric", month: "long", day: "numeric" })}`
   cover.getCell("A6").font = { name: FONT, size: 11, color: { argb: "FF666666" } }
   cover.getCell("A8").value = "DRAFT \u2014 Requires Practitioner Review and Approval"
   cover.getCell("A8").font = { name: FONT, bold: true, color: { argb: "FFCC0000" }, size: 12 }

@@ -21,6 +21,7 @@ import {
   convertInchesToTwip,
 } from "docx"
 import { marked, type Token, type Tokens } from "marked"
+import { formatDate } from "@/lib/date-utils"
 
 // ── Brand constants ─────────────────────────────────────────
 const FONT = "Times New Roman"
@@ -479,11 +480,7 @@ function buildCoverBlock(
     new Paragraph({
       children: [
         new TextRun({
-          text: `Generated: ${new Date().toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}`,
+          text: `Generated: ${formatDate(new Date(), { year: "numeric", month: "long", day: "numeric" })}`,
           font: FONT,
           size: 24,
           color: DARK_GRAY,

@@ -19,6 +19,7 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
   const [include, setInclude] = useState<"BUG_REPORT" | "FEATURE_REQUEST" | "BOTH">("BOTH")
   const [days, setDays] = useState("30")
   const [format, setFormat] = useState<"markdown" | "json">("markdown")
+  const [includeResolved, setIncludeResolved] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
   const handleDownload = async () => {
@@ -28,6 +29,7 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
       if (include !== "BOTH") params.set("type", include)
       if (days !== "0") params.set("days", days)
       params.set("format", format)
+      if (includeResolved) params.set("includeResolved", "true")
 
       const res = await fetch(`/api/messages/export?${params.toString()}`)
       if (!res.ok) throw new Error("Export failed")
@@ -125,6 +127,20 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
                 JSON (structured data)
               </label>
             </div>
+          </div>
+
+          {/* Include resolved */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="includeResolved"
+              checked={includeResolved}
+              onChange={(e) => setIncludeResolved(e.target.checked)}
+              className="accent-primary"
+            />
+            <label htmlFor="includeResolved" className="text-sm">
+              Include implemented / resolved items
+            </label>
           </div>
         </div>
 

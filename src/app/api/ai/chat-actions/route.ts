@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
+import { formatDate } from "@/lib/date-utils"
 
 const actionSchema = z.object({
   action: z.enum([
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
         let letterContent = `DOCUMENT REQUEST\n\n`
         letterContent += `To: ${clientName || "Client"}\n`
         letterContent += `From: ${auth.name}\n`
-        letterContent += `Date: ${new Date().toLocaleDateString("en-US")}\n`
+        letterContent += `Date: ${formatDate(new Date())}\n`
         letterContent += `Re: Documents Needed for Tax Resolution\n\n`
         letterContent += `Dear ${(clientName || "Client").split(" ")[0]},\n\n`
         letterContent += `In order to proceed with your tax resolution case, we need the following documents at your earliest convenience:\n\n`
