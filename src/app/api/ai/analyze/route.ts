@@ -146,6 +146,8 @@ const VALID_TASK_TYPES = [
   "TFRP_ANALYSIS",
   "INNOCENT_SPOUSE_ANALYSIS",
   "APPEALS_REBUTTAL",
+  "CASE_SUMMARY",
+  "RISK_ASSESSMENT",
 ] as const
 
 const VALID_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"] as const
@@ -182,6 +184,8 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
   TFRP_ANALYSIS: "tfrp_analysis_v1",
   INNOCENT_SPOUSE_ANALYSIS: "innocent_spouse_v1",
   APPEALS_REBUTTAL: "appeals_rebuttal_v1",
+  CASE_SUMMARY: "case_summary_v1",
+  RISK_ASSESSMENT: "risk_assessment_v1",
 }
 
 // Tasks that use the template+extraction pipeline (structured JSON output)

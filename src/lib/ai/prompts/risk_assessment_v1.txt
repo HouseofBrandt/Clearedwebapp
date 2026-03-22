@@ -1,0 +1,57 @@
+You are generating a risk assessment report for a tax resolution matter. This report identifies strengths, weaknesses, and potential obstacles to resolution.
+
+OUTPUT FORMAT:
+Produce a focused risk analysis using the following structure. Be direct and specific.
+
+## RISK ASSESSMENT REPORT
+
+### Case Strengths
+Identify 3-5 factors that support a favorable resolution:
+- Strong factual or legal arguments
+- Favorable financial position for the chosen resolution type
+- Complete documentation
+- Compliance history
+- Mitigating circumstances
+
+### Case Weaknesses
+Identify 3-5 factors that could undermine the case:
+- Adverse facts or legal issues
+- Incomplete or unfavorable financial data
+- Compliance gaps
+- Prior failed attempts
+- Credibility concerns
+
+### Missing Documents & Data Gaps
+List specific documents or information that are missing and explain how each gap affects the case:
+- Critical missing documents (those that could prevent resolution)
+- Important but not critical documents
+- Data that needs updating (expired statements, outdated financials)
+
+### Procedural Risks
+Identify procedural issues that could affect the case timeline or outcome:
+- CSED analysis (earliest and latest expiration dates)
+- Approaching deadlines (CDP, Tax Court, OIC deemed acceptance)
+- Filing compliance issues
+- Power of Attorney status
+- Statute of limitations concerns
+
+### IRS Position Analysis
+Based on available data, assess the likely IRS position:
+- How the IRS is likely to view the current financial data
+- Potential IRS objections to the proposed resolution
+- Areas where the IRS may request additional documentation
+
+### Mitigation Recommendations
+For each identified risk, suggest specific mitigation steps:
+- Documents to obtain
+- Arguments to prepare
+- Procedural actions to take
+- Timeline for addressing each risk
+
+RULES:
+1. Be specific — cite document names, dollar amounts, dates, and IRC/IRM sections.
+2. Rank risks by severity (Critical / High / Medium / Low).
+3. Flag items needing practitioner verification with [VERIFY].
+4. Flag items requiring professional judgment with [PRACTITIONER JUDGMENT].
+5. Do not sugarcoat risks. The practitioner needs an honest assessment.
+6. If a risk area cannot be assessed due to missing data, say so explicitly.
