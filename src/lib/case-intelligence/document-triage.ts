@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { prisma } from "@/lib/db"
 import { recalculateDocCompleteness } from "./doc-completeness"
+import { computeFreshness, recalculateFreshness } from "./document-freshness"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -17,6 +18,7 @@ export interface DocumentTriageResult {
   deadlineCritical?: boolean
   taxPeriodsFound?: string[]
   liabilityAmountFound?: number | null
+  statementDate?: string | null
   csedDatesFound?: Array<{ year: string; csed: string }>
   levyThreatDetected?: boolean
   lienMentioned?: boolean
@@ -66,6 +68,7 @@ Return this exact JSON structure:
 {
   "documentType": "IRS_NOTICE | IRS_TRANSCRIPT | BANK_STATEMENT | TAX_RETURN | PAY_STUB | MORTGAGE | INSURANCE | RETIREMENT | VEHICLE_LOAN | STUDENT_LOAN | UTILITY | BILL_OF_SALE | APPRAISAL | LEASE | CORRESPONDENCE | OTHER",
   "correctedCategory": "string or null if current category is correct",
+  "statementDate": "YYYY-MM-DD or null — the statement date, period ending date, or effective date of this document",
   "isIrsCorrespondence": true/false,
   "irsNoticeType": "CP14 | CP501 | CP503 | CP504 | LT11 | Letter1058 | 30DayLetter | 90DayLetter | AcceptanceLetter | RejectionLetter | null",
   "irsNoticeDate": "YYYY-MM-DD or null",
@@ -123,6 +126,30 @@ export async function processTriageResult(
       where: { id: params.documentId },
       data: { documentCategory: triageResult.correctedCategory as any },
     }).catch(() => {})
+  }
+
+  // 1b. Save statement date and compute freshness
+  if (triageResult.statementDate) {
+    const parsedDate = new Date(triageResult.statementDate)
+    if (!isNaN(parsedDate.getTime())) {
+      const docCategory = triageResult.correctedCategory || (
+        await prisma.document.findUnique({
+          where: { id: params.documentId },
+          select: { documentCategory: true },
+        })
+      )?.documentCategory || "OTHER"
+
+      const { expiresAt, freshnessStatus } = computeFreshness(parsedDate, docCategory)
+
+      await prisma.document.update({
+        where: { id: params.documentId },
+        data: {
+          statementDate: parsedDate,
+          expiresAt,
+          freshnessStatus,
+        },
+      }).catch(() => {})
+    }
   }
 
   // 2. Detect IRS correspondence and create deadlines
@@ -210,8 +237,9 @@ export async function processTriageResult(
     }
   }
 
-  // 6. Update document completeness
+  // 6. Update document completeness and freshness
   await recalculateDocCompleteness(params.caseId).catch(() => {})
+  await recalculateFreshness(params.caseId).catch(() => {})
 
   // 7. Write updates to CaseIntelligence
   await prisma.caseIntelligence.upsert({

@@ -7,7 +7,7 @@ import {
   analyzeDocumentGaps,
   DEADLINE_CONSEQUENCES,
 } from "@/lib/ai/workflow-intelligence"
-import { fetchRecentLogs, fetchDeployments } from "@/lib/infrastructure/vercel-logs"
+import { fetchRecentLogs, fetchDeployments, vercelHealthCheck } from "@/lib/infrastructure/vercel-logs"
 import { getFileContents, searchCode, getRecentCommits, getCommitDetails, getFileTree } from "@/lib/infrastructure/github-api"
 
 interface DataQuery {
@@ -846,6 +846,14 @@ export async function fetchPlatformData(
       const { logs, error } = await fetchRecentLogs({ limit: 40, since: thirtyMinAgo })
       if (error) {
         text += `⚠ Runtime logs unavailable: ${error}\n`
+        // Run health check to provide diagnostic context
+        try {
+          const health = await vercelHealthCheck()
+          text += `  Diagnostics: configured=${health.configured}, connected=${health.connected}\n`
+          text += `  Env vars: token=${health.envVars.token}, projectId=${health.envVars.projectId}, teamId=${health.envVars.teamId}\n`
+          if (health.error) text += `  Health check error: ${health.error}\n`
+        } catch {}
+        text += "\n"
       } else if (logs.length > 0) {
         const errors = logs.filter(l =>
           l.level === "error" ||

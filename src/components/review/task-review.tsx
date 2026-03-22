@@ -108,7 +108,8 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
       addToast({
         title: `Task ${action === "APPROVE" || action === "EDIT_APPROVE" ? "approved" : "rejected"}`,
       })
-      router.refresh()
+      // Brief delay so user sees the toast, then redirect to queue
+      setTimeout(() => router.push("/review"), 1200)
     } catch (err: any) {
       addToast({
         title: "Review failed",

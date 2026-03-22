@@ -8,11 +8,16 @@ import { AlertTriangle, CheckCircle, XCircle, Shield, FileText, ChevronDown, Che
 interface SmartStatusCardProps {
   caseData: any
   intelligence: any | null
+  documents?: any[]
 }
 
-export function SmartStatusCard({ caseData, intelligence }: SmartStatusCardProps) {
+export function SmartStatusCard({ caseData, intelligence, documents = [] }: SmartStatusCardProps) {
   const [docsExpanded, setDocsExpanded] = useState(false)
   const intel = intelligence
+
+  // Compute freshness counts from documents
+  const expiredCount = documents.filter(d => d.freshnessStatus === "expired").length
+  const expiringCount = documents.filter(d => d.freshnessStatus === "expiring_soon").length
 
   const currentPhase = intel?.resolutionPhase || "GATHERING_DOCUMENTS"
   const phaseInfo = RESOLUTION_PHASES[currentPhase]
@@ -141,6 +146,24 @@ export function SmartStatusCard({ caseData, intelligence }: SmartStatusCardProps
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Document freshness warnings */}
+      {(expiredCount > 0 || expiringCount > 0) && (
+        <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-2">
+          {expiredCount > 0 && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-red-700">
+              <AlertTriangle className="h-3 w-3" />
+              {expiredCount} expired document{expiredCount !== 1 ? "s" : ""} need{expiredCount === 1 ? "s" : ""} replacement
+            </p>
+          )}
+          {expiringCount > 0 && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
+              <AlertTriangle className="h-3 w-3" />
+              {expiringCount} document{expiringCount !== 1 ? "s" : ""} expiring within 30 days
+            </p>
           )}
         </div>
       )}

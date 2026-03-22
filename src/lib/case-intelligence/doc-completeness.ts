@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/db"
 
-const REQUIRED_DOCS_BY_TYPE: Record<string, Array<{
+interface DocRequirement {
   category: string
   label: string
   critical: boolean
   matchCount?: number
-}>> = {
+}
+
+const REQUIRED_DOCS_BY_TYPE: Record<string, DocRequirement[]> = {
   OIC: [
     { category: "IRS_NOTICE", label: "IRS Account Transcripts (all years)", critical: true },
     { category: "BANK_STATEMENT", label: "Personal Bank Statements (3 months)", critical: true, matchCount: 3 },
@@ -48,6 +50,62 @@ const REQUIRED_DOCS_BY_TYPE: Record<string, Array<{
   ],
 }
 
+/**
+ * Build a dynamic requirements list based on the case's type, filing status,
+ * and the documents already uploaded.
+ */
+export async function getCaseSpecificRequirements(caseId: string): Promise<DocRequirement[]> {
+  const caseData = await prisma.case.findUnique({
+    where: { id: caseId },
+    select: {
+      caseType: true,
+      filingStatus: true,
+      documents: { select: { documentCategory: true } },
+    },
+  })
+
+  if (!caseData) return []
+
+  // Start with the base requirements for this case type
+  const baseReqs = [
+    ...(REQUIRED_DOCS_BY_TYPE[caseData.caseType] || REQUIRED_DOCS_BY_TYPE["OIC"]),
+  ]
+
+  // MFJ: add spouse-specific documents
+  if (caseData.filingStatus === "MFJ") {
+    baseReqs.push(
+      { category: "PAY_STUB", label: "Spouse income documentation", critical: true },
+      { category: "BANK_STATEMENT", label: "Spouse bank statements (3 months)", critical: true, matchCount: 3 },
+    )
+  }
+
+  // TFRP: always need payroll records
+  if (caseData.caseType === "TFRP") {
+    const hasPayroll = baseReqs.some(r => r.category === "PAYROLL")
+    if (!hasPayroll) {
+      baseReqs.push(
+        { category: "PAYROLL", label: "Payroll records (Form 941 periods)", critical: true },
+      )
+    }
+  }
+
+  // OIC with business involvement: check if any business bank statements exist
+  if (caseData.caseType === "OIC") {
+    const uploadedCategories = caseData.documents.map(d => d.documentCategory)
+    const hasBusinessBank = uploadedCategories.filter(c => c === "BANK_STATEMENT").length > 3
+    if (hasBusinessBank) {
+      // Business is involved — add 433-B related docs
+      baseReqs.push(
+        { category: "TAX_RETURN", label: "Business tax returns (Form 1120/1065)", critical: true },
+        { category: "BANK_STATEMENT", label: "Business bank statements for 433-B (6 months)", critical: true, matchCount: 6 },
+        { category: "PAYROLL", label: "Business payroll records", critical: true },
+      )
+    }
+  }
+
+  return baseReqs
+}
+
 export async function recalculateDocCompleteness(caseId: string) {
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
@@ -59,7 +117,7 @@ export async function recalculateDocCompleteness(caseId: string) {
 
   if (!caseData) return
 
-  const required = REQUIRED_DOCS_BY_TYPE[caseData.caseType] || REQUIRED_DOCS_BY_TYPE["OIC"]
+  const required = await getCaseSpecificRequirements(caseId)
   const uploadedCategories = caseData.documents.map(d => d.documentCategory)
 
   const categoryCount: Record<string, number> = {}
