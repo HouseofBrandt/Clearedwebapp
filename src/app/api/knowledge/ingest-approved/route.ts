@@ -3,6 +3,7 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { ingestDocument } from "@/lib/knowledge/ingest"
 import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
+import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { formatDate } from "@/lib/date-utils"
 import { TASK_TYPE_LABELS, CASE_TYPE_LABELS } from "@/types"
 
@@ -61,6 +62,16 @@ export async function POST(request: NextRequest) {
   })
 
   const result = await ingestDocument(doc.id, scrubbed)
+
+  logAudit({
+    userId: auth.userId,
+    action: AUDIT_ACTIONS.KB_OUTPUT_ADDED,
+    aiTaskId: task.id,
+    caseId: task.case.id,
+    resourceId: doc.id,
+    resourceType: "KnowledgeDocument",
+    metadata: { taskType: task.taskType, title: doc.title },
+  })
 
   return NextResponse.json({
     id: doc.id,

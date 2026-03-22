@@ -3,6 +3,7 @@ import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
 import { DEADLINE_DEFAULT_PRIORITY } from "@/types"
+import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 const VALID_TYPES = [
   "CDP_HEARING", "EQUIVALENT_HEARING", "TAX_COURT_PETITION", "CSED_EXPIRATION",
@@ -137,6 +138,16 @@ export async function POST(request: NextRequest) {
       case: { select: { id: true, caseNumber: true, clientName: true } },
       assignedTo: { select: { id: true, name: true } },
     },
+  })
+
+  // Audit log (fire-and-forget)
+  logAudit({
+    userId: auth.userId,
+    action: AUDIT_ACTIONS.DEADLINE_CREATED,
+    caseId: data.caseId,
+    resourceId: deadline.id,
+    resourceType: "Deadline",
+    metadata: { type: data.type, title: data.title, dueDate: data.dueDate },
   })
 
   // Log activity (fire-and-forget)

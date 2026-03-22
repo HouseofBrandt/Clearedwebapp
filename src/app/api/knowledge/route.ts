@@ -3,6 +3,7 @@ import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { ingestDocument } from "@/lib/knowledge/ingest"
 import { extractTextFromBuffer } from "@/lib/documents/extract"
+import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { z } from "zod"
 
 const VALID_CATEGORIES = [
@@ -125,6 +126,14 @@ export async function POST(request: NextRequest) {
     })
 
     const result = await ingestDocument(doc.id, sourceText)
+
+    logAudit({
+      userId: auth.userId,
+      action: AUDIT_ACTIONS.KB_DOCUMENT_UPLOADED,
+      resourceId: doc.id,
+      resourceType: "KnowledgeDocument",
+      metadata: { title: doc.title, category },
+    })
 
     return NextResponse.json(
       { id: doc.id, title: doc.title, chunksCreated: result.chunksCreated, warning: result.error },

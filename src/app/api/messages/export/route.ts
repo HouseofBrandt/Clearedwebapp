@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { formatDate } from "@/lib/date-utils"
+import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth()
@@ -39,6 +40,13 @@ export async function GET(request: NextRequest) {
   if (days > 0) {
     where.createdAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) }
   }
+
+  logAudit({
+    userId: auth.userId,
+    action: AUDIT_ACTIONS.MESSAGES_EXPORTED,
+    metadata: { type: type || "all", format, count: 0 },
+    ipAddress: getClientIP(),
+  })
 
   const messages = await prisma.message.findMany({
     where,

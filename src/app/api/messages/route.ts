@@ -3,6 +3,7 @@ import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
 import { notifyAdmins, notifyAll } from "@/lib/notifications"
+import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 const sendSchema = z.object({
   recipientId: z.string().min(1),
@@ -133,6 +134,17 @@ export async function POST(request: NextRequest) {
         tags: data.tags || [],
         parentId: data.parentId,
       },
+    })
+
+    const auditAction = data.type === "BUG_REPORT"
+      ? AUDIT_ACTIONS.BUG_REPORT_SUBMITTED
+      : data.type === "FEATURE_REQUEST"
+        ? AUDIT_ACTIONS.FEATURE_REQUEST_SUBMITTED
+        : AUDIT_ACTIONS.MESSAGE_SENT
+    logAudit({
+      userId: auth.userId,
+      action: auditAction,
+      metadata: { subject: data.subject, type: data.type },
     })
 
     return NextResponse.json(message, { status: 201 })
