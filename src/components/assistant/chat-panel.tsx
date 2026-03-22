@@ -140,51 +140,21 @@ function formatInline(text: string): React.ReactNode {
 // -------------------------------------------------------------------
 function getSuggestions(caseContext: CaseContext | null): string[] {
   if (caseContext) {
-    const type = caseContext.caseType
-    // First suggestion is always operational, rest are legal
-    const operational = [
-      "What should I do next on this case?",
-      "What documents am I missing?",
-      "Run a health check on this case",
-    ]
-
-    const legal: Record<string, string[]> = {
-      OIC: [
-        "Explain the RCP calculation for this case",
-        "What are the dissipated asset rules?",
-      ],
-      IA: [
-        "Does this client qualify for a streamlined IA?",
-        "What is a PPIA and when should we use one?",
-      ],
-      PENALTY: [
-        "What are the FTA requirements?",
-        "Draft reasonable cause language for this case",
-      ],
-      CDP: [
-        "What issues can be raised at a CDP hearing?",
-        "Explain equivalent hearing vs timely CDP request",
-      ],
-      TFRP: [
-        "What makes someone a responsible person under § 6672?",
-        "How do we prepare for a Form 4180 interview?",
-      ],
-      INNOCENT_SPOUSE: [
-        "Compare § 6015(b) vs (c) vs (f) relief",
-        "What are the Rev. Proc. 2013-34 factors?",
-      ],
-      CNC: [
-        "What qualifies a taxpayer for CNC status?",
-        "How does CNC interact with CSED expiration?",
-      ],
+    const legal: Record<string, string> = {
+      OIC: "Explain the RCP calculation for this case type",
+      IA: "Does this client qualify for a streamlined IA?",
+      PENALTY: "What are the FTA requirements?",
+      CDP: "What issues can be raised at a CDP hearing?",
+      TFRP: "How do we prepare for a Form 4180 interview?",
+      INNOCENT_SPOUSE: "Compare § 6015(b) vs (c) vs (f) relief",
+      CNC: "What qualifies for CNC status?",
     }
-
-    // Pick 1 operational + 2 legal (or 3 operational if no legal)
-    const legalQ = legal[type] || ["What resolution options are available?", "What are the key deadlines?"]
-    return [operational[0], legalQ[0], operational[1]]
+    return [
+      "What should I do next on this case?",
+      legal[caseContext.caseType] || "What resolution options are available?",
+      "What documents am I missing?",
+    ]
   }
-
-  // No case context — practice-level suggestions
   return [
     "Good morning — what needs my attention today?",
     "Any overdue deadlines across my cases?",
