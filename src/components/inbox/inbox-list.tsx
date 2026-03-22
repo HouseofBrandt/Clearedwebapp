@@ -35,7 +35,7 @@ interface MessageData {
   readAt?: string | null
   archived: boolean
   caseId?: string | null
-  case?: { id: string; caseNumber: string } | null
+  case?: { id: string; tabsNumber: string } | null
   deadlineId?: string | null
   aiTaskId?: string | null
   parentId?: string | null
@@ -53,7 +53,7 @@ interface InboxListProps {
   currentUserId: string
   currentUserRole: string
   users: { id: string; name: string; role: string }[]
-  cases: { id: string; caseNumber: string; clientName: string }[]
+  cases: { id: string; tabsNumber: string; clientName: string }[]
 }
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
@@ -408,7 +408,7 @@ function MessageDetail({
               className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
             >
               <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-              Linked to case {message.case.caseNumber}
+              Linked to case {message.case.tabsNumber}
             </a>
           )}
         </div>

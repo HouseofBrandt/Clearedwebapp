@@ -28,7 +28,7 @@ export async function GET(
   const deadline = await prisma.deadline.findUnique({
     where: { id: params.deadlineId },
     include: {
-      case: { select: { id: true, caseNumber: true, clientName: true, caseType: true } },
+      case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
       assignedTo: { select: { id: true, name: true } },
       completedBy: { select: { id: true, name: true } },
       createdBy: { select: { id: true, name: true } },
@@ -84,7 +84,7 @@ export async function PATCH(
     where: { id: params.deadlineId },
     data,
     include: {
-      case: { select: { id: true, caseNumber: true, clientName: true } },
+      case: { select: { id: true, tabsNumber: true, clientName: true } },
       assignedTo: { select: { id: true, name: true } },
       completedBy: { select: { id: true, name: true } },
     },

@@ -23,7 +23,7 @@ export async function GET(
   const task = await prisma.aITask.findUnique({
     where: { id: params.taskId },
     include: {
-      case: { select: { caseNumber: true, clientName: true } },
+      case: { select: { tabsNumber: true, clientName: true } },
     },
   })
 
@@ -65,7 +65,7 @@ export async function GET(
         buffer = await generateOICWorkingPapersExcel(
           parsed.extracted,
           parsed.merged,
-          task.case.caseNumber,
+          task.case.tabsNumber,
           task.case.clientName
         )
       } else {
@@ -85,10 +85,10 @@ export async function GET(
         const parsed = parseOICOutput(output)
         tabs = oicToSpreadsheetData(parsed)
       }
-      buffer = await generateOICWorkbook(tabs, task.case.caseNumber, task.case.clientName)
+      buffer = await generateOICWorkbook(tabs, task.case.tabsNumber, task.case.clientName)
     }
 
-    const filename = `${task.case.caseNumber}_OIC_Working_Papers.xlsx`
+    const filename = `${task.case.tabsNumber}_OIC_Working_Papers.xlsx`
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
@@ -108,18 +108,18 @@ export async function GET(
       if (parsed._type === "oic_working_papers_v1" && parsed.merged) {
         buffer = await generateTemplateDocx(
           parsed.merged,
-          task.case.caseNumber,
+          task.case.tabsNumber,
           task.case.clientName
         )
       } else {
-        buffer = await generateDocx(output, task.case.caseNumber, task.case.clientName, task.taskType)
+        buffer = await generateDocx(output, task.case.tabsNumber, task.case.clientName, task.taskType)
       }
     } catch {
       // Not JSON — use markdown rendering pipeline
-      buffer = await generateDocx(output, task.case.caseNumber, task.case.clientName, task.taskType)
+      buffer = await generateDocx(output, task.case.tabsNumber, task.case.clientName, task.taskType)
     }
 
-    const filename = `${task.case.caseNumber}_${task.taskType.replace(/_/g, "_")}.docx`
+    const filename = `${task.case.tabsNumber}_${task.taskType.replace(/_/g, "_")}.docx`
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
@@ -130,7 +130,7 @@ export async function GET(
   }
 
   // Default: plain text
-  const filename = `${task.case.caseNumber}_${task.taskType}.txt`
+  const filename = `${task.case.tabsNumber}_${task.taskType}.txt`
   return new NextResponse(output, {
     headers: {
       "Content-Type": "text/plain",

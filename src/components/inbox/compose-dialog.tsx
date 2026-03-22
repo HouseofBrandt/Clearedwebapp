@@ -25,7 +25,7 @@ interface ComposeDialogProps {
   onClose: () => void
   onSent: () => void
   users: { id: string; name: string; role: string }[]
-  cases: { id: string; caseNumber: string; clientName: string }[]
+  cases: { id: string; tabsNumber: string; clientName: string }[]
   currentUserRole: string
   replyTo?: {
     id: string
@@ -235,7 +235,7 @@ export function ComposeDialog({
                     <SelectItem value="">None</SelectItem>
                     {cases.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {c.caseNumber} — {c.clientName}
+                        {c.tabsNumber} — {c.clientName}
                       </SelectItem>
                     ))}
                   </SelectContent>

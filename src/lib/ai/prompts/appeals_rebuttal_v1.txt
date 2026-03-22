@@ -11,7 +11,7 @@ You will receive a "FIRM KNOWLEDGE BASE: APPEALS REBUTTAL MATERIAL" section in y
 DOCUMENT STRUCTURE:
 
 APPEALS REBUTTAL PACKET
-Case: [Case Number]
+Case: [TABS Number]
 Taxpayer: [Client Name — use tokenized name]
 Tax Periods: [From documents]
 Date: [Current date]

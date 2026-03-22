@@ -130,7 +130,7 @@ export async function fetchPlatformData(
     const deadlines = await prisma.deadline.findMany({
       where: { status: { in: ["UPCOMING"] } },
       include: {
-        case: { select: { caseNumber: true, clientName: true } },
+        case: { select: { tabsNumber: true, clientName: true } },
         assignedTo: { select: { name: true } },
       },
       orderBy: { dueDate: "asc" },
@@ -146,7 +146,7 @@ export async function fetchPlatformData(
       text += `⚠ ${overdue.length} OVERDUE:\n`
       for (const d of overdue) {
         const daysOver = Math.floor((now.getTime() - d.dueDate.getTime()) / 86400000)
-        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)}) — ${daysOver} days overdue · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        text += `  - ${d.title} (${d.case.tabsNumber} · ${decryptName(d.case.clientName)}) — ${daysOver} days overdue · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
         const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
         if (consequence) {
           text += `    ⚠ CONSEQUENCE: ${consequence}\n`
@@ -157,7 +157,7 @@ export async function fetchPlatformData(
       text += `Upcoming (${upcoming.length}):\n`
       for (const d of upcoming.slice(0, 10)) {
         const daysUntil = Math.floor((d.dueDate.getTime() - now.getTime()) / 86400000)
-        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)}) — in ${daysUntil} days · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        text += `  - ${d.title} (${d.case.tabsNumber} · ${decryptName(d.case.clientName)}) — in ${daysUntil} days · ${d.priority} · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
         const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
         if (consequence && daysUntil <= 7) {
           text += `    ⚠ IF MISSED: ${consequence}\n`
@@ -186,7 +186,6 @@ export async function fetchPlatformData(
       }),
       prisma.case.findMany({
         select: {
-          caseNumber: true,
           tabsNumber: true,
           clientName: true,
           caseType: true,
@@ -207,7 +206,7 @@ export async function fetchPlatformData(
     text += `By type: ${byType.map(t => `${t.caseType} (${t._count})`).join(", ")}\n`
     text += `Recent cases:\n`
     for (const c of recent) {
-      text += `  - ${c.caseNumber}${c.tabsNumber ? ` · TABS ${c.tabsNumber}` : ""} · ${decryptName(c.clientName)} · ${c.caseType} · ${c.status}`
+      text += `  - ${c.tabsNumber} · ${decryptName(c.clientName)} · ${c.caseType} · ${c.status}`
       if (c.totalLiability) text += ` · $${Number(c.totalLiability).toLocaleString()}`
       text += ` · ${c._count.documents} docs · ${c._count.aiTasks} tasks`
       text += ` · Assigned: ${c.assignedPractitioner?.name || "Unassigned"}\n`
@@ -220,7 +219,7 @@ export async function fetchPlatformData(
     const caseData = await prisma.case.findFirst({
       where: {
         OR: [
-          { caseNumber: { contains: searchTerm, mode: "insensitive" } },
+          { tabsNumber: { contains: searchTerm, mode: "insensitive" } },
           { tabsNumber: { contains: searchTerm, mode: "insensitive" } },
         ],
       },
@@ -290,7 +289,7 @@ export async function fetchPlatformData(
     })
 
     if (caseData) {
-      let text = `CASE DETAIL — ${caseData.caseNumber}${caseData.tabsNumber ? ` (TABS: ${caseData.tabsNumber})` : ""}:\n`
+      let text = `CASE DETAIL — ${caseData.tabsNumber}:\n`
       text += `Client: ${decryptName(caseData.clientName)}\n`
       text += `Type: ${caseData.caseType} · Status: ${caseData.status}\n`
       if (caseData.filingStatus) text += `Filing Status: ${caseData.filingStatus}\n`
@@ -398,7 +397,7 @@ export async function fetchPlatformData(
     const tasks = await prisma.aITask.findMany({
       where: { status: "READY_FOR_REVIEW" },
       include: {
-        case: { select: { caseNumber: true, clientName: true } },
+        case: { select: { tabsNumber: true, clientName: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -406,7 +405,7 @@ export async function fetchPlatformData(
 
     let text = `REVIEW QUEUE (${tasks.length} pending):\n`
     for (const t of tasks) {
-      text += `  - ${t.taskType} · ${t.case.caseNumber} · ${decryptName(t.case.clientName)} · ${t.modelUsed || "pending"} · ${formatDate(t.createdAt)}\n`
+      text += `  - ${t.taskType} · ${t.case.tabsNumber} · ${decryptName(t.case.clientName)} · ${t.modelUsed || "pending"} · ${formatDate(t.createdAt)}\n`
     }
     if (tasks.length === 0) {
       text += "No tasks pending review.\n"
@@ -564,17 +563,17 @@ export async function fetchPlatformData(
     ] = await Promise.all([
       prisma.deadline.findMany({
         where: { dueDate: { lt: now }, status: "UPCOMING" },
-        include: { case: { select: { caseNumber: true, clientName: true } } },
+        include: { case: { select: { tabsNumber: true, clientName: true } } },
         orderBy: { dueDate: "asc" },
         take: 10,
       }),
       prisma.deadline.findMany({
         where: { dueDate: { gte: startOfToday, lt: endOfToday }, status: "UPCOMING" },
-        include: { case: { select: { caseNumber: true, clientName: true } } },
+        include: { case: { select: { tabsNumber: true, clientName: true } } },
       }),
       prisma.deadline.findMany({
         where: { dueDate: { gte: now, lt: weekFromNow }, status: "UPCOMING" },
-        include: { case: { select: { caseNumber: true, clientName: true } }, assignedTo: { select: { name: true } } },
+        include: { case: { select: { tabsNumber: true, clientName: true } }, assignedTo: { select: { name: true } } },
         orderBy: { dueDate: "asc" },
         take: 15,
       }),
@@ -584,7 +583,7 @@ export async function fetchPlatformData(
           status: { notIn: ["RESOLVED", "CLOSED"] },
           updatedAt: { lt: new Date(now.getTime() - 14 * 86400000) },
         },
-        select: { caseNumber: true, clientName: true, createdAt: true, status: true },
+        select: { tabsNumber: true, clientName: true, createdAt: true, status: true },
         take: 10,
       }),
       prisma.appError.count({
@@ -601,7 +600,7 @@ export async function fetchPlatformData(
       text += `🔴 ${overdueDeadlines.length} OVERDUE DEADLINE(S):\n`
       for (const d of overdueDeadlines) {
         const daysOver = Math.floor((now.getTime() - d.dueDate.getTime()) / 86400000)
-        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)}) — ${daysOver} days overdue\n`
+        text += `  - ${d.title} (${d.case.tabsNumber} · ${decryptName(d.case.clientName)}) — ${daysOver} days overdue\n`
         const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
         if (consequence) text += `    ⚠ ${consequence}\n`
       }
@@ -611,7 +610,7 @@ export async function fetchPlatformData(
     if (todayDeadlines.length > 0) {
       text += `📅 DUE TODAY (${todayDeadlines.length}):\n`
       for (const d of todayDeadlines) {
-        text += `  - ${d.title} (${d.case.caseNumber} · ${decryptName(d.case.clientName)})\n`
+        text += `  - ${d.title} (${d.case.tabsNumber} · ${decryptName(d.case.clientName)})\n`
       }
       text += "\n"
     }
@@ -620,7 +619,7 @@ export async function fetchPlatformData(
       text += `📋 DUE THIS WEEK (${weekDeadlines.length}):\n`
       for (const d of weekDeadlines) {
         const daysUntil = Math.floor((d.dueDate.getTime() - now.getTime()) / 86400000)
-        text += `  - ${d.title} (${d.case.caseNumber}) — in ${daysUntil} day(s) · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
+        text += `  - ${d.title} (${d.case.tabsNumber}) — in ${daysUntil} day(s) · Assigned: ${d.assignedTo?.name || "Unassigned"}\n`
         const consequence = DEADLINE_CONSEQUENCES[(d as any).type]
         if (consequence && daysUntil <= 3) text += `    ⚠ IF MISSED: ${consequence}\n`
       }
@@ -633,7 +632,7 @@ export async function fetchPlatformData(
     if (staleCases.length > 0) {
       actions.push(`${staleCases.length} case(s) with no activity in 14+ days:`)
       for (const c of staleCases.slice(0, 5)) {
-        actions.push(`    ${c.caseNumber} · ${decryptName(c.clientName)} · ${c.status}`)
+        actions.push(`    ${c.tabsNumber} · ${decryptName(c.clientName)} · ${c.status}`)
       }
     }
     if (recentErrors > 0) actions.push(`${recentErrors} system error(s) in the last 24 hours`)
@@ -658,7 +657,7 @@ export async function fetchPlatformData(
       targetCase = await prisma.case.findFirst({
         where: {
           OR: [
-            { caseNumber: { equals: query.caseDetail, mode: "insensitive" } },
+            { tabsNumber: { equals: query.caseDetail, mode: "insensitive" } },
             { tabsNumber: { contains: query.caseDetail, mode: "insensitive" } },
           ],
         },
@@ -692,7 +691,7 @@ export async function fetchPlatformData(
       targetCase = await prisma.case.findFirst({
         where: {
           OR: [
-            { caseNumber: { equals: query.caseDetail, mode: "insensitive" } },
+            { tabsNumber: { equals: query.caseDetail, mode: "insensitive" } },
             { tabsNumber: { contains: query.caseDetail, mode: "insensitive" } },
           ],
         },

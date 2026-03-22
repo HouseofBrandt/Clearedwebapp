@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   // Add case context if on a case page
   if (caseContext) {
-    systemPrompt += `\n\nCONTEXT: The practitioner is working on case ${caseContext.caseNumber}. `
+    systemPrompt += `\n\nCONTEXT: The practitioner is working on case ${caseContext.tabsNumber}. `
     systemPrompt += `Case type: ${caseContext.caseType}. Status: ${caseContext.status}. `
     if (caseContext.filingStatus) systemPrompt += `Filing status: ${caseContext.filingStatus}. `
     if (caseContext.totalLiability) systemPrompt += `Total liability: $${Number(caseContext.totalLiability).toLocaleString()}. `
@@ -69,14 +69,14 @@ export async function POST(request: NextRequest) {
 
   // If we're on a case page and asking about next steps or documents,
   // auto-inject the case number for data lookup
-  if (caseContext?.caseNumber) {
+  if (caseContext?.tabsNumber) {
     try {
       const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop()
       if (lastUserMsg) {
         const extraNeeds = detectDataNeeds(lastUserMsg.content)
         if ((extraNeeds.nextSteps || extraNeeds.documentGap) && !extraNeeds.caseDetail) {
           const extraData = await fetchPlatformData(
-            { caseDetail: caseContext.caseNumber, nextSteps: extraNeeds.nextSteps, documentGap: extraNeeds.documentGap },
+            { caseDetail: caseContext.tabsNumber, nextSteps: extraNeeds.nextSteps, documentGap: extraNeeds.documentGap },
             (session.user as any).id,
             lastUserMsg?.content
           )

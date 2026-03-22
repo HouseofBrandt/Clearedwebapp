@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
+import { encryptCasePII, decryptCasePII } from "@/lib/encryption"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { z } from "zod"
 
@@ -15,7 +15,7 @@ const createCaseSchema = z.object({
   totalLiability: z.number().optional().nullable(),
   assignedPractitionerId: z.string().optional(),
   notes: z.string().optional().nullable(),
-  tabsNumber: z.string().optional().nullable(),
+  tabsNumber: z.string().min(1, "TABS number is required"),
 })
 
 export async function GET(request: NextRequest) {
@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
   if (caseType) where.caseType = caseType
   if (search) {
     where.OR = [
-      { caseNumber: { contains: search, mode: "insensitive" } },
       { tabsNumber: { contains: search, mode: "insensitive" } },
     ]
   }
@@ -73,36 +72,6 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data
 
-    // Generate case number: CLR-YYYY-MM-NNNN
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, "0")
-    const prefix = `CLR-${year}-${month}-`
-
-    const lastCase = await prisma.case.findFirst({
-      where: { caseNumber: { startsWith: prefix } },
-      orderBy: { caseNumber: "desc" },
-    })
-
-    let sequence = 1
-    if (lastCase) {
-      const lastSeq = parseInt(lastCase.caseNumber.split("-").pop() || "0")
-      sequence = lastSeq + 1
-    }
-
-    const caseNumber = `${prefix}${String(sequence).padStart(4, "0")}`
-
-    // Check TABS number uniqueness
-    if (data.tabsNumber) {
-      const existingTabs = await prisma.case.findUnique({ where: { tabsNumber: data.tabsNumber } })
-      if (existingTabs) {
-        return NextResponse.json(
-          { error: `TABS number ${data.tabsNumber} is already assigned to case ${existingTabs.caseNumber}` },
-          { status: 400 }
-        )
-      }
-    }
-
     // Encrypt PII fields
     const piiFields = encryptCasePII({
       clientName: data.clientName,
@@ -112,10 +81,8 @@ export async function POST(request: NextRequest) {
 
     const newCase = await prisma.case.create({
       data: {
-        caseNumber,
-        tabsNumber: data.tabsNumber || null,
+        tabsNumber: data.tabsNumber,
         clientName: piiFields.clientName,
-        clientNameEncrypted: encryptField(data.clientName),
         caseType: data.caseType,
         notes: data.notes || null,
         filingStatus: data.filingStatus || null,
@@ -134,7 +101,7 @@ export async function POST(request: NextRequest) {
       userId: (session.user as any).id,
       action: AUDIT_ACTIONS.CASE_CREATED,
       caseId: newCase.id,
-      metadata: { caseNumber, caseType: data.caseType },
+      metadata: { tabsNumber: data.tabsNumber, caseType: data.caseType },
       ipAddress: getClientIP(),
     })
 

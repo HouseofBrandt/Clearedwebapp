@@ -89,16 +89,15 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
     if (search) {
       const s = search.toLowerCase()
       return (
-        c.caseNumber.toLowerCase().includes(s) ||
-        (c.tabsNumber && c.tabsNumber.toLowerCase().includes(s)) ||
+        c.tabsNumber?.toLowerCase().includes(s) ||
         c.clientName.toLowerCase().includes(s)
       )
     }
     return true
   })
 
-  async function handleDeleteCase(caseId: string, caseNumber: string) {
-    if (!confirm(`Delete case ${caseNumber}? This permanently deletes all documents, AI tasks, and review history.`)) return
+  async function handleDeleteCase(caseId: string, tabsNumber: string) {
+    if (!confirm(`Delete case ${tabsNumber}? This permanently deletes all documents, AI tasks, and review history.`)) return
     const res = await fetch(`/api/cases/${caseId}`, { method: "DELETE" })
     if (res.ok) {
       setCases((prev) => prev.filter((c) => c.id !== caseId))
@@ -132,7 +131,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
       setCases([created, ...cases])
       setDialogOpen(false)
       setNewCase({ clientName: "", caseType: "OTHER", notes: "", filingStatus: "", clientEmail: "", clientPhone: "", totalLiability: "", tabsNumber: "" })
-      addToast({ title: "Case created", description: `Case ${created.caseNumber} has been created.` })
+      addToast({ title: "Case created", description: `Case ${created.tabsNumber || created.id} has been created.` })
       router.refresh()
     } catch {
       addToast({ title: "Error", description: "Failed to create case", variant: "destructive" })
@@ -275,7 +274,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by case # or TABS #..."
+                placeholder="Search by TABS number..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -327,8 +326,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Case #</TableHead>
-                  <TableHead className="hidden lg:table-cell">TABS</TableHead>
+                  <TableHead>TABS #</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead className="hidden xl:table-cell">Filing Status</TableHead>
@@ -343,8 +341,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
               <TableBody>
                 {filteredCases.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((c) => (
                   <TableRow key={c.id} className="cursor-pointer" onClick={() => router.push(`/cases/${c.id}`)}>
-                    <TableCell className="font-medium">{c.caseNumber}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">{c.tabsNumber || "—"}</TableCell>
+                    <TableCell className="font-medium">{c.tabsNumber || "—"}</TableCell>
                     <TableCell>{c.clientName}</TableCell>
                     <TableCell>
                       <span className="text-sm">{CASE_TYPE_LABELS[c.caseType as keyof typeof CASE_TYPE_LABELS] || c.caseType}</span>
@@ -370,7 +367,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" className="h-8 w-8"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteCase(c.id, c.caseNumber) }}>
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCase(c.id, c.tabsNumber || c.id) }}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </TableCell>

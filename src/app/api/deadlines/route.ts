@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
   const deadlines = await prisma.deadline.findMany({
     where,
     include: {
-      case: { select: { id: true, caseNumber: true, clientName: true, caseType: true } },
+      case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
       assignedTo: { select: { id: true, name: true } },
       completedBy: { select: { id: true, name: true } },
     },
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       createdById: auth.userId,
     },
     include: {
-      case: { select: { id: true, caseNumber: true, clientName: true } },
+      case: { select: { id: true, tabsNumber: true, clientName: true } },
       assignedTo: { select: { id: true, name: true } },
     },
   })

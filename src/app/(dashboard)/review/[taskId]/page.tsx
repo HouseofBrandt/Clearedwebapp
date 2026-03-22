@@ -19,7 +19,7 @@ export default async function ReviewTaskPage({
     include: {
       case: {
         select: {
-          id: true, caseNumber: true, clientName: true, caseType: true,
+          id: true, tabsNumber: true, clientName: true, caseType: true,
           documents: {
             select: { id: true, fileName: true, fileType: true, documentCategory: true, extractedText: true, fileSize: true, uploadedAt: true },
             orderBy: { uploadedAt: "desc" as const },
@@ -53,7 +53,7 @@ export default async function ReviewTaskPage({
             href={`/cases/${task.case.id}`}
             className="text-sm text-muted-foreground hover:text-foreground hover:underline"
           >
-            {task.case.caseNumber} &middot; {task.case.clientName}
+            {task.case.tabsNumber} &middot; {task.case.clientName}
           </Link>
         </div>
         <Link href={`/cases/${task.case.id}#ai`}>

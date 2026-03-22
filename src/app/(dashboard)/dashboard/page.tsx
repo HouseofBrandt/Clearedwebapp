@@ -64,7 +64,7 @@ export default async function DashboardPage() {
         take: 5,
         orderBy: { dueDate: "asc" },
         include: {
-          case: { select: { id: true, caseNumber: true } },
+          case: { select: { id: true, tabsNumber: true } },
           assignedTo: { select: { id: true, name: true } },
         },
       }),
@@ -193,7 +193,7 @@ export default async function DashboardPage() {
                       <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotColor[d.priority] || "bg-gray-400"}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{d.title}</p>
-                        <p className="text-xs text-muted-foreground">{d.case?.caseNumber}</p>
+                        <p className="text-xs text-muted-foreground">{d.case?.tabsNumber}</p>
                       </div>
                       {d.assignedTo && (
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium shrink-0" title={d.assignedTo.name}>
@@ -247,7 +247,7 @@ export default async function DashboardPage() {
                   <div className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors cursor-pointer">
                     <div className="flex items-center gap-3">
                       <div>
-                        <p className="font-medium">{c.caseNumber}</p>
+                        <p className="font-medium">{c.tabsNumber || "No TABS #"}</p>
                         <p className="text-sm text-muted-foreground">{c.clientName}</p>
                       </div>
                       <Badge className={caseTypeBadgeColors[c.caseType] || caseTypeBadgeColors.OTHER} variant="secondary">

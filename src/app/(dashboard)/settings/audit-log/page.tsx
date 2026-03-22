@@ -49,7 +49,7 @@ export default async function AuditLogPage({
       where,
       include: {
         practitioner: { select: { name: true, email: true } },
-        case: { select: { caseNumber: true } },
+        case: { select: { tabsNumber: true } },
       },
       orderBy: { timestamp: "desc" },
       skip: (page - 1) * pageSize,
@@ -142,7 +142,7 @@ export default async function AuditLogPage({
                     </span>
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-xs">
-                    {log.case?.caseNumber || "—"}
+                    {log.case?.tabsNumber || "—"}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground max-w-md truncate" title={details}>
                     {details || "—"}

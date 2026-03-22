@@ -34,7 +34,7 @@ interface PendingTask {
   judgmentFlagCount: number
   case: {
     id: string
-    caseNumber: string
+    tabsNumber: string
     clientName: string
     caseType: string
   }
@@ -171,7 +171,7 @@ export function ReviewQueue({ tasks }: ReviewQueueProps) {
                   <div>
                     <p className="font-medium">{TASK_TYPE_LABELS[task.taskType as keyof typeof TASK_TYPE_LABELS] || task.taskType}</p>
                     <p className="text-sm text-muted-foreground">
-                      {task.case.caseNumber} &middot; {task.case.clientName}
+                      {task.case.tabsNumber} &middot; {task.case.clientName}
                     </p>
                   </div>
                 </div>

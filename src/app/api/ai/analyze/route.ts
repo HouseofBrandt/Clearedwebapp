@@ -455,7 +455,7 @@ export async function POST(request: NextRequest) {
           userMessage += "\nIMPORTANT: Tailor your analysis to this specific procedural posture. Do not analyze relief options that are procedurally unavailable given the current stage. If a CDP deadline is approaching, flag it as the #1 priority.\n\n"
         }
 
-        userMessage += `Case Type: ${caseData.caseType}\nCase Number: ${caseData.caseNumber}\n\n`
+        userMessage += `Case Type: ${caseData.caseType}\nTABS: ${caseData.tabsNumber}\n\n`
         userMessage += `Documents:\n${tokenizedDocText}`
         if (tokenizedContext) {
           userMessage += `\n\nAdditional Context:\n${tokenizedContext}`
@@ -748,7 +748,7 @@ export async function POST(request: NextRequest) {
           recipientId: practitionerId,
           type: "REVIEW_ASSIGNED",
           subject: `${taskType.replace(/_/g, " ")} ready for review`,
-          body: `AI analysis for ${caseData.caseNumber} is ready for review.`,
+          body: `AI analysis for ${caseData.tabsNumber} is ready for review.`,
           caseId,
           aiTaskId: aiTask.id,
         }).catch(() => {})

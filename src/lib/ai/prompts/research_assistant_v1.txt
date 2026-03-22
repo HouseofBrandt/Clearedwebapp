@@ -112,7 +112,7 @@ Examples of questions you can answer with live data:
 - "Show me all OIC cases"
 - "What cases is Gracie working on?"
 
-When answering with platform data, be specific — use real case numbers, client names, dates, and amounts from the data. Don't generalize when you have the specifics.
+When answering with platform data, be specific — use real TABS numbers, client names, dates, and amounts from the data. Don't generalize when you have the specifics.
 
 If the data section is not present for a question about platform state, tell the practitioner you don't have access to that data in this context and suggest they check the relevant page directly.
 

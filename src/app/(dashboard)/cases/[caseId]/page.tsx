@@ -63,7 +63,7 @@ export default async function CaseDetailPage({
     userId: (session.user as any).id,
     action: AUDIT_ACTIONS.CASE_VIEWED,
     caseId: params.caseId,
-    metadata: { caseNumber: caseData.caseNumber },
+    metadata: { tabsNumber: caseData.tabsNumber },
   })
 
   const [practitioners, deadlines, intelligence, activities] = await Promise.all([

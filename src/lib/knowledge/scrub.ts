@@ -5,7 +5,7 @@
 export function scrubForKnowledgeBase(
   text: string,
   clientName: string,
-  caseNumber: string
+  tabsNumber: string
 ): string {
   let scrubbed = text
 
@@ -25,7 +25,7 @@ export function scrubForKnowledgeBase(
   }
 
   // Replace case number
-  scrubbed = scrubbed.replace(new RegExp(caseNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "[CASE-REF]")
+  scrubbed = scrubbed.replace(new RegExp(tabsNumber.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "[CASE-REF]")
 
   // Safety net: SSNs, EINs, account numbers
   scrubbed = scrubbed.replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[SSN]")

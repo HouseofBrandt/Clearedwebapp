@@ -29,7 +29,7 @@ interface SpreadsheetTab {
  */
 export async function generateOICWorkbook(
   tabs: SpreadsheetTab[],
-  caseNumber: string,
+  tabsNumber: string,
   clientName: string
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
@@ -38,14 +38,14 @@ export async function generateOICWorkbook(
 
   // Cover sheet
   const cover = workbook.addWorksheet("Cover")
-  cover.headerFooter.oddHeader = `&L&"${FONT}"&8CLEARED \u2014 ${caseNumber}`
+  cover.headerFooter.oddHeader = `&L&"${FONT}"&8CLEARED \u2014 ${tabsNumber}`
   cover.headerFooter.oddFooter = `&C&"${FONT}"&8Confidential`
 
   cover.getCell("A1").value = "CLEARED"
   cover.getCell("A1").font = { name: FONT, bold: true, size: 20, color: { argb: "FF1B2A4A" } }
   cover.getCell("A2").value = "Offer in Compromise Working Papers"
   cover.getCell("A2").font = { name: FONT, bold: true, size: 14, color: { argb: "FF2E75B6" } }
-  cover.getCell("A4").value = `Case: ${caseNumber}`
+  cover.getCell("A4").value = `Case: ${tabsNumber}`
   cover.getCell("A4").font = { name: FONT, size: 12 }
   cover.getCell("A5").value = `Client: ${clientName}`
   cover.getCell("A5").font = { name: FONT, size: 12 }
@@ -60,7 +60,7 @@ export async function generateOICWorkbook(
     const sheet = workbook.addWorksheet(tab.name)
 
     // Sheet header/footer
-    sheet.headerFooter.oddHeader = `&L&"${FONT}"&8CLEARED \u2014 ${caseNumber}`
+    sheet.headerFooter.oddHeader = `&L&"${FONT}"&8CLEARED \u2014 ${tabsNumber}`
     sheet.headerFooter.oddFooter = `&C&"${FONT}"&8Confidential`
 
     if (tab.columns.length === 0) continue

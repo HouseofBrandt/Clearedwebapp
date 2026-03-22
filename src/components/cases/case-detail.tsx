@@ -183,7 +183,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
   }
 
   async function handleDeleteCase() {
-    if (!confirm(`Delete case ${caseData.caseNumber}? This permanently deletes all documents, AI tasks, and review history.`)) return
+    if (!confirm(`Delete case ${caseData.tabsNumber || caseData.id}? This permanently deletes all documents, AI tasks, and review history.`)) return
     const res = await fetch(`/api/cases/${caseData.id}`, { method: "DELETE" })
     if (res.ok) {
       addToast({ title: "Case deleted" })
@@ -208,7 +208,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
       date: new Date(caseData.createdAt),
       type: "case",
       title: "Case created",
-      description: caseData.caseNumber,
+      description: caseData.tabsNumber || caseData.id,
     })
 
     // Document uploads
@@ -289,7 +289,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{caseData.caseNumber}</h1>
+            <h1 className="text-2xl font-bold">{caseData.tabsNumber || "No TABS #"}</h1>
             <Badge className={statusColors[caseData.status] || ""} variant="secondary">
               {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
             </Badge>
@@ -703,7 +703,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
         <TabsContent value="deadlines" className="space-y-4">
           <div className="flex justify-end">
             <AddDeadlineDialog
-              cases={[{ id: caseData.id, caseNumber: caseData.caseNumber, clientName: caseData.clientName }]}
+              cases={[{ id: caseData.id, tabsNumber: caseData.tabsNumber || caseData.id, clientName: caseData.clientName }]}
               users={practitioners.map((p) => ({ ...p, role: p.role || "PRACTITIONER" }))}
               preselectedCaseId={caseData.id}
             />
