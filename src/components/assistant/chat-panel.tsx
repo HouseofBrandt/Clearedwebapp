@@ -389,6 +389,10 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
       // For KB actions, content comes from the message text, not the action block
       if (action.type === "ADD_TO_KNOWLEDGE_BASE") {
         payload.content = messageText
+        // Tags are parsed as a comma-separated string from action blocks — normalize to array
+        if (typeof payload.tags === "string") {
+          payload.tags = payload.tags.split(",").map((t: string) => t.replace(/["\[\]]/g, "").trim()).filter(Boolean)
+        }
       }
 
       const res = await fetch("/api/ai/chat-actions", {
@@ -494,9 +498,12 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
           <>
             <p className="font-medium">{(action as any).title}</p>
             <p className="text-xs text-muted-foreground">Category: {(action as any).category || "Custom"}</p>
-            {(action as any).tags?.length > 0 && (
+            {(action as any).tags && (
               <div className="flex flex-wrap gap-1 mt-1">
-                {((action as any).tags as string[]).slice(0, 5).map((tag: string) => (
+                {(Array.isArray((action as any).tags)
+                  ? (action as any).tags
+                  : String((action as any).tags).split(",").map((t: string) => t.replace(/["\[\]]/g, "").trim()).filter(Boolean)
+                ).slice(0, 5).map((tag: string) => (
                   <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{tag}</span>
                 ))}
               </div>

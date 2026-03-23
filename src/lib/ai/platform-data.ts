@@ -128,8 +128,8 @@ export async function fetchPlatformData(
   userId: string,
   userMessage?: string
 ): Promise<string> {
-  const sections: string[] = [];
-  (query as any)._userMessage = userMessage || ""
+  const sections: string[] = []
+  const resolvedUserMessage = userMessage || ""
 
   if (query.deadlines) {
     const deadlines = await prisma.deadline.findMany({
@@ -979,7 +979,7 @@ export async function fetchPlatformData(
   // ── CODEBASE ACCESS ──
   if (query.codebase) {
     let text = "CODEBASE ACCESS:\n\n"
-    const msgRaw = (query as any)._userMessage || ""
+    const msgRaw = resolvedUserMessage
     const msgLower = msgRaw.toLowerCase()
 
     // Always show recent commits for context

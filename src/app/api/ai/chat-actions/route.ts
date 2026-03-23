@@ -49,8 +49,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Narrowed caseId for case-specific actions (validated above)
-  const resolvedCaseId = caseId as string
+  // Narrowed caseId for case-specific actions (validated above).
+  // Only used in case-requiring branches where the guard has already returned if undefined.
+  const resolvedCaseId = caseId ?? ""
 
   try {
     switch (action) {

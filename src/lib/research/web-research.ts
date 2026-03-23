@@ -49,7 +49,7 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly"
     model: "claude-opus-4-6",
     max_tokens: 4096,
     system: systemPrompt,
-    tools: [{ type: "web_search_20250305" as any, name: "web_search" } as any],
+    tools: [{ type: "web_search_20250305", name: "web_search" }],
     messages: [{ role: "user", content: userMessage }],
   })
 
