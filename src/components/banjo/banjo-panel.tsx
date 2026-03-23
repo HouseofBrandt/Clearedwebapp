@@ -471,35 +471,52 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
           />
         )}
 
-        {phase === "completed" && completedTasks.length > 0 && (
+        {phase === "completed" && (
           <>
-            <BanjoComplete
-              tasks={completedTasks}
-              totalTimeSeconds={elapsedSeconds}
-              model={model}
-              failedSteps={failedSteps}
-              skippedSteps={skippedSteps}
-              revisionStatus={revisionStatus === "waiting" || revisionStatus === "running" ? "not_run" : revisionStatus}
-              revisionSummary={revisionSummary}
-              revisedCount={revisedCount}
+            {/* Always show input for new assignment after completion */}
+            <AssignmentInput
+              caseType={caseType}
+              existingTaskTypes={existingTaskTypes}
+              onSubmit={handleSubmitAssignment}
+              disabled={documentCount === 0}
             />
-            <div className="pt-2">
-              <button type="button" onClick={resetState} className="text-sm text-primary hover:underline">
-                Start a new assignment
-              </button>
-            </div>
+            {completedTasks.length > 0 && (
+              <>
+                <Separator />
+                <details open={false}>
+                  <summary className="text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground">
+                    Previous assignment — {completedTasks.length} deliverable{completedTasks.length !== 1 ? "s" : ""}
+                  </summary>
+                  <div className="mt-3">
+                    <BanjoComplete
+                      tasks={completedTasks}
+                      totalTimeSeconds={elapsedSeconds}
+                      model={model}
+                      failedSteps={failedSteps}
+                      skippedSteps={skippedSteps}
+                      revisionStatus={revisionStatus === "waiting" || revisionStatus === "running" ? "not_run" : revisionStatus}
+                      revisionSummary={revisionSummary}
+                      revisedCount={revisedCount}
+                    />
+                  </div>
+                </details>
+              </>
+            )}
           </>
         )}
 
         {phase === "failed" && (
           <div className="space-y-3">
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <p className="text-sm font-medium text-red-800">Assignment failed</p>
+              <p className="text-sm font-medium text-red-800">Previous assignment failed</p>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
-            <button type="button" onClick={resetState} className="text-sm text-primary hover:underline">
-              Try again
-            </button>
+            <AssignmentInput
+              caseType={caseType}
+              existingTaskTypes={existingTaskTypes}
+              onSubmit={handleSubmitAssignment}
+              disabled={documentCount === 0}
+            />
           </div>
         )}
 
