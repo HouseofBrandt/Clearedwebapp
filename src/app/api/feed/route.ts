@@ -64,41 +64,47 @@ export async function GET(request: NextRequest) {
     where.createdAt = { ...(where.createdAt || {}), lt: new Date(cursor) }
   }
 
-  const posts = await prisma.feedPost.findMany({
-    take: limit,
-    orderBy: { createdAt: "desc" },
-    where,
-    include: {
-      author: { select: { id: true, name: true, role: true } },
-      case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
-      taskAssignee: { select: { id: true, name: true } },
-      replies: {
-        take: 3,
-        orderBy: { createdAt: "asc" },
-        include: { author: { select: { id: true, name: true } } },
+  try {
+    const posts = await prisma.feedPost.findMany({
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      where,
+      include: {
+        author: { select: { id: true, name: true, role: true } },
+        case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
+        taskAssignee: { select: { id: true, name: true } },
+        replies: {
+          take: 3,
+          orderBy: { createdAt: "asc" },
+          include: { author: { select: { id: true, name: true } } },
+        },
+        _count: { select: { replies: true, likes: true } },
+        likes: {
+          where: { userId: auth.userId },
+          select: { id: true },
+        },
       },
-      _count: { select: { replies: true, likes: true } },
-      likes: {
-        where: { userId: auth.userId },
-        select: { id: true },
-      },
-    },
-  })
+    })
 
-  // Transform for client
-  const transformed = posts.map((post) => ({
-    ...post,
-    replyCount: post._count.replies,
-    likeCount: post._count.likes,
-    liked: post.likes.length > 0,
-    likes: undefined,
-    _count: undefined,
-  }))
+    // Transform for client
+    const transformed = posts.map((post) => ({
+      ...post,
+      replyCount: post._count.replies,
+      likeCount: post._count.likes,
+      liked: post.likes.length > 0,
+      likes: undefined,
+      _count: undefined,
+    }))
 
-  const nextCursor =
-    posts.length === limit ? posts[posts.length - 1].createdAt.toISOString() : null
+    const nextCursor =
+      posts.length === limit ? posts[posts.length - 1].createdAt.toISOString() : null
 
-  return NextResponse.json({ posts: transformed, nextCursor })
+    return NextResponse.json({ posts: transformed, nextCursor })
+  } catch (error: any) {
+    // Feed tables may not exist yet
+    console.error("[Feed] GET error:", error?.message)
+    return NextResponse.json({ posts: [], nextCursor: null })
+  }
 }
 
 /**
