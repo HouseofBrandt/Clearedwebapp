@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { logReviewAction } from "@/lib/ai/audit"
 import { notify } from "@/lib/notifications"
 import { autoIngestToKnowledgeBase } from "@/lib/banjo/auto-ingest"
+import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
 import { z } from "zod"
 
 const reviewSchema = z.object({
@@ -36,6 +37,7 @@ export async function POST(
 
     const task = await prisma.aITask.findUnique({
       where: { id: params.taskId },
+      include: { case: { select: { caseType: true } } },
     })
 
     if (!task) {
@@ -94,6 +96,31 @@ export async function POST(
       },
     })
 
+    // Learning loop: track edits and rejections (fire-and-forget)
+    if (action === "EDIT_APPROVE" && editedOutput && task.detokenizedOutput) {
+      prisma.editHistory.create({
+        data: {
+          aiTaskId: task.id,
+          caseType: task.case.caseType,
+          taskType: task.taskType,
+          originalOutput: task.detokenizedOutput,
+          editedOutput,
+          practitionerId: auth.userId,
+        },
+      }).catch(() => {})
+    }
+    if ((action === "REJECT_REPROMPT" || action === "REJECT_MANUAL") && reviewNotes) {
+      prisma.rejectionFeedback.create({
+        data: {
+          aiTaskId: task.id,
+          caseType: task.case.caseType,
+          taskType: task.taskType,
+          correctionNotes: reviewNotes,
+          practitionerId: auth.userId,
+        },
+      }).catch(() => {})
+    }
+
     // Auto-ingest to Knowledge Base on approval (fire-and-forget)
     // Re-fetch after update so EDIT_APPROVE gets the edited output, not the pre-edit draft
     if (newStatus === "APPROVED") {
@@ -107,6 +134,9 @@ export async function POST(
         })
       }
     }
+
+    // Refresh case graph after review (fire-and-forget)
+    computeCaseGraph(task.caseId).catch(() => {})
 
     // Audit log (fire-and-forget — don't block review on audit logging)
     logReviewAction({

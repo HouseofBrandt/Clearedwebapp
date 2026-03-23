@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { canAccessCase } from "@/lib/auth/case-access"
+import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
 import { z } from "zod"
 
 const updateCaseSchema = z.object({
@@ -111,6 +112,9 @@ export async function PATCH(
       metadata: { fieldsChanged: Object.keys(updateData), ...(status ? { newStatus: status } : {}) },
       ipAddress: getClientIP(),
     })
+
+    // Refresh case graph after update (fire-and-forget)
+    computeCaseGraph(params.caseId).catch(() => {})
 
     return NextResponse.json(decryptCasePII(updated))
   } catch (error) {
