@@ -3,6 +3,10 @@ const { withSentryConfig } = require("@sentry/nextjs")
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['ws'],
+  webpack: (config) => {
+    config.externals.push({ 'bufferutil': 'bufferutil', 'utf-8-validate': 'utf-8-validate' })
+    return config
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
