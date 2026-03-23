@@ -7,10 +7,11 @@ import { getJunebugMessage } from "@/lib/junebug/loading-messages"
 interface ReviewJunebugProps {
   currentOutput: string
   taskType: string
+  taskId?: string
   onOutputUpdated: (newOutput: string) => void
 }
 
-export function ReviewJunebug({ currentOutput, taskType, onOutputUpdated }: ReviewJunebugProps) {
+export function ReviewJunebug({ currentOutput, taskType, taskId, onOutputUpdated }: ReviewJunebugProps) {
   const [instruction, setInstruction] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState("")
@@ -25,7 +26,7 @@ export function ReviewJunebug({ currentOutput, taskType, onOutputUpdated }: Revi
       const res = await fetch("/api/ai/review-edit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentOutput, instruction, taskType }),
+        body: JSON.stringify({ currentOutput, instruction, taskType, taskId }),
       })
 
       if (res.ok) {

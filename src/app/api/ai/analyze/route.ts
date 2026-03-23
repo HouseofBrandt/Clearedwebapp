@@ -15,6 +15,7 @@ import { notify } from "@/lib/notifications"
 import { trackError } from "@/lib/error-tracking"
 import { getAppealsContext } from "@/lib/knowledge/appeals-context"
 import { canAccessCase } from "@/lib/auth/case-access"
+import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -460,6 +461,17 @@ export async function POST(request: NextRequest) {
         }
 
         console.log("[AI Analyze] KB done, system prompt now:", systemPrompt.length, "chars")
+
+        // Inject unified context packet (review insights, case graph intelligence)
+        try {
+          const packet = await getCaseContextPacket(caseId, {
+            includeKnowledge: false,  // KB already injected above
+            includeReviewInsights: true,
+          })
+          if (packet) {
+            systemPrompt += "\n\n" + formatContextForPrompt(packet)
+          }
+        } catch { /* non-fatal */ }
 
         // Build user message
         let userMessage = ""

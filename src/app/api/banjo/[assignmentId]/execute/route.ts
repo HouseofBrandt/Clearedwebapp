@@ -6,6 +6,7 @@ import { tokenizeText, encryptTokenMap, detokenizeText } from "@/lib/ai/tokenize
 import { logAIRequest } from "@/lib/ai/audit"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { getBanjoKnowledgeContext } from "@/lib/banjo/knowledge-retrieval"
+import { getPromptBias } from "@/lib/switchboard/prompt-bias"
 import { conductResearch } from "@/lib/research/web-research"
 import { mergeTemplateWithData } from "@/lib/templates/oic-merge"
 import { populateFromAIExtraction } from "@/lib/documents/liability"
@@ -245,6 +246,12 @@ export async function POST(
             if (kbContext) systemPrompt += kbContext
           }
         } catch { /* KB failure is non-fatal */ }
+
+        // Inject review-based prompt bias (learning loop)
+        try {
+          const bias = await getPromptBias(caseData.caseType, taskType)
+          if (bias) systemPrompt += "\n\n" + bias
+        } catch { /* non-fatal */ }
 
         // Append Sources & Assumptions footer
         systemPrompt += SOURCES_AND_ASSUMPTIONS_FOOTER
