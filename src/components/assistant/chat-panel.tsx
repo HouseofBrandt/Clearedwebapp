@@ -2,7 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
-import { X, Trash2, Copy, Check, Send, Sparkles, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
+import { X, Trash2, Copy, Check, Send, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
+import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import {
+  getJunebugLoadingMessage,
+  getJunebugErrorMessage,
+  JUNEBUG_EMPTY_STATE,
+} from "@/lib/junebug/loading-messages"
 
 // -------------------------------------------------------------------
 // Types
@@ -187,32 +193,6 @@ function CopyButton({ text }: { text: string }) {
 }
 
 // -------------------------------------------------------------------
-// Streaming dots
-// -------------------------------------------------------------------
-function StreamingDots() {
-  const [elapsed, setElapsed] = useState(0)
-  useEffect(() => {
-    const timer = setInterval(() => setElapsed((e) => e + 1), 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="inline-flex items-center gap-1">
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "0ms" }} />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "150ms" }} />
-        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "300ms" }} />
-      </span>
-      {elapsed >= 5 && (
-        <span className="text-[10px] text-gray-400">
-          {elapsed >= 15 ? "Still working — web search can take a moment..." : "Researching..."}
-        </span>
-      )}
-    </div>
-  )
-}
-
-// -------------------------------------------------------------------
 // Message draft parser and card
 // -------------------------------------------------------------------
 interface MessageDraft {
@@ -329,8 +309,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
         <button
           onClick={handleSend}
           disabled={status === "sending"}
-          className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
-          style={{ backgroundColor: "#1B2A4A" }}
+          className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
         >
           {status === "sending" ? "Sending..." : "Send"}
         </button>
@@ -586,8 +565,7 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
           <button
             onClick={handleExecute}
             disabled={status === "executing" || (needsCaseId && !caseId)}
-            className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
-            style={{ backgroundColor: "#1B2A4A" }}
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
           >
             {status === "executing" ? "Executing..." : buttonLabels[action.type] || "Execute"}
           </button>
@@ -616,6 +594,9 @@ export function ChatPanel() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [caseContext, setCaseContext] = useState<CaseContext | null>(null)
   const model = "claude-opus-4-6"
+  const [loadingMessage, setLoadingMessage] = useState("")
+  const recentLoadingMessagesRef = useRef<string[]>([])
+  const loadingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -664,6 +645,26 @@ export function ChatPanel() {
     }
   }, [pathname])
 
+  function startLoadingMessages() {
+    const msg = getJunebugLoadingMessage("thinking", recentLoadingMessagesRef.current)
+    setLoadingMessage(msg)
+    recentLoadingMessagesRef.current = [...recentLoadingMessagesRef.current, msg]
+
+    loadingIntervalRef.current = setInterval(() => {
+      const next = getJunebugLoadingMessage("thinking", recentLoadingMessagesRef.current)
+      setLoadingMessage(next)
+      recentLoadingMessagesRef.current = [...recentLoadingMessagesRef.current.slice(-6), next]
+    }, 5000)
+  }
+
+  function stopLoadingMessages() {
+    if (loadingIntervalRef.current) {
+      clearInterval(loadingIntervalRef.current)
+      loadingIntervalRef.current = null
+    }
+    setLoadingMessage("")
+  }
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() || isStreaming) return
@@ -686,6 +687,7 @@ export function ChatPanel() {
       setMessages([...updatedMessages, assistantMsg])
       setInput("")
       setIsStreaming(true)
+      startLoadingMessages()
 
       const abortController = new AbortController()
       abortRef.current = abortController
@@ -706,7 +708,7 @@ export function ChatPanel() {
           const errorText = await response.text()
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === assistantMsg.id ? { ...m, content: `Error: ${errorText || response.statusText}` } : m
+              m.id === assistantMsg.id ? { ...m, content: `🐕 ${getJunebugErrorMessage()}\n\n_${errorText || response.statusText}_` } : m
             )
           )
           setIsStreaming(false)
@@ -759,12 +761,13 @@ export function ChatPanel() {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMsg.id
-                ? { ...m, content: m.content || "Failed to connect. Please try again." }
+                ? { ...m, content: m.content || `🐕 ${getJunebugErrorMessage()}` }
                 : m
             )
           )
         }
       } finally {
+        stopLoadingMessages()
         setIsStreaming(false)
         abortRef.current = null
       }
@@ -804,11 +807,10 @@ export function ChatPanel() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg hover:scale-105 transition-transform lg:h-14 lg:w-14 h-12 w-12"
-          style={{ backgroundColor: "#1B2A4A" }}
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 shadow-lg transition-all hover:scale-105 hover:bg-slate-800 lg:h-14 lg:w-14"
           title="Ask Junebug"
         >
-          <Sparkles className="h-6 w-6 text-white" />
+          <JunebugIcon className="h-7 w-7 text-white" />
         </button>
       )}
 
@@ -818,18 +820,12 @@ export function ChatPanel() {
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl lg:w-[420px]"
         >
           {/* Header */}
-          <div
-            className="flex items-center justify-between px-4 py-3"
-            style={{ backgroundColor: "#1B2A4A" }}
-          >
+          <div className="flex items-center justify-between bg-slate-900 px-4 py-3">
             <div className="flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-white" />
+              <JunebugIcon className="h-5 w-5 text-white" />
               <h2 className="text-base font-semibold text-white">Junebug</h2>
             </div>
             <div className="flex items-center gap-1">
-              {/* Model indicator */}
-              <span className="rounded px-2 py-1 text-xs text-white/60">Opus</span>
-
               {/* New conversation */}
               <button
                 onClick={clearConversation}
@@ -873,13 +869,15 @@ export function ChatPanel() {
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
             {messages.length === 0 ? (
               /* Empty state with suggestions */
-              <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                <div className="rounded-full bg-gray-100 p-4">
-                  <Sparkles className="h-8 w-8 text-gray-400" />
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-center px-6">
+                <div className="rounded-full bg-slate-50 p-5">
+                  <JunebugIcon className="h-10 w-10 text-slate-300" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Junebug</p>
-                  <p className="mt-1 text-xs text-gray-500">Tax research, platform help, and more</p>
+                  <p className="text-sm font-medium text-slate-700">{JUNEBUG_EMPTY_STATE.greeting}</p>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-slate-400">
+                    {JUNEBUG_EMPTY_STATE.subtitle}
+                  </p>
                 </div>
                 <div className="mt-2 flex w-full flex-col gap-2">
                   {suggestions.map((s) => (
@@ -913,7 +911,7 @@ export function ChatPanel() {
                           ? "text-white"
                           : "bg-gray-100 text-gray-900"
                       }`}
-                      style={msg.role === "user" ? { backgroundColor: "#1B2A4A" } : undefined}
+                      style={msg.role === "user" ? { backgroundColor: "rgb(15 23 42)" } : undefined}
                     >
                       {msg.role === "assistant" ? (
                         <>
@@ -944,7 +942,10 @@ export function ChatPanel() {
                               )
                             })()
                           ) : isStreaming && msg === messages[messages.length - 1] ? (
-                            <StreamingDots />
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <JunebugIcon className="h-4 w-4 flex-shrink-0" animated />
+                              <span className="text-[13px]">{loadingMessage || "Thinking..."}</span>
+                            </div>
                           ) : null}
                           {msg.content && <CopyButton text={msg.content} />}
                         </>
@@ -981,8 +982,7 @@ export function ChatPanel() {
               <button
                 type="submit"
                 disabled={!input.trim() || isStreaming}
-                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg text-white transition-colors disabled:opacity-40"
-                style={{ backgroundColor: "#1B2A4A" }}
+                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white transition-colors disabled:opacity-40"
                 title="Send message"
               >
                 <Send className="h-4 w-4" />
