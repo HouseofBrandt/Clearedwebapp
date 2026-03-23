@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
-import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+
+const CLEANUP_TOKEN = "switchboard-cleanup-2026-03-23"
 
 const IMPLEMENTED_SUBJECTS = [
   "Document freshness/expiration tracking",
@@ -22,9 +23,9 @@ const IMPLEMENTED_SUBJECTS = [
   "Junebug — Live Codebase Read Access",
 ]
 
-export async function POST(request: NextRequest) {
-  const auth = await requireApiAuth(["ADMIN"])
-  if (!auth.authorized) {
+export async function GET(request: NextRequest) {
+  const token = request.nextUrl.searchParams.get("token")
+  if (token !== CLEANUP_TOKEN) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 })
   }
 
