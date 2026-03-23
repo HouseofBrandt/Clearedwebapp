@@ -1,7 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
+import { Menu, X, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -11,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { LogOut, User, Menu, X } from "lucide-react"
+import { getPageContext } from "@/components/layout/navigation"
 import { SidebarContent } from "@/components/layout/sidebar"
 
 interface HeaderProps {
@@ -21,66 +23,100 @@ interface HeaderProps {
   unreadMessageCount?: number
 }
 
-export function Header({ user, pendingReviewCount, overdueDeadlineCount, unreadMessageCount }: HeaderProps) {
+function getInitials(name?: string | null) {
+  if (!name) return "U"
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("")
+}
+
+export function Header({
+  user,
+  pendingReviewCount,
+  overdueDeadlineCount,
+  unreadMessageCount,
+}: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+  const page = getPageContext(pathname, user.role)
 
   return (
     <>
-      <header className="flex h-16 items-center justify-between border-b bg-card px-6">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+          {/* Mobile menu trigger */}
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className="h-8 w-8 shrink-0 lg:hidden"
             onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open navigation"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </Button>
-        </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{user.name}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>
-              <div className="flex flex-col">
-                <span>{user.name}</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  {user.email}
+          {/* Page title */}
+          <h1 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+            {page.name}
+          </h1>
+
+          {/* User menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                  {getInitials(user.name)}
+                </div>
+                <span className="hidden text-[13px] font-medium text-slate-700 sm:inline dark:text-slate-300">
+                  {user.name}
                 </span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <p className="text-sm font-medium">{user.name}</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                {user.role}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+                <LogOut className="mr-2 h-3.5 w-3.5" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
-      {/* Mobile sidebar drawer */}
+      {/* Mobile navigation drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          {/* Overlay */}
           <div
-            className="fixed inset-0 bg-black/50"
+            className="fixed inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={() => setMobileMenuOpen(false)}
           />
-          {/* Drawer */}
-          <div className="fixed inset-y-0 left-0 w-64 flex flex-col bg-card shadow-xl animate-in slide-in-from-left duration-200">
-            <div className="absolute right-2 top-3 z-10">
+          <div className="fixed inset-y-0 left-0 flex w-[min(85vw,18rem)] flex-col border-r border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white">
+                  <span className="text-xs font-bold">C</span>
+                </div>
+                <span className="text-sm font-semibold">Cleared</span>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-white hover:bg-white/20"
+                className="h-8 w-8"
+                aria-label="Close navigation"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
             <SidebarContent
@@ -88,6 +124,7 @@ export function Header({ user, pendingReviewCount, overdueDeadlineCount, unreadM
               pendingReviewCount={pendingReviewCount}
               overdueDeadlineCount={overdueDeadlineCount}
               unreadMessageCount={unreadMessageCount}
+              showWordmark={false}
               onLinkClick={() => setMobileMenuOpen(false)}
             />
           </div>

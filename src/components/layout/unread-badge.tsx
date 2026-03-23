@@ -13,9 +13,13 @@ export function UnreadBadge({ initialCount = 0 }: UnreadBadgeProps) {
     const fetchCount = async () => {
       try {
         const res = await fetch("/api/messages/unread-count")
-        const data = await res.json()
-        setCount(data.count)
-      } catch {}
+        if (res.ok) {
+          const data = await res.json()
+          setCount(data.count)
+        }
+      } catch {
+        // Silently fail — badge will show stale count
+      }
     }
 
     const interval = setInterval(fetchCount, 30000)
@@ -25,7 +29,7 @@ export function UnreadBadge({ initialCount = 0 }: UnreadBadgeProps) {
   if (count === 0) return null
 
   return (
-    <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-destructive px-1.5 text-[11px] font-semibold text-white">
+    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-600 px-1.5 text-[10px] font-semibold tabular-nums text-white dark:bg-slate-500">
       {count > 99 ? "99+" : count}
     </span>
   )
