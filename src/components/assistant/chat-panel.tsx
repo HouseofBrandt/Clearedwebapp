@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
 import { X, Trash2, Copy, Check, Send, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
+import { marked } from "marked"
+import DOMPurify from "dompurify"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import {
   getJunebugLoadingMessage,
@@ -30,115 +32,22 @@ interface CaseContext {
 }
 
 // -------------------------------------------------------------------
-// Simple markdown renderer (no library dependency)
+// Markdown renderer (marked + DOMPurify)
 // -------------------------------------------------------------------
+marked.setOptions({ breaks: true, gfm: true })
+
 function renderMarkdown(text: string) {
-  const lines = text.split("\n")
-  const elements: React.ReactNode[] = []
-  let i = 0
+  const rawHtml = marked.parse(text) as string
+  const cleanHtml = typeof window !== "undefined"
+    ? DOMPurify.sanitize(rawHtml)
+    : rawHtml
 
-  while (i < lines.length) {
-    const line = lines[i]
-
-    // Code block
-    if (line.startsWith("```")) {
-      const codeLines: string[] = []
-      i++
-      while (i < lines.length && !lines[i].startsWith("```")) {
-        codeLines.push(lines[i])
-        i++
-      }
-      i++ // skip closing ```
-      elements.push(
-        <pre key={i} className="my-2 overflow-x-auto rounded bg-gray-800 p-3 text-sm text-gray-100">
-          <code>{codeLines.join("\n")}</code>
-        </pre>
-      )
-      continue
-    }
-
-    // Empty line
-    if (line.trim() === "") {
-      elements.push(<div key={i} className="h-2" />)
-      i++
-      continue
-    }
-
-    // Headings
-    if (line.startsWith("### ")) {
-      elements.push(<h4 key={i} className="mt-3 mb-1 font-semibold">{formatInline(line.slice(4))}</h4>)
-      i++
-      continue
-    }
-    if (line.startsWith("## ")) {
-      elements.push(<h3 key={i} className="mt-3 mb-1 text-lg font-semibold">{formatInline(line.slice(3))}</h3>)
-      i++
-      continue
-    }
-    if (line.startsWith("# ")) {
-      elements.push(<h2 key={i} className="mt-3 mb-1 text-xl font-semibold">{formatInline(line.slice(2))}</h2>)
-      i++
-      continue
-    }
-
-    // List items (- or * or numbered)
-    if (/^(\s*)[-*]\s/.test(line) || /^(\s*)\d+\.\s/.test(line)) {
-      const listItems: React.ReactNode[] = []
-      const isOrdered = /^\s*\d+\.\s/.test(line)
-      while (i < lines.length && (/^(\s*)[-*]\s/.test(lines[i]) || /^(\s*)\d+\.\s/.test(lines[i]))) {
-        const itemText = lines[i].replace(/^(\s*)[-*]\s/, "").replace(/^(\s*)\d+\.\s/, "")
-        listItems.push(<li key={i}>{formatInline(itemText)}</li>)
-        i++
-      }
-      if (isOrdered) {
-        elements.push(
-          <ol key={`list-${i}`} className="my-1 ml-4 list-decimal [&>li]:pl-1" style={{ listStyleType: "decimal" }}>
-            {listItems}
-          </ol>
-        )
-      } else {
-        elements.push(
-          <ul key={`list-${i}`} className="my-1 ml-4 list-disc [&>li]:pl-1" style={{ listStyleType: "disc" }}>
-            {listItems}
-          </ul>
-        )
-      }
-      continue
-    }
-
-    // Regular paragraph
-    elements.push(<p key={i} className="my-1">{formatInline(line)}</p>)
-    i++
-  }
-
-  return <>{elements}</>
-}
-
-function formatInline(text: string): React.ReactNode {
-  // Bold, italic, inline code
-  const parts: React.ReactNode[] = []
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g
-  let lastIndex = 0
-  let match: RegExpExecArray | null
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index))
-    }
-    const m = match[0]
-    if (m.startsWith("**") && m.endsWith("**")) {
-      parts.push(<strong key={match.index}>{m.slice(2, -2)}</strong>)
-    } else if (m.startsWith("*") && m.endsWith("*")) {
-      parts.push(<em key={match.index}>{m.slice(1, -1)}</em>)
-    } else if (m.startsWith("`") && m.endsWith("`")) {
-      parts.push(<code key={match.index} className="rounded bg-gray-200 px-1 py-0.5 text-sm">{m.slice(1, -1)}</code>)
-    }
-    lastIndex = match.index + m.length
-  }
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex))
-  }
-  return parts.length === 1 ? parts[0] : <>{parts}</>
+  return (
+    <div
+      className="junebug-prose"
+      dangerouslySetInnerHTML={{ __html: cleanHtml }}
+    />
+  )
 }
 
 // -------------------------------------------------------------------
@@ -926,9 +835,9 @@ export function ChatPanel() {
                                 const textContent = draft ? before : textWithoutActions
                                 return (
                                   <div className="space-y-2">
-                                    {textContent && <div className="prose prose-sm max-w-none">{renderMarkdown(textContent)}</div>}
+                                    {textContent && renderMarkdown(textContent)}
                                     {draft && <MessageDraftCard draft={draft} />}
-                                    {draft && after && <div className="prose prose-sm max-w-none">{renderMarkdown(after)}</div>}
+                                    {draft && after && renderMarkdown(after)}
                                     {actions.map((action, idx) => (
                                       <ActionCard key={idx} action={action} caseContext={caseContext} messageText={textWithoutActions} />
                                     ))}
@@ -936,7 +845,7 @@ export function ChatPanel() {
                                 )
                               }
                               return (
-                                <div className="prose prose-sm max-w-none">
+                                <div>
                                   {renderMarkdown(msg.content)}
                                 </div>
                               )
