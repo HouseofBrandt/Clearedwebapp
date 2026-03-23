@@ -190,12 +190,25 @@ function CopyButton({ text }: { text: string }) {
 // Streaming dots
 // -------------------------------------------------------------------
 function StreamingDots() {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   return (
-    <span className="inline-flex items-center gap-1">
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "0ms" }} />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "150ms" }} />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "300ms" }} />
-    </span>
+    <div className="flex flex-col gap-1">
+      <span className="inline-flex items-center gap-1">
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "0ms" }} />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "150ms" }} />
+        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "300ms" }} />
+      </span>
+      {elapsed >= 5 && (
+        <span className="text-[10px] text-gray-400">
+          {elapsed >= 15 ? "Still working — web search can take a moment..." : "Researching..."}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -234,7 +247,8 @@ function parseMessageDraft(content: string): { before: string; draft: MessageDra
 }
 
 function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onStatusChange?: (status: "sent" | "cancelled") => void }) {
-  const [status, setStatus] = useState<"draft" | "sending" | "sent" | "cancelled">("draft")
+  const [status, setStatus] = useState<"draft" | "sending" | "sent" | "error" | "cancelled">("draft")
+  const [errorMsg, setErrorMsg] = useState("")
 
   const typeConfig: Record<string, { icon: React.ElementType; label: string; border: string }> = {
     BUG_REPORT: { icon: Bug, label: "Bug Report", border: "border-l-red-400" },
@@ -258,12 +272,12 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
           tags: draft.tags ? draft.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
         }),
       })
-      if (!res.ok) throw new Error("Failed")
+      if (!res.ok) throw new Error("Failed to send")
       setStatus("sent")
       onStatusChange?.("sent")
-    } catch {
-      setStatus("draft")
-      alert("Failed to send. Please try again.")
+    } catch (err: any) {
+      setStatus("error")
+      setErrorMsg(err.message || "Failed to send. Please try again.")
     }
   }
 
@@ -278,6 +292,23 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
   }
 
   if (status === "cancelled") return null
+
+  if (status === "error") {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <X className="h-4 w-4 shrink-0" />
+          {errorMsg}
+        </div>
+        <button
+          onClick={() => { setStatus("draft"); setErrorMsg("") }}
+          className="text-xs text-muted-foreground hover:text-gray-700 underline"
+        >
+          Try again
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className={`rounded-lg border border-l-4 ${config.border} bg-white p-3`}>
@@ -372,8 +403,10 @@ function parseActionBlocks(content: string): { text: string; actions: ChatAction
 }
 
 function ActionCard({ action, caseContext, messageText }: { action: ChatAction; caseContext: CaseContext | null; messageText?: string }) {
-  const [status, setStatus] = useState<"pending" | "executing" | "done" | "cancelled">("pending")
+  const [status, setStatus] = useState<"pending" | "executing" | "done" | "error" | "cancelled">("pending")
   const [resultMsg, setResultMsg] = useState("")
+  const [resultData, setResultData] = useState<any>(null)
+  const [errorMsg, setErrorMsg] = useState("")
 
   const caseId = action.caseId || caseContext?.caseId
   const caseIndependentActions = ["ADD_TO_KNOWLEDGE_BASE", "SEARCH_KNOWLEDGE_BASE"]
@@ -400,25 +433,58 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: action.type, caseId: caseId || undefined, payload }),
       })
-      if (!res.ok) throw new Error("Action failed")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Action failed")
+      }
       const data = await res.json()
       setStatus("done")
       setResultMsg(data.message || "Action completed")
+      setResultData(data)
       // Navigate if redirect is specified (e.g., open Banjo tab)
       if (data.redirectTo && typeof window !== "undefined") {
         window.location.href = data.redirectTo
       }
-    } catch {
-      setStatus("pending")
-      alert("Action failed. Please try again.")
+    } catch (err: any) {
+      setStatus("error")
+      setErrorMsg(err.message || "Action failed. Please try again.")
     }
   }
 
   if (status === "done") {
     return (
-      <div className="flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-2 text-sm text-green-700">
-        <CheckCircle2 className="h-4 w-4" />
-        {resultMsg || "Action completed"}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-2 text-sm text-green-700">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {resultMsg || "Action completed"}
+        </div>
+        {action.type === "SEARCH_KNOWLEDGE_BASE" && resultData?.results?.length > 0 && (
+          <div className="rounded-lg border bg-gray-50 p-2 space-y-1.5">
+            {resultData.results.map((r: any, i: number) => (
+              <div key={i} className="text-xs">
+                <span className="font-medium">{r.title}</span>
+                <span className="ml-1.5 text-muted-foreground">({r.category})</span>
+                {r.preview && <p className="mt-0.5 text-muted-foreground line-clamp-2">{r.preview}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+  if (status === "error") {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <X className="h-4 w-4 shrink-0" />
+          {errorMsg}
+        </div>
+        <button
+          onClick={() => { setStatus("pending"); setErrorMsg("") }}
+          className="text-xs text-muted-foreground hover:text-gray-700 underline"
+        >
+          Try again
+        </button>
       </div>
     )
   }
@@ -459,7 +525,7 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
             <p className="font-medium">{action.clientName || "Client"}</p>
             {(action.missingDocs as any[]).map((doc: any, i: number) => (
               <div key={i} className="flex items-center gap-1.5 text-xs">
-                <span>{doc.critical ? "❌" : "⬜"}</span>
+                <span>{doc.critical ? "\uD83D\uDD34" : "\u26AA"}</span>
                 <span>{doc.label}</span>
               </div>
             ))}
@@ -515,21 +581,26 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
         )}
       </div>
 
-      <div className="mt-3 flex gap-2">
-        <button
-          onClick={handleExecute}
-          disabled={status === "executing" || (needsCaseId && !caseId)}
-          className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
-          style={{ backgroundColor: "#1B2A4A" }}
-        >
-          {status === "executing" ? "Executing..." : buttonLabels[action.type] || "Execute"}
-        </button>
-        <button
-          onClick={() => setStatus("cancelled")}
-          className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
-        >
-          Cancel
-        </button>
+      <div className="mt-3 space-y-1.5">
+        <div className="flex gap-2">
+          <button
+            onClick={handleExecute}
+            disabled={status === "executing" || (needsCaseId && !caseId)}
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "#1B2A4A" }}
+          >
+            {status === "executing" ? "Executing..." : buttonLabels[action.type] || "Execute"}
+          </button>
+          <button
+            onClick={() => setStatus("cancelled")}
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+        {needsCaseId && !caseId && (
+          <p className="text-[10px] text-muted-foreground">Open a case to enable this action</p>
+        )}
       </div>
     </div>
   )
@@ -865,7 +936,13 @@ export function ChatPanel() {
             ) : (
               /* Messages */
               <div className="flex flex-col gap-4">
-                {messages.map((msg) => (
+                {messages.map((msg) => {
+                  // Skip rendering empty assistant bubbles (no content, not actively streaming)
+                  const isLastMsg = msg === messages[messages.length - 1]
+                  if (msg.role === "assistant" && !msg.content && !(isStreaming && isLastMsg)) {
+                    return null
+                  }
+                  return (
                   <div
                     key={msg.id}
                     className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
@@ -916,7 +993,8 @@ export function ChatPanel() {
                       )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
