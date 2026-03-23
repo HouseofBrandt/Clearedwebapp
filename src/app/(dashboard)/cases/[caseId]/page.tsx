@@ -74,7 +74,7 @@ export default async function CaseDetailPage({
 
   const userId = (session.user as any).id
 
-  const [practitioners, deadlines, intelligence, activities, caseFeedPosts] = await Promise.all([
+  const [practitioners, deadlines, intelligence, activities] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, role: true },
       orderBy: { name: "asc" },
@@ -96,7 +96,12 @@ export default async function CaseDetailPage({
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
-    prisma.feedPost.findMany({
+  ])
+
+  // Feed posts — separate query so a missing table doesn't break the page
+  let caseFeedPosts: any[] = []
+  try {
+    caseFeedPosts = await prisma.feedPost.findMany({
       take: 20,
       orderBy: { createdAt: "desc" },
       where: { caseId: params.caseId, archived: false },
@@ -115,8 +120,10 @@ export default async function CaseDetailPage({
           select: { id: true },
         },
       },
-    }),
-  ])
+    })
+  } catch (err: any) {
+    console.error("Case feed posts error (non-blocking):", err?.message)
+  }
 
   // Serialize dates for client component
   const serializedDeadlines = deadlines.map((d) => ({
