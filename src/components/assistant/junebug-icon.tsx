@@ -4,73 +4,52 @@ interface JunebugIconProps {
 }
 
 /**
- * Junebug icon — a minimal, single-stroke dog face.
- * Named after the boss's dog.
+ * Junebug icon — a minimal dog head silhouette in profile.
+ * Pointed snout, one floppy ear, clean outline.
+ * Works at every size from 14px (inline text) to 40px (empty state).
+ * Uses currentColor so it inherits text color.
  *
- * Two states:
- * - Resting: static, calm
- * - Thinking (animated=true): subtle ear twitch + tail wag
+ * Animated state: subtle head tilt + ear perk.
  */
 export function JunebugIcon({ className = "h-5 w-5", animated = false }: JunebugIconProps) {
   return (
     <svg
       viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      fill="currentColor"
       className={className}
+      aria-label="Junebug"
     >
-      {/* Head outline */}
-      <ellipse cx="12" cy="13" rx="7" ry="6.5" />
-      {/* Left ear — floppy */}
+      {/* Dog head silhouette — 3/4 view, single fill shape */}
       <path
-        d="M6.5 9 C5 5, 3 6, 4 9.5"
-        className={animated ? "animate-junebug-ear-left" : ""}
+        d="M12.5 4C14.5 4 16 5.2 16.5 7L17 7C19 7 20.5 8.8 20.5 11C20.5 13.2 19 15 17 15L16.2 15L15 17.5C14.3 18.8 13 19.5 11.5 19.5L10 19.5C8.5 19.5 7.2 18.8 6.5 17.5L5.5 15.5C4 15 3 13.3 3 11.5C3 9.2 4.8 7.5 7 7.5L7 7C7 5.5 8.5 4 10.5 4L12.5 4Z"
+        className={animated ? "animate-junebug-tilt" : ""}
       />
-      {/* Right ear — floppy */}
+      {/* Ear — floppy, sits on top-right of head */}
       <path
-        d="M17.5 9 C19 5, 21 6, 20 9.5"
-        className={animated ? "animate-junebug-ear-right" : ""}
+        d="M15.5 4C16.8 2.5 19 2.8 19 4.5C19 5.8 17.8 7 16.5 7"
+        fill="currentColor"
+        className={animated ? "animate-junebug-ear" : ""}
       />
-      {/* Eyes — alert dots */}
-      <circle cx="9.5" cy="12.5" r="0.8" fill="currentColor" stroke="none" />
-      <circle cx="14.5" cy="12.5" r="0.8" fill="currentColor" stroke="none" />
-      {/* Nose */}
-      <ellipse cx="12" cy="15" rx="1.2" ry="0.8" fill="currentColor" stroke="none" />
-      {/* Mouth — small happy curve */}
-      <path d="M10.5 16.2 Q12 17.2 13.5 16.2" />
-      {/* Tongue — only when animated (thinking = panting) */}
-      {animated && (
-        <path
-          d="M12 16.8 Q12.3 18.5 11.5 18.5"
-          className="animate-junebug-tongue"
-          strokeWidth="1.2"
-        />
-      )}
+      {/* Eye — bright dot */}
+      <circle cx="10.5" cy="11" r="1.1" fill="white" opacity="0.9" />
+      {/* Nose — rounded triangle */}
+      <ellipse cx="7" cy="13" rx="1.2" ry="0.9" fill="white" opacity="0.7" />
+
       <style>{`
-        @keyframes junebug-ear-twitch-left {
-          0%, 85%, 100% { transform: rotate(0deg); transform-origin: 6.5px 9px; }
-          90% { transform: rotate(-6deg); transform-origin: 6.5px 9px; }
+        @keyframes junebug-tilt {
+          0%, 88%, 100% { transform: rotate(0deg); transform-origin: 12px 12px; }
+          92% { transform: rotate(4deg); transform-origin: 12px 12px; }
+          96% { transform: rotate(-2deg); transform-origin: 12px 12px; }
         }
-        @keyframes junebug-ear-twitch-right {
-          0%, 80%, 100% { transform: rotate(0deg); transform-origin: 17.5px 9px; }
-          88% { transform: rotate(6deg); transform-origin: 17.5px 9px; }
+        @keyframes junebug-ear-perk {
+          0%, 85%, 100% { transform: rotate(0deg); transform-origin: 16.5px 7px; }
+          90% { transform: rotate(-12deg); transform-origin: 16.5px 7px; }
         }
-        @keyframes junebug-tongue-wag {
-          0%, 100% { transform: rotate(0deg); transform-origin: 12px 16.8px; }
-          30% { transform: rotate(8deg); transform-origin: 12px 16.8px; }
-          60% { transform: rotate(-5deg); transform-origin: 12px 16.8px; }
+        .animate-junebug-tilt {
+          animation: junebug-tilt 4s ease-in-out infinite;
         }
-        .animate-junebug-ear-left {
-          animation: junebug-ear-twitch-left 3s ease-in-out infinite;
-        }
-        .animate-junebug-ear-right {
-          animation: junebug-ear-twitch-right 3s ease-in-out infinite;
-        }
-        .animate-junebug-tongue {
-          animation: junebug-tongue-wag 1.5s ease-in-out infinite;
+        .animate-junebug-ear {
+          animation: junebug-ear-perk 4s ease-in-out infinite;
         }
       `}</style>
     </svg>

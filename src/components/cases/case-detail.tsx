@@ -42,6 +42,7 @@ import { AddDeadlineDialog } from "@/components/calendar/add-deadline-dialog"
 import { CasePosturePanel } from "@/components/cases/case-posture-panel"
 import { CaseJunebug } from "@/components/cases/case-junebug"
 import { ActivityFeed } from "@/components/cases/activity-feed"
+import { FeedPage } from "@/components/feed/feed-page"
 import { DEADLINE_PRIORITY_DOTS } from "@/types"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
 
@@ -94,12 +95,14 @@ interface CaseDetailProps {
   deadlines?: any[]
   intelligence?: any | null
   activities?: any[]
+  feedPosts?: any[]
+  currentUser?: any
 }
 
 const WORKSPACES = ["documents", "banjo", "deliverables", "deadlines", "activity", "settings"] as const
 type Workspace = typeof WORKSPACES[number]
 
-export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [] }: CaseDetailProps) {
+export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [], feedPosts = [], currentUser }: CaseDetailProps) {
   const [workspace, setWorkspace] = useState<Workspace>(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.replace("#", "")
@@ -465,18 +468,28 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
               </>
             )}
 
-            {/* ── Activity ── */}
+            {/* ── Activity (Case-Scoped Feed) ── */}
             {workspace === "activity" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Clock className="h-5 w-5" /> Activity Feed
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ActivityFeed activities={activities} />
-                </CardContent>
-              </Card>
+              currentUser && feedPosts ? (
+                <FeedPage
+                  currentUser={currentUser}
+                  initialPosts={feedPosts}
+                  caseId={caseData.id}
+                  cases={[{ id: caseData.id, tabsNumber: caseData.tabsNumber || caseData.id, clientName: caseData.clientName }]}
+                  users={practitioners.map(p => ({ id: p.id, name: p.name }))}
+                />
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Clock className="h-5 w-5" /> Activity Feed
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ActivityFeed activities={activities} />
+                  </CardContent>
+                </Card>
+              )
             )}
 
             {/* ── Settings (Case editing) ── */}

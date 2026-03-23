@@ -72,7 +72,9 @@ export default async function CaseDetailPage({
     metadata: { tabsNumber: caseData.tabsNumber },
   })
 
-  const [practitioners, deadlines, intelligence, activities] = await Promise.all([
+  const userId = (session.user as any).id
+
+  const [practitioners, deadlines, intelligence, activities, caseFeedPosts] = await Promise.all([
     prisma.user.findMany({
       select: { id: true, name: true, role: true },
       orderBy: { name: "asc" },
@@ -93,6 +95,26 @@ export default async function CaseDetailPage({
       include: { user: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
       take: 50,
+    }),
+    prisma.feedPost.findMany({
+      take: 20,
+      orderBy: { createdAt: "desc" },
+      where: { caseId: params.caseId, archived: false },
+      include: {
+        author: { select: { id: true, name: true, role: true } },
+        case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
+        taskAssignee: { select: { id: true, name: true } },
+        replies: {
+          take: 3,
+          orderBy: { createdAt: "asc" },
+          include: { author: { select: { id: true, name: true } } },
+        },
+        _count: { select: { replies: true, likes: true } },
+        likes: {
+          where: { userId },
+          select: { id: true },
+        },
+      },
     }),
   ])
 
@@ -125,6 +147,18 @@ export default async function CaseDetailPage({
     createdAt: a.createdAt.toISOString(),
   }))
 
+  // Transform feed posts for client
+  const serializedFeedPosts = caseFeedPosts.map((post) => ({
+    ...post,
+    replyCount: post._count.replies,
+    likeCount: post._count.likes,
+    liked: post.likes.length > 0,
+    likes: undefined,
+    _count: undefined,
+    createdAt: post.createdAt.toISOString(),
+    updatedAt: post.updatedAt.toISOString(),
+  }))
+
   return (
     <CaseDetail
       caseData={decryptCasePII(caseData)}
@@ -132,6 +166,8 @@ export default async function CaseDetailPage({
       deadlines={serializedDeadlines}
       intelligence={serializedIntelligence}
       activities={serializedActivities}
+      feedPosts={serializedFeedPosts}
+      currentUser={session.user}
     />
   )
 }

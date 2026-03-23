@@ -5,6 +5,7 @@ import { logReviewAction } from "@/lib/ai/audit"
 import { notify } from "@/lib/notifications"
 import { autoIngestToKnowledgeBase } from "@/lib/banjo/auto-ingest"
 import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
+import { createFeedEvent } from "@/lib/feed/create-event"
 import { z } from "zod"
 
 const reviewSchema = z.object({
@@ -148,6 +149,14 @@ export async function POST(
     }).catch((err) => {
       console.error("[Review] Audit log failed (non-blocking):", err.message)
     })
+
+    // Feed event (fire-and-forget)
+    createFeedEvent({
+      eventType: newStatus === "APPROVED" ? "review_approved" : "review_rejected",
+      caseId: task.caseId,
+      eventData: { taskType: task.taskType, taskLabel: task.banjoStepLabel },
+      content: `${newStatus === "APPROVED" ? "Approved" : "Rejected"} ${task.banjoStepLabel || task.taskType.replace(/_/g, " ")}`,
+    }).catch(() => {})
 
     // Log activity (fire-and-forget)
     const taskLabel = task.taskType.replace(/_/g, " ")
