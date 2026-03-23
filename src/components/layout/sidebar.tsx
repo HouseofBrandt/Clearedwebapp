@@ -12,6 +12,7 @@ import {
   Inbox,
   Settings,
   Shield,
+  BarChart3,
   ScrollText,
 } from "lucide-react"
 import { ROLE_LABELS } from "@/types"
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Cases", href: "/cases", icon: FolderOpen },
   { name: "Review Queue", href: "/review", icon: ClipboardCheck },
   { name: "Calendar", href: "/calendar", icon: Calendar },
+  { name: "Portfolio", href: "/portfolio", icon: BarChart3 },
   { name: "Knowledge Base", href: "/knowledge", icon: BookOpen },
   { name: "Inbox", href: "/inbox", icon: Inbox },
   { name: "Settings", href: "/settings", icon: Settings },

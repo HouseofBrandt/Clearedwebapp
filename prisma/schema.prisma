@@ -435,6 +435,13 @@ model KnowledgeDocument {
   sourceType        String            @default("MANUAL_UPLOAD")
   lastReferencedAt  DateTime?
 
+  // V2: Outcome tagging (populated when source case is resolved)
+  outcomeTag        String?           // OIC_ACCEPTED, OIC_REJECTED, IA_APPROVED, etc.
+  outcomeAmount     Decimal?          // Final accepted amount (for OIC)
+
+  // V2: Freshness scoring
+  freshnessScore    Float             @default(1.0) // 0.0 (stale) to 1.0 (fresh)
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
