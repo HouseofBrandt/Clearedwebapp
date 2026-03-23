@@ -1,10 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { requireApiAuth, ADMIN_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logAudit } from "@/lib/ai/audit"
-
-// One-time token for remote execution (remove after use)
-const CLEANUP_TOKEN = "switchboard-cleanup-2026-03-23"
 
 const IMPLEMENTED_FEATURES = [
   { subjectMatch: "Document freshness", notes: "src/lib/case-intelligence/document-freshness.ts — expiration tracking + freshness badges" },
@@ -109,124 +106,5 @@ export async function POST() {
     notFound: results.filter((r) => r.status === "not_found").length,
     duplicatesDeleted,
     details: results,
-  })
-}
-
-/**
- * GET handler with one-time token auth for remote execution.
- * Runs the same cleanup logic without requiring a NextAuth session.
- * Remove this handler after the cleanup is complete.
- */
-export async function GET(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get("token")
-  if (token !== CLEANUP_TOKEN) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
-
-  const log: string[] = []
-  let totalMarked = 0
-
-  // Step 1: Mark implemented
-  for (const feature of IMPLEMENTED_FEATURES) {
-    const matches = await prisma.message.findMany({
-      where: {
-        subject: { contains: feature.subjectMatch },
-        type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
-        NOT: { implementationStatus: "implemented" },
-      },
-      select: { id: true, subject: true },
-    })
-    if (matches.length > 0) {
-      const result = await prisma.message.updateMany({
-        where: { id: { in: matches.map(m => m.id) } },
-        data: {
-          implementationStatus: "implemented",
-          implementedAt: new Date(),
-          implementationNotes: `Verified: ${feature.notes}`,
-        },
-      })
-      log.push(`✓ "${feature.subjectMatch}" — ${result.count} marked`)
-      totalMarked += result.count
-    }
-  }
-
-  // Step 2: Delete duplicates
-  let duplicatesDeleted = 0
-
-  const banjoDupes = await prisma.message.findMany({
-    where: {
-      AND: [
-        { subject: { contains: "Banjo" } },
-        { subject: { contains: "Cannot Start New Assignment" } },
-      ],
-    },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  })
-  if (banjoDupes.length > 1) {
-    const del = await prisma.message.deleteMany({
-      where: { id: { in: banjoDupes.slice(1).map(m => m.id) } },
-    })
-    duplicatesDeleted += del.count
-    log.push(`✓ Deleted ${del.count} "Cannot Start" duplicate(s)`)
-  }
-
-  const inboxDupes = await prisma.message.findMany({
-    where: {
-      AND: [
-        { subject: { contains: "Inbox UI/UX Improvements" } },
-        { subject: { contains: "Bulk Actions" } },
-      ],
-    },
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  })
-  if (inboxDupes.length > 1) {
-    const del = await prisma.message.deleteMany({
-      where: { id: { in: inboxDupes.slice(1).map(m => m.id) } },
-    })
-    duplicatesDeleted += del.count
-    log.push(`✓ Deleted ${del.count} "Inbox UI/UX" duplicate(s)`)
-  }
-
-  // Step 3: Verify
-  const openCount = await prisma.message.count({
-    where: {
-      type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
-      OR: [
-        { implementationStatus: null },
-        { implementationStatus: "open" },
-        { implementationStatus: "in_progress" },
-      ],
-    },
-  })
-  const implCount = await prisma.message.count({
-    where: {
-      type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
-      implementationStatus: "implemented",
-    },
-  })
-
-  const remaining = await prisma.message.findMany({
-    where: {
-      type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
-      OR: [
-        { implementationStatus: null },
-        { implementationStatus: "open" },
-        { implementationStatus: "in_progress" },
-      ],
-    },
-    select: { subject: true, implementationStatus: true },
-    orderBy: { createdAt: "asc" },
-  })
-
-  return NextResponse.json({
-    success: true,
-    totalMarked,
-    duplicatesDeleted,
-    openCount,
-    implementedCount: implCount,
-    remaining: remaining.map(m => ({ status: m.implementationStatus || "null", subject: m.subject })),
-    log,
   })
 }
