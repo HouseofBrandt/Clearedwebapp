@@ -83,7 +83,7 @@ ${allMatches.slice(0, 10).join("\n")}
 
 Related commits (${matchedCommits.length}):
 ${matchedCommits.slice(0, 5).join("\n")}`,
-      model: "claude-sonnet-4-20250514",
+      model: "claude-opus-4-6",
       maxTokens: 200,
       temperature: 0,
     })

@@ -29,7 +29,7 @@ export interface DocumentTriageResult {
 
 /**
  * Run a fast AI triage on a newly uploaded document.
- * Uses Sonnet for speed — this runs on EVERY upload (~3-5 seconds).
+ * Uses Opus for all AI operations per V2 policy.
  */
 export async function triageDocument(params: {
   documentId: string
@@ -50,7 +50,7 @@ export async function triageDocument(params: {
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       max_tokens: 1024,
       temperature: 0,
       system: "You are a document classifier for a tax resolution firm. Analyze the document and return ONLY a JSON object. No markdown, no explanation.",

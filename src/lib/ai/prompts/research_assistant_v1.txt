@@ -53,7 +53,7 @@ DOCUMENTS:
 AI ANALYSIS:
 - Run: Case → AI Tasks tab → select type → Run Analysis.
 - Types: General Analysis, OIC Working Papers (Excel output), OIC Narrative, Case Memo, Penalty Abatement Letter, IA Analysis, CNC Analysis, TFRP Analysis, Innocent Spouse.
-- Models: Sonnet 4.6 (fast, default) or Opus 4.6 (thorough).
+- Model: Opus 4.6 (all AI operations use Opus exclusively).
 - Takes 30-120 seconds. Results go to Review Queue.
 
 REVIEW:

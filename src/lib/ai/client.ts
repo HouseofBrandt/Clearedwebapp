@@ -40,7 +40,7 @@ function isRetryableError(error: any): boolean {
 export function callClaudeStream({
   systemPrompt,
   userMessage,
-  model = "claude-sonnet-4-6",
+  model = "claude-opus-4-6",
   temperature = 0.2,
   maxTokens = 4096,
 }: AIRequestOptions) {
@@ -60,7 +60,7 @@ export function callClaudeStream({
 export async function callClaude({
   systemPrompt,
   userMessage,
-  model = "claude-sonnet-4-6",
+  model = "claude-opus-4-6",
   temperature = 0.2,
   maxTokens = 4096,
 }: AIRequestOptions): Promise<AIResponse> {
