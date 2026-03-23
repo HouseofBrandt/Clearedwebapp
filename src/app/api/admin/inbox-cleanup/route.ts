@@ -3,24 +3,24 @@ import { prisma } from "@/lib/db"
 
 const CLEANUP_TOKEN = "switchboard-cleanup-2026-03-23"
 
-const IMPLEMENTED_SUBJECTS = [
-  "Document freshness/expiration tracking",
+const IMPLEMENTED_KEYWORDS = [
+  "Document freshness",
   "Smart Document Completeness",
-  "Case Document Progress Shows 0%",
+  "Document Progress Shows 0%",
   "Inbox UI/UX Improvements",
   "Inbox & Tracking Export",
-  "Inbox export should filter by message status",
+  "Inbox export should filter",
   "Platform Timezone",
   "Inbox Does Not Auto-Refresh",
-  "Numbered lists display as repeated",
-  "Reject Action Failing in Review Queue",
-  "Junebug AI — Read Access to Codebase and Deployment Pipeline",
-  "AI Assistant Live Access to Multi-Platform Infrastructure",
-  "AI Assistant — Full Platform Data Access",
-  "Junebug Live Access to Vercel Logs",
-  "Junebug AI — Deep Full Access to All Case Data",
-  "IRS Response Rebuttal Workflow",
-  "Junebug — Live Codebase Read Access",
+  "Numbered lists display",
+  "Reject Action Failing",
+  "Read Access to Codebase",
+  "Multi-Platform Infrastructure",
+  "Full Platform Data Access",
+  "Live Access to Vercel Logs",
+  "Deep Full Access to All Case",
+  "IRS Response Rebuttal",
+  "Live Codebase Read Access",
 ]
 
 export async function GET(request: NextRequest) {
@@ -31,8 +31,8 @@ export async function GET(request: NextRequest) {
 
   const log: string[] = []
 
-  // Step 0: Count before
-  const beforeCount = await prisma.message.count({
+  // Get ALL open bug/feature messages first
+  const allOpen = await prisma.message.findMany({
     where: {
       type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
       OR: [
@@ -41,80 +41,58 @@ export async function GET(request: NextRequest) {
         { implementationStatus: "in_progress" },
       ],
     },
+    select: { id: true, subject: true, implementationStatus: true },
   })
-  log.push(`Open items before: ${beforeCount}`)
+  log.push(`Total open messages: ${allOpen.length}`)
 
-  // Step 1: Mark implemented items
-  let totalMarked = 0
-  for (const subjectKeyword of IMPLEMENTED_SUBJECTS) {
-    const matches = await prisma.message.findMany({
-      where: {
-        subject: { contains: subjectKeyword },
-        type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
-        NOT: { implementationStatus: "implemented" },
-      },
-      select: { id: true, subject: true },
-    })
-
-    if (matches.length > 0) {
-      const ids = matches.map(m => m.id)
-      const result = await prisma.message.updateMany({
-        where: { id: { in: ids } },
-        data: {
-          implementationStatus: "implemented",
-          implementedAt: new Date(),
-          implementationNotes: "Verified implemented in codebase",
-        },
-      })
-      log.push(`Marked implemented: "${subjectKeyword}" (${result.count})`)
-      totalMarked += result.count
+  // Match in application code instead of relying on Prisma contains
+  const toMark: string[] = []
+  const matched: string[] = []
+  for (const msg of allOpen) {
+    for (const keyword of IMPLEMENTED_KEYWORDS) {
+      if (msg.subject.includes(keyword)) {
+        toMark.push(msg.id)
+        matched.push(`"${keyword}" → "${msg.subject}"`)
+        break
+      }
     }
   }
-  log.push(`Total marked implemented: ${totalMarked}`)
+  log.push(`Matched ${toMark.length} messages for marking`)
+  for (const m of matched) log.push(`  ✓ ${m}`)
+
+  // Bulk update
+  let totalMarked = 0
+  if (toMark.length > 0) {
+    const result = await prisma.message.updateMany({
+      where: { id: { in: toMark } },
+      data: {
+        implementationStatus: "implemented",
+        implementedAt: new Date(),
+        implementationNotes: "Verified implemented in codebase",
+      },
+    })
+    totalMarked = result.count
+  }
+  log.push(`Marked implemented: ${totalMarked}`)
 
   // Step 2: Delete duplicates
-  // "Banjo — Cannot Start New Assignment..."
-  const banjoDupes = await prisma.message.findMany({
-    where: {
-      AND: [
-        { subject: { contains: "Banjo" } },
-        { subject: { contains: "Cannot Start New Assignment" } },
-      ],
-    },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, subject: true, createdAt: true },
-  })
   let duplicatesDeleted = 0
-  if (banjoDupes.length > 1) {
-    for (const d of banjoDupes.slice(1)) {
-      await prisma.message.delete({ where: { id: d.id } })
-      log.push(`Deleted duplicate: "${d.subject}"`)
-      duplicatesDeleted++
-    }
-  }
 
-  // "Inbox UI/UX Improvements — Bulk Actions..."
-  const inboxDupes = await prisma.message.findMany({
-    where: {
-      AND: [
-        { subject: { contains: "Inbox UI/UX Improvements" } },
-        { subject: { contains: "Bulk Actions" } },
-      ],
-    },
+  const banjoDupes = await prisma.message.findMany({
+    where: { subject: { contains: "Cannot Start New Assignment" } },
     orderBy: { createdAt: "asc" },
-    select: { id: true, subject: true, createdAt: true },
+    select: { id: true, subject: true },
   })
-  if (inboxDupes.length > 1) {
-    for (const d of inboxDupes.slice(1)) {
-      await prisma.message.delete({ where: { id: d.id } })
-      log.push(`Deleted duplicate: "${d.subject}"`)
-      duplicatesDeleted++
-    }
+  if (banjoDupes.length > 1) {
+    const del = await prisma.message.deleteMany({
+      where: { id: { in: banjoDupes.slice(1).map(m => m.id) } },
+    })
+    duplicatesDeleted += del.count
+    log.push(`Deleted ${del.count} "Cannot Start" duplicate(s)`)
   }
-  log.push(`Duplicates deleted: ${duplicatesDeleted}`)
 
   // Step 3: Verify
-  const afterCount = await prisma.message.count({
+  const afterOpen = await prisma.message.count({
     where: {
       type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
       OR: [
@@ -124,8 +102,7 @@ export async function GET(request: NextRequest) {
       ],
     },
   })
-
-  const implementedCount = await prisma.message.count({
+  const implCount = await prisma.message.count({
     where: {
       type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
       implementationStatus: "implemented",
@@ -145,20 +122,13 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "asc" },
   })
 
-  log.push(`\nOpen items after: ${afterCount}`)
-  log.push(`Implemented items: ${implementedCount}`)
-  log.push(`Remaining open:`)
-  for (const m of remaining) {
-    log.push(`  [${m.implementationStatus || "null"}] ${m.subject}`)
-  }
-
   return Response.json({
     success: true,
-    beforeCount,
-    afterCount,
     totalMarked,
     duplicatesDeleted,
-    implementedCount,
+    openBefore: allOpen.length,
+    openAfter: afterOpen,
+    implementedCount: implCount,
     remaining: remaining.map(m => m.subject),
     log,
   })
