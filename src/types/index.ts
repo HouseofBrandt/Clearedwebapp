@@ -2,9 +2,9 @@ export type CaseStatus = "INTAKE" | "ANALYSIS" | "REVIEW" | "ACTIVE" | "RESOLVED
 export type CaseType = "OIC" | "IA" | "PENALTY" | "INNOCENT_SPOUSE" | "CNC" | "TFRP" | "ERC" | "UNFILED" | "AUDIT" | "CDP" | "AMENDED" | "VOLUNTARY_DISCLOSURE" | "OTHER"
 export type FilingStatus = "SINGLE" | "MFJ" | "MFS" | "HOH" | "QSS"
 export type Role = "PRACTITIONER" | "SENIOR" | "ADMIN" | "SUPPORT_STAFF"
-export type AITaskType = "WORKING_PAPERS" | "CASE_MEMO" | "PENALTY_LETTER" | "OIC_NARRATIVE" | "GENERAL_ANALYSIS" | "IA_ANALYSIS" | "CNC_ANALYSIS" | "TFRP_ANALYSIS" | "INNOCENT_SPOUSE_ANALYSIS" | "APPEALS_REBUTTAL" | "CASE_SUMMARY" | "RISK_ASSESSMENT"
-export type BanjoStatus = "PLANNING" | "CLARIFYING" | "AWAITING_APPROVAL" | "EXECUTING" | "COMPLETED" | "FAILED" | "CANCELLED"
-export type AITaskStatus = "QUEUED" | "PROCESSING" | "READY_FOR_REVIEW" | "APPROVED" | "REJECTED"
+export type AITaskType = "WORKING_PAPERS" | "CASE_MEMO" | "PENALTY_LETTER" | "OIC_NARRATIVE" | "GENERAL_ANALYSIS" | "IA_ANALYSIS" | "CNC_ANALYSIS" | "TFRP_ANALYSIS" | "INNOCENT_SPOUSE_ANALYSIS" | "APPEALS_REBUTTAL" | "CASE_SUMMARY" | "RISK_ASSESSMENT" | "WEB_RESEARCH"
+export type BanjoStatus = "PLANNING" | "CLARIFYING" | "AWAITING_APPROVAL" | "EXECUTING" | "POLISHING" | "COMPLETED" | "FAILED" | "CANCELLED"
+export type AITaskStatus = "QUEUED" | "PROCESSING" | "READY_FOR_REVIEW" | "APPROVED" | "REJECTED" | "SKIPPED"
 
 export const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   INTAKE: "Intake",
@@ -44,6 +44,7 @@ export const TASK_TYPE_LABELS: Record<AITaskType, string> = {
   APPEALS_REBUTTAL: "Appeals Rebuttal Packet",
   CASE_SUMMARY: "Case Summary",
   RISK_ASSESSMENT: "Risk Assessment",
+  WEB_RESEARCH: "Web Research",
 }
 
 export const ROLE_LABELS: Record<Role, string> = {

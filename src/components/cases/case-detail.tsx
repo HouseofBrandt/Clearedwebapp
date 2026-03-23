@@ -622,51 +622,107 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {approvedTasks.map((task: any) => {
-                const approvalAction = task.reviewActions?.find(
-                  (ra: any) => ra.action === "APPROVE" || ra.action === "EDIT_APPROVE"
-                )
-                const isSpreadsheet = SPREADSHEET_TASK_TYPES.has(task.taskType)
+            <div className="space-y-4">
+              {/* Group by Banjo assignment */}
+              {(() => {
+                const bundles = new Map<string, any[]>()
+                const standalone: any[] = []
+                for (const task of approvedTasks) {
+                  if (task.banjoAssignmentId) {
+                    const existing = bundles.get(task.banjoAssignmentId) || []
+                    existing.push(task)
+                    bundles.set(task.banjoAssignmentId, existing)
+                  } else {
+                    standalone.push(task)
+                  }
+                }
+
                 return (
-                  <Card key={task.id}>
-                    <CardContent className="flex items-center justify-between p-4">
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{formatTaskType(task.taskType)}</p>
-                            <Badge className="bg-green-100 text-green-800" variant="secondary">
-                              Final
-                            </Badge>
+                  <>
+                    {Array.from(bundles.entries()).map(([assignmentId, tasks]) => (
+                      <Card key={assignmentId}>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">&#x1FA95;</span>
+                              <p className="font-medium text-sm">
+                                Banjo Assignment &mdash; {new Date(tasks[0].createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                window.open(`/api/banjo/${assignmentId}/export-zip`, "_blank")
+                              }}
+                            >
+                              <Download className="mr-1 h-4 w-4" />
+                              Export All as ZIP
+                            </Button>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {approvalAction
-                              ? `Approved ${timeAgo(approvalAction.reviewCompletedAt || approvalAction.reviewStartedAt)}${
-                                  approvalAction.practitioner?.name
-                                    ? ` by ${approvalAction.practitioner.name}`
-                                    : ""
-                                }`
-                              : `Approved ${timeAgo(task.updatedAt || task.createdAt)}`}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          window.open(
-                            `/api/ai/tasks/${task.id}/export?format=${isSpreadsheet ? "xlsx" : "docx"}`,
-                            "_blank"
-                          )
-                        }}
-                      >
-                        <Download className="mr-1 h-4 w-4" />
-                        Export {isSpreadsheet ? ".xlsx" : ".docx"}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                          <div className="space-y-2">
+                            {tasks
+                              .sort((a: any, b: any) => (a.banjoStepNumber || 0) - (b.banjoStepNumber || 0))
+                              .map((task: any) => {
+                                const isSpreadsheet = SPREADSHEET_TASK_TYPES.has(task.taskType)
+                                return (
+                                  <div key={task.id} className="flex items-center justify-between pl-6">
+                                    <div className="flex items-center gap-2">
+                                      <Badge className="bg-green-100 text-green-800" variant="secondary">Approved</Badge>
+                                      <p className="text-sm">{task.banjoStepLabel || formatTaskType(task.taskType)}</p>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        window.open(`/api/ai/tasks/${task.id}/export?format=${isSpreadsheet ? "xlsx" : "docx"}`, "_blank")
+                                      }}
+                                    >
+                                      <Download className="mr-1 h-3 w-3" />
+                                      {isSpreadsheet ? ".xlsx" : ".docx"}
+                                    </Button>
+                                  </div>
+                                )
+                              })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+
+                    {standalone.length > 0 && bundles.size > 0 && (
+                      <p className="text-sm font-medium text-muted-foreground pt-2">Standalone Tasks</p>
+                    )}
+
+                    {standalone.map((task: any) => {
+                      const approvalAction = task.reviewActions?.find(
+                        (ra: any) => ra.action === "APPROVE" || ra.action === "EDIT_APPROVE"
+                      )
+                      const isSpreadsheet = SPREADSHEET_TASK_TYPES.has(task.taskType)
+                      return (
+                        <Card key={task.id}>
+                          <CardContent className="flex items-center justify-between p-4">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{formatTaskType(task.taskType)}</p>
+                                <Badge className="bg-green-100 text-green-800" variant="secondary">Final</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {approvalAction
+                                  ? `Approved ${timeAgo(approvalAction.reviewCompletedAt || approvalAction.reviewStartedAt)}${approvalAction.practitioner?.name ? ` by ${approvalAction.practitioner.name}` : ""}`
+                                  : `Approved ${timeAgo(task.updatedAt || task.createdAt)}`}
+                              </p>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => { window.open(`/api/ai/tasks/${task.id}/export?format=${isSpreadsheet ? "xlsx" : "docx"}`, "_blank") }}>
+                              <Download className="mr-1 h-4 w-4" />
+                              Export {isSpreadsheet ? ".xlsx" : ".docx"}
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </>
                 )
-              })}
+              })()}
             </div>
           )}
         </TabsContent>

@@ -88,12 +88,13 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Stream response
+  // Stream response — with web search tool for real-time research
   const stream = anthropic.messages.stream({
     model: model || "claude-sonnet-4-6",
     max_tokens: 4096,
     temperature: 0.3,
     system: systemPrompt,
+    tools: [{ type: "web_search_20250305" as any, name: "web_search" } as any],
     messages: messages.map((m: { role: string; content: string }) => ({
       role: m.role,
       content: m.content,

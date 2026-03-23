@@ -3,6 +3,8 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
 import { formatDate } from "@/lib/date-utils"
+import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
+import { searchKnowledge } from "@/lib/knowledge/search"
 
 const actionSchema = z.object({
   action: z.enum([
@@ -11,6 +13,9 @@ const actionSchema = z.object({
     "CREATE_DEADLINE",
     "UPDATE_IRS_STATUS",
     "ADD_CASE_NOTE",
+    "CREATE_BANJO_ASSIGNMENT",
+    "ADD_TO_KNOWLEDGE_BASE",
+    "SEARCH_KNOWLEDGE_BASE",
   ]),
   caseId: z.string().min(1),
   payload: z.record(z.string(), z.any()),
@@ -219,6 +224,83 @@ export async function POST(request: NextRequest) {
         })
 
         return NextResponse.json({ success: true })
+      }
+
+      case "CREATE_BANJO_ASSIGNMENT": {
+        const { assignmentText, casePosture } = payload as any
+
+        // Create the Banjo assignment via the plan API
+        const planRes = await fetch(`${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/banjo/plan`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: request.headers.get("cookie") || "",
+          },
+          body: JSON.stringify({ caseId, assignmentText, casePosture }),
+        })
+
+        if (!planRes.ok) {
+          const err = await planRes.json()
+          return NextResponse.json({ error: err.error || "Banjo plan failed" }, { status: 500 })
+        }
+
+        const planData = await planRes.json()
+
+        return NextResponse.json({
+          success: true,
+          assignmentId: planData.assignmentId,
+          status: planData.status,
+          plan: planData.plan,
+          questions: planData.questions,
+          message: planData.status === "clarifying"
+            ? `Banjo has ${planData.questions?.length || 0} question(s) before it starts. Opening the Banjo tab...`
+            : `Banjo has a plan with ${planData.plan?.deliverables?.length || 0} deliverable(s). Opening the Banjo tab for your approval...`,
+          redirectTo: `/cases/${caseId}#banjo`,
+        })
+      }
+
+      case "ADD_TO_KNOWLEDGE_BASE": {
+        const { title, category, content, tags } = payload as any
+        const scrubbed = scrubForKnowledgeBase(content || "", "", "")
+
+        const doc = await prisma.knowledgeDocument.create({
+          data: {
+            title: title || "Untitled KB Entry",
+            category: (category || "CUSTOM") as any,
+            sourceText: scrubbed,
+            sourceType: "JUNEBUG_CURATED",
+            tags: tags || [],
+            uploadedById: auth.userId,
+          },
+        })
+
+        // Chunk and embed (fire-and-forget)
+        try {
+          const { ingestDocument } = await import("@/lib/knowledge/ingest")
+          await ingestDocument(doc.id, scrubbed)
+        } catch { /* non-fatal */ }
+
+        return NextResponse.json({
+          success: true,
+          documentId: doc.id,
+          message: `Added "${title}" to the Knowledge Base.`,
+        })
+      }
+
+      case "SEARCH_KNOWLEDGE_BASE": {
+        const results = await searchKnowledge(payload.query || "", { topK: 5 })
+        return NextResponse.json({
+          success: true,
+          results: results.map((r) => ({
+            title: r.documentTitle,
+            category: r.documentCategory,
+            preview: r.content.substring(0, 300),
+            score: r.score,
+          })),
+          message: results.length > 0
+            ? `Found ${results.length} relevant KB entries.`
+            : `No relevant results. This might be a knowledge gap worth filling.`,
+        })
       }
 
       default:

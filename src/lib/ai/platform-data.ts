@@ -26,6 +26,7 @@ interface DataQuery {
   strategyMatch?: boolean
   infrastructure?: boolean
   codebase?: boolean
+  banjoData?: boolean
 }
 
 function decryptName(val: string | null | undefined): string {
@@ -82,6 +83,10 @@ export function detectDataNeeds(message: string): DataQuery {
 
   if (m.match(/review|pending|queue|approve|reject|ready for review/)) {
     query.reviewQueue = true
+  }
+
+  if (m.match(/banjo|assignment|deliverable|work product|bundle|what.*generat|status.*output/)) {
+    query.banjoData = true
   }
 
   if (m.match(/knowledge|upload|document.*base|training|how many chunk|embed/)) {
@@ -411,6 +416,71 @@ export async function fetchPlatformData(
       text += "No tasks pending review.\n"
     }
     sections.push(text)
+  }
+
+  if (query.banjoData || query.caseDetail) {
+    try {
+      // Find case ID from caseDetail (tabs number or name) or from first case
+      let banjoCase: any = null
+      if (query.caseDetail) {
+        banjoCase = await prisma.case.findFirst({
+          where: {
+            OR: [
+              { tabsNumber: query.caseDetail },
+              { clientName: { contains: query.caseDetail, mode: "insensitive" } },
+            ],
+          },
+          select: { id: true, tabsNumber: true },
+        })
+      }
+
+      if (banjoCase) {
+        const assignments = await prisma.banjoAssignment.findMany({
+          where: { caseId: banjoCase.id },
+          include: {
+            tasks: {
+              select: {
+                id: true, taskType: true, status: true, banjoStepLabel: true,
+                banjoStepNumber: true, verifyFlagCount: true, judgmentFlagCount: true,
+                createdAt: true,
+                reviewActions: {
+                  select: { action: true, practitioner: { select: { name: true } }, reviewCompletedAt: true },
+                  orderBy: { reviewCompletedAt: "desc" },
+                  take: 1,
+                },
+              },
+              orderBy: { banjoStepNumber: "asc" },
+            },
+            createdBy: { select: { name: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        })
+
+        if (assignments.length > 0) {
+          let text = `\nBANJO ASSIGNMENTS:\n`
+          for (const a of assignments) {
+            text += `\nAssignment: "${a.assignmentText.substring(0, 150)}..."\n`
+            text += `   Status: ${a.status} | Created: ${formatDate(a.createdAt)} by ${a.createdBy.name}\n`
+            text += `   Model: ${a.model} | Deliverables: ${a.tasks.length}\n`
+            if (a.revisionResult) {
+              text += `   Quality Review: ${a.revisionResult}\n`
+            }
+            for (const t of a.tasks) {
+              const review = t.reviewActions[0]
+              const reviewStatus = review
+                ? `${review.action} by ${review.practitioner.name}`
+                : t.status
+              text += `   ${t.banjoStepNumber || "-"}. ${t.banjoStepLabel || t.taskType} [${reviewStatus}]`
+              if (t.verifyFlagCount > 0) text += ` \u26A0 ${t.verifyFlagCount} verify`
+              if (t.judgmentFlagCount > 0) text += ` ${t.judgmentFlagCount} judgment`
+              text += `\n`
+            }
+          }
+          sections.push(text)
+        }
+      }
+    } catch { /* non-fatal */ }
   }
 
   if (query.knowledgeBase) {

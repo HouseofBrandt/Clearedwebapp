@@ -3,6 +3,7 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logReviewAction } from "@/lib/ai/audit"
 import { notify } from "@/lib/notifications"
+import { autoIngestToKnowledgeBase } from "@/lib/banjo/auto-ingest"
 import { z } from "zod"
 
 const reviewSchema = z.object({
@@ -82,6 +83,13 @@ export async function POST(
           : {}),
       },
     })
+
+    // Auto-ingest to Knowledge Base on approval (fire-and-forget)
+    if (newStatus === "APPROVED") {
+      autoIngestToKnowledgeBase(task, auth.userId).catch((err) => {
+        console.error("[Review] Auto-KB-ingest failed (non-blocking):", err.message)
+      })
+    }
 
     // Audit log (fire-and-forget — don't block review on audit logging)
     logReviewAction({

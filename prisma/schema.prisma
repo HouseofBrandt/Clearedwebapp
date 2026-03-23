@@ -93,6 +93,7 @@ enum AITaskType {
   APPEALS_REBUTTAL
   CASE_SUMMARY
   RISK_ASSESSMENT
+  WEB_RESEARCH
 }
 
 enum BanjoStatus {
@@ -100,6 +101,7 @@ enum BanjoStatus {
   CLARIFYING
   AWAITING_APPROVAL
   EXECUTING
+  POLISHING
   COMPLETED
   FAILED
   CANCELLED
@@ -113,6 +115,7 @@ enum AITaskStatus {
   READY_FOR_REVIEW
   APPROVED
   REJECTED
+  SKIPPED
 }
 
 enum ReviewActionType {
@@ -427,6 +430,11 @@ model KnowledgeDocument {
   uploadedBy      User              @relation("UploadedKnowledge", fields: [uploadedById], references: [id])
   sourceTaskId    String?
   sourceCaseId    String?
+
+  // Provenance
+  sourceType        String            @default("MANUAL_UPLOAD")
+  lastReferencedAt  DateTime?
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -616,6 +624,12 @@ model BanjoAssignment {
   status            BanjoStatus       @default(PLANNING)
   currentStep       Int               @default(0)
   totalSteps        Int               @default(0)
+
+  // Revision pass
+  revisionRan       Boolean           @default(false)
+  revisionResult    String?           @db.Text
+  revisedTaskIds    Json?
+  skipRevision      Boolean           @default(false)
 
   // Metadata
   model             String            @default("claude-opus-4-6")

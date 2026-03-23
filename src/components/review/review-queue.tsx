@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Brain, CheckCircle2, AlertTriangle, FileText } from "lucide-react"
+import { Brain, CheckCircle2, AlertTriangle, FileText, ChevronDown, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { TASK_TYPE_LABELS } from "@/types"
 
@@ -23,7 +23,7 @@ const CASE_TYPES = [
 const TASK_TYPES = [
   "WORKING_PAPERS", "CASE_MEMO", "PENALTY_LETTER", "OIC_NARRATIVE",
   "GENERAL_ANALYSIS", "IA_ANALYSIS", "CNC_ANALYSIS", "TFRP_ANALYSIS",
-  "INNOCENT_SPOUSE_ANALYSIS", "APPEALS_REBUTTAL", "CASE_SUMMARY", "RISK_ASSESSMENT",
+  "INNOCENT_SPOUSE_ANALYSIS", "APPEALS_REBUTTAL", "CASE_SUMMARY", "RISK_ASSESSMENT", "WEB_RESEARCH",
 ] as const
 
 interface PendingTask {
@@ -32,6 +32,9 @@ interface PendingTask {
   createdAt: string
   verifyFlagCount: number
   judgmentFlagCount: number
+  banjoAssignmentId?: string | null
+  banjoStepNumber?: number | null
+  banjoStepLabel?: string | null
   case: {
     id: string
     tabsNumber: string
@@ -63,6 +66,83 @@ function isOlderThan48Hours(dateStr: string): boolean {
   return Date.now() - new Date(dateStr).getTime() > 48 * 60 * 60 * 1000
 }
 
+interface BanjoBundle {
+  assignmentId: string
+  tasks: PendingTask[]
+  caseInfo: PendingTask["case"]
+  earliestDate: string
+}
+
+function BanjoBundleCard({ bundle }: { bundle: BanjoBundle }) {
+  const [expanded, setExpanded] = useState(true)
+  const totalVerify = bundle.tasks.reduce((sum, t) => sum + t.verifyFlagCount, 0)
+  const totalJudgment = bundle.tasks.reduce((sum, t) => sum + t.judgmentFlagCount, 0)
+
+  return (
+    <Card className={isOlderThan48Hours(bundle.earliestDate) ? "border-l-4 border-l-yellow-400" : ""}>
+      <CardContent className="p-4 space-y-2">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setExpanded(!expanded)} className="shrink-0">
+            {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">&#x1FA95;</span>
+              <p className="font-medium">Banjo Assignment &mdash; {bundle.caseInfo.tabsNumber}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {bundle.tasks.length} deliverable{bundle.tasks.length !== 1 ? "s" : ""} &middot; {bundle.caseInfo.clientName}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {totalVerify > 0 && (
+              <Badge variant="outline" className="gap-1 text-yellow-600">
+                <AlertTriangle className="h-3 w-3" />
+                {totalVerify} VERIFY
+              </Badge>
+            )}
+            {totalJudgment > 0 && (
+              <Badge variant="outline" className="gap-1 text-blue-600">
+                <FileText className="h-3 w-3" />
+                {totalJudgment} JUDGMENT
+              </Badge>
+            )}
+            <Badge variant="secondary">{bundle.caseInfo.caseType.replace(/_/g, " ")}</Badge>
+            <span className="text-xs text-muted-foreground">{relativeTime(bundle.earliestDate)}</span>
+          </div>
+        </div>
+
+        {expanded && (
+          <div className="pl-8 space-y-1">
+            {bundle.tasks
+              .sort((a, b) => (a.banjoStepNumber || 0) - (b.banjoStepNumber || 0))
+              .map((task) => (
+                <Link
+                  key={task.id}
+                  href={`/review/${task.id}`}
+                  className="flex items-center justify-between rounded-md px-3 py-2 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{task.banjoStepNumber}.</span>
+                    <span className="text-sm">
+                      {task.banjoStepLabel || TASK_TYPE_LABELS[task.taskType as keyof typeof TASK_TYPE_LABELS] || task.taskType}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {task.verifyFlagCount > 0 && (
+                      <span className="text-xs text-yellow-600">{task.verifyFlagCount} verify</span>
+                    )}
+                    <Button size="sm" variant="outline">Review</Button>
+                  </div>
+                </Link>
+              ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function ReviewQueue({ tasks }: ReviewQueueProps) {
   const [caseTypeFilter, setCaseTypeFilter] = useState<string>("ALL")
   const [taskTypeFilter, setTaskTypeFilter] = useState<string>("ALL")
@@ -87,12 +167,41 @@ export function ReviewQueue({ tasks }: ReviewQueueProps) {
     return result
   }, [tasks, caseTypeFilter, taskTypeFilter, sortOrder])
 
+  // Group tasks by banjoAssignmentId
+  const { bundles, standaloneTasks } = useMemo(() => {
+    const bundleMap = new Map<string, BanjoBundle>()
+    const standalone: PendingTask[] = []
+
+    for (const task of filteredTasks) {
+      if (task.banjoAssignmentId) {
+        const existing = bundleMap.get(task.banjoAssignmentId)
+        if (existing) {
+          existing.tasks.push(task)
+          if (task.createdAt < existing.earliestDate) {
+            existing.earliestDate = task.createdAt
+          }
+        } else {
+          bundleMap.set(task.banjoAssignmentId, {
+            assignmentId: task.banjoAssignmentId,
+            tasks: [task],
+            caseInfo: task.case,
+            earliestDate: task.createdAt,
+          })
+        }
+      } else {
+        standalone.push(task)
+      }
+    }
+
+    return { bundles: Array.from(bundleMap.values()), standaloneTasks: standalone }
+  }, [filteredTasks])
+
   if (tasks.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <CheckCircle2 className="h-12 w-12 text-green-500" />
-          <h3 className="mt-4 text-lg font-semibold">All caught up — no pending reviews</h3>
+          <h3 className="mt-4 text-lg font-semibold">All caught up &mdash; no pending reviews</h3>
         </CardContent>
       </Card>
     )
@@ -156,7 +265,13 @@ export function ReviewQueue({ tasks }: ReviewQueueProps) {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredTasks.map((task) => (
+          {/* Banjo bundles */}
+          {bundles.map((bundle) => (
+            <BanjoBundleCard key={bundle.assignmentId} bundle={bundle} />
+          ))}
+
+          {/* Standalone tasks */}
+          {standaloneTasks.map((task) => (
             <Card
               key={task.id}
               className={

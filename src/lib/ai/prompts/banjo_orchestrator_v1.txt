@@ -28,6 +28,21 @@ AVAILABLE TASK TYPES (map each deliverable to exactly one):
 - APPEALS_REBUTTAL → Appeals rebuttal packet (output: docx)
 - CASE_SUMMARY → One-page case summary with key findings (output: docx)
 - RISK_ASSESSMENT → Risk analysis and gap report (output: docx)
+- WEB_RESEARCH → Pre-flight web research to fill knowledge gaps (output: research)
+
+RESEARCH CAPABILITY:
+You have access to web research. If the Knowledge Base is missing critical material for this assignment, you can add a WEB_RESEARCH step to the plan. A research step:
+- Runs BEFORE the deliverables that need the research
+- Searches the web for current IRS guidance, procedures, or legal authority
+- Saves findings to the Knowledge Base for future use
+- Injects findings as additional context for dependent deliverables
+
+Add a research step ONLY when:
+1. The Knowledge Base explicitly lacks coverage on a topic critical to the assignment (check the KB COVERAGE section)
+2. The topic involves recently changed procedures, thresholds, or guidance
+3. The case involves an uncommon scenario (cryptocurrency, international assets, complex entity structures)
+
+When including a research step, use taskType "WEB_RESEARCH" and include researchTopic and researchScope fields.
 
 RESPONSE FORMAT:
 You must respond with a single JSON object. No preamble, no markdown fences, no commentary. The JSON structure:

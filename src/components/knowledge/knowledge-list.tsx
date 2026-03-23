@@ -47,6 +47,14 @@ const CATEGORY_COLORS: Record<string, string> = {
   TRAINING_MATERIAL: "bg-pink-100 text-pink-800",
 }
 
+const SOURCE_TYPE_BADGES: Record<string, { label: string; icon: string; className: string }> = {
+  MANUAL_UPLOAD: { label: "Manual Upload", icon: "\uD83D\uDCE4", className: "bg-blue-50 text-blue-700" },
+  APPROVED_OUTPUT: { label: "Approved Output", icon: "\u2705", className: "bg-green-50 text-green-700" },
+  JUNEBUG_CURATED: { label: "Junebug Curated", icon: "\uD83D\uDCAC", className: "bg-purple-50 text-purple-700" },
+  WEB_RESEARCH: { label: "Web Research", icon: "\uD83C\uDF10", className: "bg-amber-50 text-amber-700" },
+  AUTO_ENRICHMENT: { label: "Auto-Enriched", icon: "\uD83E\uDD16", className: "bg-gray-50 text-gray-600" },
+}
+
 interface KnowledgeListProps {
   documents: any[]
   stats: {
@@ -61,6 +69,7 @@ interface KnowledgeListProps {
 export function KnowledgeList({ documents, stats, embeddingCounts = {} }: KnowledgeListProps) {
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [sourceTypeFilter, setSourceTypeFilter] = useState("all")
   const [reindexing, setReindexing] = useState<string | null>(null)
   const [backfilling, setBackfilling] = useState<string | null>(null)
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
@@ -69,6 +78,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
 
   const filtered = documents.filter((d: any) => {
     if (categoryFilter !== "all" && d.category !== categoryFilter) return false
+    if (sourceTypeFilter !== "all" && (d.sourceType || "MANUAL_UPLOAD") !== sourceTypeFilter) return false
     if (search) {
       const s = search.toLowerCase()
       return d.title.toLowerCase().includes(s) ||
@@ -213,6 +223,15 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
             ))}
           </SelectContent>
         </Select>
+        <Select value={sourceTypeFilter} onValueChange={setSourceTypeFilter}>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Sources</SelectItem>
+            {Object.entries(SOURCE_TYPE_BADGES).map(([k, v]) => (
+              <SelectItem key={k} value={k}>{v.icon} {v.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Document list grouped by category */}
@@ -252,6 +271,11 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
                               <Badge variant="secondary" className={`text-[10px] ${CATEGORY_COLORS[doc.category] || ""}`}>
                                 {CATEGORY_LABELS[doc.category] || doc.category}
                               </Badge>
+                              {doc.sourceType && SOURCE_TYPE_BADGES[doc.sourceType] && doc.sourceType !== "MANUAL_UPLOAD" && (
+                                <Badge variant="secondary" className={`text-[10px] ${SOURCE_TYPE_BADGES[doc.sourceType].className}`}>
+                                  {SOURCE_TYPE_BADGES[doc.sourceType].icon} {SOURCE_TYPE_BADGES[doc.sourceType].label}
+                                </Badge>
+                              )}
                               {doc.processingStatus === "uploading" && (
                                 <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700">Uploading</Badge>
                               )}
