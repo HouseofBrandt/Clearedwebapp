@@ -605,6 +605,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             caseContext={caseContext}
             collapsed={junebugCollapsed}
             onToggle={() => setJunebugCollapsed(!junebugCollapsed)}
+            digest={intelligence?.digest}
           />
         </div>
       </div>
