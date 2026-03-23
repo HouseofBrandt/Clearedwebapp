@@ -100,6 +100,7 @@ enum BanjoStatus {
   CLARIFYING
   AWAITING_APPROVAL
   EXECUTING
+  POLISHING
   COMPLETED
   FAILED
   CANCELLED
@@ -113,6 +114,7 @@ enum AITaskStatus {
   READY_FOR_REVIEW
   APPROVED
   REJECTED
+  SKIPPED
 }
 
 enum ReviewActionType {
@@ -616,6 +618,12 @@ model BanjoAssignment {
   status            BanjoStatus       @default(PLANNING)
   currentStep       Int               @default(0)
   totalSteps        Int               @default(0)
+
+  // Revision pass
+  revisionRan       Boolean           @default(false)
+  revisionResult    String?           @db.Text
+  revisedTaskIds    Json?
+  skipRevision      Boolean           @default(false)
 
   // Metadata
   model             String            @default("claude-opus-4-6")

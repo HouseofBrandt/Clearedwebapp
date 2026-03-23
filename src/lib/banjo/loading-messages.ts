@@ -33,6 +33,14 @@ export const BANJO_MESSAGES: Record<string, string[]> = {
     "Bringing it all together...",
     "Checking the harmony...",
   ],
+  revision: [
+    "Listening back to the whole set...",
+    "Cross-checking the harmonies...",
+    "Making sure every note lands...",
+    "One last ear on the mix...",
+    "Quality-checking the full arrangement...",
+    "Tuning the ensemble...",
+  ],
   complete: [
     "That's a wrap \u2014 take it from here, maestro.",
     "Your set list is ready.",

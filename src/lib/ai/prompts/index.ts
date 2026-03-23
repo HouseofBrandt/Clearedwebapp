@@ -42,6 +42,7 @@ const _promptFiles = [
   path.join(PROMPTS_DIR, "banjo_orchestrator_v1.txt"),
   path.join(PROMPTS_DIR, "case_summary_v1.txt"),
   path.join(PROMPTS_DIR, "risk_assessment_v1.txt"),
+  path.join(PROMPTS_DIR, "banjo_revision_v1.txt"),
 ]
 
 // Force Next.js to trace these files by reading them at module init

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -18,7 +18,7 @@ type BanjoPhase = "idle" | "planning" | "clarifying" | "plan_review" | "executin
 interface DeliverableProgress {
   step: number
   label: string
-  status: "waiting" | "generating" | "complete" | "failed"
+  status: "waiting" | "generating" | "complete" | "failed" | "skipped"
   percent?: number
   taskId?: string
   verifyFlagCount?: number
@@ -54,10 +54,16 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   const [questions, setQuestions] = useState<any[]>([])
   const [plan, setPlan] = useState<any>(null)
   const [model, setModel] = useState("claude-opus-4-6")
+  const [skipRevision, setSkipRevision] = useState(false)
   const [deliverables, setDeliverables] = useState<DeliverableProgress[]>([])
   const [completedTasks, setCompletedTasks] = useState<any[]>([])
+  const [failedSteps, setFailedSteps] = useState<number[]>([])
+  const [skippedSteps, setSkippedSteps] = useState<number[]>([])
   const [overallPercent, setOverallPercent] = useState(0)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [revisionStatus, setRevisionStatus] = useState<"waiting" | "running" | "complete" | "failed" | "skipped" | "not_run">("waiting")
+  const [revisionSummary, setRevisionSummary] = useState<string | undefined>()
+  const [revisedCount, setRevisedCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const startTimeRef = useRef<number>(0)
@@ -65,6 +71,67 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   const { addToast } = useToast()
 
   const existingTaskTypes = existingTasks.map((t) => t.taskType)
+
+  // Navigate-away recovery: check for active assignments on mount
+  useEffect(() => {
+    async function checkActive() {
+      try {
+        const res = await fetch(`/api/banjo/active?caseId=${caseId}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (!data.assignment) return
+
+        setAssignmentId(data.assignment.id)
+        setPlan(data.assignment.plan)
+        setModel(data.assignment.model || "claude-opus-4-6")
+
+        if (data.assignment.status === "EXECUTING" || data.assignment.status === "POLISHING") {
+          setPhase("executing")
+          // Reconstruct deliverable progress from tasks
+          const planDeliverables = data.assignment.plan?.deliverables || []
+          const initialDeliverables: DeliverableProgress[] = planDeliverables.map((d: any) => {
+            const task = data.assignment.tasks?.find((t: any) => t.banjoStepNumber === d.stepNumber)
+            return {
+              step: d.stepNumber,
+              label: d.label,
+              status: task
+                ? task.status === "READY_FOR_REVIEW" || task.status === "APPROVED" ? "complete" as const
+                : task.status === "SKIPPED" ? "skipped" as const
+                : task.status === "REJECTED" ? "failed" as const
+                : "generating" as const
+                : "waiting" as const,
+              format: d.format,
+              taskId: task?.id,
+            }
+          })
+          setDeliverables(initialDeliverables)
+          if (data.assignment.status === "POLISHING") {
+            setRevisionStatus("running")
+          }
+          startTimer()
+          startPolling(data.assignment.id)
+        } else if (data.assignment.status === "COMPLETED") {
+          // Reconstruct completed state
+          const tasks = data.assignment.tasks?.filter((t: any) =>
+            t.status === "READY_FOR_REVIEW" || t.status === "APPROVED"
+          ) || []
+          setCompletedTasks(tasks.map((t: any) => ({
+            step: t.banjoStepNumber,
+            taskId: t.id,
+            label: t.banjoStepLabel || t.taskType,
+            format: "docx",
+            verifyFlagCount: t.verifyFlagCount || 0,
+            judgmentFlagCount: t.judgmentFlagCount || 0,
+          })))
+          setRevisionStatus(data.assignment.revisionRan ? "complete" : "not_run")
+          setRevisionSummary(data.assignment.revisionResult || undefined)
+          setPhase("completed")
+        }
+      } catch { /* ignore */ }
+    }
+    checkActive()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId])
 
   const startTimer = useCallback(() => {
     startTimeRef.current = Date.now()
@@ -81,17 +148,59 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
     }
   }, [])
 
-  async function handleSubmitAssignment(assignmentText: string, casePosture?: any, selectedModel?: string) {
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+
+  function startPolling(id: string) {
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/banjo/${id}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.status === "COMPLETED" || data.status === "FAILED") {
+          if (pollingRef.current) clearInterval(pollingRef.current)
+          stopTimer()
+          if (data.status === "COMPLETED") {
+            const tasks = data.tasks?.filter((t: any) =>
+              t.status === "READY_FOR_REVIEW" || t.status === "APPROVED"
+            ) || []
+            setCompletedTasks(tasks.map((t: any) => ({
+              step: t.banjoStepNumber,
+              taskId: t.id,
+              label: t.banjoStepLabel || t.taskType,
+              format: "docx",
+              verifyFlagCount: t.verifyFlagCount || 0,
+              judgmentFlagCount: t.judgmentFlagCount || 0,
+            })))
+            setPhase("completed")
+            addToast({ title: "Assignment complete" })
+            router.refresh()
+          } else {
+            setPhase("failed")
+            setError("Assignment failed")
+          }
+        }
+      } catch { /* ignore polling errors */ }
+    }, 5000)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [])
+
+  async function handleSubmitAssignment(assignmentText: string, casePosture?: any, selectedModel?: string, skipRev?: boolean) {
     setPhase("planning")
     setError(null)
     const m = selectedModel || "claude-opus-4-6"
     setModel(m)
+    setSkipRevision(skipRev || false)
 
     try {
       const res = await fetch("/api/banjo/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseId, assignmentText, casePosture, model: m }),
+        body: JSON.stringify({ caseId, assignmentText, casePosture, model: m, skipRevision: skipRev }),
       })
 
       if (!res.ok) {
@@ -143,14 +252,12 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   }
 
   async function handleClarificationSkip() {
-    // Submit empty answers to skip
     await handleClarificationSubmit({})
   }
 
   async function handleApprove() {
     if (!assignmentId || !plan) return
 
-    // Initialize deliverable progress
     const initialDeliverables: DeliverableProgress[] = plan.deliverables.map((d: any) => ({
       step: d.stepNumber,
       label: d.label,
@@ -158,6 +265,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
       format: d.format,
     }))
     setDeliverables(initialDeliverables)
+    setRevisionStatus(skipRevision || plan.deliverables.length <= 1 ? "skipped" : "waiting")
     setPhase("executing")
     startTimer()
 
@@ -177,6 +285,8 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
       const decoder = new TextDecoder()
       let lineBuffer = ""
       const completed: any[] = []
+      const failed: number[] = []
+      const skipped: number[] = []
 
       while (true) {
         const { done, value } = await reader.read()
@@ -198,7 +308,6 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
                     : d
                 )
               )
-              // Calculate overall percent
               const totalSteps = event.totalSteps || plan.deliverables.length
               const completedSteps = completed.length
               const stepProgress = event.percent || 0
@@ -208,14 +317,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
               setDeliverables((prev) =>
                 prev.map((d) =>
                   d.step === event.step
-                    ? {
-                        ...d,
-                        status: "complete",
-                        percent: 100,
-                        taskId: event.taskId,
-                        verifyFlagCount: event.verifyFlagCount,
-                        judgmentFlagCount: event.judgmentFlagCount,
-                      }
+                    ? { ...d, status: "complete", percent: 100, taskId: event.taskId, verifyFlagCount: event.verifyFlagCount, judgmentFlagCount: event.judgmentFlagCount }
                     : d
                 )
               )
@@ -228,15 +330,30 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
                 judgmentFlagCount: event.judgmentFlagCount || 0,
               })
             } else if (event.type === "step_failed") {
+              failed.push(event.step)
               setDeliverables((prev) =>
                 prev.map((d) =>
-                  d.step === event.step
-                    ? { ...d, status: "failed", error: event.error }
-                    : d
+                  d.step === event.step ? { ...d, status: "failed", error: event.error } : d
                 )
               )
+            } else if (event.type === "step_skipped") {
+              skipped.push(event.step)
+              setDeliverables((prev) =>
+                prev.map((d) =>
+                  d.step === event.step ? { ...d, status: "skipped" } : d
+                )
+              )
+            } else if (event.type === "revision_started") {
+              setRevisionStatus("running")
+              setOverallPercent(95)
+            } else if (event.type === "revision_complete") {
+              setRevisionStatus("complete")
+              setRevisionSummary(event.summary)
+              setRevisedCount(event.revisedCount || 0)
             } else if (event.type === "complete") {
               setCompletedTasks(completed)
+              setFailedSteps(event.failedSteps || failed)
+              setSkippedSteps(event.skippedSteps || skipped)
               setOverallPercent(100)
               setPhase("completed")
               stopTimer()
@@ -280,6 +397,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
     if (assignmentId) {
       fetch(`/api/banjo/${assignmentId}/cancel`, { method: "POST" }).catch(() => {})
     }
+    if (pollingRef.current) clearInterval(pollingRef.current)
     stopTimer()
     resetState()
   }
@@ -291,8 +409,13 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
     setPlan(null)
     setDeliverables([])
     setCompletedTasks([])
+    setFailedSteps([])
+    setSkippedSteps([])
     setOverallPercent(0)
     setElapsedSeconds(0)
+    setRevisionStatus("waiting")
+    setRevisionSummary(undefined)
+    setRevisedCount(0)
     setError(null)
   }
 
@@ -343,6 +466,8 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
             deliverables={deliverables}
             overallPercent={overallPercent}
             elapsedSeconds={elapsedSeconds}
+            revisionStatus={revisionStatus === "not_run" ? "waiting" : revisionStatus}
+            revisionSummary={revisionSummary}
           />
         )}
 
@@ -352,13 +477,14 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
               tasks={completedTasks}
               totalTimeSeconds={elapsedSeconds}
               model={model}
+              failedSteps={failedSteps}
+              skippedSteps={skippedSteps}
+              revisionStatus={revisionStatus === "waiting" || revisionStatus === "running" ? "not_run" : revisionStatus}
+              revisionSummary={revisionSummary}
+              revisedCount={revisedCount}
             />
             <div className="pt-2">
-              <button
-                type="button"
-                onClick={resetState}
-                className="text-sm text-primary hover:underline"
-              >
+              <button type="button" onClick={resetState} className="text-sm text-primary hover:underline">
                 Start a new assignment
               </button>
             </div>
@@ -371,11 +497,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
               <p className="text-sm font-medium text-red-800">Assignment failed</p>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
-            <button
-              type="button"
-              onClick={resetState}
-              className="text-sm text-primary hover:underline"
-            >
+            <button type="button" onClick={resetState} className="text-sm text-primary hover:underline">
               Try again
             </button>
           </div>
@@ -387,7 +509,6 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
           </p>
         )}
 
-        {/* History section (always shown in idle/completed) */}
         {(phase === "idle" || phase === "completed") && existingTasks.length > 0 && (
           <>
             <Separator />

@@ -31,7 +31,7 @@ interface SuggestionChip {
 interface AssignmentInputProps {
   caseType: string
   existingTaskTypes: string[]
-  onSubmit: (assignmentText: string, casePosture?: CasePosture, model?: string) => void
+  onSubmit: (assignmentText: string, casePosture?: CasePosture, model?: string, skipRevision?: boolean) => void
   disabled?: boolean
 }
 
@@ -150,6 +150,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
   const [text, setText] = useState("")
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [model, setModel] = useState("claude-opus-4-6")
+  const [skipRevision, setSkipRevision] = useState(false)
   const [casePosture, setCasePosture] = useState<CasePosture>({
     collectionStage: "",
     deadlinesApproaching: [],
@@ -163,7 +164,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
   function handleSubmit() {
     if (!text.trim()) return
     const posture = casePosture.collectionStage || casePosture.reliefSought ? casePosture : undefined
-    onSubmit(text.trim(), posture, model)
+    onSubmit(text.trim(), posture, model, skipRevision)
   }
 
   return (
@@ -302,6 +303,19 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
                 placeholder="E.g., Client received LT11 on Jan 6, 2026..."
                 rows={2}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={skipRevision}
+                  onChange={(e) => setSkipRevision(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                Skip quality review
+                <span className="text-xs text-muted-foreground">(not recommended)</span>
+              </label>
             </div>
           </div>
         )}

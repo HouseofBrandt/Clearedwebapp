@@ -17,6 +17,7 @@ const planSchema = z.object({
     additionalContext: z.string().optional(),
   }).optional(),
   model: z.enum(["claude-opus-4-6", "claude-sonnet-4-6"]).optional(),
+  skipRevision: z.boolean().optional(),
 })
 
 function buildOrchestratorContext(
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: parsed.error.issues.map((i) => i.message).join(", ") }), { status: 400, headers: { "Content-Type": "application/json" } })
   }
 
-  const { caseId, assignmentText, casePosture, model: requestedModel } = parsed.data
+  const { caseId, assignmentText, casePosture, model: requestedModel, skipRevision } = parsed.data
   const userId = auth.userId
   const model = requestedModel || "claude-opus-4-6"
 
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest) {
         status,
         totalSteps: plan.plan?.deliverables?.length || 0,
         model,
+        skipRevision: skipRevision || false,
         createdById: userId,
       },
     })
