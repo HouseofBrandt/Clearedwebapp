@@ -45,46 +45,45 @@ export function ReviewJunebug({ currentOutput, taskType, onOutputUpdated }: Revi
   }
 
   return (
-    <div className="border-t">
-      {/* Edit history */}
-      {editHistory.length > 0 && (
-        <div className="px-4 pt-2 pb-1">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">
-            Edits this session
-          </p>
-          {editHistory.map((edit, i) => (
-            <p key={i} className="text-xs text-muted-foreground py-0.5">
-              {i + 1}. &ldquo;{edit}&rdquo; — applied
-            </p>
-          ))}
-        </div>
-      )}
-
-      {/* Edit bar */}
-      <div className="px-4 py-3">
+    <div className="border-t bg-background px-6 py-3">
+      <div className="max-w-4xl mx-auto">
         {isProcessing ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <JunebugIcon className="h-4 w-4" animated />
             <span className="text-xs">{loadingMessage}</span>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <JunebugIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-            <input
-              value={instruction}
-              onChange={e => setInstruction(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && instruction.trim() && handleEdit()}
-              placeholder="Ask Junebug to edit: &quot;Fix the RCP&quot;, &quot;Strengthen the penalty argument&quot;..."
-              className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground/50"
-            />
-            <button
-              onClick={handleEdit}
-              disabled={!instruction.trim()}
-              className="rounded-md bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-30 transition-colors"
-            >
-              Go
-            </button>
-          </div>
+          <>
+            {/* Edit history */}
+            {editHistory.length > 0 && (
+              <div className="mb-2 text-xs text-muted-foreground">
+                {editHistory.map((edit, i) => (
+                  <p key={i} className="flex items-center gap-1.5 py-0.5">
+                    <span className="text-green-600">&#10003;</span>
+                    {i + 1}. {edit}
+                  </p>
+                ))}
+              </div>
+            )}
+            {/* Input */}
+            <div className="flex items-center gap-2">
+              <JunebugIcon className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+              <input
+                value={instruction}
+                onChange={e => setInstruction(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && instruction.trim() && handleEdit()}
+                placeholder="Ask Junebug to edit: &quot;Fix the RCP&quot;, &quot;Strengthen the penalty argument&quot;..."
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground/40"
+              />
+              <button
+                onClick={handleEdit}
+                disabled={!instruction.trim()}
+                className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-30 transition-colors shrink-0"
+              >
+                Go
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
