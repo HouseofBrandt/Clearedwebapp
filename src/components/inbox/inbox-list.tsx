@@ -103,6 +103,12 @@ export function InboxList({
 }: InboxListProps) {
   const [messages, setMessages] = useState<MessageData[]>(initialMessages)
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount)
+
+  // Sync local state when server re-renders with fresh data
+  useEffect(() => {
+    setMessages(initialMessages)
+    setUnreadCount(initialUnreadCount)
+  }, [initialMessages, initialUnreadCount])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<FilterType>("ALL")
@@ -207,6 +213,26 @@ export function InboxList({
       })
       if (!res.ok) throw new Error("Bulk update failed")
       const data = await res.json()
+      // Update local state immediately so styling reflects changes
+      if (updates.read !== undefined) {
+        setMessages((prev) => prev.map((m) =>
+          selectedIds.has(m.id) ? { ...m, read: updates.read!, readAt: updates.read ? new Date().toISOString() : m.readAt } : m
+        ))
+        const readChange = updates.read
+          ? -Array.from(selectedIds).filter((id) => !messages.find((m) => m.id === id)?.read).length
+          : Array.from(selectedIds).filter((id) => messages.find((m) => m.id === id)?.read).length
+        setUnreadCount((c) => Math.max(0, c + readChange))
+      }
+      if (updates.archived) {
+        const archivedUnread = Array.from(selectedIds).filter((id) => !messages.find((m) => m.id === id)?.read).length
+        setMessages((prev) => prev.filter((m) => !selectedIds.has(m.id)))
+        setUnreadCount((c) => Math.max(0, c - archivedUnread))
+      }
+      if (updates.implementationStatus) {
+        setMessages((prev) => prev.map((m) =>
+          selectedIds.has(m.id) ? { ...m, implementationStatus: updates.implementationStatus! } : m
+        ))
+      }
       setSelectedIds(new Set())
       router.refresh()
       addToast({ title: `Updated ${data.updated} message${data.updated === 1 ? "" : "s"}` })
