@@ -298,9 +298,12 @@ You can add content to and search the Knowledge Base.
 type: ADD_TO_KNOWLEDGE_BASE
 title: [descriptive title]
 category: [IRC_STATUTE, IRM_SECTION, CASE_LAW, CUSTOM, etc.]
-content: [the content to add]
 tags: ["tag1", "tag2"]
 :::
+
+IMPORTANT: Do NOT include a "content" field in ADD_TO_KNOWLEDGE_BASE action blocks.
+The content is automatically captured from your message text above the action block.
+Only include title, category, and tags in the block.
 
 :::action
 type: SEARCH_KNOWLEDGE_BASE

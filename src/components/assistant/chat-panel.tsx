@@ -334,17 +334,17 @@ function parseActionBlocks(content: string): { text: string; actions: ChatAction
     const block = match[1]
     const action: any = {}
 
-    // Parse YAML-like fields with multi-line value support
+    // Parse simple single-line YAML-like fields only.
+    // Multi-line content (like research text) is NOT parsed from the block —
+    // it comes from the surrounding message text instead.
     const lines = block.split("\n")
     let currentKey = ""
     let arrayItems: any[] = []
     let inArray = false
-    let inMultiline = false
-    const knownKeys = ["type", "title", "category", "tags", "query", "assignmentText", "caseId", "phase", "notes", "dueDate", "priority", "description", "clientName", "note", "irsLastAction", "irsLastActionDate", "irsAssignedUnit", "irsAssignedEmployee"]
 
     for (const line of lines) {
       const kvMatch = line.match(/^(\w+):\s*(.*)$/)
-      if (kvMatch && !inMultiline) {
+      if (kvMatch) {
         if (inArray && currentKey) {
           action[currentKey] = arrayItems
           arrayItems = []
@@ -353,27 +353,12 @@ function parseActionBlocks(content: string): { text: string; actions: ChatAction
         currentKey = kvMatch[1]
         const val = kvMatch[2].trim()
         if (val) action[currentKey] = val
-        // content field is expected to be multi-line
-        if (currentKey === "content") inMultiline = true
       } else if (line.trim().startsWith("- label:")) {
-        inMultiline = false
         inArray = true
         const label = line.replace(/^\s*-\s*label:\s*/, "").trim()
         arrayItems.push({ label, critical: false })
       } else if (line.trim().startsWith("critical:") && arrayItems.length > 0) {
         arrayItems[arrayItems.length - 1].critical = line.includes("true")
-      } else if (inMultiline && currentKey) {
-        // Check if this line starts a new known key (end multi-line)
-        const nextKeyMatch = line.match(/^(\w+):\s*(.*)$/)
-        if (nextKeyMatch && knownKeys.includes(nextKeyMatch[1])) {
-          inMultiline = false
-          currentKey = nextKeyMatch[1]
-          const val = nextKeyMatch[2].trim()
-          if (val) action[currentKey] = val
-        } else {
-          // Append to current multi-line value
-          action[currentKey] = (action[currentKey] || "") + "\n" + line
-        }
       }
     }
     if (inArray && currentKey) {
@@ -386,7 +371,7 @@ function parseActionBlocks(content: string): { text: string; actions: ChatAction
   return { text: text.trim(), actions }
 }
 
-function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: CaseContext | null }) {
+function ActionCard({ action, caseContext, messageText }: { action: ChatAction; caseContext: CaseContext | null; messageText?: string }) {
   const [status, setStatus] = useState<"pending" | "executing" | "done" | "cancelled">("pending")
   const [resultMsg, setResultMsg] = useState("")
 
@@ -401,6 +386,10 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
       const payload: any = { ...action }
       delete payload.type
       delete payload.caseId
+      // For KB actions, content comes from the message text, not the action block
+      if (action.type === "ADD_TO_KNOWLEDGE_BASE") {
+        payload.content = messageText
+      }
 
       const res = await fetch("/api/ai/chat-actions", {
         method: "POST",
@@ -899,7 +888,7 @@ export function ChatPanel() {
                                     {draft && <MessageDraftCard draft={draft} />}
                                     {draft && after && <div className="prose prose-sm max-w-none">{renderMarkdown(after)}</div>}
                                     {actions.map((action, idx) => (
-                                      <ActionCard key={idx} action={action} caseContext={caseContext} />
+                                      <ActionCard key={idx} action={action} caseContext={caseContext} messageText={textWithoutActions} />
                                     ))}
                                   </div>
                                 )
