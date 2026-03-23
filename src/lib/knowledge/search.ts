@@ -61,7 +61,7 @@ export async function searchKnowledge(
       SELECT
         kc.id as "chunkId", kc.content, kc."sectionHeader",
         kd.id as "documentId", kd.title as "documentTitle",
-        kd.category as "documentCategory", kd.tags,
+        kd.category as "documentCategory", kd.tags, kd."sourceType",
         CASE WHEN kc.embedding IS NOT NULL
           THEN 1 - (kc.embedding <=> $${paramIndex}::vector) ELSE 0 END as "vectorScore",
         CASE WHEN kc.search_vector @@ to_tsquery('english', $${paramIndex + 1})
@@ -88,7 +88,7 @@ export async function searchKnowledge(
       SELECT
         kc.id as "chunkId", kc.content, kc."sectionHeader",
         kd.id as "documentId", kd.title as "documentTitle",
-        kd.category as "documentCategory", kd.tags,
+        kd.category as "documentCategory", kd.tags, kd."sourceType",
         CASE WHEN kc.embedding IS NOT NULL
           THEN 1 - (kc.embedding <=> $${paramIndex}::vector) ELSE 0 END as "vectorScore",
         0::float as "textScore",
@@ -107,7 +107,7 @@ export async function searchKnowledge(
       SELECT
         kc.id as "chunkId", kc.content, kc."sectionHeader",
         kd.id as "documentId", kd.title as "documentTitle",
-        kd.category as "documentCategory", kd.tags,
+        kd.category as "documentCategory", kd.tags, kd."sourceType",
         0::float as "vectorScore",
         ts_rank_cd(kc.search_vector, to_tsquery('english', $${paramIndex}), 32) as "textScore",
         ts_rank_cd(kc.search_vector, to_tsquery('english', $${paramIndex}), 32) as score
@@ -149,9 +149,23 @@ export async function searchKnowledge(
     }).catch(() => {})
     return []
   }
+  // Apply authority-weighted scoring based on source type
+  const AUTHORITY_WEIGHTS: Record<string, number> = {
+    MANUAL_UPLOAD: 1.0,
+    APPROVED_OUTPUT: 0.95,
+    JUNEBUG_CURATED: 0.85,
+    WEB_RESEARCH: 0.75,
+    AUTO_ENRICHMENT: 0.65,
+  }
+
+  for (const r of results) {
+    const weight = AUTHORITY_WEIGHTS[(r as any).sourceType] || 0.8
+    r.score *= weight
+  }
+
   const filtered = results.filter((r) => r.score >= minScore)
 
-  // Fire-and-forget hit counter updates
+  // Fire-and-forget hit counter + lastReferencedAt updates
   if (filtered.length > 0) {
     const chunkIds = filtered.map((r) => r.chunkId)
     const docIds = Array.from(new Set(filtered.map((r) => r.documentId)))
@@ -165,7 +179,7 @@ export async function searchKnowledge(
     prisma.knowledgeDocument
       .updateMany({
         where: { id: { in: docIds } },
-        data: { hitCount: { increment: 1 } },
+        data: { hitCount: { increment: 1 }, lastReferencedAt: new Date() },
       })
       .catch(() => {})
   }

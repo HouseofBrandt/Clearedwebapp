@@ -4,11 +4,13 @@ import { prisma } from "@/lib/db"
 import { callClaude } from "@/lib/ai/client"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { logAudit } from "@/lib/ai/audit"
+import { getKBCoverage } from "@/lib/banjo/knowledge-retrieval"
 import { z } from "zod"
 
 const planSchema = z.object({
   caseId: z.string().min(1),
   assignmentText: z.string().min(1, "Assignment text is required"),
+  junebugContext: z.string().optional(),
   casePosture: z.object({
     collectionStage: z.string().optional(),
     deadlinesApproaching: z.array(z.string()).optional(),
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: parsed.error.issues.map((i) => i.message).join(", ") }), { status: 400, headers: { "Content-Type": "application/json" } })
   }
 
-  const { caseId, assignmentText, casePosture, model: requestedModel, skipRevision } = parsed.data
+  const { caseId, assignmentText, casePosture, model: requestedModel, skipRevision, junebugContext } = parsed.data
   const userId = auth.userId
   const model = requestedModel || "claude-opus-4-6"
 
@@ -90,7 +92,20 @@ export async function POST(request: NextRequest) {
     const orchestratorPrompt = loadPrompt("banjo_orchestrator_v1")
     const context = buildOrchestratorContext(caseData, caseData.documents, caseData.intelligence, caseData.aiTasks)
 
-    let userMessage = `ASSIGNMENT:\n${assignmentText}\n\n${context}`
+    // Get KB coverage for this case type
+    let kbCoverageText = ""
+    try {
+      const kbStats = await getKBCoverage(caseData.caseType)
+      kbCoverageText = `\nKNOWLEDGE BASE COVERAGE FOR ${caseData.caseType} CASES:\n`
+      kbCoverageText += `- Total KB documents relevant: ${kbStats.relevantCount}\n`
+      kbCoverageText += `- Prior approved outputs: ${kbStats.approvedOutputCount}\n`
+      kbCoverageText += `- Categories present: ${kbStats.categoriesPresent.join(", ") || "none"}\n`
+      kbCoverageText += `- Categories missing: ${kbStats.categoriesMissing.join(", ") || "none"}\n`
+      kbCoverageText += `- Last updated: ${kbStats.lastUpdated}\n`
+      kbCoverageText += `\nIf the knowledge base is missing key material, note it in assumptions and consider recommending a WEB_RESEARCH step.\n`
+    } catch { /* non-fatal */ }
+
+    let userMessage = `ASSIGNMENT:\n${assignmentText}\n\n${context}${kbCoverageText}`
 
     if (casePosture && (casePosture.collectionStage || casePosture.reliefSought)) {
       userMessage += `\n\nCASE POSTURE:\n`
@@ -99,6 +114,10 @@ export async function POST(request: NextRequest) {
       if (casePosture.reliefSought) userMessage += `Relief Sought: ${casePosture.reliefSought}\n`
       if (casePosture.priorAttempts?.length) userMessage += `Prior Attempts: ${casePosture.priorAttempts.join(", ")}\n`
       if (casePosture.additionalContext) userMessage += `Additional Context: ${casePosture.additionalContext}\n`
+    }
+
+    if (junebugContext) {
+      userMessage += `\n\nRECENT CONVERSATION CONTEXT:\nThe practitioner discussed the following with Junebug before creating this assignment:\n${junebugContext}\n`
     }
 
     const response = await callClaude({

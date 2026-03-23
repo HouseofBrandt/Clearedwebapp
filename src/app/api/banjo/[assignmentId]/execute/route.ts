@@ -5,7 +5,8 @@ import { callClaudeStream } from "@/lib/ai/client"
 import { tokenizeText, encryptTokenMap, detokenizeText } from "@/lib/ai/tokenizer"
 import { logAIRequest } from "@/lib/ai/audit"
 import { loadPrompt } from "@/lib/ai/prompts"
-import { getKnowledgeContext } from "@/lib/knowledge/context"
+import { getBanjoKnowledgeContext } from "@/lib/banjo/knowledge-retrieval"
+import { conductResearch } from "@/lib/research/web-research"
 import { mergeTemplateWithData } from "@/lib/templates/oic-merge"
 import { populateFromAIExtraction } from "@/lib/documents/liability"
 import { notify } from "@/lib/notifications"
@@ -27,6 +28,7 @@ const TASK_TYPE_TO_PROMPT: Record<string, string> = {
   APPEALS_REBUTTAL: "appeals_rebuttal_v1",
   CASE_SUMMARY: "case_summary_v1",
   RISK_ASSESSMENT: "risk_assessment_v1",
+  WEB_RESEARCH: "", // handled specially — no prompt file
 }
 
 const TEMPLATE_TASKS = ["WORKING_PAPERS"]
@@ -157,19 +159,65 @@ export async function POST(
             data: { currentStep: stepNumber },
           })
 
+          // === WEB_RESEARCH task type: run web research instead of Claude generation ===
+          if (taskType === "WEB_RESEARCH") {
+            const researchTopic = (deliverable as any).researchTopic || deliverable.description || deliverable.label
+            const researchScope = (deliverable as any).researchScope || "narrow"
+
+            const result = await conductResearch({
+              topic: researchTopic,
+              context: `${caseData.caseType} case`,
+              scope: researchScope,
+              saveToKB: true,
+              kbCategory: "CUSTOM",
+              kbTags: [caseData.caseType.toLowerCase(), "banjo-research"],
+              userId,
+            })
+
+            const task = await prisma.aITask.create({
+              data: {
+                caseId: caseData.id,
+                taskType: "WEB_RESEARCH" as any,
+                status: "APPROVED", // Research doesn't need review
+                detokenizedOutput: result.fullText,
+                modelUsed: "claude-opus-4-6",
+                banjoAssignmentId: assignmentId,
+                banjoStepNumber: stepNumber,
+                banjoStepLabel: deliverable.label,
+                createdById: userId,
+              },
+            })
+
+            return {
+              step: stepNumber,
+              taskId: task.id,
+              output: result.fullText,
+              label: deliverable.label,
+              format: "research",
+              verifyFlagCount: 0,
+              judgmentFlagCount: 0,
+            }
+          }
+
           // Load prompts
           const corePrompt = loadPrompt("core_system_v1")
           const promptName = TASK_TYPE_TO_PROMPT[taskType] || "case_analysis_v1"
           const taskPrompt = loadPrompt(promptName)
           let systemPrompt = `${corePrompt}\n\n${taskPrompt}`
 
-          // Knowledge base context (guarded with timeout)
+          // Deep, multi-query KB retrieval (guarded with timeout)
           try {
             const kbDocCount = await prisma.knowledgeDocument.count({ where: { isActive: true } })
             if (kbDocCount > 0) {
               const kbContext = await Promise.race([
-                getKnowledgeContext(taskType, caseData.caseType, tokenizedDocText.substring(0, 2000)),
-                new Promise<string>((_, reject) => setTimeout(() => reject(new Error("KB timeout")), 10_000)),
+                getBanjoKnowledgeContext({
+                  assignmentText: assignment.assignmentText,
+                  taskType,
+                  caseType: caseData.caseType,
+                  casePosture: (assignment as any).casePosture,
+                  documentCategories: caseData.documents.map((d: any) => d.documentCategory),
+                }),
+                new Promise<string>((_, reject) => setTimeout(() => reject(new Error("KB timeout")), 15_000)),
               ])
               if (kbContext) systemPrompt += kbContext
             }

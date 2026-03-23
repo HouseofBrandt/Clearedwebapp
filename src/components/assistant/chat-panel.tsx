@@ -392,6 +392,10 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
       const data = await res.json()
       setStatus("done")
       setResultMsg(data.message || "Action completed")
+      // Navigate if redirect is specified (e.g., open Banjo tab)
+      if (data.redirectTo && typeof window !== "undefined") {
+        window.location.href = data.redirectTo
+      }
     } catch {
       setStatus("pending")
       alert("Action failed. Please try again.")
@@ -409,11 +413,14 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
   if (status === "cancelled") return null
 
   const configs: Record<string, { icon: string; label: string; border: string }> = {
-    GENERATE_DOCUMENT_REQUEST: { icon: "📋", label: "Document Request", border: "border-l-blue-400" },
-    UPDATE_CASE_STATUS: { icon: "📊", label: "Update Case Status", border: "border-l-purple-400" },
-    CREATE_DEADLINE: { icon: "📅", label: "Create Deadline", border: "border-l-amber-400" },
-    UPDATE_IRS_STATUS: { icon: "🏛️", label: "Update IRS Status", border: "border-l-red-400" },
-    ADD_CASE_NOTE: { icon: "📝", label: "Add Case Note", border: "border-l-gray-400" },
+    GENERATE_DOCUMENT_REQUEST: { icon: "\uD83D\uDCCB", label: "Document Request", border: "border-l-blue-400" },
+    UPDATE_CASE_STATUS: { icon: "\uD83D\uDCCA", label: "Update Case Status", border: "border-l-purple-400" },
+    CREATE_DEADLINE: { icon: "\uD83D\uDCC5", label: "Create Deadline", border: "border-l-amber-400" },
+    UPDATE_IRS_STATUS: { icon: "\uD83C\uDFDB\uFE0F", label: "Update IRS Status", border: "border-l-red-400" },
+    ADD_CASE_NOTE: { icon: "\uD83D\uDCDD", label: "Add Case Note", border: "border-l-gray-400" },
+    CREATE_BANJO_ASSIGNMENT: { icon: "\uD83E\uDE95", label: "Banjo Assignment", border: "border-l-emerald-400" },
+    ADD_TO_KNOWLEDGE_BASE: { icon: "\uD83D\uDCDA", label: "Add to Knowledge Base", border: "border-l-violet-400" },
+    SEARCH_KNOWLEDGE_BASE: { icon: "\uD83D\uDD0D", label: "Search Knowledge Base", border: "border-l-cyan-400" },
   }
   const config = configs[action.type] || { icon: "⚡", label: action.type, border: "border-l-gray-400" }
 
@@ -423,6 +430,9 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
     CREATE_DEADLINE: "Create Deadline",
     UPDATE_IRS_STATUS: "Update IRS Status",
     ADD_CASE_NOTE: "Add Note",
+    CREATE_BANJO_ASSIGNMENT: "Create Assignment",
+    ADD_TO_KNOWLEDGE_BASE: "Add to KB",
+    SEARCH_KNOWLEDGE_BASE: "Search",
   }
 
   return (
@@ -465,6 +475,28 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
         )}
         {action.type === "ADD_CASE_NOTE" && (
           <p>{action.note}</p>
+        )}
+        {action.type === "CREATE_BANJO_ASSIGNMENT" && (
+          <>
+            <p className="font-medium">Assignment</p>
+            <p className="text-xs text-muted-foreground">{(action as any).assignmentText?.substring(0, 200)}</p>
+          </>
+        )}
+        {action.type === "ADD_TO_KNOWLEDGE_BASE" && (
+          <>
+            <p className="font-medium">{(action as any).title}</p>
+            <p className="text-xs text-muted-foreground">Category: {(action as any).category || "Custom"}</p>
+            {(action as any).tags?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {((action as any).tags as string[]).slice(0, 5).map((tag: string) => (
+                  <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{tag}</span>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {action.type === "SEARCH_KNOWLEDGE_BASE" && (
+          <p>Search: <span className="font-medium">{(action as any).query}</span></p>
         )}
       </div>
 

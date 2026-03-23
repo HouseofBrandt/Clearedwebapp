@@ -93,6 +93,7 @@ enum AITaskType {
   APPEALS_REBUTTAL
   CASE_SUMMARY
   RISK_ASSESSMENT
+  WEB_RESEARCH
 }
 
 enum BanjoStatus {
@@ -429,6 +430,11 @@ model KnowledgeDocument {
   uploadedBy      User              @relation("UploadedKnowledge", fields: [uploadedById], references: [id])
   sourceTaskId    String?
   sourceCaseId    String?
+
+  // Provenance
+  sourceType        String            @default("MANUAL_UPLOAD")
+  lastReferencedAt  DateTime?
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
