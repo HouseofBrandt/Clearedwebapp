@@ -6,7 +6,6 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -36,10 +35,12 @@ import {
   RotateCcw,
   Trash2,
   Calendar as CalendarIcon,
+  Settings,
 } from "lucide-react"
 import { DeadlineCard } from "@/components/calendar/deadline-card"
 import { AddDeadlineDialog } from "@/components/calendar/add-deadline-dialog"
-import { SmartStatusCard } from "@/components/cases/smart-status-card"
+import { CasePosturePanel } from "@/components/cases/case-posture-panel"
+import { CaseJunebug } from "@/components/cases/case-junebug"
 import { ActivityFeed } from "@/components/cases/activity-feed"
 import { DEADLINE_PRIORITY_DOTS } from "@/types"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
@@ -48,18 +49,13 @@ function timeAgo(date: string | Date): string {
   const now = new Date()
   const then = new Date(date)
   const seconds = Math.floor((now.getTime() - then.getTime()) / 1000)
-
   if (seconds < 60) return "just now"
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`
+  if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`
+  if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
-  if (days < 30) return `${days} day${days !== 1 ? "s" : ""} ago`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months} month${months !== 1 ? "s" : ""} ago`
-  const years = Math.floor(months / 12)
-  return `${years} year${years !== 1 ? "s" : ""} ago`
+  return `${days}d ago`
 }
 
 function formatTaskType(taskType: string): string {
@@ -83,20 +79,6 @@ const reviewActionLabels: Record<string, string> = {
   REJECT_MANUAL: "Rejected (Manual)",
 }
 
-const reviewActionColors: Record<string, string> = {
-  APPROVE: "bg-green-500",
-  EDIT_APPROVE: "bg-yellow-500",
-  REJECT_REPROMPT: "bg-red-500",
-  REJECT_MANUAL: "bg-red-500",
-}
-
-const reviewActionIcons: Record<string, typeof CheckCircle> = {
-  APPROVE: CheckCircle,
-  EDIT_APPROVE: PenLine,
-  REJECT_REPROMPT: RotateCcw,
-  REJECT_MANUAL: XCircle,
-}
-
 const statusColors: Record<string, string> = {
   INTAKE: "bg-blue-100 text-blue-800",
   ANALYSIS: "bg-yellow-100 text-yellow-800",
@@ -114,31 +96,33 @@ interface CaseDetailProps {
   activities?: any[]
 }
 
-const VALID_TABS = ["overview", "documents", "banjo", "ai", "deliverables", "deadlines", "activity"]
+const WORKSPACES = ["documents", "banjo", "deliverables", "deadlines", "activity", "settings"] as const
+type Workspace = typeof WORKSPACES[number]
 
 export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [] }: CaseDetailProps) {
-  const [activeTab, setActiveTab] = useState(() => {
+  const [workspace, setWorkspace] = useState<Workspace>(() => {
     if (typeof window !== "undefined") {
-      let hash = window.location.hash.replace("#", "")
-      // Backwards compat: old "ai" hash redirects to "banjo"
-      if (hash === "ai") hash = "banjo"
-      return VALID_TABS.includes(hash) ? hash : "overview"
+      const hash = window.location.hash.replace("#", "")
+      if ((WORKSPACES as readonly string[]).includes(hash)) return hash as Workspace
+      // Backwards compat
+      if (hash === "overview" || hash === "ai") return "documents"
     }
-    return "overview"
+    return "documents"
   })
+  const [junebugCollapsed, setJunebugCollapsed] = useState(true)
 
   useEffect(() => {
     const onHashChange = () => {
       const hash = window.location.hash.replace("#", "")
-      if (VALID_TABS.includes(hash)) setActiveTab(hash)
+      if ((WORKSPACES as readonly string[]).includes(hash)) setWorkspace(hash as Workspace)
     }
     window.addEventListener("hashchange", onHashChange)
     return () => window.removeEventListener("hashchange", onHashChange)
   }, [])
 
-  function handleTabChange(value: string) {
-    setActiveTab(value)
-    window.history.replaceState(null, "", `#${value}`)
+  function handleWorkspaceChange(w: Workspace) {
+    setWorkspace(w)
+    window.history.replaceState(null, "", `#${w}`)
   }
 
   const [editing, setEditing] = useState(false)
@@ -165,8 +149,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
     if (!confirm("Delete this AI task? This cannot be undone.")) return
     const res = await fetch(`/api/ai/tasks/${taskId}`, { method: "DELETE" })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      addToast({ title: "Error", description: err.error || "Failed to delete", variant: "destructive" })
+      addToast({ title: "Error", description: "Failed to delete", variant: "destructive" })
       return
     }
     addToast({ title: "Task deleted" })
@@ -193,64 +176,9 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
     }
   }
 
-  // Build timeline events from case data
-  const timelineEvents = (() => {
-    const events: {
-      date: Date
-      type: "case" | "document" | "ai" | "review"
-      title: string
-      description?: string
-      action?: string
-    }[] = []
-
-    // Case created
-    events.push({
-      date: new Date(caseData.createdAt),
-      type: "case",
-      title: "Case created",
-      description: caseData.tabsNumber || caseData.id,
-    })
-
-    // Document uploads
-    caseData.documents.forEach((doc: any) => {
-      events.push({
-        date: new Date(doc.uploadedAt),
-        type: "document",
-        title: `Document uploaded — ${doc.fileName}`,
-        description: doc.uploadedBy?.name ? `by ${doc.uploadedBy.name}` : undefined,
-      })
-    })
-
-    // AI tasks
-    caseData.aiTasks.forEach((task: any) => {
-      events.push({
-        date: new Date(task.createdAt),
-        type: "ai",
-        title: `AI Analysis started — ${formatTaskType(task.taskType)}`,
-      })
-
-      // Review actions
-      if (task.reviewActions) {
-        task.reviewActions.forEach((ra: any) => {
-          events.push({
-            date: new Date(ra.reviewCompletedAt || ra.reviewStartedAt),
-            type: "review",
-            title: `${reviewActionLabels[ra.action] || ra.action} — ${formatTaskType(task.taskType)}`,
-            description: ra.practitioner?.name ? `by ${ra.practitioner.name}` : undefined,
-            action: ra.action,
-          })
-        })
-      }
-    })
-
-    // Sort newest first
-    events.sort((a, b) => b.date.getTime() - a.date.getTime())
-    return events
-  })()
-
   async function handleSave() {
     if (form.status === "CLOSED" && caseData.status !== "CLOSED") {
-      if (!window.confirm("Are you sure you want to close this case? This action may be difficult to reverse.")) return
+      if (!window.confirm("Are you sure you want to close this case?")) return
     }
     setSaving(true)
     try {
@@ -266,9 +194,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
           totalLiability: form.totalLiability ? parseFloat(form.totalLiability) : undefined,
         }),
       })
-
       if (!res.ok) throw new Error("Failed to update")
-
       addToast({ title: "Case updated" })
       setEditing(false)
       router.refresh()
@@ -279,519 +205,409 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
     }
   }
 
+  const caseContext = {
+    caseId: caseData.id,
+    tabsNumber: caseData.tabsNumber || caseData.id,
+    caseType: caseData.caseType,
+    status: caseData.status,
+    filingStatus: caseData.filingStatus,
+    totalLiability: caseData.totalLiability ? Number(caseData.totalLiability) : undefined,
+  }
+
+  // Workspace tab button
+  function WorkspaceTab({ active, onClick, children, count }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number }) {
+    return (
+      <button
+        onClick={onClick}
+        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+          active
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+        }`}
+      >
+        {children}
+        {count != null && count > 0 && (
+          <span className={`ml-1 ${active ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+            ({count})
+          </span>
+        )}
+      </button>
+    )
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col h-[calc(100vh-5rem)]">
+      {/* Header bar */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b shrink-0">
         <Link href="/cases">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{caseData.tabsNumber || "No TABS #"}</h1>
-            <Badge className={statusColors[caseData.status] || ""} variant="secondary">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold truncate">{caseData.tabsNumber || "No TABS #"}</h1>
+            <span className="text-sm text-muted-foreground truncate">{caseData.clientName}</span>
+            <Badge className={`${statusColors[caseData.status] || ""} shrink-0`} variant="secondary">
               {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
             </Badge>
+            <Badge variant="outline" className="text-[10px] shrink-0">
+              {CASE_TYPE_LABELS[caseData.caseType as keyof typeof CASE_TYPE_LABELS] || caseData.caseType}
+            </Badge>
           </div>
-          <p className="text-muted-foreground">{caseData.clientName}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 shrink-0">
           {editing ? (
             <>
-              <Button variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving}>
-                <Save className="mr-2 h-4 w-4" />
+              <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                <Save className="mr-1 h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save"}
               </Button>
             </>
           ) : (
-            <>
-              <Button variant="outline" onClick={() => setEditing(true)}>Edit Case</Button>
-              <Button variant="outline" size="sm"
-                className="text-destructive border-destructive/50 hover:bg-destructive/10"
-                onClick={handleDeleteCase}>
-                <Trash2 className="mr-1 h-4 w-4" />
-                Delete
-              </Button>
-            </>
+            <Button variant="ghost" size="sm" onClick={() => handleWorkspaceChange("settings")}>
+              <Settings className="h-4 w-4" />
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Smart Status Card */}
-      <SmartStatusCard caseData={caseData} intelligence={intelligence} documents={caseData.documents || []} />
+      {/* Split pane: left rail + workspace */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Rail — Case Posture */}
+        <aside className="w-[280px] lg:w-[300px] border-r overflow-y-auto p-4 shrink-0 hidden md:block">
+          <CasePosturePanel intelligence={intelligence} caseData={caseData} deadlines={deadlines} />
+        </aside>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="documents">
-            <FileText className="mr-1 h-4 w-4" />
-            Documents ({caseData.documents.length})
-          </TabsTrigger>
-          <TabsTrigger value="banjo">
-            <BanjoIcon className="mr-1 h-4 w-4" />
-            Banjo
-          </TabsTrigger>
-          <TabsTrigger value="deliverables">
-            <Download className="mr-1 h-4 w-4" />
-            Deliverables ({approvedTasks.length})
-          </TabsTrigger>
-          <TabsTrigger value="deadlines">
-            <CalendarIcon className="mr-1 h-4 w-4" />
-            Deadlines ({deadlines.length})
-          </TabsTrigger>
-          <TabsTrigger value="activity">
-            <Clock className="mr-1 h-4 w-4" />
-            Activity
-          </TabsTrigger>
-        </TabsList>
+        {/* Right — Workspace */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Workspace switcher */}
+          <div className="flex items-center gap-1 border-b px-4 py-2 shrink-0 overflow-x-auto">
+            <WorkspaceTab active={workspace === "documents"} onClick={() => handleWorkspaceChange("documents")} count={caseData.documents.length}>
+              Documents
+            </WorkspaceTab>
+            <WorkspaceTab active={workspace === "banjo"} onClick={() => handleWorkspaceChange("banjo")}>
+              Banjo
+            </WorkspaceTab>
+            <WorkspaceTab active={workspace === "deliverables"} onClick={() => handleWorkspaceChange("deliverables")} count={approvedTasks.length}>
+              Deliverables
+            </WorkspaceTab>
+            <WorkspaceTab active={workspace === "deadlines"} onClick={() => handleWorkspaceChange("deadlines")} count={deadlines.length}>
+              Deadlines
+            </WorkspaceTab>
+            <WorkspaceTab active={workspace === "activity"} onClick={() => handleWorkspaceChange("activity")}>
+              Activity
+            </WorkspaceTab>
+          </div>
 
-        <TabsContent value="overview" className="space-y-4">
-          {(() => {
-            const nextDeadline = deadlines.find((d: any) => d.status !== "COMPLETED" && d.status !== "WAIVED")
-            if (!nextDeadline) return null
-            const due = new Date(nextDeadline.dueDate)
-            const now = new Date()
-            const isOverdue = due < now
-            const dotColor = DEADLINE_PRIORITY_DOTS[nextDeadline.priority] || "bg-gray-400"
-            return (
-              <Card className={isOverdue ? "border-red-200" : ""}>
-                <CardContent className="flex items-center gap-3 p-4">
-                  <div className={`h-3 w-3 rounded-full shrink-0 ${dotColor}`} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Next Deadline</p>
-                    <p className="text-xs text-muted-foreground">
-                      {nextDeadline.title} · Due {formatDate(due, { month: "short", day: "numeric", year: "numeric" })}
-                      {isOverdue ? " · OVERDUE" : ""}
-                    </p>
+          {/* Workspace content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* ── Documents ── */}
+            {workspace === "documents" && (
+              <>
+                <DocumentUpload caseId={caseData.id} />
+                <DocumentList documents={caseData.documents} />
+              </>
+            )}
+
+            {/* ── Banjo ── */}
+            {workspace === "banjo" && (
+              <>
+                <BanjoPanel
+                  caseId={caseData.id}
+                  caseType={caseData.caseType}
+                  caseData={{
+                    caseNumber: caseData.tabsNumber || caseData.id,
+                    clientName: caseData.clientName,
+                    filingStatus: caseData.filingStatus,
+                    status: caseData.status,
+                  }}
+                  documentCount={caseData.documents.length}
+                  documentsWithTextCount={caseData.documents.filter((d: any) => d.extractedText?.trim().length > 0).length}
+                  existingTasks={caseData.aiTasks.map((t: any) => ({
+                    id: t.id,
+                    taskType: t.taskType,
+                    status: t.status,
+                    createdAt: t.createdAt,
+                    banjoAssignmentId: t.banjoAssignmentId || null,
+                    banjoStepLabel: t.banjoStepLabel || null,
+                  }))}
+                />
+                {failedTasks.length > 1 && (
+                  <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={handleCleanupTasks} className="text-destructive text-xs">
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Clear {failedTasks.length} failed tasks
+                    </Button>
                   </div>
+                )}
+              </>
+            )}
+
+            {/* ── Deliverables ── */}
+            {workspace === "deliverables" && (
+              <>
+                {approvedTasks.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <Download className="h-12 w-12 text-muted-foreground/50" />
+                      <h3 className="mt-4 text-lg font-semibold">No approved deliverables yet</h3>
+                      <p className="text-sm text-muted-foreground">Approve AI outputs from the Review Queue.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {(() => {
+                      const bundles = new Map<string, any[]>()
+                      const standalone: any[] = []
+                      for (const task of approvedTasks) {
+                        if (task.banjoAssignmentId) {
+                          const existing = bundles.get(task.banjoAssignmentId) || []
+                          existing.push(task)
+                          bundles.set(task.banjoAssignmentId, existing)
+                        } else {
+                          standalone.push(task)
+                        }
+                      }
+                      return (
+                        <>
+                          {Array.from(bundles.entries()).map(([assignmentId, tasks]) => (
+                            <Card key={assignmentId}>
+                              <CardContent className="p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <BanjoIcon className="h-4 w-4" />
+                                    <p className="font-medium text-sm">Banjo &mdash; {new Date(tasks[0].createdAt).toLocaleDateString()}</p>
+                                  </div>
+                                  <Button variant="outline" size="sm" onClick={() => window.open(`/api/banjo/${assignmentId}/export-zip`, "_blank")}>
+                                    <Download className="mr-1 h-3.5 w-3.5" /> ZIP
+                                  </Button>
+                                </div>
+                                {tasks.sort((a: any, b: any) => (a.banjoStepNumber || 0) - (b.banjoStepNumber || 0)).map((task: any) => {
+                                  const isSS = SPREADSHEET_TASK_TYPES.has(task.taskType)
+                                  return (
+                                    <div key={task.id} className="flex items-center justify-between pl-6">
+                                      <div className="flex items-center gap-2">
+                                        <Badge className="bg-green-100 text-green-800 text-[10px]" variant="secondary">Approved</Badge>
+                                        <p className="text-sm">{task.banjoStepLabel || formatTaskType(task.taskType)}</p>
+                                      </div>
+                                      <Button variant="ghost" size="sm" onClick={() => window.open(`/api/ai/tasks/${task.id}/export?format=${isSS ? "xlsx" : "docx"}`, "_blank")}>
+                                        <Download className="mr-1 h-3 w-3" /> {isSS ? ".xlsx" : ".docx"}
+                                      </Button>
+                                    </div>
+                                  )
+                                })}
+                              </CardContent>
+                            </Card>
+                          ))}
+                          {standalone.map((task: any) => {
+                            const isSS = SPREADSHEET_TASK_TYPES.has(task.taskType)
+                            return (
+                              <Card key={task.id}>
+                                <CardContent className="flex items-center justify-between p-4">
+                                  <div>
+                                    <p className="font-medium">{formatTaskType(task.taskType)}</p>
+                                    <p className="text-xs text-muted-foreground">Approved {timeAgo(task.updatedAt || task.createdAt)}</p>
+                                  </div>
+                                  <Button variant="outline" size="sm" onClick={() => window.open(`/api/ai/tasks/${task.id}/export?format=${isSS ? "xlsx" : "docx"}`, "_blank")}>
+                                    <Download className="mr-1 h-3.5 w-3.5" /> {isSS ? ".xlsx" : ".docx"}
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            )
+                          })}
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── Deadlines ── */}
+            {workspace === "deadlines" && (
+              <>
+                <div className="flex justify-end">
+                  <AddDeadlineDialog
+                    cases={[{ id: caseData.id, tabsNumber: caseData.tabsNumber || caseData.id, clientName: caseData.clientName }]}
+                    users={practitioners.map(p => ({ ...p, role: p.role || "PRACTITIONER" }))}
+                    preselectedCaseId={caseData.id}
+                  />
+                </div>
+                {deadlines.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <CalendarIcon className="h-12 w-12 text-muted-foreground/50" />
+                      <h3 className="mt-4 text-lg font-semibold">No deadlines</h3>
+                      <p className="text-sm text-muted-foreground">Add deadlines to track important dates.</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-2">
+                    {deadlines.filter((d: any) => d.status !== "COMPLETED").map((d: any) => (
+                      <DeadlineCard key={d.id} deadline={d} users={practitioners.map(p => ({ ...p, role: p.role || "PRACTITIONER" }))} />
+                    ))}
+                    {deadlines.filter((d: any) => d.status === "COMPLETED").length > 0 && (
+                      <details className="mt-4">
+                        <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+                          Completed ({deadlines.filter((d: any) => d.status === "COMPLETED").length})
+                        </summary>
+                        <div className="space-y-2 mt-2">
+                          {deadlines.filter((d: any) => d.status === "COMPLETED").map((d: any) => (
+                            <DeadlineCard key={d.id} deadline={d} users={practitioners.map(p => ({ ...p, role: p.role || "PRACTITIONER" }))} />
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── Activity ── */}
+            {workspace === "activity" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Clock className="h-5 w-5" /> Activity Feed
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ActivityFeed activities={activities} />
                 </CardContent>
               </Card>
-            )
-          })()}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Case Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Client Name</Label>
-                  {editing ? (
-                    <Input
-                      value={form.clientName}
-                      onChange={(e) => setForm({ ...form, clientName: e.target.value })}
-                    />
-                  ) : (
-                    <p className="text-sm">{caseData.clientName}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>TABS Number</Label>
-                  {editing ? (
-                    <Input
-                      value={form.tabsNumber}
-                      onChange={(e) => setForm({ ...form, tabsNumber: e.target.value })}
-                      placeholder="e.g. 12345.001"
-                    />
-                  ) : (
-                    <p className="text-sm">{caseData.tabsNumber || <span className="text-muted-foreground">Not set</span>}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Case Type</Label>
-                  {editing ? (
-                    <Select value={form.caseType} onValueChange={(v) => setForm({ ...form, caseType: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(CASE_TYPE_LABELS).map(([val, label]) => (
-                          <SelectItem key={val} value={val}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm">{CASE_TYPE_LABELS[caseData.caseType as keyof typeof CASE_TYPE_LABELS]}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  {editing ? (
-                    <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(CASE_STATUS_LABELS).map(([val, label]) => (
-                          <SelectItem key={val} value={val}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge className={statusColors[caseData.status] || ""} variant="secondary">
-                      {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
-                    </Badge>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Filing Status</Label>
-                  {editing ? (
-                    <Select value={form.filingStatus} onValueChange={(v) => setForm({ ...form, filingStatus: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select filing status" /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(FILING_STATUS_LABELS).map(([val, label]) => (
-                          <SelectItem key={val} value={val}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm">{caseData.filingStatus ? FILING_STATUS_LABELS[caseData.filingStatus as keyof typeof FILING_STATUS_LABELS] : "Not set"}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Client Email</Label>
-                  {editing ? (
-                    <Input
-                      type="email"
-                      value={form.clientEmail}
-                      onChange={(e) => setForm({ ...form, clientEmail: e.target.value })}
-                      placeholder="client@example.com"
-                    />
-                  ) : (
-                    <p className="text-sm">{caseData.clientEmail || "Not set"}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Client Phone</Label>
-                  {editing ? (
-                    <Input
-                      type="tel"
-                      value={form.clientPhone}
-                      onChange={(e) => setForm({ ...form, clientPhone: e.target.value })}
-                      placeholder="(555) 123-4567"
-                    />
-                  ) : (
-                    <p className="text-sm">{caseData.clientPhone || "Not set"}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Estimated Total Liability</Label>
-                  {editing ? (
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.totalLiability}
-                      onChange={(e) => setForm({ ...form, totalLiability: e.target.value })}
-                      placeholder="0.00"
-                    />
-                  ) : (
-                    <p className="text-sm">
-                      {caseData.totalLiability != null
-                        ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(caseData.totalLiability))
-                        : "Not set"}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Assignment & Notes</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Assigned Practitioner</Label>
-                  {editing ? (
-                    <Select
-                      value={form.assignedPractitionerId}
-                      onValueChange={(v) => setForm({ ...form, assignedPractitionerId: v })}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select practitioner" /></SelectTrigger>
-                      <SelectContent>
-                        {practitioners.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm">{caseData.assignedPractitioner?.name || "Unassigned"}</p>
-                  )}
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                  <Label>Notes</Label>
-                  {editing ? (
-                    <Textarea
-                      value={form.notes}
-                      onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                      rows={4}
-                    />
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap">{caseData.notes || "No notes"}</p>
-                  )}
-                </div>
-                <Separator />
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Created</p>
-                    <p>{formatDate(caseData.createdAt)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Last Updated</p>
-                    <p>{formatDate(caseData.updatedAt)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Liability Summary Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Liability Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {caseData.totalLiability != null ? (
-                <div className="space-y-3">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-sm text-muted-foreground">Estimated Total Liability</span>
-                    <span className="text-xl font-bold">
-                      {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(caseData.totalLiability))}
-                    </span>
-                  </div>
-                  <Separator />
-                  <p className="text-xs text-muted-foreground">
-                    Detailed liability breakdown by tax year will appear here after transcript analysis.
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No liability data yet. Set the estimated total liability above, or run an AI analysis after uploading IRS transcripts.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="documents" className="space-y-4">
-          <DocumentUpload caseId={caseData.id} />
-          <DocumentList documents={caseData.documents} />
-        </TabsContent>
-
-        <TabsContent value="banjo" className="space-y-4">
-          <BanjoPanel
-            caseId={caseData.id}
-            caseType={caseData.caseType}
-            caseData={{
-              caseNumber: caseData.tabsNumber || caseData.id,
-              clientName: caseData.clientName,
-              filingStatus: caseData.filingStatus,
-              status: caseData.status,
-            }}
-            documentCount={caseData.documents.length}
-            documentsWithTextCount={caseData.documents.filter((d: any) => d.extractedText && d.extractedText.trim().length > 0).length}
-            existingTasks={caseData.aiTasks.map((t: any) => ({
-              id: t.id,
-              taskType: t.taskType,
-              status: t.status,
-              createdAt: t.createdAt,
-              banjoAssignmentId: t.banjoAssignmentId || null,
-              banjoStepLabel: t.banjoStepLabel || null,
-            }))}
-          />
-          {failedTasks.length > 1 && (
-            <div className="flex justify-end">
-              <Button variant="outline" size="sm" onClick={handleCleanupTasks}
-                className="text-destructive text-xs">
-                <Trash2 className="mr-1 h-3 w-3" />
-                Clear {failedTasks.length} failed tasks
-              </Button>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="deliverables" className="space-y-4">
-          {approvedTasks.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Download className="h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">No approved deliverables yet</h3>
-                <p className="text-sm text-muted-foreground">
-                  Approve AI outputs from the Review Queue to generate deliverables.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {/* Group by Banjo assignment */}
-              {(() => {
-                const bundles = new Map<string, any[]>()
-                const standalone: any[] = []
-                for (const task of approvedTasks) {
-                  if (task.banjoAssignmentId) {
-                    const existing = bundles.get(task.banjoAssignmentId) || []
-                    existing.push(task)
-                    bundles.set(task.banjoAssignmentId, existing)
-                  } else {
-                    standalone.push(task)
-                  }
-                }
-
-                return (
-                  <>
-                    {Array.from(bundles.entries()).map(([assignmentId, tasks]) => (
-                      <Card key={assignmentId}>
-                        <CardContent className="p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">&#x1FA95;</span>
-                              <p className="font-medium text-sm">
-                                Banjo Assignment &mdash; {new Date(tasks[0].createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                window.open(`/api/banjo/${assignmentId}/export-zip`, "_blank")
-                              }}
-                            >
-                              <Download className="mr-1 h-4 w-4" />
-                              Export All as ZIP
-                            </Button>
-                          </div>
-                          <div className="space-y-2">
-                            {tasks
-                              .sort((a: any, b: any) => (a.banjoStepNumber || 0) - (b.banjoStepNumber || 0))
-                              .map((task: any) => {
-                                const isSpreadsheet = SPREADSHEET_TASK_TYPES.has(task.taskType)
-                                return (
-                                  <div key={task.id} className="flex items-center justify-between pl-6">
-                                    <div className="flex items-center gap-2">
-                                      <Badge className="bg-green-100 text-green-800" variant="secondary">Approved</Badge>
-                                      <p className="text-sm">{task.banjoStepLabel || formatTaskType(task.taskType)}</p>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        window.open(`/api/ai/tasks/${task.id}/export?format=${isSpreadsheet ? "xlsx" : "docx"}`, "_blank")
-                                      }}
-                                    >
-                                      <Download className="mr-1 h-3 w-3" />
-                                      {isSpreadsheet ? ".xlsx" : ".docx"}
-                                    </Button>
-                                  </div>
-                                )
-                              })}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {standalone.length > 0 && bundles.size > 0 && (
-                      <p className="text-sm font-medium text-muted-foreground pt-2">Standalone Tasks</p>
+            {/* ── Settings (Case editing) ── */}
+            {workspace === "settings" && (
+              <div className="space-y-4 max-w-2xl">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Case Settings</h2>
+                  <div className="flex gap-2">
+                    {editing ? (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+                        <Button size="sm" onClick={handleSave} disabled={saving}>
+                          <Save className="mr-1 h-3.5 w-3.5" /> {saving ? "Saving..." : "Save"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit</Button>
                     )}
-
-                    {standalone.map((task: any) => {
-                      const approvalAction = task.reviewActions?.find(
-                        (ra: any) => ra.action === "APPROVE" || ra.action === "EDIT_APPROVE"
-                      )
-                      const isSpreadsheet = SPREADSHEET_TASK_TYPES.has(task.taskType)
-                      return (
-                        <Card key={task.id}>
-                          <CardContent className="flex items-center justify-between p-4">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">{formatTaskType(task.taskType)}</p>
-                                <Badge className="bg-green-100 text-green-800" variant="secondary">Final</Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {approvalAction
-                                  ? `Approved ${timeAgo(approvalAction.reviewCompletedAt || approvalAction.reviewStartedAt)}${approvalAction.practitioner?.name ? ` by ${approvalAction.practitioner.name}` : ""}`
-                                  : `Approved ${timeAgo(task.updatedAt || task.createdAt)}`}
-                              </p>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => { window.open(`/api/ai/tasks/${task.id}/export?format=${isSpreadsheet ? "xlsx" : "docx"}`, "_blank") }}>
-                              <Download className="mr-1 h-4 w-4" />
-                              Export {isSpreadsheet ? ".xlsx" : ".docx"}
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </>
-                )
-              })()}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="deadlines" className="space-y-4">
-          <div className="flex justify-end">
-            <AddDeadlineDialog
-              cases={[{ id: caseData.id, tabsNumber: caseData.tabsNumber || caseData.id, clientName: caseData.clientName }]}
-              users={practitioners.map((p) => ({ ...p, role: p.role || "PRACTITIONER" }))}
-              preselectedCaseId={caseData.id}
-            />
-          </div>
-          {deadlines.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <CalendarIcon className="h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">No deadlines</h3>
-                <p className="text-sm text-muted-foreground">
-                  Add deadlines to track important dates for this case.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {deadlines
-                .filter((d: any) => d.status !== "COMPLETED")
-                .map((d: any) => (
-                  <DeadlineCard
-                    key={d.id}
-                    deadline={d}
-                    users={practitioners.map((p) => ({ ...p, role: p.role || "PRACTITIONER" }))}
-                  />
-                ))}
-              {deadlines.filter((d: any) => d.status === "COMPLETED").length > 0 && (
-                <details className="mt-4">
-                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
-                    Completed ({deadlines.filter((d: any) => d.status === "COMPLETED").length})
-                  </summary>
-                  <div className="space-y-2 mt-2">
-                    {deadlines
-                      .filter((d: any) => d.status === "COMPLETED")
-                      .map((d: any) => (
-                        <DeadlineCard
-                          key={d.id}
-                          deadline={d}
-                          users={practitioners.map((p) => ({ ...p, role: p.role || "PRACTITIONER" }))}
-                        />
-                      ))}
                   </div>
-                </details>
-              )}
-            </div>
-          )}
-        </TabsContent>
+                </div>
+                <Card>
+                  <CardContent className="p-4 space-y-4">
+                    {[
+                      { label: "Client Name", key: "clientName", type: "text" },
+                      { label: "TABS Number", key: "tabsNumber", type: "text", placeholder: "e.g. 12345.001" },
+                      { label: "Client Email", key: "clientEmail", type: "email" },
+                      { label: "Client Phone", key: "clientPhone", type: "tel" },
+                      { label: "Total Liability", key: "totalLiability", type: "number" },
+                    ].map(({ label, key, type, placeholder }) => (
+                      <div key={key} className="space-y-1">
+                        <Label className="text-xs">{label}</Label>
+                        {editing ? (
+                          <Input
+                            type={type}
+                            value={(form as any)[key]}
+                            onChange={e => setForm({ ...form, [key]: e.target.value })}
+                            placeholder={placeholder}
+                            className="h-8 text-sm"
+                          />
+                        ) : (
+                          <p className="text-sm">{(caseData as any)[key] || <span className="text-muted-foreground">Not set</span>}</p>
+                        )}
+                      </div>
+                    ))}
+                    <div className="space-y-1">
+                      <Label className="text-xs">Case Type</Label>
+                      {editing ? (
+                        <Select value={form.caseType} onValueChange={v => setForm({ ...form, caseType: v })}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(CASE_TYPE_LABELS).map(([val, label]) => (
+                              <SelectItem key={val} value={val}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-sm">{CASE_TYPE_LABELS[caseData.caseType as keyof typeof CASE_TYPE_LABELS]}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Status</Label>
+                      {editing ? (
+                        <Select value={form.status} onValueChange={v => setForm({ ...form, status: v })}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(CASE_STATUS_LABELS).map(([val, label]) => (
+                              <SelectItem key={val} value={val}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge className={statusColors[caseData.status] || ""} variant="secondary">
+                          {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Filing Status</Label>
+                      {editing ? (
+                        <Select value={form.filingStatus} onValueChange={v => setForm({ ...form, filingStatus: v })}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(FILING_STATUS_LABELS).map(([val, label]) => (
+                              <SelectItem key={val} value={val}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-sm">{caseData.filingStatus ? FILING_STATUS_LABELS[caseData.filingStatus as keyof typeof FILING_STATUS_LABELS] : "Not set"}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Assigned Practitioner</Label>
+                      {editing ? (
+                        <Select value={form.assignedPractitionerId} onValueChange={v => setForm({ ...form, assignedPractitionerId: v })}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {practitioners.map(p => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="text-sm">{caseData.assignedPractitioner?.name || "Unassigned"}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Notes</Label>
+                      {editing ? (
+                        <Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} className="text-sm" />
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap">{caseData.notes || "No notes"}</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Separator />
+                <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={handleDeleteCase}>
+                  <Trash2 className="mr-1 h-4 w-4" /> Delete Case
+                </Button>
+              </div>
+            )}
+          </div>
 
-        <TabsContent value="activity" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Activity Feed
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ActivityFeed activities={activities} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          {/* Inline Junebug */}
+          <CaseJunebug
+            caseId={caseData.id}
+            caseContext={caseContext}
+            collapsed={junebugCollapsed}
+            onToggle={() => setJunebugCollapsed(!junebugCollapsed)}
+          />
+        </div>
+      </div>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { z } from "zod"
 import { DEADLINE_DEFAULT_PRIORITY } from "@/types"
 import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { canAccessCase, caseAccessFilter } from "@/lib/auth/case-access"
+import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
 
 const VALID_TYPES = [
   "CDP_HEARING", "EQUIVALENT_HEARING", "TAX_COURT_PETITION", "CSED_EXPIRATION",
@@ -156,6 +157,9 @@ export async function POST(request: NextRequest) {
     resourceType: "Deadline",
     metadata: { type: data.type, title: data.title, dueDate: data.dueDate },
   })
+
+  // Refresh case graph (fire-and-forget)
+  computeCaseGraph(data.caseId).catch(() => {})
 
   // Log activity (fire-and-forget)
   prisma.caseActivity.create({

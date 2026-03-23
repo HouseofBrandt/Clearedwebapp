@@ -15,6 +15,7 @@ import { canAccessCase } from "@/lib/auth/case-access"
 import { formatPriorOutput } from "@/lib/banjo/context-formatter"
 import { executeDag, type DeliverablePlan, type PriorOutput, type CompletedTask } from "@/lib/banjo/dag-executor"
 import { runRevisionPass } from "@/lib/banjo/revision-pass"
+import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
 
 const TASK_TYPE_TO_PROMPT: Record<string, string> = {
   WORKING_PAPERS: "oic_extraction_v1",
@@ -524,6 +525,9 @@ export async function POST(
           where: { id: assignmentId },
           data: { status: finalStatus, completedAt: new Date() },
         })
+
+        // Refresh case graph (fire-and-forget)
+        computeCaseGraph(caseData.id).catch(() => {})
 
         // Log activity
         prisma.caseActivity.create({

@@ -435,6 +435,13 @@ model KnowledgeDocument {
   sourceType        String            @default("MANUAL_UPLOAD")
   lastReferencedAt  DateTime?
 
+  // V2: Outcome tagging (populated when source case is resolved)
+  outcomeTag        String?           // OIC_ACCEPTED, OIC_REJECTED, IA_APPROVED, etc.
+  outcomeAmount     Decimal?          // Final accepted amount (for OIC)
+
+  // V2: Freshness scoring
+  freshnessScore    Float             @default(1.0) // 0.0 (stale) to 1.0 (fresh)
+
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -584,6 +591,36 @@ model CaseIntelligence {
   lastActivityBy        String?
   lastActivityAction    String?
 
+  // === V2: Case Graph Engine ===
+
+  // Case Digest — precomputed natural language summary
+  digest                String?   @db.Text
+  digestUpdatedAt       DateTime?
+
+  // Next Steps — structured, prioritized recommendations
+  // Array of { priority: "critical"|"high"|"normal", action, reason, type, blockedBy?, suggestedBanjoBundle? }
+  nextSteps             Json?
+  nextStepsUpdatedAt    DateTime?
+
+  // Bundle Readiness — what Banjo can produce right now
+  // { oicPacket: "ready"|"blocked"|"partial", ... }
+  bundleReadiness       Json?
+
+  // Risk Score — 0-100, higher = more urgent
+  riskScore             Int       @default(0)
+  riskFactors           Json?
+
+  // Staleness
+  daysSinceActivity     Int       @default(0)
+  isStale               Boolean   @default(false)
+
+  // Confidence — how reliable is the intelligence?
+  confidenceScore       Int       @default(0)
+  confidenceFlags       Json?
+
+  // Prior Similar Cases — for precedent matching
+  similarCaseIds        Json?
+
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -645,4 +682,31 @@ model BanjoAssignment {
 
   @@index([caseId])
   @@map("banjo_assignments")
+}
+
+model EditHistory {
+  id              String   @id @default(cuid())
+  aiTaskId        String
+  caseType        String
+  taskType        String
+  originalOutput  String   @db.Text
+  editedOutput    String   @db.Text
+  practitionerId  String
+  createdAt       DateTime @default(now())
+
+  @@index([caseType, taskType])
+  @@map("edit_history")
+}
+
+model RejectionFeedback {
+  id              String   @id @default(cuid())
+  aiTaskId        String
+  caseType        String
+  taskType        String
+  correctionNotes String   @db.Text
+  practitionerId  String
+  createdAt       DateTime @default(now())
+
+  @@index([caseType, taskType])
+  @@map("rejection_feedback")
 }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
 import { extractWithDetails } from "@/lib/documents/extract"
 import { canAccessCase } from "@/lib/auth/case-access"
+import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -96,6 +97,9 @@ export async function POST(request: NextRequest) {
         extractedText,
       },
     })
+
+    // Refresh case graph after document upload (fire-and-forget)
+    computeCaseGraph(caseId).catch(() => {})
 
     return NextResponse.json({
       ...document,
