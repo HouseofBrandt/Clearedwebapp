@@ -5,6 +5,7 @@ import { z } from "zod"
 import { formatDate } from "@/lib/date-utils"
 import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
 import { searchKnowledge } from "@/lib/knowledge/search"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 const actionSchema = z.object({
   action: z.enum([
@@ -46,6 +47,10 @@ export async function POST(request: NextRequest) {
     const caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true } })
     if (!caseExists) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
+    }
+    const hasAccess = await canAccessCase(auth.userId, caseId)
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
   }
 

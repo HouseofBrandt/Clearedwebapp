@@ -49,6 +49,16 @@ export async function POST(
       )
     }
 
+    // P1-B: Require flags acknowledged before approval
+    if ((action === "APPROVE" || action === "EDIT_APPROVE") &&
+        (task.verifyFlagCount > 0 || task.judgmentFlagCount > 0) &&
+        !flagsAcknowledged) {
+      return NextResponse.json(
+        { error: "You must acknowledge all [VERIFY] and [PRACTITIONER JUDGMENT] flags before approving." },
+        { status: 400 }
+      )
+    }
+
     // Use client-provided reviewStartedAt for accurate review duration tracking.
     // Falls back to server time if not provided.
     const startedAt = reviewStartedAt
@@ -85,10 +95,17 @@ export async function POST(
     })
 
     // Auto-ingest to Knowledge Base on approval (fire-and-forget)
+    // Re-fetch after update so EDIT_APPROVE gets the edited output, not the pre-edit draft
     if (newStatus === "APPROVED") {
-      autoIngestToKnowledgeBase(task, auth.userId).catch((err) => {
-        console.error("[Review] Auto-KB-ingest failed (non-blocking):", err.message)
+      const finalTask = await prisma.aITask.findUnique({
+        where: { id: params.taskId },
+        select: { id: true, taskType: true, caseId: true, detokenizedOutput: true, createdById: true },
       })
+      if (finalTask) {
+        autoIngestToKnowledgeBase(finalTask, auth.userId).catch((err) => {
+          console.error("[Review] Auto-KB-ingest failed (non-blocking):", err.message)
+        })
+      }
     }
 
     // Audit log (fire-and-forget — don't block review on audit logging)

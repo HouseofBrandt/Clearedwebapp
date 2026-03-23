@@ -11,6 +11,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        mfaCode: { label: "MFA Code", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -34,6 +35,21 @@ export const authOptions: NextAuthOptions = {
         if (!isValid) {
           logAudit({ userId: user.id, action: AUDIT_ACTIONS.LOGIN_FAILURE, metadata: { email: credentials.email, reason: "invalid_password" } })
           throw new Error("Invalid email or password")
+        }
+
+        // MFA check: if enabled, require TOTP code
+        if (user.mfaEnabled && user.mfaSecret) {
+          if (!credentials.mfaCode) {
+            // Signal to the frontend that MFA is required
+            throw new Error("MFA_REQUIRED")
+          }
+          const otplib = await import("otplib")
+          const totp = new otplib.TOTP({ secret: user.mfaSecret })
+          const isValidCode = await totp.verify(credentials.mfaCode)
+          if (!isValidCode) {
+            logAudit({ userId: user.id, action: AUDIT_ACTIONS.LOGIN_FAILURE, metadata: { email: credentials.email, reason: "invalid_mfa" } })
+            throw new Error("Invalid MFA code")
+          }
         }
 
         logAudit({ userId: user.id, action: AUDIT_ACTIONS.LOGIN_SUCCESS, metadata: { email: user.email } })
@@ -71,7 +87,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 8 * 60 * 60, // 8 hours
+    maxAge: 60 * 60, // 1 hour absolute maximum
   },
   secret: process.env.NEXTAUTH_SECRET,
 }

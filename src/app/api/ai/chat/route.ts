@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { loadPrompt } from "@/lib/ai/prompts"
+import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
 import { searchKnowledge } from "@/lib/knowledge/search"
 import { detectDataNeeds, fetchPlatformData } from "@/lib/ai/platform-data"
 import Anthropic from "@anthropic-ai/sdk"
@@ -92,10 +93,18 @@ export async function POST(request: NextRequest) {
   // a text-only streaming handler. Non-streaming lets the SDK handle the full
   // tool execution loop, then we extract and forward the final text.
   try {
-    const apiMessages = messages.map((m: { role: string; content: string }) => ({
-      role: m.role,
-      content: m.content,
-    }))
+    // Tokenize user messages to prevent PII from reaching the Anthropic API
+    const knownNames: string[] = caseContext?.clientName ? [caseContext.clientName] : []
+    const sessionTokenMap: Record<string, string> = {}
+
+    const apiMessages = messages.map((m: { role: string; content: string }) => {
+      if (m.role === "user") {
+        const { tokenizedText, tokenMap: msgTokenMap } = tokenizeText(m.content, knownNames)
+        Object.assign(sessionTokenMap, msgTokenMap)
+        return { role: m.role, content: tokenizedText }
+      }
+      return { role: m.role, content: m.content }
+    })
 
     const response = await anthropic.messages.create({
       model: model || "claude-sonnet-4-6",
@@ -107,10 +116,15 @@ export async function POST(request: NextRequest) {
     })
 
     // Extract all text content from the response (skipping tool_use/tool_result blocks)
-    const textContent = response.content
+    let textContent = response.content
       .filter((block: { type: string }) => block.type === "text")
       .map((block: { type: string; text?: string }) => (block as { type: "text"; text: string }).text)
       .join("\n\n")
+
+    // Detokenize the response so the practitioner sees real names/data
+    if (Object.keys(sessionTokenMap).length > 0) {
+      textContent = detokenizeText(textContent, sessionTokenMap)
+    }
 
     const readable = new ReadableStream({
       start(controller) {

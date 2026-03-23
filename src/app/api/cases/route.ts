@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { encryptCasePII, decryptCasePII } from "@/lib/encryption"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { caseAccessFilter } from "@/lib/auth/case-access"
 import { z } from "zod"
 
 const createCaseSchema = z.object({
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1")
   const limit = parseInt(searchParams.get("limit") || "20")
 
-  const where: any = {}
+  const accessFilter = await caseAccessFilter((session.user as any).id)
+  const where: any = { ...accessFilter }
   if (status) where.status = status
   if (caseType) where.caseType = caseType
   if (search) {

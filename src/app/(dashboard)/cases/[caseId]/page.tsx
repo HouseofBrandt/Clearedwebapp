@@ -4,6 +4,7 @@ import { decryptCasePII } from "@/lib/encryption"
 import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
 import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { notFound } from "next/navigation"
+import { canAccessCase } from "@/lib/auth/case-access"
 import { CaseDetail } from "@/components/cases/case-detail"
 
 const caseInclude = {
@@ -29,6 +30,11 @@ export default async function CaseDetailPage({
   params: { caseId: string }
 }) {
   const session = await requireAuth()
+
+  const hasAccess = await canAccessCase((session.user as any).id, params.caseId)
+  if (!hasAccess) {
+    notFound()
+  }
 
   // Recalculate doc completeness on page load (ensures accuracy for pre-triage uploads)
   await recalculateDocCompleteness(params.caseId).catch(() => {})

@@ -1,8 +1,10 @@
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
+import { caseAccessFilter } from "@/lib/auth/case-access"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { ChatPanel } from "@/components/assistant/chat-panel"
+import { IdleTimeout } from "@/components/layout/idle-timeout"
 
 export default async function DashboardLayout({
   children,
@@ -15,12 +17,14 @@ export default async function DashboardLayout({
   let overdueDeadlineCount = 0
   let unreadMessageCount = 0
   try {
+    const accessFilter = await caseAccessFilter(session.user.id)
     const [reviews, overdue, unread] = await Promise.all([
-      prisma.aITask.count({ where: { status: "READY_FOR_REVIEW" } }),
+      prisma.aITask.count({ where: { status: "READY_FOR_REVIEW", case: accessFilter } }),
       prisma.deadline.count({
         where: {
           dueDate: { lt: new Date() },
           status: { in: ["UPCOMING"] },
+          case: accessFilter,
         },
       }),
       prisma.message.count({
@@ -50,6 +54,7 @@ export default async function DashboardLayout({
         </div>
       </div>
       <ChatPanel />
+      <IdleTimeout />
     </>
   )
 }

@@ -14,6 +14,7 @@ import { getKnowledgeContext } from "@/lib/knowledge/context"
 import { notify } from "@/lib/notifications"
 import { trackError } from "@/lib/error-tracking"
 import { getAppealsContext } from "@/lib/knowledge/appeals-context"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -278,6 +279,14 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  const hasAccess = await canAccessCase(userId, caseId)
+  if (!hasAccess) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
   // Rate limit: max 3 requests per case per 5 minutes
   const recentTasks = await prisma.aITask.count({
     where: { caseId, createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } },
@@ -389,6 +398,14 @@ export async function POST(request: NextRequest) {
         // PII pre-flight validation
         const piiValidation = validateTokenization(tokenizedText)
         if (!piiValidation.passed) {
+          const hasTier1Leak = piiValidation.warnings.some((w: string) =>
+            w.includes("SSN") || w.includes("EIN") || w.includes("DOB")
+          )
+          if (hasTier1Leak) {
+            // Hard block — do not send to Claude
+            throw new Error("PII tokenization failed: Tier 1 PII detected in tokenized text. Aborting.")
+          }
+          // Tier 2/3 warnings are logged but allowed
           console.warn("[AI Analyze] PII validation warnings:", piiValidation.warnings)
         }
 

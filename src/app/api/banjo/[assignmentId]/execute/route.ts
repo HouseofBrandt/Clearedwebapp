@@ -11,6 +11,7 @@ import { mergeTemplateWithData } from "@/lib/templates/oic-merge"
 import { populateFromAIExtraction } from "@/lib/documents/liability"
 import { notify } from "@/lib/notifications"
 import { SOURCES_AND_ASSUMPTIONS_FOOTER } from "@/lib/banjo/prompt-footer"
+import { canAccessCase } from "@/lib/auth/case-access"
 import { formatPriorOutput } from "@/lib/banjo/context-formatter"
 import { executeDag, type DeliverablePlan, type PriorOutput, type CompletedTask } from "@/lib/banjo/dag-executor"
 import { runRevisionPass } from "@/lib/banjo/revision-pass"
@@ -87,6 +88,11 @@ export async function POST(
 
   if (!assignment) {
     return new Response(JSON.stringify({ error: "Assignment not found" }), { status: 404, headers: { "Content-Type": "application/json" } })
+  }
+
+  const hasAccess = await canAccessCase(userId, assignment.case.id)
+  if (!hasAccess) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } })
   }
 
   if (assignment.status !== "AWAITING_APPROVAL") {
@@ -230,13 +236,14 @@ export async function POST(
           let userMessage = `Case Type: ${caseData.caseType}\nTABS: ${caseData.tabsNumber}\n\n`
           userMessage += `Documents:\n${tokenizedDocText}`
 
-          // Full unabridged context forwarding
+          // Full unabridged context forwarding — re-tokenize to prevent PII leaking back to Claude
           if (priorOutputs.length > 0) {
             for (const prior of priorOutputs) {
               const formatted = formatPriorOutput(prior.output, prior.format)
+              const { tokenizedText: reTokenized } = tokenizeText(formatted, knownNames)
               userMessage += `\n\n--- FULL OUTPUT FROM PRIOR DELIVERABLE: [Step ${prior.step} \u2014 ${prior.label}] ---\n`
               userMessage += `The following is the complete output of a prior step in this assignment. Reference specific findings, numbers, and conclusions directly.\n\n`
-              userMessage += formatted
+              userMessage += reTokenized
               userMessage += `\n--- END PRIOR OUTPUT ---\n`
             }
           }
