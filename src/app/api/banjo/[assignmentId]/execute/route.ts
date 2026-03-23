@@ -17,6 +17,7 @@ import { formatPriorOutput } from "@/lib/banjo/context-formatter"
 import { executeDag, type DeliverablePlan, type PriorOutput, type CompletedTask } from "@/lib/banjo/dag-executor"
 import { runRevisionPass } from "@/lib/banjo/revision-pass"
 import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
+import { createFeedEvent } from "@/lib/feed/create-event"
 import { EventEmitter } from "events"
 
 const TASK_TYPE_TO_PROMPT: Record<string, string> = {
@@ -560,6 +561,21 @@ export async function POST(
           description: `Banjo assignment completed: ${dagResult.completed.length} deliverable(s)${dagResult.failed.length > 0 ? `, ${dagResult.failed.length} failed` : ""}${dagResult.skipped.length > 0 ? `, ${dagResult.skipped.length} skipped` : ""}`,
           metadata: { assignmentId, completed: dagResult.completed.length, failed: dagResult.failed.length, skipped: dagResult.skipped.length },
         },
+      }).catch(() => {})
+
+      // Feed event
+      createFeedEvent({
+        eventType: "banjo_complete",
+        caseId: caseData.id,
+        eventData: {
+          assignmentId,
+          deliverableCount: dagResult.completed.length,
+          deliverables: dagResult.completed.map((t) => {
+            const d = deliverables.find((dl) => dl.stepNumber === t.step)
+            return d?.label || d?.taskType || `Step ${t.step}`
+          }),
+        },
+        content: `Banjo completed ${dagResult.completed.length} deliverable(s)`,
       }).catch(() => {})
 
       // Notify

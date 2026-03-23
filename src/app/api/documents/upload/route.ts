@@ -9,6 +9,7 @@ import { autoDetectCategory } from "@/lib/documents/auto-category"
 import { triageDocument, processTriageResult } from "@/lib/case-intelligence/document-triage"
 import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { createFeedEvent } from "@/lib/feed/create-event"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -189,6 +190,14 @@ export async function POST(request: NextRequest) {
         console.error("[DocumentTriage] Background triage failed:", err.message)
       })
     }
+
+    // Feed event for document upload
+    createFeedEvent({
+      eventType: "document_upload",
+      caseId,
+      eventData: { documents: [{ name: document.fileName, category: document.documentCategory }] },
+      content: `1 document uploaded`,
+    }).catch(() => {})
 
     return NextResponse.json({
       ...document,
