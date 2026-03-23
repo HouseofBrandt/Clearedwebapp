@@ -225,8 +225,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="claude-opus-4-6">Opus 4.6 (default, most capable)</SelectItem>
-                  <SelectItem value="claude-sonnet-4-6">Sonnet 4.6 (faster, may miss nuance)</SelectItem>
+                  <SelectItem value="claude-opus-4-6">Opus 4.6</SelectItem>
                 </SelectContent>
               </Select>
             </div>

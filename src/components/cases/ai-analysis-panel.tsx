@@ -119,7 +119,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
   })()
 
   const [taskType, setTaskType] = useState(defaultTaskType)
-  const [model, setModel] = useState<string>("claude-sonnet-4-6")
+  const [model, setModel] = useState<string>("claude-opus-4-6")
   const [additionalContext, setAdditionalContext] = useState("")
   const [showPosture, setShowPosture] = useState(false)
   const [casePosture, setCasePosture] = useState<CasePosture>({
@@ -321,8 +321,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="claude-sonnet-4-6">Sonnet 4.6 (fast, standard)</SelectItem>
-              <SelectItem value="claude-opus-4-6">Opus 4.6 (complex analysis)</SelectItem>
+              <SelectItem value="claude-opus-4-6">Opus 4.6</SelectItem>
             </SelectContent>
           </Select>
         </div>

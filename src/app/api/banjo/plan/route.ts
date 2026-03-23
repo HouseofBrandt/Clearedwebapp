@@ -19,7 +19,7 @@ const planSchema = z.object({
     priorAttempts: z.array(z.string()).optional(),
     additionalContext: z.string().optional(),
   }).optional(),
-  model: z.enum(["claude-opus-4-6", "claude-sonnet-4-6"]).optional(),
+  model: z.enum(["claude-opus-4-6"]).optional(),
   skipRevision: z.boolean().optional(),
 })
 

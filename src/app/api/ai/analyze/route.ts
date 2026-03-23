@@ -152,7 +152,7 @@ const VALID_TASK_TYPES = [
   "WEB_RESEARCH",
 ] as const
 
-const VALID_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"] as const
+const VALID_MODELS = ["claude-opus-4-6"] as const
 
 const casePostureSchema = z.object({
   collectionStage: z.string().optional(),
@@ -512,7 +512,7 @@ export async function POST(request: NextRequest) {
 
         // Determine model and token settings
         const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
-        const defaultModel = "claude-sonnet-4-6"
+        const defaultModel = "claude-opus-4-6"
         const model = requestedModel || defaultModel
         const maxTokens = isTemplateTask ? 8192 : (HIGH_TOKEN_TASKS.includes(taskType) ? 12288 : 8192)
         const temperature = isTemplateTask ? 0.1 : 0.2

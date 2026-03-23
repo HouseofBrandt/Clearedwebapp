@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
-import { X, Trash2, Copy, Check, ChevronDown, Send, Sparkles, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
+import { X, Trash2, Copy, Check, Send, Sparkles, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
 
 // -------------------------------------------------------------------
 // Types
@@ -615,8 +615,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [caseContext, setCaseContext] = useState<CaseContext | null>(null)
-  const [model, setModel] = useState<"claude-sonnet-4-6" | "claude-opus-4-6">("claude-sonnet-4-6")
-  const [showModelDropdown, setShowModelDropdown] = useState(false)
+  const model = "claude-opus-4-6"
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -664,14 +663,6 @@ export function ChatPanel() {
       setCaseContext(null)
     }
   }, [pathname])
-
-  // Close model dropdown when clicking elsewhere
-  useEffect(() => {
-    if (!showModelDropdown) return
-    const handleClick = () => setShowModelDropdown(false)
-    document.addEventListener("click", handleClick)
-    return () => document.removeEventListener("click", handleClick)
-  }, [showModelDropdown])
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -836,39 +827,8 @@ export function ChatPanel() {
               <h2 className="text-base font-semibold text-white">Junebug</h2>
             </div>
             <div className="flex items-center gap-1">
-              {/* Model toggle */}
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowModelDropdown(!showModelDropdown)
-                  }}
-                  className="flex items-center gap-1 rounded px-2 py-1 text-xs text-white/80 hover:bg-white/10 hover:text-white"
-                >
-                  {model === "claude-sonnet-4-6" ? "Sonnet" : "Opus"}
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-                {showModelDropdown && (
-                  <div className="absolute right-0 top-full mt-1 w-36 rounded-md border bg-white py-1 shadow-lg z-[60]">
-                    <button
-                      onClick={() => { setModel("claude-sonnet-4-6"); setShowModelDropdown(false) }}
-                      className={`flex w-full items-center justify-between px-3 py-1.5 text-sm hover:bg-gray-100 ${
-                        model === "claude-sonnet-4-6" ? "font-medium text-gray-900" : "text-gray-600"
-                      }`}
-                    >
-                      Sonnet <span className="text-xs text-gray-400">fast</span>
-                    </button>
-                    <button
-                      onClick={() => { setModel("claude-opus-4-6"); setShowModelDropdown(false) }}
-                      className={`flex w-full items-center justify-between px-3 py-1.5 text-sm hover:bg-gray-100 ${
-                        model === "claude-opus-4-6" ? "font-medium text-gray-900" : "text-gray-600"
-                      }`}
-                    >
-                      Opus <span className="text-xs text-gray-400">thorough</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* Model indicator */}
+              <span className="rounded px-2 py-1 text-xs text-white/60">Opus</span>
 
               {/* New conversation */}
               <button

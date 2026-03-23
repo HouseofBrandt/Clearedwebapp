@@ -111,7 +111,7 @@ export function BanjoPlanReview({ plan, model, onApprove, onCancel, disabled }: 
         {dataSources.size > 0 && (
           <span>Data sources: {Array.from(dataSources).join(", ")}</span>
         )}
-        <span>Model: {model === "claude-opus-4-6" ? "Opus 4.6" : "Sonnet 4.6"}</span>
+        <span>Model: Opus 4.6</span>
         <span>Est. time: {formatTime(plan.estimatedTimeSeconds)}</span>
       </div>
 

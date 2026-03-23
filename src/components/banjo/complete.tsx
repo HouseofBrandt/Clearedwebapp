@@ -113,7 +113,7 @@ export function BanjoComplete({ tasks, totalTimeSeconds, model, failedSteps = []
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Total time: {formatTime(totalTimeSeconds)} &middot; Model: {model === "claude-opus-4-6" ? "Opus 4.6" : "Sonnet 4.6"}
+        Total time: {formatTime(totalTimeSeconds)} &middot; Model: Opus 4.6
       </p>
     </div>
   )

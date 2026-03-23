@@ -83,7 +83,7 @@ export function CaseJunebug({ caseId, caseContext, collapsed, onToggle, digest }
         body: JSON.stringify({
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           caseContext,
-          model: "claude-sonnet-4-6",
+          model: "claude-opus-4-6",
         }),
       })
 
