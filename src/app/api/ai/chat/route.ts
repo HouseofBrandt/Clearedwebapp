@@ -88,40 +88,37 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Stream response — with web search tool for real-time research
-  const stream = anthropic.messages.stream({
+  // Use non-streaming for web search to avoid tool execution issues in SSE stream.
+  // The web_search tool produces tool_use/tool_result content blocks that break
+  // a text-only streaming handler. Non-streaming lets the SDK handle the full
+  // tool execution loop, then we extract and forward the final text.
+  const apiMessages = messages.map((m: { role: string; content: string }) => ({
+    role: m.role,
+    content: m.content,
+  }))
+
+  const response = await anthropic.messages.create({
     model: model || "claude-sonnet-4-6",
     max_tokens: 4096,
     temperature: 0.3,
     system: systemPrompt,
-    tools: [{ type: "web_search_20250305" as any, name: "web_search" } as any],
-    messages: messages.map((m: { role: string; content: string }) => ({
-      role: m.role,
-      content: m.content,
-    })),
+    tools: [{ type: "web_search_20250305", name: "web_search" }],
+    messages: apiMessages,
   })
 
+  // Extract all text content from the response (skipping tool_use/tool_result blocks)
+  const textContent = response.content
+    .filter((block: { type: string }) => block.type === "text")
+    .map((block: { type: string; text?: string }) => (block as { type: "text"; text: string }).text)
+    .join("\n\n")
+
   const readable = new ReadableStream({
-    async start(controller) {
-      stream.on("text", (text) => {
-        try {
-          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text })}\n\n`))
-        } catch { /* client disconnected */ }
-      })
-
-      stream.on("end", () => {
-        try {
-          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`))
-          controller.close()
-        } catch { /* already closed */ }
-      })
-
-      stream.on("error", (err) => {
-        try {
-          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ error: err.message })}\n\n`))
-          controller.close()
-        } catch { /* already closed */ }
-      })
+    start(controller) {
+      try {
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text: textContent })}\n\n`))
+        controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`))
+        controller.close()
+      } catch { /* client disconnected */ }
     },
   })
 
