@@ -5,6 +5,7 @@ import { callClaude } from "@/lib/ai/client"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { logAudit } from "@/lib/ai/audit"
 import { getKBCoverage } from "@/lib/banjo/knowledge-retrieval"
+import { canAccessCase } from "@/lib/auth/case-access"
 import { z } from "zod"
 
 const planSchema = z.object({
@@ -28,7 +29,7 @@ function buildOrchestratorContext(
   intelligence: any,
   existingTasks: any[]
 ): string {
-  return `CASE: ${caseData.tabsNumber} — ${caseData.clientName}
+  return `CASE: ${caseData.tabsNumber} — [CLIENT]
 Type: ${caseData.caseType} | Status: ${caseData.status} | Filing: ${caseData.filingStatus || "Unknown"}
 
 DOCUMENTS (${documents.length} uploaded):
@@ -74,6 +75,11 @@ export async function POST(request: NextRequest) {
   const { caseId, assignmentText, casePosture, model: requestedModel, skipRevision, junebugContext } = parsed.data
   const userId = auth.userId
   const model = requestedModel || "claude-opus-4-6"
+
+  const hasAccess = await canAccessCase(userId, caseId)
+  if (!hasAccess) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } })
+  }
 
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },

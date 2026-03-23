@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { z } from "zod"
 import { DEADLINE_DEFAULT_PRIORITY } from "@/types"
 import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
+import { canAccessCase, caseAccessFilter } from "@/lib/auth/case-access"
 
 const VALID_TYPES = [
   "CDP_HEARING", "EQUIVALENT_HEARING", "TAX_COURT_PETITION", "CSED_EXPIRATION",
@@ -55,7 +56,8 @@ export async function GET(request: NextRequest) {
   const from = url.get("from")
   const to = url.get("to")
 
-  const where: any = {}
+  const accessFilter = await caseAccessFilter(auth.userId)
+  const where: any = { case: accessFilter }
   if (caseId) where.caseId = caseId
   if (assignedToId) where.assignedToId = assignedToId
   if (priority) where.priority = priority as any
@@ -113,6 +115,11 @@ export async function POST(request: NextRequest) {
   }
 
   const data = parsed.data
+
+  const hasAccess = await canAccessCase(auth.userId, data.caseId)
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
 
   // Auto-set priority from type if not provided
   const priority = data.priority || DEADLINE_DEFAULT_PRIORITY[data.type] || "MEDIUM"

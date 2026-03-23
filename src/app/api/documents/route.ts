@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
 import { extractWithDetails } from "@/lib/documents/extract"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -60,6 +61,11 @@ export async function POST(request: NextRequest) {
     const caseExists = await prisma.case.findUnique({ where: { id: caseId } })
     if (!caseExists) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
+    }
+
+    const hasAccess = await canAccessCase((session.user as any).id, caseId)
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const bytes = await file.arrayBuffer()

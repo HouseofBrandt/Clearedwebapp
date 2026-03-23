@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { getFromS3, deleteFromS3 } from "@/lib/storage"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 export async function GET(
   request: NextRequest,
@@ -21,6 +22,11 @@ export async function GET(
 
   if (!document) {
     return NextResponse.json({ error: "Document not found" }, { status: 404 })
+  }
+
+  const hasAccess = await canAccessCase((session.user as any).id, document.caseId)
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   logAudit({
@@ -70,6 +76,11 @@ export async function DELETE(
 
   if (!document) {
     return NextResponse.json({ error: "Document not found" }, { status: 404 })
+  }
+
+  const hasAccessDel = await canAccessCase((session.user as any).id, document.caseId)
+  if (!hasAccessDel) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   try {

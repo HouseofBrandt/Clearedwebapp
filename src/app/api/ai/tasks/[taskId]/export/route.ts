@@ -8,6 +8,7 @@ import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
 import { generateDocx, generateTemplateDocx } from "@/lib/documents/docx"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
 
@@ -31,8 +32,16 @@ export async function GET(
     return NextResponse.json({ error: "Task not found" }, { status: 404 })
   }
 
-  if (!["READY_FOR_REVIEW", "APPROVED"].includes(task.status)) {
-    return NextResponse.json({ error: "Task is not ready for export" }, { status: 400 })
+  const hasAccess = await canAccessCase((session.user as any).id, task.caseId)
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  if (task.status !== "APPROVED") {
+    return NextResponse.json(
+      { error: "Only approved tasks can be exported. This task must be reviewed first." },
+      { status: 400 }
+    )
   }
 
   if (!task.detokenizedOutput) {

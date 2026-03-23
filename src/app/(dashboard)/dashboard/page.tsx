@@ -5,6 +5,7 @@ import { formatDate } from "@/lib/date-utils"
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
 import { prisma } from "@/lib/db"
 import { decryptCasePII } from "@/lib/encryption"
+import { caseAccessFilter } from "@/lib/auth/case-access"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Users, ClipboardCheck, AlertCircle, CheckCircle, ArrowRight, CalendarClock } from "lucide-react"
@@ -37,30 +38,32 @@ export default async function DashboardPage() {
   try {
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const accessFilter = await caseAccessFilter((session.user as any).id)
 
     // Needs attention: tasks pending review for > 48 hours
     const staleThreshold = new Date(Date.now() - 48 * 60 * 60 * 1000)
 
     const results = await Promise.all([
-      prisma.case.count(),
-      prisma.case.count({ where: { status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } } }),
-      prisma.aITask.count({ where: { status: "READY_FOR_REVIEW" } }),
+      prisma.case.count({ where: accessFilter }),
+      prisma.case.count({ where: { ...accessFilter, status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } } }),
+      prisma.aITask.count({ where: { status: "READY_FOR_REVIEW", case: accessFilter } }),
       prisma.aITask.count({
-        where: { status: "READY_FOR_REVIEW", createdAt: { lt: staleThreshold } },
+        where: { status: "READY_FOR_REVIEW", createdAt: { lt: staleThreshold }, case: accessFilter },
       }),
       prisma.case.count({
-        where: { status: "RESOLVED", updatedAt: { gte: monthStart } },
+        where: { ...accessFilter, status: "RESOLVED", updatedAt: { gte: monthStart } },
       }),
       prisma.case.findMany({
+        where: accessFilter,
         take: 5,
         orderBy: { updatedAt: "desc" },
         include: { assignedPractitioner: { select: { name: true } } },
       }),
       prisma.deadline.count({
-        where: { dueDate: { lt: now }, status: { in: ["UPCOMING"] } },
+        where: { dueDate: { lt: now }, status: { in: ["UPCOMING"] }, case: accessFilter },
       }),
       prisma.deadline.findMany({
-        where: { status: { notIn: ["COMPLETED", "WAIVED"] } },
+        where: { status: { notIn: ["COMPLETED", "WAIVED"] }, case: accessFilter },
         take: 5,
         orderBy: { dueDate: "asc" },
         include: {

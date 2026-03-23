@@ -3,13 +3,15 @@ import { requireAuth } from "@/lib/auth/session"
 
 export const metadata: Metadata = { title: "Review Queue | Cleared" }
 import { prisma } from "@/lib/db"
+import { caseAccessFilter } from "@/lib/auth/case-access"
 import { ReviewQueue } from "@/components/review/review-queue"
 
 export default async function ReviewPage() {
-  await requireAuth()
+  const session = await requireAuth()
+  const accessFilter = await caseAccessFilter((session.user as any).id)
 
   const pendingTasks = await prisma.aITask.findMany({
-    where: { status: "READY_FOR_REVIEW" },
+    where: { status: "READY_FOR_REVIEW", case: accessFilter },
     select: {
       id: true,
       taskType: true,

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { canAccessCase } from "@/lib/auth/case-access"
 import { z } from "zod"
 
 const updateCaseSchema = z.object({
@@ -26,6 +27,11 @@ export async function GET(
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const hasAccess = await canAccessCase((session.user as any).id, params.caseId)
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const caseData = await prisma.case.findUnique({
@@ -61,6 +67,11 @@ export async function PATCH(
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const hasAccessPatch = await canAccessCase((session.user as any).id, params.caseId)
+  if (!hasAccessPatch) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   try {
@@ -120,6 +131,11 @@ export async function DELETE(
   const userRole = (session.user as any).role
   if (userRole !== "ADMIN" && userRole !== "SENIOR") {
     return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 })
+  }
+
+  const hasAccessDelete = await canAccessCase((session.user as any).id, params.caseId)
+  if (!hasAccessDelete) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   try {
