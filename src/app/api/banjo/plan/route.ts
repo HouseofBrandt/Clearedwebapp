@@ -6,6 +6,7 @@ import { loadPrompt } from "@/lib/ai/prompts"
 import { logAudit } from "@/lib/ai/audit"
 import { getKBCoverage } from "@/lib/banjo/knowledge-retrieval"
 import { canAccessCase } from "@/lib/auth/case-access"
+import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
 import { z } from "zod"
 
 const planSchema = z.object({
@@ -96,9 +97,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const orchestratorPrompt = loadPrompt("banjo_orchestrator_v1")
-    const context = buildOrchestratorContext(caseData, caseData.documents, caseData.intelligence, caseData.aiTasks)
 
-    // Get KB coverage for this case type
+    // Use unified context packet instead of hand-built context
+    const packet = await getCaseContextPacket(caseId, {
+      includeKnowledge: true,
+      knowledgeQuery: assignmentText,
+      includeReviewInsights: true,
+    })
+    const context = packet ? formatContextForPrompt(packet) : buildOrchestratorContext(caseData, caseData.documents, caseData.intelligence, caseData.aiTasks)
+
+    // Get KB coverage stats for the orchestrator
     let kbCoverageText = ""
     try {
       const kbStats = await getKBCoverage(caseData.caseType)

@@ -275,6 +275,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
           <ReviewJunebug
             currentOutput={output}
             taskType={task.taskType}
+            taskId={task.id}
             onOutputUpdated={(newOutput) => {
               setOutput(newOutput)
               setHasJunebugEdits(true)

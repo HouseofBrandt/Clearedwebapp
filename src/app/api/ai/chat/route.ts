@@ -5,6 +5,7 @@ import { loadPrompt } from "@/lib/ai/prompts"
 import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
 import { searchKnowledge } from "@/lib/knowledge/search"
 import { detectDataNeeds, fetchPlatformData } from "@/lib/ai/platform-data"
+import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
 import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
@@ -24,13 +25,20 @@ export async function POST(request: NextRequest) {
   // Build system prompt
   let systemPrompt = loadPrompt("research_assistant_v1")
 
-  // Add case context if on a case page
-  if (caseContext) {
-    systemPrompt += `\n\nCONTEXT: The practitioner is working on case ${caseContext.tabsNumber}. `
-    systemPrompt += `Case type: ${caseContext.caseType}. Status: ${caseContext.status}. `
-    if (caseContext.filingStatus) systemPrompt += `Filing status: ${caseContext.filingStatus}. `
-    if (caseContext.totalLiability) systemPrompt += `Total liability: $${Number(caseContext.totalLiability).toLocaleString()}. `
-    systemPrompt += `Use this context when relevant but do not reference client names or PII.`
+  // Add case context if on a case page — use unified context packet
+  if (caseContext?.caseId) {
+    try {
+      const packet = await getCaseContextPacket(caseContext.caseId, {
+        includeKnowledge: false,  // KB is searched separately below per-message
+        includeReviewInsights: true,
+      })
+      if (packet) {
+        systemPrompt += "\n\n" + formatContextForPrompt(packet)
+      }
+    } catch {
+      // Fallback to basic context if packet fails
+      systemPrompt += `\n\nCONTEXT: Case ${caseContext.tabsNumber}. Type: ${caseContext.caseType}. Status: ${caseContext.status}.`
+    }
   }
 
   // Extract last user message once (used by KB search, platform data, and case context enrichment)

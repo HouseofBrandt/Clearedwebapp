@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
+import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
+import { prisma } from "@/lib/db"
 import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
@@ -9,7 +11,7 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(PRACTITIONER_ROLES)
   if (!auth.authorized) return auth.response
 
-  const { currentOutput, instruction, taskType } = await request.json()
+  const { currentOutput, instruction, taskType, taskId } = await request.json()
 
   if (!currentOutput || !instruction) {
     return NextResponse.json({ error: "currentOutput and instruction are required" }, { status: 400 })
@@ -19,11 +21,33 @@ export async function POST(request: NextRequest) {
     // Tokenize the output before sending to Claude (PII protection)
     const { tokenizedText, tokenMap } = tokenizeText(currentOutput, [])
 
+    // Get case context for smarter edits (non-blocking — falls back gracefully)
+    let caseCtx = ""
+    if (taskId) {
+      try {
+        const task = await prisma.aITask.findUnique({
+          where: { id: taskId },
+          select: { caseId: true },
+        })
+        if (task?.caseId) {
+          const packet = await getCaseContextPacket(task.caseId, {
+            includeKnowledge: false,
+            includeReviewInsights: false,
+          })
+          if (packet) {
+            caseCtx = "\n\n" + formatContextForPrompt(packet)
+          }
+        }
+      } catch { /* non-fatal — edit works without case context */ }
+    }
+
     const response = await anthropic.messages.create({
       model: "claude-opus-4-6",
       max_tokens: 12288,
       temperature: 0.1,
-      system: `You are editing a tax resolution document. The practitioner has requested a specific change. Apply the change precisely — modify only what was requested. Preserve everything else exactly as-is, including all formatting, section headers, tables, citations, [VERIFY] flags, and [PRACTITIONER JUDGMENT] flags. Return the complete updated document.
+      system: `You are editing a tax resolution document. The practitioner has requested a specific change.${caseCtx}
+
+Apply the change precisely — modify only what was requested. Preserve everything else exactly as-is, including all formatting, section headers, tables, citations, [VERIFY] flags, and [PRACTITIONER JUDGMENT] flags. Return the complete updated document.
 
 Do not add preamble, commentary, or explanation. Return only the updated document.`,
       messages: [{
