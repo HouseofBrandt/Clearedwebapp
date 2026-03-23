@@ -334,15 +334,17 @@ function parseActionBlocks(content: string): { text: string; actions: ChatAction
     const block = match[1]
     const action: any = {}
 
-    // Parse YAML-like fields
+    // Parse YAML-like fields with multi-line value support
     const lines = block.split("\n")
     let currentKey = ""
     let arrayItems: any[] = []
     let inArray = false
+    let inMultiline = false
+    const knownKeys = ["type", "title", "category", "tags", "query", "assignmentText", "caseId", "phase", "notes", "dueDate", "priority", "description", "clientName", "note", "irsLastAction", "irsLastActionDate", "irsAssignedUnit", "irsAssignedEmployee"]
 
     for (const line of lines) {
       const kvMatch = line.match(/^(\w+):\s*(.*)$/)
-      if (kvMatch) {
+      if (kvMatch && !inMultiline) {
         if (inArray && currentKey) {
           action[currentKey] = arrayItems
           arrayItems = []
@@ -351,12 +353,27 @@ function parseActionBlocks(content: string): { text: string; actions: ChatAction
         currentKey = kvMatch[1]
         const val = kvMatch[2].trim()
         if (val) action[currentKey] = val
+        // content field is expected to be multi-line
+        if (currentKey === "content") inMultiline = true
       } else if (line.trim().startsWith("- label:")) {
+        inMultiline = false
         inArray = true
         const label = line.replace(/^\s*-\s*label:\s*/, "").trim()
         arrayItems.push({ label, critical: false })
       } else if (line.trim().startsWith("critical:") && arrayItems.length > 0) {
         arrayItems[arrayItems.length - 1].critical = line.includes("true")
+      } else if (inMultiline && currentKey) {
+        // Check if this line starts a new known key (end multi-line)
+        const nextKeyMatch = line.match(/^(\w+):\s*(.*)$/)
+        if (nextKeyMatch && knownKeys.includes(nextKeyMatch[1])) {
+          inMultiline = false
+          currentKey = nextKeyMatch[1]
+          const val = nextKeyMatch[2].trim()
+          if (val) action[currentKey] = val
+        } else {
+          // Append to current multi-line value
+          action[currentKey] = (action[currentKey] || "") + "\n" + line
+        }
       }
     }
     if (inArray && currentKey) {
@@ -374,9 +391,11 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
   const [resultMsg, setResultMsg] = useState("")
 
   const caseId = action.caseId || caseContext?.caseId
+  const caseIndependentActions = ["ADD_TO_KNOWLEDGE_BASE", "SEARCH_KNOWLEDGE_BASE"]
+  const needsCaseId = !caseIndependentActions.includes(action.type)
 
   const handleExecute = async () => {
-    if (!caseId) return
+    if (needsCaseId && !caseId) return
     setStatus("executing")
     try {
       const payload: any = { ...action }
@@ -386,7 +405,7 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
       const res = await fetch("/api/ai/chat-actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: action.type, caseId, payload }),
+        body: JSON.stringify({ action: action.type, caseId: caseId || undefined, payload }),
       })
       if (!res.ok) throw new Error("Action failed")
       const data = await res.json()
@@ -503,7 +522,7 @@ function ActionCard({ action, caseContext }: { action: ChatAction; caseContext: 
       <div className="mt-3 flex gap-2">
         <button
           onClick={handleExecute}
-          disabled={status === "executing" || !caseId}
+          disabled={status === "executing" || (needsCaseId && !caseId)}
           className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
           style={{ backgroundColor: "#1B2A4A" }}
         >

@@ -17,7 +17,7 @@ const actionSchema = z.object({
     "ADD_TO_KNOWLEDGE_BASE",
     "SEARCH_KNOWLEDGE_BASE",
   ]),
-  caseId: z.string().min(1),
+  caseId: z.string().optional(),
   payload: z.record(z.string(), z.any()),
 })
 
@@ -33,11 +33,24 @@ export async function POST(request: NextRequest) {
 
   const { action, caseId, payload } = parsed.data
 
-  // Verify case exists
-  const caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true } })
-  if (!caseExists) {
-    return NextResponse.json({ error: "Case not found" }, { status: 404 })
+  // Case verification — only required for case-specific actions
+  const CASE_REQUIRED_ACTIONS = [
+    "GENERATE_DOCUMENT_REQUEST", "UPDATE_CASE_STATUS", "CREATE_DEADLINE",
+    "UPDATE_IRS_STATUS", "ADD_CASE_NOTE", "CREATE_BANJO_ASSIGNMENT",
+  ]
+
+  if (CASE_REQUIRED_ACTIONS.includes(action)) {
+    if (!caseId) {
+      return NextResponse.json({ error: "caseId is required for this action" }, { status: 400 })
+    }
+    const caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true } })
+    if (!caseExists) {
+      return NextResponse.json({ error: "Case not found" }, { status: 404 })
+    }
   }
+
+  // Narrowed caseId for case-specific actions (validated above)
+  const resolvedCaseId = caseId as string
 
   try {
     switch (action) {
@@ -73,7 +86,7 @@ export async function POST(request: NextRequest) {
 
         const task = await prisma.aITask.create({
           data: {
-            caseId,
+            caseId: resolvedCaseId,
             taskType: "CASE_MEMO",
             status: "APPROVED",
             detokenizedOutput: letterContent,
@@ -95,7 +108,7 @@ export async function POST(request: NextRequest) {
 
         await prisma.caseActivity.create({
           data: {
-            caseId,
+            caseId: resolvedCaseId,
             userId: auth.userId,
             action: "DOCUMENT_REQUESTED",
             description: `${auth.name} generated a document request list with ${docs.length} items via Junebug`,
@@ -104,9 +117,9 @@ export async function POST(request: NextRequest) {
         })
 
         await prisma.caseIntelligence.upsert({
-          where: { caseId },
+          where: { caseId: resolvedCaseId },
           create: {
-            caseId,
+            caseId: resolvedCaseId,
             lastActivityDate: new Date(),
             lastActivityBy: auth.name,
             lastActivityAction: "Generated document request list",
@@ -129,9 +142,9 @@ export async function POST(request: NextRequest) {
         const { phase, notes } = payload as any
 
         await prisma.caseIntelligence.upsert({
-          where: { caseId },
+          where: { caseId: resolvedCaseId },
           create: {
-            caseId,
+            caseId: resolvedCaseId,
             resolutionPhase: phase,
             lastActivityDate: new Date(),
             lastActivityBy: auth.name,
@@ -147,7 +160,7 @@ export async function POST(request: NextRequest) {
 
         await prisma.caseActivity.create({
           data: {
-            caseId,
+            caseId: resolvedCaseId,
             userId: auth.userId,
             action: "STATUS_CHANGED",
             description: `${auth.name} updated case phase to "${phase}"${notes ? `: ${notes}` : ""}`,
@@ -161,7 +174,7 @@ export async function POST(request: NextRequest) {
       case "CREATE_DEADLINE": {
         const deadline = await prisma.deadline.create({
           data: {
-            caseId,
+            caseId: resolvedCaseId,
             type: (payload.type || "CUSTOM") as any,
             title: payload.title,
             dueDate: new Date(payload.dueDate),
@@ -175,7 +188,7 @@ export async function POST(request: NextRequest) {
 
         await prisma.caseActivity.create({
           data: {
-            caseId,
+            caseId: resolvedCaseId,
             userId: auth.userId,
             action: "DEADLINE_CREATED",
             description: `${auth.name} created deadline: ${payload.title} (due ${payload.dueDate})`,
@@ -194,14 +207,14 @@ export async function POST(request: NextRequest) {
         if (payload.irsAssignedEmployee) irsUpdates.irsAssignedEmployee = payload.irsAssignedEmployee
 
         await prisma.caseIntelligence.upsert({
-          where: { caseId },
-          create: { caseId, ...irsUpdates },
+          where: { caseId: resolvedCaseId },
+          create: { caseId: resolvedCaseId, ...irsUpdates },
           update: irsUpdates,
         })
 
         await prisma.caseActivity.create({
           data: {
-            caseId,
+            caseId: resolvedCaseId,
             userId: auth.userId,
             action: "STATUS_CHANGED",
             description: `${auth.name} updated IRS status: ${payload.irsLastAction || payload.notes || "updated"}`,
@@ -215,7 +228,7 @@ export async function POST(request: NextRequest) {
       case "ADD_CASE_NOTE": {
         await prisma.caseActivity.create({
           data: {
-            caseId,
+            caseId: resolvedCaseId,
             userId: auth.userId,
             action: "NOTE_ADDED",
             description: `${auth.name}: ${payload.note}`,
@@ -236,7 +249,7 @@ export async function POST(request: NextRequest) {
             "Content-Type": "application/json",
             Cookie: request.headers.get("cookie") || "",
           },
-          body: JSON.stringify({ caseId, assignmentText, casePosture }),
+          body: JSON.stringify({ caseId: resolvedCaseId, assignmentText, casePosture }),
         })
 
         if (!planRes.ok) {
@@ -255,7 +268,7 @@ export async function POST(request: NextRequest) {
           message: planData.status === "clarifying"
             ? `Banjo has ${planData.questions?.length || 0} question(s) before it starts. Opening the Banjo tab...`
             : `Banjo has a plan with ${planData.plan?.deliverables?.length || 0} deliverable(s). Opening the Banjo tab for your approval...`,
-          redirectTo: `/cases/${caseId}#banjo`,
+          redirectTo: `/cases/${resolvedCaseId}#banjo`,
         })
       }
 
