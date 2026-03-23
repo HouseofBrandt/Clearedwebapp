@@ -133,3 +133,119 @@
 .workspace-content {
   @apply transition-opacity duration-150;
 }
+
+/* ── Review Document Rendering ────────────────────────────────────── */
+/* Matches the export font (Times New Roman) so review = what you get. */
+.review-document {
+  font-family: 'Times New Roman', 'Georgia', serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: hsl(var(--foreground));
+}
+
+.review-document h1,
+.review-document h2 {
+  font-size: 1.15em;
+  font-weight: 700;
+  margin-top: 2em;
+  margin-bottom: 0.75em;
+  padding-bottom: 0.5em;
+  border-bottom: 1px solid hsl(var(--border));
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.review-document h3 {
+  font-size: 1.05em;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.review-document p {
+  margin-bottom: 0.75em;
+}
+
+.review-document ul,
+.review-document ol {
+  margin-bottom: 0.75em;
+  padding-left: 1.5em;
+}
+
+.review-document ul { list-style-type: disc; }
+.review-document ol { list-style-type: decimal; }
+.review-document li { margin-bottom: 0.25em; display: list-item; }
+
+.review-document table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 13px;
+}
+
+.review-document th {
+  background: hsl(var(--muted));
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.review-document td {
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  vertical-align: top;
+}
+
+.review-document tr:nth-child(even) td {
+  background: hsl(var(--muted) / 0.3);
+}
+
+.review-document strong {
+  font-weight: 600;
+}
+
+.review-document hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 2em 0;
+}
+
+/* Review flag badges — inline within the document */
+.verify-flag {
+  display: inline;
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.judgment-flag {
+  display: inline;
+  background: #DBEAFE;
+  color: #1E40AF;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85em;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* Dark mode adjustments */
+.dark .verify-flag {
+  background: rgba(245, 158, 11, 0.15);
+  color: #FCD34D;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.dark .judgment-flag {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93C5FD;
+  border-color: rgba(59, 130, 246, 0.3);
+}
