@@ -23,7 +23,9 @@ import {
 } from "lucide-react"
 import { DocumentViewerPanel } from "@/components/review/document-viewer-panel"
 import { DeadlineSuggestions } from "@/components/calendar/deadline-suggestions"
+import { ReviewJunebug } from "@/components/review/review-junebug"
 import { formatDateTime } from "@/lib/date-utils"
+import { marked } from "marked"
 
 interface TaskReviewProps {
   task: any
@@ -42,12 +44,34 @@ function highlightFlags(text: string): string {
   return text
     .replace(
       /\[VERIFY[^\]]*\]/g,
-      (match) => `<mark style="background:#FEF3C7;padding:1px 4px;border-radius:3px;font-weight:600;font-size:0.85em">${match}</mark>`
+      (match) => `<span class="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">${match}</span>`
     )
     .replace(
       /\[PRACTITIONER JUDGMENT\]/g,
-      (match) => `<mark style="background:#DBEAFE;padding:1px 4px;border-radius:3px;font-weight:600;font-size:0.85em">${match}</mark>`
+      (match) => `<span class="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-800 ring-1 ring-inset ring-blue-200">${match}</span>`
     )
+}
+
+function RenderedOutput({ content, taskType }: { content: string; taskType: string }) {
+  // For spreadsheet tasks, the parent handles SpreadsheetEditor directly
+  if (SPREADSHEET_TASKS.includes(taskType)) return null
+
+  const html = highlightFlags(marked.parse(content, { breaks: true, gfm: true }) as string)
+
+  return (
+    <div
+      className="prose prose-sm max-w-none
+        prose-headings:font-heading prose-headings:font-semibold prose-headings:text-foreground
+        prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3 prose-h2:border-b prose-h2:pb-2 prose-h2:border-border
+        prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+        prose-table:text-sm prose-th:bg-muted/50 prose-th:px-3 prose-th:py-2 prose-th:text-left
+        prose-td:px-3 prose-td:py-2 prose-td:border-t prose-td:border-border
+        prose-strong:text-foreground
+        prose-p:leading-relaxed prose-p:text-foreground/90
+        prose-li:text-foreground/90"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
 }
 
 export function TaskReview({ task, documents = [] }: TaskReviewProps) {
@@ -62,6 +86,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
   const [correctionNotes, setCorrectionNotes] = useState("")
   const [addingToKb, setAddingToKb] = useState(false)
   const [addedToKb, setAddedToKb] = useState(false)
+  const [hasJunebugEdits, setHasJunebugEdits] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -93,7 +118,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
-          editedOutput: editing ? output : undefined,
+          editedOutput: (editing || hasJunebugEdits) ? output : undefined,
           reviewNotes: action === "REJECT_REPROMPT" ? correctionNotes : reviewNotes,
           reviewStartedAt: new Date(reviewStartedAt).toISOString(),
           flagsAcknowledged: allFlagsAcknowledged,
@@ -221,29 +246,36 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
               taskId={task.id}
               editable={editing}
             />
-          ) : isMemo && editing ? (
-            <RichTextEditor
-              content={output}
-              editable={true}
-              onChange={(html) => setOutput(html)}
-            />
           ) : editing ? (
-            <Textarea
-              value={output}
-              onChange={(e) => setOutput(e.target.value)}
-              className="min-h-[400px] font-mono text-sm"
-            />
-          ) : isMemo ? (
-            <RichTextEditor
-              content={highlightFlags(output)}
-              editable={false}
-            />
+            isMemo ? (
+              <RichTextEditor
+                content={output}
+                editable={true}
+                onChange={(html) => setOutput(html)}
+              />
+            ) : (
+              <Textarea
+                value={output}
+                onChange={(e) => setOutput(e.target.value)}
+                className="min-h-[400px] font-mono text-sm"
+              />
+            )
           ) : (
-            <div className="prose max-w-none rounded-lg bg-muted/30 p-4">
-              <pre className="whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: highlightFlags(output.replace(/</g, "&lt;").replace(/>/g, "&gt;")) }} />
-            </div>
+            <RenderedOutput content={output} taskType={task.taskType} />
           )}
         </CardContent>
+
+        {/* Junebug-assisted editing — available when not in manual edit mode */}
+        {isReviewable && !editing && !isSpreadsheet && (
+          <ReviewJunebug
+            currentOutput={output}
+            taskType={task.taskType}
+            onOutputUpdated={(newOutput) => {
+              setOutput(newOutput)
+              setHasJunebugEdits(true)
+            }}
+          />
+        )}
       </Card>
 
       {/* Review actions */}
@@ -274,12 +306,12 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
 
             <div className="flex flex-wrap gap-2">
               <Button
-                onClick={() => handleReviewAction("APPROVE")}
+                onClick={() => handleReviewAction(hasJunebugEdits ? "EDIT_APPROVE" : "APPROVE")}
                 disabled={submitting || editing || !allFlagsAcknowledged}
                 className="bg-green-600 hover:bg-green-700"
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
-                Approve
+                {hasJunebugEdits ? "Approve with Edits" : "Approve"}
               </Button>
 
               {!editing ? (

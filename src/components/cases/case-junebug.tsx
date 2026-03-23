@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
-import { Send, Sparkles, ChevronUp, ChevronDown } from "lucide-react"
+import { Send, ChevronUp, ChevronDown } from "lucide-react"
+import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import { getJunebugMessage } from "@/lib/junebug/loading-messages"
 
 interface CaseJunebugProps {
   caseId: string
@@ -15,6 +17,7 @@ interface CaseJunebugProps {
   }
   collapsed: boolean
   onToggle: () => void
+  digest?: string | null
 }
 
 interface ChatMessage {
@@ -23,12 +26,15 @@ interface ChatMessage {
   content: string
 }
 
-export function CaseJunebug({ caseId, caseContext, collapsed, onToggle }: CaseJunebugProps) {
+export function CaseJunebug({ caseId, caseContext, collapsed, onToggle, digest }: CaseJunebugProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState("")
+  const [shownMessages, setShownMessages] = useState<string[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const loadingInterval = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -41,6 +47,23 @@ export function CaseJunebug({ caseId, caseContext, collapsed, onToggle }: CaseJu
       inputRef.current.focus()
     }
   }, [collapsed])
+
+  // Rotate loading messages
+  useEffect(() => {
+    if (isStreaming) {
+      const msg = getJunebugMessage("thinking", shownMessages)
+      setLoadingMessage(msg)
+      setShownMessages(prev => [...prev, msg])
+      loadingInterval.current = setInterval(() => {
+        const next = getJunebugMessage("thinking", shownMessages)
+        setLoadingMessage(next)
+        setShownMessages(prev => [...prev, next])
+      }, 4500)
+    } else {
+      if (loadingInterval.current) clearInterval(loadingInterval.current)
+    }
+    return () => { if (loadingInterval.current) clearInterval(loadingInterval.current) }
+  }, [isStreaming]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isStreaming) return
@@ -66,7 +89,7 @@ export function CaseJunebug({ caseId, caseContext, collapsed, onToggle }: CaseJu
 
       if (!response.ok) {
         setMessages(prev => prev.map(m =>
-          m.id === assistantMsg.id ? { ...m, content: "Failed to get response." } : m
+          m.id === assistantMsg.id ? { ...m, content: "Junebug got distracted. Try again?" } : m
         ))
         setIsStreaming(false)
         return
@@ -99,7 +122,7 @@ export function CaseJunebug({ caseId, caseContext, collapsed, onToggle }: CaseJu
       }
     } catch {
       setMessages(prev => prev.map(m =>
-        m.id === assistantMsg.id ? { ...m, content: m.content || "Connection failed." } : m
+        m.id === assistantMsg.id ? { ...m, content: m.content || "Junebug got distracted. Try again?" } : m
       ))
     } finally {
       setIsStreaming(false)
@@ -112,20 +135,20 @@ export function CaseJunebug({ caseId, caseContext, collapsed, onToggle }: CaseJu
   }
 
   return (
-    <div className="border-t bg-gray-50">
+    <div className="border-t">
       {/* Header / toggle */}
       <button
         onClick={onToggle}
-        className="flex items-center justify-between w-full px-4 py-2 hover:bg-gray-100 transition-colors"
+        className="flex items-center justify-between w-full px-4 py-2.5 hover:bg-muted/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Junebug</span>
-          {messages.length > 0 && (
-            <span className="text-[10px] text-muted-foreground">{messages.length} messages</span>
-          )}
+          <JunebugIcon className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">Junebug</span>
         </div>
-        {collapsed ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        {collapsed
+          ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+          : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        }
       </button>
 
       {!collapsed && (
@@ -133,25 +156,27 @@ export function CaseJunebug({ caseId, caseContext, collapsed, onToggle }: CaseJu
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-2" style={{ maxHeight: "240px" }}>
             {messages.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">
-                Ask about this case — Junebug has full context.
-              </p>
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <JunebugIcon className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  Junebug is here. Ask anything about this case.
+                </p>
+              </div>
             )}
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[85%] rounded-md px-2.5 py-1.5 text-xs ${
                   msg.role === "user"
                     ? "text-white"
-                    : "bg-white border text-foreground"
+                    : "bg-muted text-foreground"
                 }`}
                 style={msg.role === "user" ? { backgroundColor: "#1B2A4A" } : undefined}
                 >
                   {msg.content || (isStreaming && msg === messages[messages.length - 1] ? (
-                    <span className="inline-flex items-center gap-1">
-                      <span className="h-1 w-1 animate-bounce rounded-full bg-gray-400" />
-                      <span className="h-1 w-1 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "150ms" }} />
-                      <span className="h-1 w-1 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: "300ms" }} />
-                    </span>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <JunebugIcon className="h-3.5 w-3.5" animated />
+                      <span className="text-[11px]">{loadingMessage}</span>
+                    </div>
                   ) : null)}
                 </div>
               </div>
@@ -166,7 +191,7 @@ export function CaseJunebug({ caseId, caseContext, collapsed, onToggle }: CaseJu
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about this case..."
+                placeholder="Ask Junebug about this case..."
                 disabled={isStreaming}
                 rows={1}
                 className="flex-1 resize-none rounded-md border px-2.5 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"

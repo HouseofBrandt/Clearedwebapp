@@ -32,6 +32,7 @@ export interface CommandCenterData {
   riskRankedCases: RiskRankedCase[]
   deadlines: any[]
   pendingReviews: number
+  briefing: string
   stats: {
     totalActive: number
     resolvedThisMonth: number
@@ -132,11 +133,15 @@ export async function getCommandCenterData(userId: string): Promise<CommandCente
     case: d.case ? decryptCasePII(d.case) : d.case,
   }))
 
+  // Generate natural language briefing
+  const briefing = generateBriefing(actionQueue, decryptedDeadlines, pendingReviews)
+
   return {
     actionQueue,
     riskRankedCases,
     deadlines: decryptedDeadlines,
     pendingReviews,
+    briefing,
     stats: {
       totalActive: decryptedCases.length,
       resolvedThisMonth,
@@ -175,4 +180,33 @@ function buildActionQueue(cases: any[]): ActionItem[] {
     }
     return b.riskScore - a.riskScore
   }).slice(0, 15)
+}
+
+function generateBriefing(actionQueue: ActionItem[], deadlines: any[], pendingReviews: number): string {
+  const lines: string[] = []
+  const urgentCount = actionQueue.filter(a => a.priority === "critical" || a.priority === "high").length
+
+  if (urgentCount > 0) {
+    lines.push(`You have ${urgentCount} item${urgentCount !== 1 ? "s" : ""} that need attention today.`)
+  } else if (actionQueue.length > 0) {
+    lines.push("No urgent items today. Here's what's next.")
+  } else {
+    lines.push("All clear. No action items right now.")
+  }
+
+  // Top 3 most important items as sentences
+  for (const item of actionQueue.slice(0, 3)) {
+    const clientPart = item.clientName ? `The ${item.clientName} ${item.caseIdentifier}` : item.caseIdentifier
+    if (item.type === "deadline") {
+      lines.push(`${clientPart}: ${item.action}.`)
+    } else if (item.type === "review") {
+      lines.push(`${clientPart} has ${item.action.toLowerCase()}.`)
+    } else if (item.type === "documents") {
+      lines.push(`${clientPart}: ${item.action.toLowerCase()}. ${item.reason}`)
+    } else {
+      lines.push(`${clientPart}: ${item.action}.`)
+    }
+  }
+
+  return lines.join("\n")
 }
