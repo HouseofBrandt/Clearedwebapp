@@ -350,12 +350,12 @@ export function FeedComposer({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {/* Case selector */}
-              <Select value={caseId} onValueChange={setCaseId}>
+              <Select value={caseId || "__none__"} onValueChange={(v) => setCaseId(v === "__none__" ? "" : v)}>
                 <SelectTrigger className="h-7 text-xs w-40">
                   <SelectValue placeholder="Tag a case..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No case</SelectItem>
+                  <SelectItem value="__none__">No case</SelectItem>
                   {cases.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.clientName || c.tabsNumber}
