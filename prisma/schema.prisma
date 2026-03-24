@@ -232,6 +232,11 @@ model User {
   feedReplies         FeedReply[]        @relation("FeedReplies")
   feedLikes           FeedLike[]         @relation("FeedLikes")
   assignedFeedTasks   FeedPost[]         @relation("AssignedFeedTasks")
+  feedReactions       FeedReaction[]     @relation("FeedReactions")
+  feedMentions        FeedMention[]      @relation("FeedMentions")
+  createdTasks        Task[]             @relation("CreatedTasks")
+  assignedTasks       Task[]             @relation("AssignedTasks")
+  completedTasks      Task[]             @relation("CompletedTasks")
 
   @@map("users")
 }
@@ -264,6 +269,8 @@ model Case {
   activities         CaseActivity[]
   banjoAssignments   BanjoAssignment[]
   feedPosts          FeedPost[]
+  feedPostCases      FeedPostCase[]     @relation("FeedPostCases")
+  tasks              Task[]
 
   @@index([tabsNumber])
   @@map("cases")
@@ -717,6 +724,33 @@ model RejectionFeedback {
   @@map("rejection_feedback")
 }
 
+model Task {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?   @db.Text
+  createdById     String
+  createdBy       User      @relation("CreatedTasks", fields: [createdById], references: [id])
+  assigneeId      String?
+  assignee        User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  dueDate         DateTime?
+  completedAt     DateTime?
+  completedById   String?
+  completedBy     User?     @relation("CompletedTasks", fields: [completedById], references: [id])
+  status          String    @default("open")
+  priority        String    @default("normal")
+  caseId          String?
+  case            Case?     @relation(fields: [caseId], references: [id])
+  deadlineId      String?
+  feedPosts       FeedPost[] @relation("TaskFeedPosts")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([assigneeId, status])
+  @@index([caseId])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
 model FeedPost {
   id          String       @id @default(cuid())
 
@@ -725,15 +759,21 @@ model FeedPost {
   author      User?        @relation("FeedPosts", fields: [authorId], references: [id])
   authorType  String       @default("user")  // "user", "system", "junebug"
 
+  // Source linkage (V2 — what generated this post)
+  sourceType  String?      // "task", "banjo", "deadline", "review", "document", null=user-authored
+  sourceId    String?      // ID of the source entity
+  taskId      String?      // Direct FK to Task (when sourceType = "task")
+  task        Task?        @relation("TaskFeedPosts", fields: [taskId], references: [id])
+
   // Content
-  postType    String       // "post", "task", "system_event", "file_share", "junebug_insight"
+  postType    String       // "post", "task", "task_created", "task_completed", "system_event", "file_share", "junebug_insight"
   content     String?      @db.Text  // The text body (markdown supported)
 
-  // Case tagging
+  // Case tagging (legacy — primary case)
   caseId      String?      // Primary case this post is about
   case        Case?        @relation(fields: [caseId], references: [id])
 
-  // Task-specific fields (only populated when postType = "task")
+  // Task-specific fields (legacy compat — kept for existing queries)
   taskTitle       String?
   taskAssigneeId  String?
   taskAssignee    User?     @relation("AssignedFeedTasks", fields: [taskAssigneeId], references: [id])
@@ -742,7 +782,7 @@ model FeedPost {
   taskCompletedAt DateTime?
   taskCompletedById String?
 
-  // File attachment fields
+  // File attachment fields (legacy — use FeedAttachment for new posts)
   attachments  Json?       // Array of { fileName, fileUrl, fileType, fileSize }
 
   // System event metadata
@@ -753,7 +793,7 @@ model FeedPost {
   replyCount   Int         @default(0)
   likeCount    Int         @default(0)
 
-  // Mentions
+  // Mentions (legacy — use FeedMention for new posts)
   mentions     Json?       // Array of { type: "user"|"junebug"|"case", id: string, display: string }
 
   // Visibility
@@ -766,12 +806,17 @@ model FeedPost {
   // Relations
   replies      FeedReply[]
   likes        FeedLike[]
+  reactions    FeedReaction[]
+  feedMentions FeedMention[]
+  cases        FeedPostCase[]
+  feedAttachments FeedAttachment[]
 
   @@index([createdAt])
   @@index([caseId])
   @@index([authorId])
   @@index([postType])
   @@index([taskAssigneeId, taskCompleted])
+  @@index([taskId])
   @@map("feed_posts")
 }
 
@@ -803,4 +848,56 @@ model FeedLike {
 
   @@unique([postId, userId])
   @@map("feed_likes")
+}
+
+model FeedReaction {
+  id        String   @id @default(cuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("FeedReactions", fields: [userId], references: [id])
+  type      String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId, type])
+  @@map("feed_reactions")
+}
+
+model FeedPostCase {
+  id      String   @id @default(cuid())
+  postId  String
+  post    FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  caseId  String
+  case    Case     @relation("FeedPostCases", fields: [caseId], references: [id])
+
+  @@unique([postId, caseId])
+  @@index([caseId])
+  @@map("feed_post_cases")
+}
+
+model FeedMention {
+  id          String    @id @default(cuid())
+  postId      String
+  post        FeedPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  mentionType String
+  userId      String?
+  user        User?     @relation("FeedMentions", fields: [userId], references: [id])
+  display     String
+
+  @@index([userId])
+  @@index([postId])
+  @@map("feed_mentions")
+}
+
+model FeedAttachment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  createdAt DateTime @default(now())
+
+  @@map("feed_attachments")
 }

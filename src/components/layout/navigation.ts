@@ -8,6 +8,7 @@ import {
   Settings,
   ScrollText,
   BarChart3,
+  Calculator,
   Shield,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Calendar", href: "/calendar", icon: Calendar, description: "Deadlines and hearings" },
   { name: "Portfolio", href: "/portfolio", icon: BarChart3, description: "Firm-wide case health" },
   { name: "Knowledge Base", href: "/knowledge", icon: BookOpen, description: "Firm institutional memory" },
+  { name: "Return Compliance", href: "/rcc", icon: Calculator, description: "IRS transcript analysis & return estimator" },
   { name: "Inbox", href: "/inbox", icon: Inbox, description: "Messages and alerts" },
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences" },
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true },
