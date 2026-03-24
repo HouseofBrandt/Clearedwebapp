@@ -30,7 +30,7 @@ const createPostSchema = z.object({
 })
 
 /**
- * GET /api/feed — paginated feed posts
+ * GET /api/feed — paginated feed posts (V2 with reactions support)
  */
 export async function GET(request: NextRequest) {
   const auth = await requireApiAuth()
@@ -43,15 +43,19 @@ export async function GET(request: NextRequest) {
   const postType = searchParams.get("postType")
   const assigneeId = searchParams.get("assigneeId")
   const after = searchParams.get("after") // for polling: get posts after this timestamp
+  const authorId = searchParams.get("authorId")
 
   const where: any = { archived: false }
   if (caseId) where.caseId = caseId
+  if (authorId) where.authorId = authorId
   if (postType === "post") where.postType = { in: ["post", "file_share", "junebug_insight"] }
-  else if (postType === "task") where.postType = "task"
+  else if (postType === "task") where.postType = { in: ["task", "task_created", "task_completed"] }
   else if (postType === "my_tasks") {
-    where.postType = "task"
+    where.postType = { in: ["task", "task_created"] }
     where.taskAssigneeId = assigneeId || auth.userId
     where.taskCompleted = false
+  } else if (postType === "system_event") {
+    where.postType = "system_event"
   } else if (postType) {
     where.postType = postType
   }
@@ -73,12 +77,17 @@ export async function GET(request: NextRequest) {
         author: { select: { id: true, name: true, role: true } },
         case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
         taskAssignee: { select: { id: true, name: true } },
+        task: { select: { id: true, title: true, status: true, priority: true, dueDate: true, completedAt: true } },
         replies: {
           take: 3,
           orderBy: { createdAt: "asc" },
           include: { author: { select: { id: true, name: true } } },
         },
-        _count: { select: { replies: true, likes: true } },
+        reactions: {
+          where: { userId: auth.userId },
+          select: { id: true, type: true },
+        },
+        _count: { select: { replies: true, likes: true, reactions: true } },
         likes: {
           where: { userId: auth.userId },
           select: { id: true },
@@ -91,8 +100,11 @@ export async function GET(request: NextRequest) {
       ...post,
       replyCount: post._count.replies,
       likeCount: post._count.likes,
+      reactionCount: post._count.reactions,
       liked: post.likes.length > 0,
+      myReactions: post.reactions.map((r) => r.type),
       likes: undefined,
+      reactions: undefined,
       _count: undefined,
     }))
 
@@ -108,7 +120,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/feed — create a new feed post
+ * POST /api/feed — create a new feed post (V2 with normalized mentions)
  */
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth()
@@ -138,6 +150,33 @@ export async function POST(request: NextRequest) {
         case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
       },
     })
+
+    // Create normalized mentions if provided
+    if (mentions && mentions.length > 0) {
+      try {
+        await prisma.feedMention.createMany({
+          data: mentions.map((m) => ({
+            postId: post.id,
+            mentionType: m.type,
+            userId: m.type === "user" ? m.id : null,
+            display: m.display,
+          })),
+        })
+      } catch {
+        // Non-critical: normalized mentions table may not exist yet
+      }
+    }
+
+    // Create normalized case link if caseId provided
+    if (caseId) {
+      try {
+        await prisma.feedPostCase.create({
+          data: { postId: post.id, caseId },
+        })
+      } catch {
+        // Non-critical
+      }
+    }
 
     // If @Junebug is mentioned, trigger async reply
     const hasJunebugMention = mentions?.some((m) => m.type === "junebug")

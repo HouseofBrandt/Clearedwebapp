@@ -4,7 +4,6 @@ import { useState, useRef, useCallback } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -14,7 +13,7 @@ import {
 } from "@/components/ui/select"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { MentionAutocomplete, useMentionDetection } from "./mention-autocomplete"
-import { PenLine, CheckSquare, Paperclip, Send, X, Loader2 } from "lucide-react"
+import { PenLine, CheckSquare, Paperclip, Send, X, Loader2, Flag } from "lucide-react"
 
 function getInitials(name: string): string {
   return name
@@ -52,6 +51,7 @@ export function FeedComposer({
   const [taskTitle, setTaskTitle] = useState("")
   const [taskAssigneeId, setTaskAssigneeId] = useState("")
   const [taskDueDate, setTaskDueDate] = useState("")
+  const [taskPriority, setTaskPriority] = useState<string>("normal")
 
   // File mode
   const [attachments, setAttachments] = useState<{ fileName: string; fileUrl: string; fileType: string; fileSize: number }[]>([])
@@ -73,7 +73,6 @@ export function FeedComposer({
       setContent(newContent)
       setMentions((prev) => [...prev, { type: suggestion.type, id: suggestion.id, display: suggestion.display }])
 
-      // If it's a case mention, auto-set caseId
       if (suggestion.type === "case" && suggestion.id) {
         setCaseId(suggestion.id)
       }
@@ -119,6 +118,7 @@ export function FeedComposer({
     setTaskTitle("")
     setTaskAssigneeId("")
     setTaskDueDate("")
+    setTaskPriority("normal")
     setAttachments([])
     setMentions([])
     setExpanded(false)
@@ -146,6 +146,7 @@ export function FeedComposer({
             caseId: caseId || undefined,
             taskAssigneeId,
             taskDueDate: taskDueDate || undefined,
+            priority: taskPriority !== "normal" ? taskPriority : undefined,
           }),
         })
         if (res.ok) {
@@ -248,6 +249,20 @@ export function FeedComposer({
                   placeholder="Due date"
                 />
               </div>
+              <div className="flex gap-2">
+                <Select value={taskPriority} onValueChange={setTaskPriority}>
+                  <SelectTrigger className="h-8 text-sm w-32">
+                    <Flag className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 
@@ -264,7 +279,6 @@ export function FeedComposer({
               onKeyUp={(e) => setCursorPos((e.target as HTMLTextAreaElement).selectionStart || 0)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey && !mentionState?.active) {
-                  // Only submit with Enter if not in mention mode
                   if (mode !== "task" || taskTitle.trim()) {
                     e.preventDefault()
                     handleSubmit()

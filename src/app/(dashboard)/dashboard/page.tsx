@@ -11,11 +11,12 @@ export default async function DashboardPage() {
 
   let posts: any[] = []
   let myTaskCount = 0
+  let pinnedPosts: any[] = []
   let cases: any[] = []
   let users: any[] = []
 
   try {
-    const [feedPosts, taskCount, activeCases, allUsers] = await Promise.all([
+    const [feedPosts, taskCount, pinned, activeCases, allUsers] = await Promise.all([
       prisma.feedPost.findMany({
         take: 20,
         orderBy: { createdAt: "desc" },
@@ -24,25 +25,47 @@ export default async function DashboardPage() {
           author: { select: { id: true, name: true, role: true } },
           case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
           taskAssignee: { select: { id: true, name: true } },
+          task: { select: { id: true, title: true, status: true, priority: true, dueDate: true, completedAt: true } },
           replies: {
             take: 3,
             orderBy: { createdAt: "asc" },
             include: { author: { select: { id: true, name: true } } },
           },
-          _count: { select: { replies: true, likes: true } },
+          reactions: {
+            where: { userId },
+            select: { id: true, type: true },
+          },
+          _count: { select: { replies: true, likes: true, reactions: true } },
           likes: {
             where: { userId },
             select: { id: true },
           },
         },
       }),
-      prisma.feedPost.count({
+      prisma.task.count({
         where: {
-          postType: "task",
-          taskAssigneeId: userId,
-          taskCompleted: false,
+          assigneeId: userId,
+          status: "open",
         },
-      }),
+      }).catch(() =>
+        // Fallback: count legacy feed tasks if Task table doesn't exist yet
+        prisma.feedPost.count({
+          where: {
+            postType: "task",
+            taskAssigneeId: userId,
+            taskCompleted: false,
+          },
+        })
+      ),
+      prisma.feedPost.findMany({
+        where: { pinned: true, archived: false },
+        orderBy: { updatedAt: "desc" },
+        take: 5,
+        include: {
+          author: { select: { id: true, name: true, role: true } },
+          case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
+        },
+      }).catch(() => []),
       prisma.case.findMany({
         where: { status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } },
         select: { id: true, tabsNumber: true, clientName: true },
@@ -60,11 +83,15 @@ export default async function DashboardPage() {
       ...post,
       replyCount: post._count.replies,
       likeCount: post._count.likes,
+      reactionCount: post._count.reactions,
       liked: post.likes.length > 0,
+      myReactions: post.reactions.map((r) => r.type),
       likes: undefined,
+      reactions: undefined,
       _count: undefined,
     }))
     myTaskCount = taskCount
+    pinnedPosts = pinned
     cases = activeCases
     users = allUsers
   } catch (error: any) {
@@ -96,6 +123,7 @@ export default async function DashboardPage() {
       currentUser={session.user}
       initialPosts={posts}
       myTaskCount={myTaskCount}
+      pinnedPosts={pinnedPosts}
       cases={cases}
       users={users}
     />

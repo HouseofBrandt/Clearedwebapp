@@ -3,14 +3,17 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { FeedComposer } from "./feed-composer"
 import { FeedCard } from "./feed-card"
+import { FeedFilters } from "./feed-filters"
+import { PinnedNowStrip } from "./pinned-now-strip"
 import { Loader2 } from "lucide-react"
 
-type FilterType = "all" | "post" | "task" | "my_tasks"
+type FilterType = "all" | "post" | "task" | "my_tasks" | "system_event"
 
 interface FeedPageProps {
   currentUser: any
   initialPosts: any[]
   myTaskCount?: number
+  pinnedPosts?: any[]
   cases?: { id: string; tabsNumber: string; clientName: string }[]
   users?: { id: string; name: string }[]
   /** If set, the feed is scoped to this case */
@@ -21,6 +24,7 @@ export function FeedPage({
   currentUser,
   initialPosts,
   myTaskCount = 0,
+  pinnedPosts = [],
   cases = [],
   users = [],
   caseId,
@@ -45,6 +49,7 @@ export function FeedPage({
     if (filter === "post") params.set("postType", "post")
     else if (filter === "task") params.set("postType", "task")
     else if (filter === "my_tasks") params.set("postType", "my_tasks")
+    else if (filter === "system_event") params.set("postType", "system_event")
     for (const [k, v] of Object.entries(extra)) {
       params.set(k, v)
     }
@@ -132,15 +137,13 @@ export function FeedPage({
     fetchPosts()
   }
 
-  const filters: { key: FilterType; label: string; count?: number }[] = [
-    { key: "all", label: "All" },
-    { key: "post", label: "Posts" },
-    { key: "task", label: "Tasks" },
-    { key: "my_tasks", label: "My Tasks", count: myTaskCount },
-  ]
-
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Pinned / Now strip */}
+      {pinnedPosts.length > 0 && (
+        <PinnedNowStrip posts={pinnedPosts} />
+      )}
+
       {/* Composer */}
       <div className="p-4 pb-0">
         <FeedComposer
@@ -153,35 +156,13 @@ export function FeedPage({
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-1 px-4 py-3 border-b">
-        {filters.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-              filter === f.key
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            {f.label}
-            {f.count != null && f.count > 0 && (
-              <span className="ml-1 bg-primary-foreground/20 rounded-full px-1.5 text-[10px]">
-                {f.count}
-              </span>
-            )}
-          </button>
-        ))}
-        {caseFilter && !caseId && (
-          <button
-            onClick={() => setCaseFilter("")}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-primary/10 text-primary"
-          >
-            Case filtered
-            <span className="ml-1">&times;</span>
-          </button>
-        )}
-      </div>
+      <FeedFilters
+        filter={filter}
+        onFilterChange={setFilter}
+        myTaskCount={myTaskCount}
+        caseFilter={caseFilter}
+        onClearCaseFilter={caseId ? undefined : () => setCaseFilter("")}
+      />
 
       {/* New posts indicator */}
       {newPostsAvailable && (

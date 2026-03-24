@@ -9,6 +9,8 @@ const EVENT_ICONS: Record<string, string> = {
   review_approved: "\u2705",
   review_rejected: "\u274C",
   case_status_change: "\uD83D\uDD04",
+  task_created: "\uD83D\uDCCB",
+  task_completed: "\u2705",
 }
 
 interface SystemEventCardProps {
@@ -61,6 +63,16 @@ export function SystemEventCard({ post }: SystemEventCardProps) {
           {post.eventType === "deadline_warning" && eventData?.deadline && (
             <div className="mt-1 text-xs text-muted-foreground/80">
               {(eventData.deadline as any).title}
+            </div>
+          )}
+
+          {/* Task events */}
+          {(post.eventType === "task_created" || post.eventType === "task_completed") && eventData?.taskTitle && (
+            <div className="mt-1 text-xs text-muted-foreground/80">
+              {eventData.taskTitle}
+              {eventData.completedByName && (
+                <span className="ml-1">by {eventData.completedByName}</span>
+              )}
             </div>
           )}
         </div>

@@ -8,7 +8,15 @@ import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { SystemEventCard } from "./system-event-card"
 import { TaskCard } from "./task-card"
 import { FeedReplyList, ReplyInput } from "./feed-reply"
-import { Heart, MessageCircle, Copy, Paperclip, Download } from "lucide-react"
+import { Heart, MessageCircle, Copy, Paperclip, Download, Smile } from "lucide-react"
+
+const QUICK_REACTIONS = [
+  { emoji: "\uD83D\uDC4D", type: "thumbsup" },
+  { emoji: "\u2705", type: "check" },
+  { emoji: "\uD83D\uDE4F", type: "pray" },
+  { emoji: "\uD83D\uDCA1", type: "idea" },
+  { emoji: "\uD83D\uDD25", type: "fire" },
+]
 
 function getInitials(name: string): string {
   return name
@@ -34,25 +42,19 @@ function timeAgo(date: string | Date): string {
 
 /**
  * Renders inline mentions and case tags as styled elements.
- * @mentions → blue highlight
- * #CaseTags → clickable links
+ * @mentions -> blue highlight
+ * #CaseTags -> clickable links
  */
 function renderContent(content: string, mentions?: any[], caseData?: any): React.ReactNode {
   if (!content) return null
 
-  // Replace @Junebug and @mentions with styled spans
-  // Replace #CaseTag patterns with links
   const parts: React.ReactNode[] = []
-  let remaining = content
-  let key = 0
-
-  // Simple regex-based rendering for @mentions and #tags
   const pattern = /(@\w+(?:\s\w+)?|#[\w-]+)/g
   let match
   let lastIndex = 0
+  let key = 0
 
   while ((match = pattern.exec(content)) !== null) {
-    // Add text before match
     if (match.index > lastIndex) {
       parts.push(content.slice(lastIndex, match.index))
     }
@@ -73,7 +75,6 @@ function renderContent(content: string, mentions?: any[], caseData?: any): React
         </span>
       )
     } else if (token.startsWith("#")) {
-      // If we have case data and the tag matches, link to it
       if (caseData) {
         parts.push(
           <Link
@@ -96,7 +97,6 @@ function renderContent(content: string, mentions?: any[], caseData?: any): React
     lastIndex = match.index + match[0].length
   }
 
-  // Add remaining text
   if (lastIndex < content.length) {
     parts.push(content.slice(lastIndex))
   }
@@ -116,6 +116,8 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
   const [likeCount, setLikeCount] = useState(post.likeCount || 0)
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showReactions, setShowReactions] = useState(false)
+  const [myReactions, setMyReactions] = useState<string[]>(post.myReactions || [])
 
   const handleReplyAdded = useCallback(() => {
     onRefresh?.()
@@ -128,7 +130,7 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
   }
 
   const isJunebug = post.authorType === "junebug"
-  const isTask = post.postType === "task"
+  const isTask = post.postType === "task" || post.postType === "task_created" || post.postType === "task_completed"
   const isFileShare = post.postType === "file_share"
 
   async function handleLike() {
@@ -138,9 +140,32 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
     try {
       await fetch(`/api/feed/${post.id}/like`, { method: "POST" })
     } catch {
-      // Revert optimistic update
       setLiked(!newLiked)
       setLikeCount((c: number) => c + (newLiked ? -1 : 1))
+    }
+  }
+
+  async function handleReaction(type: string) {
+    const hasReaction = myReactions.includes(type)
+    if (hasReaction) {
+      setMyReactions((prev) => prev.filter((r) => r !== type))
+    } else {
+      setMyReactions((prev) => [...prev, type])
+    }
+    setShowReactions(false)
+    try {
+      await fetch(`/api/feed/${post.id}/react`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      })
+    } catch {
+      // Revert
+      if (hasReaction) {
+        setMyReactions((prev) => [...prev, type])
+      } else {
+        setMyReactions((prev) => prev.filter((r) => r !== type))
+      }
     }
   }
 
@@ -175,7 +200,13 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             <span className="text-sm font-medium">
               {isJunebug ? "Junebug" : post.author?.name || "Unknown"}
             </span>
-            {isTask && (
+            {post.postType === "task_created" && (
+              <span className="text-sm text-muted-foreground">created a task</span>
+            )}
+            {post.postType === "task_completed" && (
+              <span className="text-sm text-green-600">completed a task</span>
+            )}
+            {post.postType === "task" && (
               <span className="text-sm text-muted-foreground">created a task</span>
             )}
             {isFileShare && (
@@ -228,6 +259,24 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             </div>
           )}
 
+          {/* Reaction chips */}
+          {myReactions.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {myReactions.map((r) => {
+                const emoji = QUICK_REACTIONS.find((qr) => qr.type === r)?.emoji || r
+                return (
+                  <button
+                    key={r}
+                    onClick={() => handleReaction(r)}
+                    className="text-xs bg-primary/10 text-primary rounded-full px-1.5 py-0.5 hover:bg-primary/20"
+                  >
+                    {emoji}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           {/* Actions bar */}
           <div className="flex items-center gap-3 mt-2">
             <button
@@ -248,6 +297,30 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
               <Heart className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`} />
               {likeCount > 0 && <span>{likeCount}</span>}
             </button>
+            {/* Reaction picker */}
+            <div className="relative">
+              <button
+                onClick={() => setShowReactions(!showReactions)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Smile className="h-3.5 w-3.5" />
+              </button>
+              {showReactions && (
+                <div className="absolute bottom-6 left-0 bg-popover border rounded-lg shadow-lg p-1 flex gap-0.5 z-50">
+                  {QUICK_REACTIONS.map((r) => (
+                    <button
+                      key={r.type}
+                      onClick={() => handleReaction(r.type)}
+                      className={`text-sm p-1 rounded hover:bg-muted transition-colors ${
+                        myReactions.includes(r.type) ? "bg-primary/10" : ""
+                      }`}
+                    >
+                      {r.emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {post.content && (
               <button
                 onClick={handleCopy}
