@@ -8,7 +8,7 @@ import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { SystemEventCard } from "./system-event-card"
 import { TaskCard } from "./task-card"
 import { FeedReplyList, ReplyInput } from "./feed-reply"
-import { Heart, MessageCircle, Copy, Paperclip, Download, Smile } from "lucide-react"
+import { Heart, MessageCircle, Copy, Paperclip, Download, Smile, Pencil, X, Check } from "lucide-react"
 
 const QUICK_REACTIONS = [
   { emoji: "\uD83D\uDC4D", type: "thumbsup" },
@@ -118,6 +118,45 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
   const [copied, setCopied] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
   const [myReactions, setMyReactions] = useState<string[]>(post.myReactions || [])
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(post.content || "")
+  const [displayContent, setDisplayContent] = useState(post.content || "")
+  const [editSaving, setEditSaving] = useState(false)
+
+  const isAuthor = currentUser?.id === post.authorId
+  const isEditableType = (post.postType === "post" || post.postType === "file_share") && post.authorType === "user"
+  const canEdit = isAuthor && isEditableType
+  const wasEdited = post.updatedAt && post.createdAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 1000
+
+  async function handleSaveEdit() {
+    if (!editContent.trim() || editContent === displayContent) {
+      setIsEditing(false)
+      setEditContent(displayContent)
+      return
+    }
+    setEditSaving(true)
+    try {
+      const res = await fetch(`/api/feed/${post.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editContent }),
+      })
+      if (res.ok) {
+        setDisplayContent(editContent)
+        setIsEditing(false)
+      }
+    } catch {
+      // revert
+      setEditContent(displayContent)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  function handleCancelEdit() {
+    setEditContent(displayContent)
+    setIsEditing(false)
+  }
 
   const handleReplyAdded = useCallback(() => {
     onRefresh?.()
@@ -215,6 +254,11 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             <span className="text-xs text-muted-foreground">
               · {timeAgo(post.createdAt)}
             </span>
+            {wasEdited && (
+              <span className="text-xs text-muted-foreground italic">
+                (edited)
+              </span>
+            )}
           </div>
 
           {/* Task card */}
@@ -228,11 +272,59 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             </div>
           )}
 
-          {/* Content */}
-          {post.content && !isTask && (
-            <div className="mt-1 text-sm whitespace-pre-wrap">
-              {renderContent(post.content, post.mentions, post.case)}
-            </div>
+          {/* Content — editable inline */}
+          {!isTask && (
+            <>
+              {isEditing ? (
+                <div className="mt-1.5">
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                    rows={Math.max(2, editContent.split("\n").length)}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault()
+                        handleSaveEdit()
+                      }
+                      if (e.key === "Escape") handleCancelEdit()
+                    }}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={handleSaveEdit}
+                      disabled={editSaving || !editContent.trim()}
+                      className="h-7 text-xs px-2.5"
+                    >
+                      <Check className="h-3 w-3 mr-1" />
+                      {editSaving ? "Saving..." : "Save"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleCancelEdit}
+                      disabled={editSaving}
+                      className="h-7 text-xs px-2.5"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Cancel
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground ml-1">
+                      Ctrl+Enter to save · Esc to cancel
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                displayContent && (
+                  <div className="mt-1 text-sm whitespace-pre-wrap">
+                    {renderContent(displayContent, post.mentions, post.case)}
+                  </div>
+                )
+              )}
+            </>
           )}
 
           {/* File attachments */}
@@ -321,13 +413,21 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
                 </div>
               )}
             </div>
-            {post.content && (
+            {displayContent && (
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Copy className="h-3.5 w-3.5" />
                 {copied ? "Copied" : ""}
+              </button>
+            )}
+            {canEdit && !isEditing && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
