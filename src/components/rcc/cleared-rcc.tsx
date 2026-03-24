@@ -1,15 +1,16 @@
 "use client"
 
 import { useState, useCallback, useMemo } from "react"
-import { estimateReturn, TC_CODES, type YearData, type ReturnEstimate } from "@/lib/tax/engine"
+import { estimateReturn, extractIncomeFromForms, type ReturnEstimate } from "@/lib/tax/engine"
 import { RCCUpload } from "./rcc-upload"
 import { RCCDashboard } from "./rcc-dashboard"
 import { RCCYearDetail } from "./rcc-year-detail"
 import { RCCFiling } from "./rcc-filing"
 import { RCCAccounts } from "./rcc-accounts"
-import { Upload, LayoutDashboard, Calculator, ClipboardCheck, Archive } from "lucide-react"
+import { RCCExport } from "./rcc-export"
+import { Upload, LayoutDashboard, Calculator, ClipboardCheck, Archive, FileOutput } from "lucide-react"
 
-export type RCCView = "upload" | "dashboard" | "year" | "filing" | "accounts"
+export type RCCView = "upload" | "dashboard" | "year" | "filing" | "accounts" | "export"
 
 const VIEW_CONFIG: { key: RCCView; label: string; icon: any }[] = [
   { key: "upload", label: "Upload & Parse", icon: Upload },
@@ -17,12 +18,14 @@ const VIEW_CONFIG: { key: RCCView; label: string; icon: any }[] = [
   { key: "year", label: "Year Analysis", icon: Calculator },
   { key: "filing", label: "Filing Requirements", icon: ClipboardCheck },
   { key: "accounts", label: "Account Activity", icon: Archive },
+  { key: "export", label: "Export", icon: FileOutput },
 ]
 
 export interface TaxpayerInfo {
   name: string
   ssn_last4: string
   addresses?: string[]
+  representative_payee?: string | null
 }
 
 export function ClearedRCC() {
@@ -51,31 +54,7 @@ export function ClearedRCC() {
     (yr: string) => {
       const yd = rawYears[yr]
       if (!yd?.wage_income?.forms) return {}
-      const inc: any = {
-        ssGross: 0, ssRepay: 0, pensionGross: 0, pensionTaxable: 0,
-        fedWithheld: 0, interest: 0, wages: 0, mortgageInterest: 0, otherIncome: 0,
-      }
-      for (const f of yd.wage_income.forms) {
-        const fl = f.fields || {}
-        if (f.type === "SSA-1099") {
-          inc.ssGross += fl.gross_benefits || 0
-          inc.ssRepay += fl.repayments || 0
-        } else if (f.type === "1099-R") {
-          inc.pensionGross += fl.gross_distribution || 0
-          inc.pensionTaxable += fl.taxable_amount || 0
-          inc.fedWithheld += fl.fed_withheld || 0
-        } else if (f.type === "W-2") {
-          inc.wages += fl.wages || 0
-          inc.fedWithheld += fl.fed_withheld || 0
-        } else if (f.type === "1099-INT") {
-          inc.interest += fl.interest || 0
-        } else if (f.type === "1099-NEC" || f.type === "1099-MISC") {
-          inc.otherIncome += fl.nonemployee_comp || 0
-        } else if (f.type === "1098") {
-          inc.mortgageInterest += fl.mortgage_interest || 0
-        }
-      }
-      return inc
+      return extractIncomeFromForms(yd.wage_income.forms)
     },
     [rawYears]
   )
@@ -135,6 +114,9 @@ export function ClearedRCC() {
           <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-400">
             <div className="text-slate-600 dark:text-slate-300 font-medium mb-1">{taxpayer.name}</div>
             <div>SSN: XXX-XX-{taxpayer.ssn_last4}</div>
+            {taxpayer.representative_payee && (
+              <div className="text-amber-500 mt-1">Rep Payee: {taxpayer.representative_payee}</div>
+            )}
             {years.length > 0 && <div className="mt-1">{years.length} year(s) loaded</div>}
           </div>
         )}
@@ -188,6 +170,15 @@ export function ClearedRCC() {
         )}
         {view === "accounts" && (
           <RCCAccounts years={years} rawYears={rawYears} />
+        )}
+        {view === "export" && (
+          <RCCExport
+            taxpayer={taxpayer}
+            years={years}
+            rawYears={rawYears}
+            getYearResults={getYearResults}
+            getYearOverrides={getYearOverrides}
+          />
         )}
       </div>
     </div>
