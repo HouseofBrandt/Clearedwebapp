@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     // Log the treat action for training signal
     await createAuditLog({
       action: AUDIT_ACTIONS.AI_RESPONSE_APPROVED,
-      userId,
+      practitionerId: userId,
       metadata: {
         type: "junebug_treat",
         messageId,
