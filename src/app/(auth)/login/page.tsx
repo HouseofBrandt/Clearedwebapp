@@ -195,7 +195,7 @@ function LoginForm() {
 
             <p className="mt-8 text-lg leading-relaxed text-white/40 max-w-lg transition-all duration-1000 ease-out"
               style={{ opacity: mounted ? 1 : 0, transform: mounted ? "translateY(0)" : "translateY(30px)", transitionDelay: "0.7s" }}>
-              From notice to resolution. The AI-powered command center where licensed practitioners resolve federal tax cases with precision.
+              From notice to resolution. Your AI-powered tax command center.
             </p>
 
             {/* Metrics strip */}
