@@ -33,7 +33,7 @@ async function parseMentions(content: string): Promise<string[]> {
 
   // Look up users by name
   const userIds: string[] = []
-  for (const name of mentionedNames) {
+  for (const name of Array.from(mentionedNames)) {
     const user = await prisma.user.findFirst({
       where: {
         name: { contains: name, mode: "insensitive" },
