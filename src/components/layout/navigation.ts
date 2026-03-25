@@ -12,6 +12,7 @@ import {
   FileSearch,
   Scale,
   ShieldAlert,
+  TrendingUp,
   Shield,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -37,6 +38,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Penalty Abatement", href: "/penalty-abatement", icon: ShieldAlert, description: "FTA & reasonable cause letters" },
   { name: "Inbox", href: "/inbox", icon: Inbox, description: "Messages and alerts" },
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences" },
+  { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true },
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true },
 ]
 

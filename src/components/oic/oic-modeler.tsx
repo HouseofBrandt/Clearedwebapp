@@ -163,12 +163,14 @@ function CurrencyInput({
   onChange,
   tooltip,
   placeholder,
+  "aria-label": ariaLabel,
 }: {
   label: string
   value: number
   onChange: (v: number) => void
   tooltip?: string
   placeholder?: string
+  "aria-label"?: string
 }) {
   const [focused, setFocused] = useState(false)
   const [display, setDisplay] = useState(value === 0 ? "" : value.toString())
@@ -208,6 +210,7 @@ function CurrencyInput({
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChange={handleChange}
+          aria-label={ariaLabel || label}
         />
       </div>
     </div>
@@ -444,6 +447,7 @@ export function OICModeler() {
                 onCheckedChange={(v) =>
                   setOptions((o) => ({ ...o, excludeRetirement: v }))
                 }
+                aria-label="Exclude retirement accounts from asset equity"
               />
             </div>
 
@@ -457,6 +461,7 @@ export function OICModeler() {
                 onCheckedChange={(v) =>
                   setOptions((o) => ({ ...o, challengeVehicleEquity: v }))
                 }
+                aria-label="Challenge vehicle equity valuation"
               />
             </div>
 
@@ -469,6 +474,7 @@ export function OICModeler() {
                 <Switch
                   checked={incomeReductionEnabled}
                   onCheckedChange={setIncomeReductionEnabled}
+                  aria-label="Enable income reduction modeling"
                 />
               </div>
               {incomeReductionEnabled && (

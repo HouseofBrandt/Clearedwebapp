@@ -28,6 +28,11 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react"
+import {
+  type FilingStatusType,
+  getFilingStatus,
+  estimateSFRReduction,
+} from "@/lib/tax/filing-status-checker"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -80,37 +85,7 @@ function formatDate(iso: string | null): string {
   })
 }
 
-type FilingStatusType = "filed" | "unfiled" | "sfr"
-
-/**
- * Determine filing status for a liability period.
- * SFR logic: has an assessment but no return filed date (assessmentDate present, status doesn't indicate filed).
- * A year is "filed" if status contains "filed" or "paid", or if assessmentDate exists with filed status.
- * Otherwise, it's "unfiled".
- */
-function getFilingStatus(lp: LiabilityPeriod): FilingStatusType {
-  const s = (lp.status || "").toLowerCase()
-
-  // Explicitly filed
-  if (s.includes("filed") || s.includes("paid") || s === "compliant") {
-    return "filed"
-  }
-
-  // SFR: has assessment but status indicates SFR or assessed without a filing
-  if (
-    (s.includes("sfr") || s.includes("substitute")) ||
-    (lp.originalAssessment != null && lp.originalAssessment > 0 && !s.includes("filed") && s !== "")
-  ) {
-    return "sfr"
-  }
-
-  // Has assessment with no status info — likely SFR
-  if (lp.originalAssessment != null && lp.originalAssessment > 0 && !s) {
-    return "sfr"
-  }
-
-  return "unfiled"
-}
+// FilingStatusType and getFilingStatus imported from @/lib/tax/filing-status-checker
 
 function getComplianceLabel(filingStatus: FilingStatusType): string {
   switch (filingStatus) {
@@ -175,7 +150,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
     }
     for (const p of sfr) {
       const potentialReduction = p.originalAssessment
-        ? Math.round(p.originalAssessment * 0.35) // Conservative 35% estimate
+        ? estimateSFRReduction(p.originalAssessment).potentialReduction
         : undefined
       actions.push({
         priority: 2,
@@ -456,10 +431,8 @@ function FilingStatusBadge({ status }: { status: FilingStatusType }) {
 
 function SfrAnalysisPanel({ period }: { period: LiabilityPeriod & { filingStatus: FilingStatusType } }) {
   const sfrAssessment = period.originalAssessment ?? 0
-  // Conservative estimate: actual return liability is ~65% of SFR assessment
-  // (SFRs typically overstate because they don't include deductions/credits)
-  const estimatedActual = Math.round(sfrAssessment * 0.65)
-  const delta = sfrAssessment - estimatedActual
+  // Conservative estimate using extracted SFR business logic
+  const { estimatedActual, potentialReduction: delta } = estimateSFRReduction(sfrAssessment)
   const penaltiesOnSfr = period.penalties ?? 0
   const interestOnSfr = period.interest ?? 0
 

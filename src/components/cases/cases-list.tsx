@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -83,20 +83,22 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
   const router = useRouter()
   const { addToast } = useToast()
 
-  const filteredCases = cases.filter((c) => {
-    if (statusFilter !== "all" && c.status !== statusFilter) return false
-    if (typeFilter !== "all" && c.caseType !== typeFilter) return false
-    if (search) {
-      const s = search.toLowerCase()
-      return (
-        c.tabsNumber?.toLowerCase().includes(s) ||
-        c.clientName.toLowerCase().includes(s)
-      )
-    }
-    return true
-  })
+  const filteredCases = useMemo(() => {
+    return cases.filter((c) => {
+      if (statusFilter !== "all" && c.status !== statusFilter) return false
+      if (typeFilter !== "all" && c.caseType !== typeFilter) return false
+      if (search) {
+        const s = search.toLowerCase()
+        return (
+          c.tabsNumber?.toLowerCase().includes(s) ||
+          c.clientName.toLowerCase().includes(s)
+        )
+      }
+      return true
+    })
+  }, [cases, search, statusFilter, typeFilter])
 
-  async function handleDeleteCase(caseId: string, tabsNumber: string) {
+  const handleDeleteCase = useCallback(async function handleDeleteCase(caseId: string, tabsNumber: string) {
     if (!confirm(`Delete case ${tabsNumber}? This permanently deletes all documents, AI tasks, and review history.`)) return
     const res = await fetch(`/api/cases/${caseId}`, { method: "DELETE" })
     if (res.ok) {
@@ -105,7 +107,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
     } else {
       addToast({ title: "Error", description: "Failed to delete case", variant: "destructive" })
     }
-  }
+  }, [addToast])
 
   async function handleCreateCase() {
     if (!newCase.clientName || !newCase.caseType) return

@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Penalty Abatement | Cleared" }
 
 export default async function PenaltyAbatementPage() {
   const session = await requireAuth()
-  const accessFilter = await caseAccessFilter((session.user as any).id)
+  const accessFilter = await caseAccessFilter(session.user.id)
 
   // Fetch cases that have liability periods with penalties > 0
   const cases = await prisma.case.findMany({

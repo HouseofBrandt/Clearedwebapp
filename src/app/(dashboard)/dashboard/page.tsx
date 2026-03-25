@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Dashboard | Cleared" }
 
 export default async function DashboardPage() {
   const session = await requireAuth()
-  const userId = (session.user as any).id
+  const userId = session.user.id
 
   let posts: any[] = []
   let myTaskCount = 0

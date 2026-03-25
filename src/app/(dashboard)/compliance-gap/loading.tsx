@@ -1,4 +1,4 @@
 import { PageSkeleton } from "@/components/ui/page-skeleton"
 export default function Loading() {
-  return <PageSkeleton title="Review Queue" />
+  return <PageSkeleton title="Compliance" />
 }

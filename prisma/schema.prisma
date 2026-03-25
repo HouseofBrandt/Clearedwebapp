@@ -634,6 +634,12 @@ model CaseIntelligence {
   // Prior Similar Cases — for precedent matching
   similarCaseIds        Json?
 
+  // Case Outcome — recorded when case reaches RESOLVED/CLOSED
+  outcomeType           String?   // ACCEPTED, REJECTED, SETTLED, WITHDRAWN, EXPIRED
+  outcomeAmount         Decimal?  // Final accepted/settled amount
+  outcomeDate           DateTime?
+  outcomeNotes          String?   @db.Text
+
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 

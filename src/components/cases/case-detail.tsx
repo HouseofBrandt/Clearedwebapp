@@ -40,6 +40,7 @@ import {
 import { DeadlineCard } from "@/components/calendar/deadline-card"
 import { AddDeadlineDialog } from "@/components/calendar/add-deadline-dialog"
 import { CasePosturePanel } from "@/components/cases/case-posture-panel"
+import { CaseOutcomePanel } from "@/components/cases/case-outcome-panel"
 import { CaseJunebug } from "@/components/cases/case-junebug"
 import { ActivityFeed } from "@/components/cases/activity-feed"
 import { FeedPage } from "@/components/feed/feed-page"
@@ -604,6 +605,13 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                     </div>
                   </CardContent>
                 </Card>
+                {/* Case Outcome — visible for RESOLVED or CLOSED cases */}
+                {(caseData.status === "RESOLVED" || caseData.status === "CLOSED") && (
+                  <>
+                    <Separator />
+                    <CaseOutcomePanel caseId={caseData.id} />
+                  </>
+                )}
                 <Separator />
                 <Button variant="outline" size="sm" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={handleDeleteCase}>
                   <Trash2 className="mr-1 h-4 w-4" /> Delete Case

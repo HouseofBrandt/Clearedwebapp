@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Compliance Gap Closer | Cleared" }
 
 export default async function ComplianceGapPage() {
   const session = await requireAuth()
-  const accessFilter = await caseAccessFilter((session.user as any).id)
+  const accessFilter = await caseAccessFilter(session.user.id)
 
   const cases = await prisma.case.findMany({
     where: {

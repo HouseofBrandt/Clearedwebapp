@@ -271,8 +271,16 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
       await navigator.clipboard.writeText(generatedLetter)
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 2000)
-    } catch {
-      // fallback
+    } catch (err) {
+      // Fallback for browsers without clipboard API
+      const textarea = document.createElement("textarea")
+      textarea.value = generatedLetter
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textarea)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
     }
   }
 
@@ -396,6 +404,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                           value={penaltyType}
                           onChange={(e) => handlePenaltyTypeChange(lp.id, e.target.value as PenaltyTypeCode)}
                           className="text-sm border border-input rounded-md px-2 py-1 bg-background"
+                          aria-label={`Penalty type for tax year ${lp.taxYear}`}
                         >
                           {Object.entries(PENALTY_TYPES).map(([code, pt]) => (
                             <option key={code} value={code}>
@@ -470,6 +479,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                           setPriorYearsFiled(next)
                         }}
                         className="h-4 w-4 rounded border-gray-300"
+                        aria-label={`Return filed for tax year ${year}`}
                       />
                       Return filed
                     </label>
@@ -483,6 +493,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                           setPriorYearsPenalties(next)
                         }}
                         className="h-4 w-4 rounded border-gray-300"
+                        aria-label={`Penalty assessed for tax year ${year}`}
                       />
                       Penalty assessed
                     </label>
@@ -611,6 +622,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                       checked={reasonableCauseId === cat.id}
                       onChange={(e) => setReasonableCauseId(e.target.value)}
                       className="mt-1 h-4 w-4"
+                      aria-label={`Select reasonable cause: ${cat.label}`}
                     />
                     <div>
                       <span className="font-medium text-sm">{cat.label}</span>

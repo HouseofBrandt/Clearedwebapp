@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -76,24 +76,29 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
   const router = useRouter()
   const { addToast } = useToast()
 
-  const filtered = documents.filter((d: any) => {
-    if (categoryFilter !== "all" && d.category !== categoryFilter) return false
-    if (sourceTypeFilter !== "all" && (d.sourceType || "MANUAL_UPLOAD") !== sourceTypeFilter) return false
-    if (search) {
-      const s = search.toLowerCase()
-      return d.title.toLowerCase().includes(s) ||
-        d.description?.toLowerCase().includes(s) ||
-        d.tags?.some((t: string) => t.includes(s))
-    }
-    return true
-  })
+  const filtered = useMemo(() => {
+    return documents.filter((d: any) => {
+      if (categoryFilter !== "all" && d.category !== categoryFilter) return false
+      if (sourceTypeFilter !== "all" && (d.sourceType || "MANUAL_UPLOAD") !== sourceTypeFilter) return false
+      if (search) {
+        const s = search.toLowerCase()
+        return d.title.toLowerCase().includes(s) ||
+          d.description?.toLowerCase().includes(s) ||
+          d.tags?.some((t: string) => t.includes(s))
+      }
+      return true
+    })
+  }, [documents, search, categoryFilter, sourceTypeFilter])
 
   // Group by category
-  const grouped: Record<string, any[]> = {}
-  for (const doc of filtered) {
-    if (!grouped[doc.category]) grouped[doc.category] = []
-    grouped[doc.category].push(doc)
-  }
+  const grouped = useMemo(() => {
+    const result: Record<string, any[]> = {}
+    for (const doc of filtered) {
+      if (!result[doc.category]) result[doc.category] = []
+      result[doc.category].push(doc)
+    }
+    return result
+  }, [filtered])
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this knowledge document and all its chunks?")) return

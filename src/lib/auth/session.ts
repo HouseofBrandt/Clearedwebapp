@@ -21,7 +21,7 @@ export async function requireAuth() {
 
 export async function requireRole(roles: string[]) {
   const session = await requireAuth()
-  const userRole = (session.user as any).role
+  const userRole = session.user.role
   if (!roles.includes(userRole)) {
     redirect("/dashboard")
   }
