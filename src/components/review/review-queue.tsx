@@ -253,7 +253,7 @@ export function ReviewQueue({ tasks, userRole }: ReviewQueueProps) {
 
   // All filtered task IDs for "select all"
   const allFilteredIds = useMemo(() => new Set(filteredTasks.map((t) => t.id)), [filteredTasks])
-  const allSelected = allFilteredIds.size > 0 && [...allFilteredIds].every((id) => selectedIds.has(id))
+  const allSelected = allFilteredIds.size > 0 && Array.from(allFilteredIds).every((id) => selectedIds.has(id))
   const someSelected = selectedIds.size > 0
 
   // Group tasks by banjoAssignmentId
