@@ -2,10 +2,11 @@
  * Field-level encryption for sensitive data at rest (e.g., client names).
  *
  * Uses AES-256-GCM with a random IV per encryption. The output format is:
- *   iv_hex:authTag_hex:ciphertext_hex
+ *   v1:iv_hex:authTag_hex:ciphertext_hex  (new format)
+ *   iv_hex:authTag_hex:ciphertext_hex     (legacy format)
  *
- * This is separate from the tokenizer's encryption (which uses AES-256-CBC
- * for token maps). GCM provides authenticated encryption.
+ * Key derivation uses SHA-256 hash of ENCRYPTION_KEY for consistency with
+ * existing encrypted data. The v1: prefix enables future key rotation.
  */
 import crypto from "crypto"
 
@@ -13,13 +14,7 @@ const DEV_KEY = "dev-encryption-key-change-in-production-32chars"
 
 /**
  * Derive the AES-256 key from the ENCRYPTION_KEY environment variable.
- *
- * NOTE: Production uses PBKDF2 (100k iterations) for brute-force resistance.
- * Development fallback uses simple SHA-256 hash for speed.
- *
- * Tradeoff: Using a deterministic salt derived from the key itself so that
- * key derivation is reproducible across server restarts without external state.
- * A truly random salt would be stronger but would require storing it separately.
+ * Uses SHA-256 hash for deterministic, reproducible key derivation.
  */
 function getKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY
@@ -27,13 +22,9 @@ function getKey(): Buffer {
     if (process.env.NODE_ENV === "production") {
       throw new Error("ENCRYPTION_KEY environment variable is required in production.")
     }
-    // Development fallback
     return crypto.createHash("sha256").update(DEV_KEY).digest()
   }
-  // Use PBKDF2 for production key derivation (more resistant to brute-force)
-  // Salt is deterministic from key itself since we need reproducible derivation
-  const salt = crypto.createHash("sha256").update("cleared-encryption-salt:" + key.substring(0, 8)).digest()
-  return crypto.pbkdf2Sync(key, salt, 100000, 32, "sha256")
+  return crypto.createHash("sha256").update(key).digest()
 }
 
 export function encryptField(plaintext: string): string {
@@ -76,7 +67,8 @@ export function decryptField(encrypted: string): string {
     decrypted += decipher.final("utf8")
     return decrypted
   } catch {
-    // Decryption failed — likely plaintext, return as-is
+    // Decryption failed — likely plaintext data, return as-is
+    console.warn("[SECURITY] Decryption failed for field. May be plaintext or encrypted with different key.")
     return encrypted
   }
 }
