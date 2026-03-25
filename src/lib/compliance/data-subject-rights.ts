@@ -33,7 +33,7 @@ export interface CompiledAccessData {
   }>
   conversations: Array<{
     id: string
-    title: string
+    subject: string
     status: string
     createdAt: Date
     messageCount: number
