@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { JUNEBUG_LOADING_MESSAGES } from "@/lib/junebug/loading-messages"
 import { Send } from "lucide-react"
+import { FormattedText } from "./formatted-text"
 
 function getInitials(name: string): string {
   return name
@@ -117,6 +118,8 @@ function ReplyItem({ reply }: { reply: any }) {
           <p className="text-xs text-muted-foreground italic animate-pulse">
             {pool[msgIndex]}
           </p>
+        ) : isJunebug ? (
+          <FormattedText content={reply.content} className="mt-0.5" />
         ) : (
           <p className="text-sm text-foreground whitespace-pre-wrap">{reply.content}</p>
         )}

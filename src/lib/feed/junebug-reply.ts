@@ -7,7 +7,16 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
 })
 
-const FEED_SYSTEM_ADDITION = `You are responding in the firm's activity feed. Keep your answer concise — 2-4 sentences for simple questions, more for complex analysis. Use the case data in your context to give specific, actionable answers. Do not use markdown headers. Use plain text with bullet points when listing items.`
+const FEED_SYSTEM_ADDITION = `You are responding in the firm's internal activity feed. Your responses should be clear, professional, and easy to scan.
+
+FORMATTING RULES:
+- Write in plain prose. No markdown headers (no # or ##).
+- Use **bold** sparingly for key labels or section titles within your response (e.g. **Where things stand:** or **Next steps:**).
+- Use bullet points (- ) for lists. Keep bullets concise — one line each when possible.
+- Never use raw data-dump formatting. Present information as a practitioner would brief a colleague.
+- Keep responses tight: 3-6 sentences for simple questions, structured sections for complex analysis.
+- When referencing dollar amounts, dates, or percentages, state them inline — don't put them in tables or grids.
+- End with a single clear recommendation when appropriate.`
 
 /**
  * Generates a Junebug reply to a feed post that tagged @Junebug.

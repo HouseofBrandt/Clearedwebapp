@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { SystemEventCard } from "./system-event-card"
+import { FormattedText } from "./formatted-text"
 import { TaskCard } from "./task-card"
 import { FeedReplyList, ReplyInput } from "./feed-reply"
 import { Heart, MessageCircle, Copy, Paperclip, Download, Smile, Pencil, X, Check } from "lucide-react"
@@ -319,9 +320,13 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
                 </div>
               ) : (
                 displayContent && (
-                  <div className="mt-1 text-sm whitespace-pre-wrap">
-                    {renderContent(displayContent, post.mentions, post.case)}
-                  </div>
+                  isJunebug ? (
+                    <FormattedText content={displayContent} className="mt-1" />
+                  ) : (
+                    <div className="mt-1 text-sm whitespace-pre-wrap">
+                      {renderContent(displayContent, post.mentions, post.case)}
+                    </div>
+                  )
                 )
               )}
             </>
