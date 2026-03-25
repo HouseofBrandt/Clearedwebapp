@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, AlertTriangle, FileCheck, FileBarChart } from "lucide-react"
+import { LayoutDashboard, AlertTriangle, FileCheck, FileBarChart, Zap } from "lucide-react"
 
 const subNavItems = [
   { name: "Overview", href: "/admin/compliance", icon: LayoutDashboard },
   { name: "Issues", href: "/admin/compliance/issues", icon: AlertTriangle },
   { name: "Evidence", href: "/admin/compliance/evidence", icon: FileCheck },
   { name: "Reports", href: "/admin/compliance/reports", icon: FileBarChart },
+  { name: "Automation", href: "/admin/compliance/automation", icon: Zap },
 ]
 
 export default function ComplianceLayout({
