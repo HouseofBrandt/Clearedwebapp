@@ -61,6 +61,7 @@ enum FileType {
   DOCX
   XLSX
   TEXT
+  AUDIO
 }
 
 enum DocumentCategory {
@@ -78,6 +79,8 @@ enum DocumentCategory {
   MORTGAGE_STATEMENT
   INSURANCE
   PAY_STUB
+  MEETING_RECORDING
+  VOICE_NOTE
   OTHER
 }
 
@@ -1049,14 +1052,15 @@ model ClientNote {
 }
 
 model NoteAttachment {
-  id        String     @id @default(cuid())
-  noteId    String
-  note      ClientNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  fileName  String
-  fileUrl   String
-  fileType  String
-  fileSize  Int
-  createdAt DateTime   @default(now())
+  id         String     @id @default(cuid())
+  noteId     String
+  note       ClientNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  documentId String?
+  fileName   String
+  fileUrl    String
+  fileType   String
+  fileSize   Int
+  createdAt  DateTime   @default(now())
 
   @@map("note_attachments")
 }
@@ -1103,14 +1107,15 @@ model ConversationMsg {
 }
 
 model ConversationMsgAttachment {
-  id        String          @id @default(cuid())
-  messageId String
-  message   ConversationMsg @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  fileName  String
-  fileUrl   String
-  fileType  String
-  fileSize  Int
-  createdAt DateTime        @default(now())
+  id         String          @id @default(cuid())
+  messageId  String
+  message    ConversationMsg @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  documentId String?
+  fileName   String
+  fileUrl    String
+  fileType   String
+  fileSize   Int
+  createdAt  DateTime        @default(now())
 
   @@map("conversation_msg_attachments")
 }

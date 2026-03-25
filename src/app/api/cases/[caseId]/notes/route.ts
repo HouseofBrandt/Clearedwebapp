@@ -36,6 +36,8 @@ const createNoteSchema = z.object({
   irsEmployeeId: z.string().optional().nullable(),
   irsDepartment: z.string().optional().nullable(),
   irsContactMethod: z.string().optional().nullable(),
+  // Attachment document IDs
+  attachmentIds: z.array(z.string()).optional(),
 })
 
 // ─── GET: List notes for a case ────────────────────────────
@@ -177,6 +179,43 @@ export async function POST(
         attachments: true,
       },
     })
+
+    // Create attachment records if documentIds were provided
+    if (data.attachmentIds && data.attachmentIds.length > 0) {
+      const documents = await prisma.document.findMany({
+        where: {
+          id: { in: data.attachmentIds },
+          caseId: params.caseId,
+        },
+        select: { id: true, fileName: true, filePath: true, fileType: true, fileSize: true },
+      })
+
+      if (documents.length > 0) {
+        await prisma.noteAttachment.createMany({
+          data: documents.map((doc) => ({
+            noteId: note.id,
+            documentId: doc.id,
+            fileName: doc.fileName,
+            fileUrl: doc.filePath,
+            fileType: doc.fileType,
+            fileSize: doc.fileSize,
+          })),
+        })
+      }
+
+      // Re-query to include the attachments
+      const updatedNote = await prisma.clientNote.findUnique({
+        where: { id: note.id },
+        include: {
+          author: { select: { id: true, name: true, email: true } },
+          attachments: true,
+        },
+      })
+      if (updatedNote) {
+        // Use the updated note for the rest of the handler
+        Object.assign(note, updatedNote)
+      }
+    }
 
     // Audit log
     logAudit({

@@ -29,6 +29,21 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  // Return JSON metadata if ?meta=true is set
+  const url = new URL(request.url)
+  if (url.searchParams.get("meta") === "true") {
+    return NextResponse.json({
+      id: document.id,
+      caseId: document.caseId,
+      fileName: document.fileName,
+      fileType: document.fileType,
+      fileSize: document.fileSize,
+      documentCategory: document.documentCategory,
+      extractedText: document.extractedText,
+      uploadedAt: document.uploadedAt,
+    })
+  }
+
   logAudit({
     userId: (session.user as any).id,
     action: AUDIT_ACTIONS.DOCUMENT_DOWNLOADED,
@@ -48,11 +63,28 @@ export async function GET(
       DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       XLSX: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       TEXT: "text/plain",
+      AUDIO: "audio/mpeg",
+    }
+
+    // For audio files, detect more specific MIME type from extension
+    let contentType = mimeTypes[document.fileType] || "application/octet-stream"
+    if (document.fileType === "AUDIO") {
+      const ext = document.fileName.toLowerCase().split(".").pop() || ""
+      const audioMimes: Record<string, string> = {
+        mp3: "audio/mpeg",
+        mp4: "audio/mp4",
+        m4a: "audio/mp4",
+        wav: "audio/wav",
+        webm: "audio/webm",
+        ogg: "audio/ogg",
+        flac: "audio/flac",
+      }
+      contentType = audioMimes[ext] || "audio/mpeg"
     }
 
     return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
-        "Content-Type": mimeTypes[document.fileType] || "application/octet-stream",
+        "Content-Type": contentType,
         "Content-Disposition": `inline; filename="${document.fileName}"`,
       },
     })

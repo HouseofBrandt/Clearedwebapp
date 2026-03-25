@@ -25,5 +25,11 @@ export function autoDetectCategory(fileName: string): string {
   if (n.includes("vanguard") || n.includes("fidelity") || n.includes("ira") ||
       n.includes("401k") || n.includes("retirement") || n.includes("sep")) return "RETIREMENT_ACCOUNT"
   if (n.includes("intake") || n.includes("meeting") || n.includes("notes")) return "MEETING_NOTES"
+  // Audio files
+  const audioExts = [".mp3", ".mp4", ".m4a", ".wav", ".webm", ".ogg", ".flac"]
+  if (audioExts.some(ext => n.endsWith(ext))) {
+    if (n.includes("voice") || n.includes("memo") || n.includes("note")) return "VOICE_NOTE"
+    return "MEETING_RECORDING"
+  }
   return "OTHER"
 }

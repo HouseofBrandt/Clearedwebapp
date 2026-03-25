@@ -12,6 +12,7 @@ import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-complete
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { canAccessCase } from "@/lib/auth/case-access"
 import { createFeedEvent } from "@/lib/feed/create-event"
+import { isAudioMimeType, isAudioExtension, transcribeAudio, isTranscriptionAvailable } from "@/lib/audio/transcription"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -54,6 +55,7 @@ function detectFileType(mimeType: string, fileName: string, buffer: Buffer): str
   // Fall back to MIME type
   if (mime === "application/pdf") return "PDF"
   if (mime.startsWith("image/")) return "IMAGE"
+  if (isAudioMimeType(mime)) return "AUDIO"
   if (mime.includes("wordprocessingml") || mime.includes("msword")) return "DOCX"
   if (mime.includes("spreadsheetml") || mime.includes("excel") || mime.includes("csv")) return "XLSX"
   if (mime === "text/csv") return "XLSX" // CSVs go through the spreadsheet extractor
@@ -63,6 +65,7 @@ function detectFileType(mimeType: string, fileName: string, buffer: Buffer): str
   // Fall back to extension
   if (ext === "pdf") return "PDF"
   if (["jpg", "jpeg", "png", "gif", "bmp", "tiff", "tif", "webp", "heic"].includes(ext)) return "IMAGE"
+  if (isAudioExtension(fileName)) return "AUDIO"
   if (["doc", "docx"].includes(ext)) return "DOCX"
   if (["xls", "xlsx", "csv"].includes(ext)) return "XLSX"
   if (["txt", "text", "rtf", "log", "md"].includes(ext)) return "TEXT"
@@ -126,6 +129,12 @@ export async function POST(request: NextRequest) {
 
     // Detect file type robustly
     const fileType = detectFileType(file.type, file.name, buffer)
+    const isAudio = fileType === "AUDIO"
+
+    // Auto-detect category for audio files
+    const finalCategory = isAudio && documentCategory === "OTHER"
+      ? "MEETING_RECORDING"
+      : documentCategory
 
     // Upload to S3 — use TABS number in path when available
     const uniqueName = `${Date.now()}-${file.name}`
@@ -134,17 +143,28 @@ export async function POST(request: NextRequest) {
       : `documents/${caseId}`
     const s3Key = `${prefix}/${uniqueName}`
 
-    // Run S3 upload and text extraction in parallel
-    const [, extractionResult] = await Promise.all([
-      uploadToS3(s3Key, buffer, file.type || "application/octet-stream").catch((err) => {
-        console.error("S3 upload failed:", err)
-        // Don't throw — we still want to save the record with extracted text
-        return null
-      }),
-      extractWithDetails(buffer, fileType),
-    ])
+    // For audio files, skip text extraction (transcription happens async)
+    // For other files, run S3 upload and text extraction in parallel
+    let extractedText: string | null = null
+    let extractionResult = { text: "", method: "none", error: null as string | null }
 
-    const extractedText = extractionResult.text.trim() || null
+    if (isAudio) {
+      // Upload only — no text extraction for audio
+      await uploadToS3(s3Key, buffer, file.type || "application/octet-stream").catch((err) => {
+        console.error("S3 upload failed:", err)
+      })
+      extractionResult = { text: "", method: "audio-pending-transcription", error: null }
+    } else {
+      const [, extResult] = await Promise.all([
+        uploadToS3(s3Key, buffer, file.type || "application/octet-stream").catch((err) => {
+          console.error("S3 upload failed:", err)
+          return null
+        }),
+        extractWithDetails(buffer, fileType),
+      ])
+      extractionResult = extResult
+      extractedText = extractionResult.text.trim() || null
+    }
 
     const document = await prisma.document.create({
       data: {
@@ -153,7 +173,7 @@ export async function POST(request: NextRequest) {
         filePath: s3Key,
         fileType: fileType as any,
         fileSize: buffer.length,
-        documentCategory: documentCategory as any,
+        documentCategory: finalCategory as any,
         uploadedById: (session.user as any).id,
         extractedText,
       },
@@ -162,9 +182,45 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Fire-and-forget: async audio transcription
+    if (isAudio && isTranscriptionAvailable()) {
+      transcribeAudio(buffer, file.name)
+        .then(async (result) => {
+          await prisma.document.update({
+            where: { id: document.id },
+            data: { extractedText: result.text },
+          })
+          console.log(`[AudioTranscription] Completed for document ${document.id} (${Math.round(result.duration)}s, ${result.language})`)
+
+          // Trigger triage on the transcript
+          if (result.text.length > 50) {
+            triageDocument({
+              documentId: document.id,
+              caseId,
+              fileName: document.fileName,
+              extractedText: result.text,
+              documentCategory: document.documentCategory,
+            }).then(triageResult => {
+              processTriageResult(triageResult, {
+                documentId: document.id,
+                caseId,
+                fileName: document.fileName,
+                userId: (session.user as any).id,
+                userName: session.user?.name || "Unknown",
+              })
+            }).catch(err => {
+              console.error("[DocumentTriage] Background triage failed:", err.message)
+            })
+          }
+        })
+        .catch((err) => {
+          console.error(`[AudioTranscription] Failed for document ${document.id}:`, err.message)
+        })
+    }
+
     // Auto-populate LiabilityPeriod from IRS transcripts
     let liabilityPeriodsCreated = 0
-    if (extractedText && (documentCategory === "IRS_NOTICE" || documentCategory === "TAX_RETURN")) {
+    if (extractedText && (finalCategory === "IRS_NOTICE" || finalCategory === "TAX_RETURN")) {
       try {
         liabilityPeriodsCreated = await populateFromTranscript(caseId, extractedText)
       } catch (err: any) {
@@ -182,12 +238,12 @@ export async function POST(request: NextRequest) {
       caseId,
       resourceId: document.id,
       resourceType: "Document",
-      metadata: { fileName: document.fileName, fileSize: buffer.length, fileType },
+      metadata: { fileName: document.fileName, fileSize: buffer.length, fileType, isAudio },
       ipAddress: getClientIP(),
     })
 
-    // Fire-and-forget: AI document triage
-    if (extractedText && extractedText.length > 50) {
+    // Fire-and-forget: AI document triage (non-audio)
+    if (!isAudio && extractedText && extractedText.length > 50) {
       triageDocument({
         documentId: document.id,
         caseId,
@@ -212,7 +268,7 @@ export async function POST(request: NextRequest) {
       eventType: "document_upload",
       caseId,
       eventData: { documents: [{ name: document.fileName, category: document.documentCategory }] },
-      content: `1 document uploaded`,
+      content: `1 ${isAudio ? "audio file" : "document"} uploaded`,
     }).catch(() => {})
 
     return NextResponse.json({
@@ -223,6 +279,8 @@ export async function POST(request: NextRequest) {
       extractionError: extractionResult.error || null,
       detectedFileType: fileType,
       liabilityPeriodsCreated,
+      isAudio,
+      transcriptionPending: isAudio && isTranscriptionAvailable(),
     }, { status: 201 })
   } catch (error: any) {
     console.error("Upload error:", error)

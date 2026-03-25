@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,6 +23,9 @@ import {
   Plus,
   Loader2,
   StickyNote,
+  Paperclip,
+  X,
+  FileAudio,
 } from "lucide-react"
 
 const NOTE_TYPES = [
@@ -93,6 +96,10 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
   const [formIrsDept, setFormIrsDept] = useState("")
   const [formIrsMethod, setFormIrsMethod] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  // Attachment state
+  const [formAttachments, setFormAttachments] = useState<Array<{ documentId: string; fileName: string; fileType: string }>>([])
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const noteFileInputRef = useRef<HTMLInputElement>(null)
 
   const { addToast } = useToast()
 
@@ -134,6 +141,31 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
     setFormIrsId("")
     setFormIrsDept("")
     setFormIrsMethod("")
+    setFormAttachments([])
+  }
+
+  async function handleNoteFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAttachment(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("caseId", caseId)
+      const res = await fetch("/api/documents/upload", { method: "POST", body: formData })
+      if (!res.ok) throw new Error()
+      const doc = await res.json()
+      setFormAttachments((prev) => [
+        ...prev,
+        { documentId: doc.id, fileName: doc.fileName, fileType: doc.fileType || doc.detectedFileType },
+      ])
+      addToast({ title: "File attached" })
+    } catch {
+      addToast({ title: "Error uploading file", variant: "destructive" })
+    } finally {
+      setUploadingAttachment(false)
+      if (noteFileInputRef.current) noteFileInputRef.current.value = ""
+    }
   }
 
   async function handleSubmit() {
@@ -164,6 +196,9 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
         if (formIrsId) body.irsEmployeeId = formIrsId
         if (formIrsDept) body.irsDepartment = formIrsDept
         if (formIrsMethod) body.irsContactMethod = formIrsMethod
+      }
+      if (formAttachments.length > 0) {
+        body.attachmentIds = formAttachments.map((a) => a.documentId)
       }
       const res = await fetch(`/api/cases/${caseId}/notes`, {
         method: "POST",
@@ -478,6 +513,55 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
                 Mark as privileged (attorney work product)
               </label>
             )}
+
+            {/* Attachments */}
+            <div className="space-y-1">
+              <Label className="text-[11px]">Attachments</Label>
+              <input
+                ref={noteFileInputRef}
+                type="file"
+                accept="audio/*,.mp3,.mp4,.m4a,.wav,.webm,.ogg,.flac,.pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                onChange={handleNoteFileUpload}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs w-full"
+                onClick={() => noteFileInputRef.current?.click()}
+                disabled={uploadingAttachment}
+              >
+                {uploadingAttachment ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <Paperclip className="mr-1 h-3 w-3" />
+                )}
+                {uploadingAttachment ? "Uploading..." : "Attach file"}
+              </Button>
+              {formAttachments.length > 0 && (
+                <div className="space-y-1 mt-1">
+                  {formAttachments.map((att) => (
+                    <div
+                      key={att.documentId}
+                      className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs"
+                    >
+                      {att.fileType === "AUDIO" ? (
+                        <FileAudio className="h-3 w-3 text-blue-500 shrink-0" />
+                      ) : (
+                        <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate flex-1">{att.fileName}</span>
+                      <button
+                        onClick={() => setFormAttachments((prev) => prev.filter((a) => a.documentId !== att.documentId))}
+                        className="p-0.5 rounded hover:bg-background shrink-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <Button
               onClick={handleSubmit}

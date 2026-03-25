@@ -10,6 +10,7 @@ import { notify } from "@/lib/notifications"
 
 const createMessageSchema = z.object({
   content: z.string().min(1, "Message content is required"),
+  attachmentIds: z.array(z.string()).optional(),
 })
 
 // ─── Helper: Parse @mentions ───────────────────────────────
@@ -80,6 +81,7 @@ export async function GET(
       where: { conversationId: params.convId, isDeleted: false },
       include: {
         author: { select: { id: true, name: true, email: true } },
+        attachments: true,
       },
       orderBy: { createdAt: "asc" },
       take: limit,
@@ -130,7 +132,7 @@ export async function POST(
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
   }
 
-  const { content } = parsed.data
+  const { content, attachmentIds } = parsed.data
 
   try {
     // Create the message
@@ -145,6 +147,31 @@ export async function POST(
         author: { select: { id: true, name: true, email: true } },
       },
     })
+
+    // Create attachment records if documentIds were provided
+    if (attachmentIds && attachmentIds.length > 0) {
+      // Fetch document info for the attachments
+      const documents = await prisma.document.findMany({
+        where: {
+          id: { in: attachmentIds },
+          caseId: params.caseId, // ensure docs belong to this case
+        },
+        select: { id: true, fileName: true, filePath: true, fileType: true, fileSize: true },
+      })
+
+      if (documents.length > 0) {
+        await prisma.conversationMsgAttachment.createMany({
+          data: documents.map((doc) => ({
+            messageId: message.id,
+            documentId: doc.id,
+            fileName: doc.fileName,
+            fileUrl: doc.filePath,
+            fileType: doc.fileType,
+            fileSize: doc.fileSize,
+          })),
+        })
+      }
+    }
 
     // Parse @mentions and add to participants
     const mentionedUserIds = await parseMentions(content)
@@ -220,7 +247,16 @@ export async function POST(
       ipAddress: getClientIP(),
     })
 
-    return NextResponse.json(message, { status: 201 })
+    // Re-query to include attachments in the response
+    const fullMessage = await prisma.conversationMsg.findUnique({
+      where: { id: message.id },
+      include: {
+        author: { select: { id: true, name: true, email: true } },
+        attachments: true,
+      },
+    })
+
+    return NextResponse.json(fullMessage, { status: 201 })
   } catch (error) {
     console.error("Create message error:", error)
     return NextResponse.json({ error: "Failed to create message" }, { status: 500 })

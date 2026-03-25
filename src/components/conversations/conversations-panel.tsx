@@ -17,6 +17,11 @@ import {
   Trash2,
   PenLine,
   User,
+  Paperclip,
+  X,
+  FileAudio,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
@@ -64,6 +69,10 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
   const [sending, setSending] = useState(false)
   const [editingSubject, setEditingSubject] = useState(false)
   const [editSubjectText, setEditSubjectText] = useState("")
+  // Attachment state
+  const [pendingAttachments, setPendingAttachments] = useState<Array<{ documentId: string; fileName: string; fileType: string }>>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { addToast } = useToast()
 
@@ -117,17 +126,50 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("caseId", caseId)
+      const res = await fetch("/api/documents/upload", { method: "POST", body: formData })
+      if (!res.ok) throw new Error()
+      const doc = await res.json()
+      setPendingAttachments((prev) => [
+        ...prev,
+        { documentId: doc.id, fileName: doc.fileName, fileType: doc.fileType || doc.detectedFileType },
+      ])
+      addToast({ title: "File attached" })
+    } catch {
+      addToast({ title: "Error uploading file", variant: "destructive" })
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  function removeAttachment(documentId: string) {
+    setPendingAttachments((prev) => prev.filter((a) => a.documentId !== documentId))
+  }
+
   async function handleSendReply() {
-    if (!replyText.trim() || !selectedConvId) return
+    if ((!replyText.trim() && pendingAttachments.length === 0) || !selectedConvId) return
     setSending(true)
     try {
+      const body: any = { content: replyText.trim() || "(attachment)" }
+      if (pendingAttachments.length > 0) {
+        body.attachmentIds = pendingAttachments.map((a) => a.documentId)
+      }
       const res = await fetch(`/api/cases/${caseId}/conversations/${selectedConvId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: replyText.trim() }),
+        body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error()
       setReplyText("")
+      setPendingAttachments([])
       fetchMessages(selectedConvId)
       fetchConversations()
     } catch {
@@ -424,7 +466,17 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
                       {msg.isDeleted ? (
                         <p className="text-xs italic text-muted-foreground mt-0.5">This message was deleted.</p>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap mt-0.5">{msg.content}</p>
+                        <>
+                          <p className="text-sm whitespace-pre-wrap mt-0.5">{msg.content}</p>
+                          {/* Attachments */}
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="mt-2 space-y-1.5">
+                              {msg.attachments.map((att: any) => (
+                                <MessageAttachment key={att.id} attachment={att} />
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -436,26 +488,75 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
             {/* Reply input */}
             {selectedConv.status !== "ARCHIVED" && (
               <div className="p-3 border-t">
+                {/* Pending attachments */}
+                {pendingAttachments.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {pendingAttachments.map((att) => (
+                      <div
+                        key={att.documentId}
+                        className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs"
+                      >
+                        {att.fileType === "AUDIO" ? (
+                          <FileAudio className="h-3 w-3 text-blue-500" />
+                        ) : (
+                          <Paperclip className="h-3 w-3 text-muted-foreground" />
+                        )}
+                        <span className="max-w-[120px] truncate">{att.fileName}</span>
+                        <button
+                          onClick={() => removeAttachment(att.documentId)}
+                          className="p-0.5 rounded hover:bg-background"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2">
-                  <Textarea
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Type a reply..."
-                    rows={2}
-                    className="text-sm flex-1 resize-none"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                        handleSendReply()
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={handleSendReply}
-                    disabled={sending || !replyText.trim()}
-                    className="self-end h-9"
-                  >
-                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
+                  <div className="flex-1 flex gap-1">
+                    <Textarea
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      placeholder="Type a reply..."
+                      rows={2}
+                      className="text-sm flex-1 resize-none"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          handleSendReply()
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1 self-end">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="audio/*,.mp3,.mp4,.m4a,.wav,.webm,.ogg,.flac,.pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      title="Attach file"
+                    >
+                      {uploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Paperclip className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleSendReply}
+                      disabled={sending || (!replyText.trim() && pendingAttachments.length === 0)}
+                      className="h-9 w-9 p-0"
+                    >
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1">Ctrl+Enter to send</p>
               </div>
@@ -463,6 +564,89 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
           </>
         ) : null}
       </div>
+    </div>
+  )
+}
+
+// ─── MessageAttachment sub-component ────────────────────────
+
+function MessageAttachment({ attachment }: { attachment: any }) {
+  const [showTranscript, setShowTranscript] = useState(false)
+  const [transcript, setTranscript] = useState<string | null>(null)
+  const [loadingTranscript, setLoadingTranscript] = useState(false)
+  const isAudio = attachment.fileType === "AUDIO" ||
+    /\.(mp3|mp4|m4a|wav|webm|ogg|flac)$/i.test(attachment.fileName)
+
+  async function fetchTranscript() {
+    if (transcript !== null || !attachment.documentId) return
+    setLoadingTranscript(true)
+    try {
+      // Fetch the document record to get extractedText
+      const res = await fetch(`/api/documents/${attachment.documentId}?meta=true`)
+      if (!res.ok) throw new Error()
+      const doc = await res.json()
+      setTranscript(doc.extractedText || "")
+    } catch {
+      setTranscript("")
+    } finally {
+      setLoadingTranscript(false)
+    }
+  }
+
+  if (isAudio) {
+    return (
+      <div className="border rounded p-2 bg-muted/30 max-w-sm">
+        <div className="flex items-center gap-1.5 mb-1">
+          <FileAudio className="h-3.5 w-3.5 text-blue-500" />
+          <span className="text-xs font-medium truncate">{attachment.fileName}</span>
+        </div>
+        {/* Audio player */}
+        <audio
+          controls
+          preload="none"
+          className="w-full h-8 [&::-webkit-media-controls-panel]:bg-muted"
+          src={`/api/documents/${attachment.documentId || "unknown"}`}
+        >
+          Your browser does not support the audio element.
+        </audio>
+        {/* Transcript toggle */}
+        {attachment.documentId && (
+          <button
+            onClick={() => {
+              if (!showTranscript) fetchTranscript()
+              setShowTranscript(!showTranscript)
+            }}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground mt-1"
+          >
+            {showTranscript ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            Transcript
+          </button>
+        )}
+        {showTranscript && (
+          <div className="mt-1 p-2 bg-background rounded border text-xs max-h-40 overflow-y-auto">
+            {loadingTranscript ? (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Loading transcript...</span>
+              </div>
+            ) : transcript ? (
+              <p className="whitespace-pre-wrap">{transcript}</p>
+            ) : (
+              <p className="text-muted-foreground italic">
+                No transcript available. Transcription may still be in progress.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Non-audio attachment
+  return (
+    <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-muted/30 max-w-sm">
+      <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+      <span className="text-xs truncate">{attachment.fileName}</span>
     </div>
   )
 }

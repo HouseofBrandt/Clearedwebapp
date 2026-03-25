@@ -85,6 +85,19 @@ export async function assembleNoteContext(
     orderBy: { updatedAt: "desc" },
   })
 
+  // 2b. Query audio documents with transcripts for this case
+  const audioDocuments = await prisma.document.findMany({
+    where: {
+      caseId,
+      fileType: "AUDIO",
+      extractedText: { not: null },
+    },
+    include: {
+      uploadedBy: { select: { name: true } },
+    },
+    orderBy: { uploadedAt: "desc" },
+  })
+
   // 3. Score and prioritize items
   const scoredItems: Array<{
     item: NoteContextItem
@@ -233,6 +246,33 @@ export async function assembleNoteContext(
     })
   }
 
+  // Score audio transcripts
+  for (const doc of audioDocuments) {
+    let score = 40 // base score, same as CALL_LOG
+    let reason = "Audio transcript"
+
+    // Recency boost (within 7 days)
+    const daysSinceUpload = (Date.now() - doc.uploadedAt.getTime()) / (1000 * 60 * 60 * 24)
+    if (daysSinceUpload < 7) score += 15
+    else if (daysSinceUpload < 30) score += 5
+
+    const categoryLabel = doc.documentCategory.replace(/_/g, " ").toLowerCase()
+    const dateStr = doc.uploadedAt.toISOString().split("T")[0]
+
+    scoredItems.push({
+      item: {
+        id: doc.id,
+        type: "AUDIO_TRANSCRIPT",
+        title: doc.fileName,
+        author: doc.uploadedBy.name || "Unknown",
+        date: dateStr,
+        content: doc.extractedText || "",
+        reason,
+      },
+      score,
+    })
+  }
+
   // 4. Sort by score descending
   scoredItems.sort((a, b) => b.score - a.score)
 
@@ -276,9 +316,11 @@ export async function assembleNoteContext(
 function formatContextItem(item: NoteContextItem): string {
   const typeLabel = item.type === "conversation"
     ? "CONVERSATION"
+    : item.type === "AUDIO_TRANSCRIPT"
+    ? "AUDIO_TRANSCRIPT"
     : item.type.replace(/_/g, " ")
 
-  let text = `[${typeLabel}] ${item.title} (${item.date}, by ${item.author})\n`
+  let text = `[${typeLabel}] "${item.title}" (${item.date}, by ${item.author})\n`
   text += item.content
 
   return text

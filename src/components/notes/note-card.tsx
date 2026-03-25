@@ -16,6 +16,8 @@ import {
   ShieldAlert,
   Phone,
   Building2,
+  FileAudio,
+  Loader2,
 } from "lucide-react"
 
 const NOTE_TYPE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
@@ -248,7 +250,96 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
             </span>
           )}
         </div>
+
+        {/* Attachment display */}
+        {note.attachments?.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            {note.attachments.map((att: any) => (
+              <NoteAttachmentDisplay key={att.id} attachment={att} />
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
+  )
+}
+
+// ─── NoteAttachmentDisplay sub-component ────────────────────
+
+function NoteAttachmentDisplay({ attachment }: { attachment: any }) {
+  const [showTranscript, setShowTranscript] = useState(false)
+  const [transcript, setTranscript] = useState<string | null>(null)
+  const [loadingTranscript, setLoadingTranscript] = useState(false)
+
+  const isAudio = attachment.fileType === "AUDIO" ||
+    /\.(mp3|mp4|m4a|wav|webm|ogg|flac)$/i.test(attachment.fileName)
+
+  async function fetchTranscript() {
+    if (transcript !== null || !attachment.documentId) return
+    setLoadingTranscript(true)
+    try {
+      const res = await fetch(`/api/documents/${attachment.documentId}?meta=true`)
+      if (!res.ok) throw new Error()
+      const doc = await res.json()
+      setTranscript(doc.extractedText || "")
+    } catch {
+      setTranscript("")
+    } finally {
+      setLoadingTranscript(false)
+    }
+  }
+
+  if (isAudio) {
+    return (
+      <div className="border rounded p-2 bg-muted/30">
+        <div className="flex items-center gap-1.5 mb-1">
+          <FileAudio className="h-3.5 w-3.5 text-blue-500" />
+          <span className="text-xs font-medium truncate">{attachment.fileName}</span>
+        </div>
+        <audio
+          controls
+          preload="none"
+          className="w-full h-8"
+          src={attachment.documentId ? `/api/documents/${attachment.documentId}` : attachment.fileUrl}
+        >
+          Your browser does not support the audio element.
+        </audio>
+        {attachment.documentId && (
+          <button
+            onClick={() => {
+              if (!showTranscript) fetchTranscript()
+              setShowTranscript(!showTranscript)
+            }}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground mt-1"
+          >
+            {showTranscript ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            Transcript
+          </button>
+        )}
+        {showTranscript && (
+          <div className="mt-1 p-2 bg-background rounded border text-xs max-h-40 overflow-y-auto">
+            {loadingTranscript ? (
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Loading transcript...</span>
+              </div>
+            ) : transcript ? (
+              <p className="whitespace-pre-wrap">{transcript}</p>
+            ) : (
+              <p className="text-muted-foreground italic">
+                No transcript available. Transcription may still be in progress.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 border rounded px-2 py-1 bg-muted/30">
+      <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+      <span className="text-xs truncate">{attachment.fileName}</span>
+    </div>
   )
 }
