@@ -124,7 +124,7 @@ export async function PATCH(
 
     // Audit log for status changes
     if (data.status === "RESOLVED") {
-      logAudit({
+      await logAudit({
         userId: auth.userId,
         action: AUDIT_ACTIONS.CONVERSATION_RESOLVED,
         caseId: params.caseId,
@@ -134,7 +134,7 @@ export async function PATCH(
         ipAddress: getClientIP(),
       })
     } else if (data.status === "ARCHIVED") {
-      logAudit({
+      await logAudit({
         userId: auth.userId,
         action: AUDIT_ACTIONS.CONVERSATION_ARCHIVED,
         caseId: params.caseId,

@@ -8,17 +8,29 @@ import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
  * This is a positive feedback signal that can be used to improve future responses.
  */
 export async function POST(request: Request) {
+  let session
   try {
-    const session = await requireAuth()
-    const userId = session.user.id
+    session = await requireAuth()
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
 
-    const body = await request.json()
-    const { messageId, action } = body
+  const userId = session.user.id
 
-    if (!messageId || !["give", "remove"].includes(action)) {
-      return NextResponse.json({ error: "Invalid request" }, { status: 400 })
-    }
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
 
+  const { messageId, action } = body
+
+  if (!messageId || !["give", "remove"].includes(action)) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+  }
+
+  try {
     // Log the treat action for training signal
     await createAuditLog({
       action: AUDIT_ACTIONS.AI_RESPONSE_APPROVED,
@@ -33,6 +45,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, action })
   } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

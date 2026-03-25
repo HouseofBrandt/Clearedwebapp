@@ -72,7 +72,7 @@ export async function PATCH(
       },
     })
 
-    logAudit({
+    await logAudit({
       userId: auth.userId,
       action: AUDIT_ACTIONS.CONVERSATION_MESSAGE_EDITED,
       caseId: params.caseId,
@@ -137,9 +137,9 @@ export async function DELETE(
       data: { isDeleted: true },
     })
 
-    logAudit({
+    await logAudit({
       userId: auth.userId,
-      action: AUDIT_ACTIONS.CONVERSATION_MESSAGE_EDITED,
+      action: AUDIT_ACTIONS.CONVERSATION_MESSAGE_DELETED,
       caseId: params.caseId,
       resourceId: params.msgId,
       resourceType: "ConversationMsg",

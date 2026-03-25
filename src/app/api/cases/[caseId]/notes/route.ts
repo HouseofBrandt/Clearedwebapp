@@ -152,7 +152,7 @@ export async function POST(
   const data = parsed.data
 
   try {
-    const note = await prisma.clientNote.create({
+    let note = await prisma.clientNote.create({
       data: {
         caseId: params.caseId,
         authorId: auth.userId,
@@ -213,12 +213,12 @@ export async function POST(
       })
       if (updatedNote) {
         // Use the updated note for the rest of the handler
-        Object.assign(note, updatedNote)
+        note = updatedNote
       }
     }
 
     // Audit log
-    logAudit({
+    await logAudit({
       userId: auth.userId,
       action: AUDIT_ACTIONS.NOTE_CREATED,
       caseId: params.caseId,
@@ -232,7 +232,7 @@ export async function POST(
     const snippet = data.content.length > 100
       ? data.content.slice(0, 100) + "..."
       : data.content
-    createFeedEvent({
+    await createFeedEvent({
       eventType: "note_created",
       caseId: params.caseId,
       content: `${auth.name} added a ${data.noteType.toLowerCase().replace(/_/g, " ")} note: ${snippet}`,

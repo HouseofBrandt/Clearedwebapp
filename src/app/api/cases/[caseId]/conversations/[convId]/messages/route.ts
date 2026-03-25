@@ -30,6 +30,14 @@ async function parseMentions(content: string): Promise<string[]> {
     }
   }
 
+  // Filter out single-word matches that are substrings of multi-word matches
+  const multiWordMatches = Array.from(mentionedNames).filter((name) => name.includes(" "))
+  for (const name of Array.from(mentionedNames)) {
+    if (!name.includes(" ") && multiWordMatches.some((mw) => mw.toLowerCase().includes(name.toLowerCase()))) {
+      mentionedNames.delete(name)
+    }
+  }
+
   if (mentionedNames.size === 0) return []
 
   // Look up users by name
@@ -232,7 +240,7 @@ export async function POST(
     }
 
     // Audit log
-    logAudit({
+    await logAudit({
       userId: auth.userId,
       action: AUDIT_ACTIONS.CONVERSATION_MESSAGE_POSTED,
       caseId: params.caseId,

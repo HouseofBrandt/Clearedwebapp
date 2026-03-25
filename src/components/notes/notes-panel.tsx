@@ -502,7 +502,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
             </label>
 
             {/* Privileged toggle (attorneys only) */}
-            {currentUserRole === "ATTORNEY" && (
+            {(currentUserRole === "ADMIN" || currentUserRole === "SENIOR") && (
               <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                 <input
                   type="checkbox"

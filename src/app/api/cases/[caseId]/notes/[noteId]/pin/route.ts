@@ -38,7 +38,7 @@ export async function POST(
       },
     })
 
-    logAudit({
+    await logAudit({
       userId: auth.userId,
       action: newPinned ? AUDIT_ACTIONS.NOTE_PINNED : AUDIT_ACTIONS.NOTE_UNPINNED,
       caseId: params.caseId,

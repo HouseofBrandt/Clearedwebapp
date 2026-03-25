@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, Fragment } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -151,7 +151,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
       })
     }
     for (const p of sfr) {
-      const potentialReduction = p.originalAssessment
+      const potentialReduction = p.originalAssessment != null
         ? estimateSFRReduction(p.originalAssessment).potentialReduction
         : undefined
       actions.push({
@@ -316,9 +316,8 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                   </TableHeader>
                   <TableBody>
                     {analysis.periods.map((p) => (
-                      <>
+                      <Fragment key={p.id}>
                         <TableRow
-                          key={p.id}
                           className={`cursor-pointer hover:bg-muted/50 transition-colors ${
                             expandedYear === p.taxYear ? "bg-muted/30" : ""
                           }`}
@@ -376,7 +375,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>

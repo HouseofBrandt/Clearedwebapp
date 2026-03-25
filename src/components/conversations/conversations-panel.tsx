@@ -435,7 +435,7 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
               {selectedConv.participants?.length > 0 && (
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                   <User className="h-3 w-3" />
-                  Participants: {selectedConv.participants.join(", ")}
+                  Participants: {selectedConv.participants.length} participant(s)
                 </div>
               )}
             </div>
@@ -445,7 +445,7 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
               {messages.map((msg) => {
                 const isOwn = msg.authorId === currentUserId
                 return (
-                  <div key={msg.id} className={`flex gap-2 ${msg.isDeleted ? "opacity-50" : ""}`}>
+                  <div key={msg.id} className={`group flex gap-2 ${msg.isDeleted ? "opacity-50" : ""}`}>
                     <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0 text-xs font-medium">
                       {msg.author?.name?.charAt(0)?.toUpperCase() || "?"}
                     </div>

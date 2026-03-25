@@ -173,7 +173,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="font-medium text-foreground/80">{note.author?.name || "Unknown"}</span>
           <span>{timeAgo(note.createdAt)}</span>
-          {note.updatedAt !== note.createdAt && <span className="italic">(edited)</span>}
+          {Math.abs(new Date(note.updatedAt).getTime() - new Date(note.createdAt).getTime()) > 2000 && <span className="italic">(edited)</span>}
         </div>
 
         {/* Call log metadata */}

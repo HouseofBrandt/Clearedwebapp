@@ -155,7 +155,7 @@ export async function PATCH(
       metadata.contentAfter = data.content.slice(0, 200)
     }
 
-    logAudit({
+    await logAudit({
       userId: auth.userId,
       action: AUDIT_ACTIONS.NOTE_EDITED,
       caseId: params.caseId,
@@ -199,7 +199,7 @@ export async function DELETE(
       data: { isDeleted: true },
     })
 
-    logAudit({
+    await logAudit({
       userId: auth.userId,
       action: AUDIT_ACTIONS.NOTE_DELETED,
       caseId: params.caseId,
