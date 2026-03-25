@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
         }),
         extractWithDetails(buffer, fileType),
       ])
-      extractionResult = extResult
+      extractionResult = { text: extResult.text, method: extResult.method, error: extResult.error || null }
       extractedText = extractionResult.text.trim() || null
     }
 
