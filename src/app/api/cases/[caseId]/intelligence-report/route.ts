@@ -33,8 +33,8 @@ export async function GET(
         take: 10,
       },
       documents: {
-        select: { id: true, documentCategory: true, fileType: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
+        select: { id: true, documentCategory: true, fileType: true, uploadedAt: true },
+        orderBy: { uploadedAt: "desc" },
       },
       _count: { select: { documents: true, aiTasks: true } },
     },
