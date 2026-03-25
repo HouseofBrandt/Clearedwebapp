@@ -22,31 +22,32 @@ export function SystemEventCard({ post }: SystemEventCardProps) {
   const eventData = post.eventData as Record<string, any> | null
 
   return (
-    <div className="px-4 py-2.5 text-sm text-muted-foreground border-b border-border/50">
+    <div className="py-2 mb-1">
       <div className="flex items-start gap-2">
-        <span className="text-base shrink-0">{icon}</span>
-        <div className="flex-1 min-w-0">
+        <span className="text-sm shrink-0">{icon}</span>
+        <div className="flex-1 min-w-0 text-xs" style={{ color: 'var(--c-gray-300)' }}>
           <span>{post.content}</span>
           {post.case && (
             <>
               {" for "}
               <Link
                 href={`/cases/${post.case.id}`}
-                className="font-medium text-primary hover:underline"
+                className="font-mono text-xs font-medium hover:underline"
+                style={{ color: 'var(--c-teal)' }}
               >
                 #{post.case.clientName || post.case.tabsNumber}
               </Link>
             </>
           )}
-          <span className="ml-2 text-xs text-muted-foreground/70">
+          <span className="ml-2" style={{ color: 'var(--c-gray-200)' }}>
             {timeAgo(post.createdAt)}
           </span>
 
           {/* Banjo deliverables list */}
           {post.eventType === "banjo_complete" && eventData?.deliverables && (
-            <div className="mt-1 text-xs text-muted-foreground/80">
+            <div className="mt-1" style={{ color: 'var(--c-gray-300)' }}>
               {(eventData.deliverables as string[]).join(", ")}
-              <Link href="/review" className="ml-2 text-primary hover:underline">
+              <Link href="/review" className="ml-2 hover:underline" style={{ color: 'var(--c-teal)' }}>
                 Open in Review Queue
               </Link>
             </div>
@@ -54,21 +55,21 @@ export function SystemEventCard({ post }: SystemEventCardProps) {
 
           {/* Document list */}
           {post.eventType === "document_upload" && eventData?.documents && (
-            <div className="mt-1 text-xs text-muted-foreground/80">
+            <div className="mt-1" style={{ color: 'var(--c-gray-300)' }}>
               {(eventData.documents as { name: string }[]).map((d) => d.name).join(", ")}
             </div>
           )}
 
           {/* Deadline warning */}
           {post.eventType === "deadline_warning" && eventData?.deadline && (
-            <div className="mt-1 text-xs text-muted-foreground/80">
+            <div className="mt-1" style={{ color: 'var(--c-gray-300)' }}>
               {(eventData.deadline as any).title}
             </div>
           )}
 
           {/* Task events */}
           {(post.eventType === "task_created" || post.eventType === "task_completed") && eventData?.taskTitle && (
-            <div className="mt-1 text-xs text-muted-foreground/80">
+            <div className="mt-1" style={{ color: 'var(--c-gray-300)' }}>
               {eventData.taskTitle}
               {eventData.completedByName && (
                 <span className="ml-1">by {eventData.completedByName}</span>

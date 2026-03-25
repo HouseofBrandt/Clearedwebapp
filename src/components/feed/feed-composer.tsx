@@ -177,23 +177,26 @@ export function FeedComposer({
   }
 
   return (
-    <div className="border rounded-lg bg-card">
+    <div
+      className="rounded-xl border border-[var(--c-gray-100)] transition-all"
+      style={{ background: expanded ? 'var(--c-white)' : 'var(--c-snow)' }}
+    >
       {/* Compact view when not expanded */}
       {!expanded ? (
         <div
           className="flex items-center gap-3 px-4 py-3 cursor-text"
           onClick={() => { setExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}
         >
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="text-[10px]" style={{ background: 'var(--c-gray-100)', color: 'var(--c-gray-500)' }}>
               {getInitials(currentUser.name || "U")}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm text-muted-foreground">{"What's happening?"}</span>
+          <span className="text-sm" style={{ color: 'var(--c-gray-300)' }}>Add a note, task, or update...</span>
         </div>
       ) : (
         <div className="p-4 space-y-3">
-          {/* Mode tabs */}
+          {/* Mode tabs — small pills */}
           <div className="flex items-center gap-1">
             {(
               [
@@ -205,13 +208,13 @@ export function FeedComposer({
               <button
                 key={key}
                 onClick={() => setMode(key)}
-                className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                  mode === key
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
+                className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors"
+                style={{
+                  background: mode === key ? 'var(--c-teal-soft)' : 'transparent',
+                  color: mode === key ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                }}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3 w-3" />
                 {label}
               </button>
             ))}
@@ -224,12 +227,12 @@ export function FeedComposer({
                 placeholder="Task title"
                 value={taskTitle}
                 onChange={(e) => setTaskTitle(e.target.value)}
-                className="h-8 text-sm"
+                className="h-8 text-sm rounded-lg border-[var(--c-gray-100)]"
               />
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Select value={taskAssigneeId} onValueChange={setTaskAssigneeId}>
-                    <SelectTrigger className="h-8 text-sm">
+                    <SelectTrigger className="h-8 text-sm border-[var(--c-gray-100)]">
                       <SelectValue placeholder="Assign to..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -245,13 +248,13 @@ export function FeedComposer({
                   type="date"
                   value={taskDueDate}
                   onChange={(e) => setTaskDueDate(e.target.value)}
-                  className="h-8 text-sm w-40"
+                  className="h-8 text-sm w-40 border-[var(--c-gray-100)]"
                   placeholder="Due date"
                 />
               </div>
               <div className="flex gap-2">
                 <Select value={taskPriority} onValueChange={setTaskPriority}>
-                  <SelectTrigger className="h-8 text-sm w-32">
+                  <SelectTrigger className="h-8 text-sm w-32 border-[var(--c-gray-100)]">
                     <Flag className="h-3 w-3 mr-1" />
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
@@ -290,10 +293,11 @@ export function FeedComposer({
                   ? "Task details (optional)..."
                   : mode === "file"
                     ? "Add a caption..."
-                    : "What's happening? Use @ to mention, # to tag a case"
+                    : "Add a note, task, or update... Use @ to mention, # to tag a case"
               }
               rows={3}
-              className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="w-full resize-none bg-transparent text-sm outline-none leading-relaxed"
+              style={{ color: 'var(--c-gray-700)' }}
             />
 
             {/* Mention autocomplete */}
@@ -311,7 +315,8 @@ export function FeedComposer({
           {/* File upload area */}
           {mode === "file" && (
             <div
-              className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:bg-muted/30 transition-colors"
+              className="border border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors"
+              style={{ borderColor: 'var(--c-gray-200)', background: 'var(--c-snow)' }}
               onClick={() => fileInputRef.current?.click()}
             >
               <input
@@ -322,11 +327,11 @@ export function FeedComposer({
                 className="hidden"
               />
               {uploading ? (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--c-gray-300)' }}>
                   <Loader2 className="h-4 w-4 animate-spin" /> Uploading...
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Click or drag to upload files</p>
+                <p className="text-sm" style={{ color: 'var(--c-gray-300)' }}>Click or drag to upload files</p>
               )}
             </div>
           )}
@@ -335,7 +340,11 @@ export function FeedComposer({
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {attachments.map((att, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-muted rounded px-2 py-1 text-xs">
+                <div
+                  key={i}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs"
+                  style={{ background: 'var(--c-gray-50)', color: 'var(--c-gray-500)' }}
+                >
                   <Paperclip className="h-3 w-3" />
                   <span className="truncate max-w-[150px]">{att.fileName}</span>
                   <button onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}>
@@ -347,11 +356,11 @@ export function FeedComposer({
           )}
 
           {/* Bottom bar */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-1 border-t border-[var(--c-gray-100)]">
             <div className="flex items-center gap-2">
               {/* Case selector */}
               <Select value={caseId || "__none__"} onValueChange={(v) => setCaseId(v === "__none__" ? "" : v)}>
-                <SelectTrigger className="h-7 text-xs w-40">
+                <SelectTrigger className="h-7 text-xs w-40 border-[var(--c-gray-100)]">
                   <SelectValue placeholder="Tag a case..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -368,7 +377,8 @@ export function FeedComposer({
               {mode === "post" && (
                 <button
                   onClick={handleAskJunebug}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-amber-600 transition-colors"
+                  className="flex items-center gap-1 text-xs transition-colors hover:text-amber-600"
+                  style={{ color: 'var(--c-gray-300)' }}
                 >
                   <JunebugIcon className="h-4 w-4" /> Ask Junebug
                 </button>
@@ -376,25 +386,29 @@ export function FeedComposer({
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={reset} className="text-xs">
+              <button
+                onClick={reset}
+                className="text-xs px-2.5 py-1 rounded-md transition-colors hover:bg-[var(--c-gray-50)]"
+                style={{ color: 'var(--c-gray-300)' }}
+              >
                 Cancel
-              </Button>
-              <Button
-                size="sm"
+              </button>
+              <button
                 onClick={handleSubmit}
                 disabled={
                   sending ||
                   (mode === "task" ? !taskTitle.trim() || !taskAssigneeId : !content.trim() && attachments.length === 0)
                 }
-                className="text-xs"
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg text-white transition-colors disabled:opacity-40"
+                style={{ background: 'var(--c-teal)' }}
               >
                 {sending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
-                  <Send className="h-3.5 w-3.5 mr-1" />
+                  <Send className="h-3 w-3" />
                 )}
                 {mode === "task" ? "Create Task" : "Post"}
-              </Button>
+              </button>
             </div>
           </div>
         </div>

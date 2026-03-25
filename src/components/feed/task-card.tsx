@@ -5,11 +5,11 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Circle, AlertTriangle, Flag } from "lucide-react"
 
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: "text-red-600 bg-red-50 border-red-200",
-  high: "text-orange-600 bg-orange-50 border-orange-200",
-  normal: "",
-  low: "text-muted-foreground",
+const PRIORITY_STYLES: Record<string, { text: string; bg: string; border: string }> = {
+  urgent: { text: 'var(--c-danger)', bg: 'var(--c-danger-soft)', border: 'var(--c-danger)' },
+  high: { text: 'var(--c-warning)', bg: 'var(--c-warning-soft)', border: 'var(--c-warning)' },
+  normal: { text: '', bg: '', border: '' },
+  low: { text: 'var(--c-gray-300)', bg: '', border: '' },
 }
 
 interface TaskCardProps {
@@ -51,36 +51,61 @@ export function TaskCard({ post, currentUserId, onComplete }: TaskCardProps) {
     }
   }
 
-  const priorityClass = PRIORITY_COLORS[priority] || ""
+  const pStyle = PRIORITY_STYLES[priority] || PRIORITY_STYLES.normal
 
   return (
-    <div className={`border rounded-lg p-3 bg-card ${priority === "urgent" ? "border-red-200" : priority === "high" ? "border-orange-200" : ""}`}>
+    <div
+      className="rounded-xl p-3"
+      style={{
+        background: 'var(--c-gray-50)',
+        border: priority === "urgent" || priority === "high"
+          ? `1px solid ${pStyle.border}`
+          : '1px solid var(--c-gray-100)',
+      }}
+    >
       <div className="flex items-start gap-2">
         {isCompleted ? (
-          <CheckCircle className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+          <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" style={{ color: 'var(--c-success)' }} />
         ) : (
-          <Circle className={`h-5 w-5 shrink-0 mt-0.5 ${priority === "urgent" ? "text-red-500" : priority === "high" ? "text-orange-500" : "text-muted-foreground"}`} />
+          <Circle
+            className="h-5 w-5 shrink-0 mt-0.5"
+            style={{
+              color: priority === "urgent" ? 'var(--c-danger)'
+                : priority === "high" ? 'var(--c-warning)'
+                : 'var(--c-gray-300)',
+            }}
+          />
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className={`font-medium text-sm ${isCompleted ? "line-through text-muted-foreground" : ""}`}>
+            <p
+              className={`font-medium text-sm ${isCompleted ? "line-through" : ""}`}
+              style={{ color: isCompleted ? 'var(--c-gray-300)' : 'var(--c-gray-700)' }}
+            >
               {title}
             </p>
             {priority !== "normal" && (
-              <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full ${priorityClass}`}>
+              <span
+                className="inline-flex items-center gap-0.5 font-medium px-1.5 py-0.5 rounded-full"
+                style={{
+                  fontSize: '10px',
+                  color: pStyle.text,
+                  background: pStyle.bg || 'transparent',
+                }}
+              >
                 <Flag className="h-2.5 w-2.5" />
                 {priority}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 mt-1 text-xs" style={{ color: 'var(--c-gray-300)' }}>
             {post.taskAssignee && (
               <span>Assigned to: {post.taskAssignee.name}</span>
             )}
             {dueDate && (
               <>
-                <span>·</span>
-                <span className={isOverdue ? "text-red-500 font-medium" : ""}>
+                <span>&middot;</span>
+                <span style={{ color: isOverdue ? 'var(--c-danger)' : undefined }}>
                   {isOverdue && <AlertTriangle className="h-3 w-3 inline mr-0.5" />}
                   Due: {dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </span>
@@ -90,16 +115,17 @@ export function TaskCard({ post, currentUserId, onComplete }: TaskCardProps) {
           {post.case && (
             <Link
               href={`/cases/${post.case.id}`}
-              className="text-xs text-primary hover:underline mt-1 inline-block"
+              className="font-mono text-xs font-medium hover:underline mt-1 inline-block"
+              style={{ color: 'var(--c-teal)' }}
             >
               #{post.case.clientName || post.case.tabsNumber}
             </Link>
           )}
           {post.content && (
-            <p className="text-sm text-muted-foreground mt-2">{post.content}</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--c-gray-300)' }}>{post.content}</p>
           )}
           {isCompleted && completedAt && (
-            <p className="text-xs text-green-600 mt-1">
+            <p className="text-xs mt-1" style={{ color: 'var(--c-success)' }}>
               Completed {new Date(completedAt).toLocaleDateString()}
             </p>
           )}
@@ -107,16 +133,19 @@ export function TaskCard({ post, currentUserId, onComplete }: TaskCardProps) {
       </div>
       {!isCompleted && isAssignee && (
         <div className="mt-2 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
+          <button
             onClick={handleComplete}
             disabled={completing}
-            className="text-xs"
+            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors"
+            style={{
+              border: '1px solid var(--c-gray-100)',
+              color: 'var(--c-gray-500)',
+              background: 'var(--c-white)',
+            }}
           >
-            <CheckCircle className="mr-1 h-3 w-3" />
+            <CheckCircle className="h-3 w-3" />
             {completing ? "Completing..." : "Mark Complete"}
-          </Button>
+          </button>
         </div>
       )}
     </div>

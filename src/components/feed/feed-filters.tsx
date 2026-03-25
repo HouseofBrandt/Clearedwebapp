@@ -26,20 +26,23 @@ export function FeedFilters({
   ]
 
   return (
-    <div className="flex items-center gap-1 px-4 py-3 border-b">
+    <div className="flex items-center gap-1 py-3 mb-3">
       {filters.map((f) => (
         <button
           key={f.key}
           onClick={() => onFilterChange(f.key)}
-          className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-            filter === f.key
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted"
-          }`}
+          className="px-2.5 py-1 text-xs font-medium rounded-full transition-colors"
+          style={{
+            background: filter === f.key ? 'var(--c-teal-soft)' : 'transparent',
+            color: filter === f.key ? 'var(--c-teal)' : 'var(--c-gray-300)',
+          }}
         >
           {f.label}
           {f.count != null && f.count > 0 && (
-            <span className="ml-1 bg-primary-foreground/20 rounded-full px-1.5 text-[10px]">
+            <span
+              className="ml-1 rounded-full px-1.5"
+              style={{ fontSize: '10px', background: 'var(--c-teal)', color: 'white' }}
+            >
               {f.count}
             </span>
           )}
@@ -48,7 +51,8 @@ export function FeedFilters({
       {caseFilter && onClearCaseFilter && (
         <button
           onClick={onClearCaseFilter}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md bg-primary/10 text-primary"
+          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full"
+          style={{ background: 'var(--c-teal-soft)', color: 'var(--c-teal)' }}
         >
           Case filtered
           <span className="ml-1">&times;</span>

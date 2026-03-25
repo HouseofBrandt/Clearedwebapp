@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
 import { JunebugIcon, TreatBoneIcon } from "@/components/assistant/junebug-icon"
 import { JUNEBUG_LOADING_MESSAGES } from "@/lib/junebug/loading-messages"
 import { FormattedText } from "./formatted-text"
@@ -62,7 +61,7 @@ export function FeedReplyList({ replies, totalReplyCount, postId, onReplyAdded }
   if (displayReplies.length === 0) return null
 
   return (
-    <div className="ml-4 pl-4 border-l border-border/50 mt-2 space-y-2">
+    <div className="ml-4 pl-4 mt-2 space-y-2" style={{ borderLeft: '1px solid var(--c-gray-100)' }}>
       {displayReplies.map((reply: any) => (
         <ReplyItem key={reply.id} reply={reply} postId={postId} />
       ))}
@@ -70,7 +69,8 @@ export function FeedReplyList({ replies, totalReplyCount, postId, onReplyAdded }
         <button
           onClick={loadAllReplies}
           disabled={loadingAll}
-          className="text-xs text-primary hover:underline"
+          className="text-xs hover:underline"
+          style={{ color: 'var(--c-teal)' }}
         >
           {loadingAll ? "Loading..." : `View ${totalReplyCount - replies.length} more replies`}
         </button>
@@ -131,57 +131,69 @@ function ReplyItem({ reply, postId }: { reply: any; postId: string }) {
   return (
     <div className="flex items-start gap-2 py-1.5 group">
       {isJunebug ? (
-        <div className="h-7 w-7 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/30 flex items-center justify-center shrink-0">
+        <div
+          className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+          style={{ background: 'var(--c-teal-soft)' }}
+        >
           <JunebugIcon
-            className="h-4 w-4 text-amber-700 dark:text-amber-400"
+            className="h-4 w-4"
+            style={{ color: 'var(--c-teal)' }}
             animated={isThinking}
             mood={iconMood}
           />
         </div>
       ) : (
         <Avatar className="h-7 w-7">
-          <AvatarFallback className="text-[10px]">
+          <AvatarFallback className="text-[10px]" style={{ background: 'var(--c-gray-100)', color: 'var(--c-gray-500)' }}>
             {reply.author ? getInitials(reply.author.name) : "?"}
           </AvatarFallback>
         </Avatar>
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className={`text-xs font-medium ${isJunebug ? "text-amber-700 dark:text-amber-400" : ""}`}>
-            {isJunebug ? "Junebug 🐕" : reply.author?.name || "Unknown"}
+          <span
+            className="font-medium"
+            style={{
+              fontSize: isJunebug ? '13px' : '12px',
+              color: isJunebug ? 'var(--c-teal)' : 'var(--c-gray-700)',
+            }}
+          >
+            {isJunebug ? "Junebug" : reply.author?.name || "Unknown"}
           </span>
-          <span className="text-xs text-muted-foreground">{timeAgo(reply.createdAt)}</span>
+          <span className="text-xs" style={{ color: 'var(--c-gray-300)' }}>{timeAgo(reply.createdAt)}</span>
           {/* Treat button — only for Junebug replies with content */}
           {isJunebug && !isThinking && (
             <button
               onClick={handleTreat}
-              className={`ml-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all
-                ${treated
-                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                  : "opacity-0 group-hover:opacity-100 bg-muted/50 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-muted-foreground hover:text-amber-600 border border-transparent hover:border-amber-200"
-                }`}
+              className="ml-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-medium transition-all"
+              style={{
+                fontSize: '10px',
+                color: treated ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                background: treated ? 'var(--c-teal-soft)' : 'transparent',
+                opacity: treated ? 1 : undefined,
+              }}
               title={treated ? "Treat given! Junebug will remember this." : "Give Junebug a treat for a helpful answer"}
             >
               <TreatBoneIcon className="h-3 w-3" />
-              {treated ? "Good girl!" : "Treat"}
+              {treated ? "Good girl!" : ""}
             </button>
           )}
         </div>
         {isThinking ? (
           <div className="flex items-center gap-1.5 mt-1">
-            <span className="text-xs text-amber-600/70 dark:text-amber-400/70 italic">
+            <span className="text-xs italic" style={{ color: 'var(--c-teal)', opacity: 0.6 }}>
               {pool[msgIndex]}
             </span>
             <span className="flex gap-0.5">
-              <span className="h-1 w-1 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="h-1 w-1 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="h-1 w-1 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+              <span className="h-1 w-1 rounded-full animate-bounce" style={{ background: 'var(--c-teal)', animationDelay: "0ms" }} />
+              <span className="h-1 w-1 rounded-full animate-bounce" style={{ background: 'var(--c-teal)', animationDelay: "150ms" }} />
+              <span className="h-1 w-1 rounded-full animate-bounce" style={{ background: 'var(--c-teal)', animationDelay: "300ms" }} />
             </span>
           </div>
         ) : isJunebug ? (
           <FormattedText content={reply.content} className="mt-0.5" />
         ) : (
-          <p className="text-sm text-foreground whitespace-pre-wrap">{reply.content}</p>
+          <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--c-gray-700)', lineHeight: '1.65' }}>{reply.content}</p>
         )}
       </div>
     </div>
@@ -223,19 +235,32 @@ export function ReplyInput({ postId, onReplyAdded }: ReplyInputProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-2 ml-4 pl-4 border-l border-border/50">
+    <form
+      onSubmit={handleSubmit}
+      className="flex items-center gap-2 mt-2 ml-4 pl-4"
+      style={{ borderLeft: '1px solid var(--c-gray-100)' }}
+    >
       <input
         ref={inputRef}
         type="text"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Reply..."
-        className="flex-1 text-sm bg-transparent border-b border-border/50 focus:border-primary outline-none py-1 px-0"
+        className="flex-1 text-sm bg-transparent outline-none py-1 px-0"
+        style={{
+          borderBottom: '1px solid var(--c-gray-100)',
+          color: 'var(--c-gray-700)',
+        }}
         disabled={sending}
       />
-      <Button type="submit" variant="ghost" size="icon" className="h-7 w-7" disabled={!content.trim() || sending}>
+      <button
+        type="submit"
+        disabled={!content.trim() || sending}
+        className="h-7 w-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-30"
+        style={{ color: 'var(--c-gray-300)' }}
+      >
         <Send className="h-3.5 w-3.5" />
-      </Button>
+      </button>
     </form>
   )
 }

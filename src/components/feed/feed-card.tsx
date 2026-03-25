@@ -9,15 +9,7 @@ import { SystemEventCard } from "./system-event-card"
 import { FormattedText } from "./formatted-text"
 import { TaskCard } from "./task-card"
 import { FeedReplyList, ReplyInput } from "./feed-reply"
-import { Heart, MessageCircle, Copy, Paperclip, Download, Smile, Pencil, X, Check } from "lucide-react"
-
-const QUICK_REACTIONS = [
-  { emoji: "\uD83D\uDC4D", type: "thumbsup" },
-  { emoji: "\u2705", type: "check" },
-  { emoji: "\uD83D\uDE4F", type: "pray" },
-  { emoji: "\uD83D\uDCA1", type: "idea" },
-  { emoji: "\uD83D\uDD25", type: "fire" },
-]
+import { MessageCircle, Copy, Paperclip, Download, Pencil, X, Check, Eye, Bookmark } from "lucide-react"
 
 function getInitials(name: string): string {
   return name
@@ -43,14 +35,14 @@ function timeAgo(date: string | Date): string {
 
 /**
  * Renders inline mentions and case tags as styled elements.
- * @mentions -> blue highlight
- * #CaseTags -> clickable links
+ * @mentions -> teal highlight
+ * #CaseTags -> clickable links with mono font
  */
 function renderContent(content: string, mentions?: any[], caseData?: any): React.ReactNode {
   if (!content) return null
 
   const parts: React.ReactNode[] = []
-  const pattern = /(@\w+(?:\s\w+)?|#[\w-]+)/g
+  const pattern = /(@\w+(?:\s\w+)?|#[\w-]+|\$[\d,]+(?:\.\d{2})?)/g
   let match
   let lastIndex = 0
   let key = 0
@@ -66,11 +58,10 @@ function renderContent(content: string, mentions?: any[], caseData?: any): React
       parts.push(
         <span
           key={key++}
-          className={`${
-            isJunebug
-              ? "text-amber-600 dark:text-amber-400 font-medium"
-              : "text-primary font-medium bg-primary/5 rounded px-0.5"
-          }`}
+          className="font-medium"
+          style={{
+            color: isJunebug ? 'var(--c-warning)' : 'var(--c-teal)',
+          }}
         >
           {token}
         </span>
@@ -81,18 +72,25 @@ function renderContent(content: string, mentions?: any[], caseData?: any): React
           <Link
             key={key++}
             href={`/cases/${caseData.id}`}
-            className="text-primary font-medium hover:underline"
+            className="font-mono text-xs font-medium hover:underline"
+            style={{ color: 'var(--c-teal)' }}
           >
             {token}
           </Link>
         )
       } else {
         parts.push(
-          <span key={key++} className="text-primary font-medium">
+          <span key={key++} className="font-mono text-xs font-medium" style={{ color: 'var(--c-teal)' }}>
             {token}
           </span>
         )
       }
+    } else if (token.startsWith("$")) {
+      parts.push(
+        <span key={key++} className="font-mono tabular-nums">
+          {token}
+        </span>
+      )
     }
 
     lastIndex = match.index + match[0].length
@@ -113,12 +111,11 @@ interface FeedCardProps {
 }
 
 export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCardProps) {
-  const [liked, setLiked] = useState(post.liked || false)
-  const [likeCount, setLikeCount] = useState(post.likeCount || 0)
+  const [acknowledged, setAcknowledged] = useState(post.liked || false)
+  const [ackCount, setAckCount] = useState(post.likeCount || 0)
+  const [saved, setSaved] = useState(false)
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [showReactions, setShowReactions] = useState(false)
-  const [myReactions, setMyReactions] = useState<string[]>(post.myReactions || [])
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(post.content || "")
   const [displayContent, setDisplayContent] = useState(post.content || "")
@@ -147,7 +144,6 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
         setIsEditing(false)
       }
     } catch {
-      // revert
       setEditContent(displayContent)
     } finally {
       setEditSaving(false)
@@ -173,40 +169,20 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
   const isTask = post.postType === "task" || post.postType === "task_created" || post.postType === "task_completed"
   const isFileShare = post.postType === "file_share"
 
-  async function handleLike() {
-    const newLiked = !liked
-    setLiked(newLiked)
-    setLikeCount((c: number) => c + (newLiked ? 1 : -1))
+  async function handleAcknowledge() {
+    const newAck = !acknowledged
+    setAcknowledged(newAck)
+    setAckCount((c: number) => c + (newAck ? 1 : -1))
     try {
       await fetch(`/api/feed/${post.id}/like`, { method: "POST" })
     } catch {
-      setLiked(!newLiked)
-      setLikeCount((c: number) => c + (newLiked ? -1 : 1))
+      setAcknowledged(!newAck)
+      setAckCount((c: number) => c + (newAck ? -1 : 1))
     }
   }
 
-  async function handleReaction(type: string) {
-    const hasReaction = myReactions.includes(type)
-    if (hasReaction) {
-      setMyReactions((prev) => prev.filter((r) => r !== type))
-    } else {
-      setMyReactions((prev) => [...prev, type])
-    }
-    setShowReactions(false)
-    try {
-      await fetch(`/api/feed/${post.id}/react`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
-      })
-    } catch {
-      // Revert
-      if (hasReaction) {
-        setMyReactions((prev) => [...prev, type])
-      } else {
-        setMyReactions((prev) => prev.filter((r) => r !== type))
-      }
-    }
+  function handleSave() {
+    setSaved(!saved)
   }
 
   function handleCopy() {
@@ -220,16 +196,24 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
   const attachments = post.attachments as { fileName: string; fileUrl: string; fileType: string; fileSize: number }[] | null
 
   return (
-    <div className="px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors">
+    <div
+      className="rounded-xl border border-[var(--c-gray-100)] p-5 mb-3 transition-colors"
+      style={{
+        background: isJunebug ? 'rgba(46, 134, 171, 0.03)' : 'var(--c-white)',
+      }}
+    >
       {/* Header */}
       <div className="flex items-start gap-3">
         {isJunebug ? (
-          <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-            <JunebugIcon className="h-5 w-5 text-amber-700 dark:text-amber-400" />
+          <div
+            className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'var(--c-teal-soft)' }}
+          >
+            <JunebugIcon className="h-5 w-5" style={{ color: 'var(--c-teal)' }} />
           </div>
         ) : (
           <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">
+            <AvatarFallback className="text-[10px]" style={{ background: 'var(--c-gray-100)', color: 'var(--c-gray-500)' }}>
               {post.author ? getInitials(post.author.name) : "?"}
             </AvatarFallback>
           </Avatar>
@@ -237,26 +221,32 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
         <div className="flex-1 min-w-0">
           {/* Author line */}
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium">
+            <span
+              className="text-sm font-medium"
+              style={{
+                color: isJunebug ? 'var(--c-teal)' : 'var(--c-gray-700)',
+                fontSize: isJunebug ? '13px' : '14px',
+              }}
+            >
               {isJunebug ? "Junebug" : post.author?.name || "Unknown"}
             </span>
             {post.postType === "task_created" && (
-              <span className="text-sm text-muted-foreground">created a task</span>
+              <span className="text-xs" style={{ color: 'var(--c-gray-300)' }}>created a task</span>
             )}
             {post.postType === "task_completed" && (
-              <span className="text-sm text-green-600">completed a task</span>
+              <span className="text-xs" style={{ color: 'var(--c-success)' }}>completed a task</span>
             )}
             {post.postType === "task" && (
-              <span className="text-sm text-muted-foreground">created a task</span>
+              <span className="text-xs" style={{ color: 'var(--c-gray-300)' }}>created a task</span>
             )}
             {isFileShare && (
-              <span className="text-sm text-muted-foreground">shared a file</span>
+              <span className="text-xs" style={{ color: 'var(--c-gray-300)' }}>shared a file</span>
             )}
-            <span className="text-xs text-muted-foreground">
-              · {timeAgo(post.createdAt)}
+            <span className="text-xs" style={{ color: 'var(--c-gray-300)' }}>
+              &middot; {timeAgo(post.createdAt)}
             </span>
             {wasEdited && (
-              <span className="text-xs text-muted-foreground italic">
+              <span className="italic" style={{ color: 'var(--c-gray-300)', fontSize: '11px' }}>
                 (edited)
               </span>
             )}
@@ -281,7 +271,12 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
                   <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full text-sm rounded-md border border-border bg-background px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+                    className="w-full text-sm rounded-lg border px-3 py-2 focus:outline-none focus:ring-1 resize-none"
+                    style={{
+                      borderColor: 'var(--c-gray-100)',
+                      background: 'var(--c-snow)',
+                      color: 'var(--c-gray-700)',
+                    }}
                     rows={Math.max(2, editContent.split("\n").length)}
                     autoFocus
                     onKeyDown={(e) => {
@@ -293,28 +288,26 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
                     }}
                   />
                   <div className="flex items-center gap-1.5 mt-1.5">
-                    <Button
-                      size="sm"
-                      variant="default"
+                    <button
                       onClick={handleSaveEdit}
                       disabled={editSaving || !editContent.trim()}
-                      className="h-7 text-xs px-2.5"
+                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md text-white disabled:opacity-40"
+                      style={{ background: 'var(--c-teal)' }}
                     >
-                      <Check className="h-3 w-3 mr-1" />
+                      <Check className="h-3 w-3" />
                       {editSaving ? "Saving..." : "Save"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                    </button>
+                    <button
                       onClick={handleCancelEdit}
                       disabled={editSaving}
-                      className="h-7 text-xs px-2.5"
+                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md transition-colors hover:bg-[var(--c-gray-50)]"
+                      style={{ color: 'var(--c-gray-300)' }}
                     >
-                      <X className="h-3 w-3 mr-1" />
+                      <X className="h-3 w-3" />
                       Cancel
-                    </Button>
-                    <span className="text-[10px] text-muted-foreground ml-1">
-                      Ctrl+Enter to save · Esc to cancel
+                    </button>
+                    <span className="text-xs ml-1" style={{ color: 'var(--c-gray-300)', fontSize: '10px' }}>
+                      Ctrl+Enter to save &middot; Esc to cancel
                     </span>
                   </div>
                 </div>
@@ -323,7 +316,7 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
                   isJunebug ? (
                     <FormattedText content={displayContent} className="mt-1" />
                   ) : (
-                    <div className="mt-1 text-sm whitespace-pre-wrap">
+                    <div className="mt-1 text-sm whitespace-pre-wrap" style={{ color: 'var(--c-gray-700)', lineHeight: '1.65' }}>
                       {renderContent(displayContent, post.mentions, post.case)}
                     </div>
                   )
@@ -338,16 +331,17 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
               {attachments.map((att, i) => (
                 <div
                   key={i}
-                  className="inline-flex items-center gap-1.5 text-xs bg-muted rounded px-2 py-1 mr-2"
+                  className="inline-flex items-center gap-1.5 text-xs rounded-lg px-2 py-1 mr-2"
+                  style={{ background: 'var(--c-gray-50)', color: 'var(--c-gray-500)' }}
                 >
                   <Paperclip className="h-3 w-3" />
                   <span className="truncate max-w-[200px]">{att.fileName}</span>
-                  <span className="text-muted-foreground">
+                  <span style={{ color: 'var(--c-gray-300)' }}>
                     ({(att.fileSize / 1024 / 1024).toFixed(1)} MB)
                   </span>
                   <button
                     onClick={() => window.open(`/api/documents/download?key=${encodeURIComponent(att.fileUrl)}`, "_blank")}
-                    className="text-primary hover:text-primary/80"
+                    style={{ color: 'var(--c-teal)' }}
                   >
                     <Download className="h-3 w-3" />
                   </button>
@@ -356,72 +350,42 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             </div>
           )}
 
-          {/* Reaction chips */}
-          {myReactions.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {myReactions.map((r) => {
-                const emoji = QUICK_REACTIONS.find((qr) => qr.type === r)?.emoji || r
-                return (
-                  <button
-                    key={r}
-                    onClick={() => handleReaction(r)}
-                    className="text-xs bg-primary/10 text-primary rounded-full px-1.5 py-0.5 hover:bg-primary/20"
-                  >
-                    {emoji}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Actions bar */}
-          <div className="flex items-center gap-3 mt-2">
+          {/* Actions bar — tiny and quiet */}
+          <div className="flex items-center gap-3 mt-2.5">
             <button
               onClick={() => setShowReplyInput(!showReplyInput)}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-700)]"
+              style={{ color: 'var(--c-gray-300)', fontSize: '12px' }}
             >
               <MessageCircle className="h-3.5 w-3.5" />
               {post.replyCount > 0 && <span>{post.replyCount}</span>}
             </button>
             <button
-              onClick={handleLike}
-              className={`flex items-center gap-1 text-xs transition-colors ${
-                liked
-                  ? "text-red-500"
-                  : "text-muted-foreground hover:text-red-500"
-              }`}
+              onClick={handleAcknowledge}
+              className="flex items-center gap-1 text-xs transition-colors"
+              style={{
+                color: acknowledged ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                fontSize: '12px',
+              }}
             >
-              <Heart className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`} />
-              {likeCount > 0 && <span>{likeCount}</span>}
+              <Eye className="h-3.5 w-3.5" />
+              {ackCount > 0 && <span>{ackCount}</span>}
             </button>
-            {/* Reaction picker */}
-            <div className="relative">
-              <button
-                onClick={() => setShowReactions(!showReactions)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Smile className="h-3.5 w-3.5" />
-              </button>
-              {showReactions && (
-                <div className="absolute bottom-6 left-0 bg-popover border rounded-lg shadow-lg p-1 flex gap-0.5 z-50">
-                  {QUICK_REACTIONS.map((r) => (
-                    <button
-                      key={r.type}
-                      onClick={() => handleReaction(r.type)}
-                      className={`text-sm p-1 rounded hover:bg-muted transition-colors ${
-                        myReactions.includes(r.type) ? "bg-primary/10" : ""
-                      }`}
-                    >
-                      {r.emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-1 text-xs transition-colors"
+              style={{
+                color: saved ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                fontSize: '12px',
+              }}
+            >
+              <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+            </button>
             {displayContent && (
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-700)]"
+                style={{ color: 'var(--c-gray-300)', fontSize: '12px' }}
               >
                 <Copy className="h-3.5 w-3.5" />
                 {copied ? "Copied" : ""}
@@ -430,7 +394,8 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             {canEdit && !isEditing && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-700)]"
+                style={{ color: 'var(--c-gray-300)', fontSize: '12px' }}
               >
                 <Pencil className="h-3.5 w-3.5" />
               </button>

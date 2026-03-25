@@ -138,14 +138,14 @@ export function FeedPage({
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div>
       {/* Pinned / Now strip */}
       {pinnedPosts.length > 0 && (
         <PinnedNowStrip posts={pinnedPosts} />
       )}
 
       {/* Composer */}
-      <div className="p-4 pb-0">
+      <div className="mb-4">
         <FeedComposer
           currentUser={currentUser}
           cases={cases}
@@ -168,17 +168,21 @@ export function FeedPage({
       {newPostsAvailable && (
         <button
           onClick={handleShowNewPosts}
-          className="w-full py-2 text-xs text-primary bg-primary/5 hover:bg-primary/10 transition-colors border-b"
+          className="w-full py-2 text-xs rounded-lg mb-3 transition-colors"
+          style={{
+            background: 'var(--c-teal-soft)',
+            color: 'var(--c-teal)',
+          }}
         >
-          New posts available — click to refresh
+          New posts available &mdash; click to refresh
         </button>
       )}
 
       {/* Feed */}
       <div>
         {posts.length === 0 ? (
-          <div className="py-16 text-center text-muted-foreground">
-            <p className="text-sm">No posts yet. Start a conversation!</p>
+          <div className="py-16 text-center">
+            <p className="text-sm" style={{ color: 'var(--c-gray-300)' }}>No posts yet. Start a conversation!</p>
           </div>
         ) : (
           posts.map((post: any) => (
@@ -196,10 +200,10 @@ export function FeedPage({
       {/* Infinite scroll loader */}
       <div ref={loaderRef} className="py-8 flex justify-center">
         {loadingMore && (
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--c-gray-300)' }} />
         )}
         {!hasMore && posts.length > 0 && (
-          <p className="text-xs text-muted-foreground">No more posts</p>
+          <p className="text-xs" style={{ color: 'var(--c-gray-300)' }}>No more posts</p>
         )}
       </div>
     </div>
