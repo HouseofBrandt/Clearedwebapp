@@ -449,7 +449,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
           <CardHeader>
             <CardTitle className="text-lg">Compliance History (for FTA Check)</CardTitle>
             <CardDescription>
-              Confirm the taxpayer's compliance history for the 3 years prior to tax year{" "}
+              Confirm the taxpayer&apos;s compliance history for the 3 years prior to tax year{" "}
               {selectedPeriods[0]?.taxYear}. This information drives the FTA eligibility determination.
             </CardDescription>
           </CardHeader>
