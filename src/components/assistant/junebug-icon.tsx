@@ -2,6 +2,7 @@ interface JunebugIconProps {
   className?: string
   animated?: boolean
   mood?: "idle" | "happy" | "thinking" | "treat"
+  style?: React.CSSProperties
 }
 
 /**
@@ -16,7 +17,7 @@ interface JunebugIconProps {
  *  - thinking: head tilt + ear perk (for loading states)
  *  - treat: excited bounce + tail wag effect
  */
-export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "idle" }: JunebugIconProps) {
+export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "idle", style }: JunebugIconProps) {
   const activeMood = animated ? (mood === "idle" ? "thinking" : mood) : mood === "treat" ? "treat" : "idle"
 
   return (
@@ -24,6 +25,7 @@ export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "i
       viewBox="0 0 24 24"
       fill="currentColor"
       className={`${className} ${activeMood === "treat" ? "jb-bounce" : ""}`}
+      style={style}
       aria-label="Junebug"
     >
       {/* Left ear — pointy, triangular */}
