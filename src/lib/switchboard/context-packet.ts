@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db"
 import { getBanjoKnowledgeContext } from "@/lib/banjo/knowledge-retrieval"
 import { getReviewInsights } from "@/lib/switchboard/review-insights"
+import { assembleNoteContext, NoteContextItem } from "@/lib/notes/context-assembly"
 
 export interface CaseContextPacket {
   // Identity
@@ -48,6 +49,10 @@ export interface CaseContextPacket {
 
   // Similar cases
   similarCaseIds: string[]
+
+  // Client notes & conversations
+  clientNotes?: string
+  noteContextItems?: NoteContextItem[]
 }
 
 /**
@@ -136,6 +141,21 @@ export async function getCaseContextPacket(
     } catch { /* non-fatal */ }
   }
 
+  // Get client notes & conversation context
+  let clientNotes: string | undefined
+  let noteContextItems: NoteContextItem[] | undefined
+  try {
+    const noteContext = await assembleNoteContext(caseId, {
+      featureArea: caseData.caseType === "OIC" ? "OIC"
+        : caseData.caseType === "PENALTY" ? "PENALTY_ABATEMENT"
+        : undefined,
+    })
+    if (noteContext.contextText) {
+      clientNotes = noteContext.contextText
+      noteContextItems = noteContext.usedItems
+    }
+  } catch { /* non-fatal */ }
+
   // Get knowledge context
   let knowledgeContext: string | null = null
   if (opts.includeKnowledge) {
@@ -184,6 +204,9 @@ export async function getCaseContextPacket(
     reviewInsights,
     knowledgeContext,
     similarCaseIds: (intel?.similarCaseIds as string[]) || [],
+
+    clientNotes,
+    noteContextItems,
   }
 }
 
@@ -247,6 +270,10 @@ export function formatContextForPrompt(packet: CaseContextPacket): string {
   if (packet.reviewInsights) {
     ctx += `\nREVIEWER PATTERNS (use these to improve output quality):\n`
     ctx += `${packet.reviewInsights}\n`
+  }
+
+  if (packet.clientNotes) {
+    ctx += `\n${packet.clientNotes}\n`
   }
 
   return ctx

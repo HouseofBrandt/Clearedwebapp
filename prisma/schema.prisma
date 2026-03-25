@@ -97,6 +97,99 @@ enum AITaskType {
   WEB_RESEARCH
 }
 
+// ─── Client Notes & Conversations ───
+
+enum NoteType {
+  JOURNAL_ENTRY
+  CALL_LOG
+  IRS_CONTACT
+  STRATEGY_NOTE
+  CLIENT_INTERACTION
+  RESEARCH
+  GENERAL
+}
+
+enum NoteVisibility {
+  ALL_PRACTITIONERS
+  CASE_TEAM_ONLY
+  PRIVATE
+}
+
+enum FeatureArea {
+  TRANSCRIPT_DECODER
+  CASE_INTELLIGENCE
+  PENALTY_ABATEMENT
+  OIC
+  COMPLIANCE
+  DEADLINE_TRACKER
+  GENERAL
+}
+
+enum ConversationStatus {
+  OPEN
+  RESOLVED
+  ARCHIVED
+}
+
+enum ConversationPriority {
+  NORMAL
+  URGENT
+  FYI
+}
+
+// ─── SOC 2 Compliance ───
+
+enum TSC {
+  SECURITY
+  AVAILABILITY
+  PROCESSING_INTEGRITY
+  CONFIDENTIALITY
+  PRIVACY
+}
+
+enum ControlStatus {
+  COMPLIANT
+  PARTIALLY_COMPLIANT
+  NON_COMPLIANT
+  NOT_ASSESSED
+}
+
+enum MonitoringMethod {
+  AUTOMATED
+  MANUAL
+  HYBRID
+}
+
+enum IssueSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  IMPLEMENTED
+  VERIFIED
+  CLOSED
+  ACCEPTED_RISK
+}
+
+enum EvidenceType {
+  AUTOMATED_LOG
+  CONFIG_SNAPSHOT
+  POLICY_DOCUMENT
+  MANUAL_UPLOAD
+  TEST_RESULT
+}
+
+enum MilestoneStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETE
+}
+
 enum BanjoStatus {
   PLANNING
   CLARIFYING
@@ -237,6 +330,10 @@ model User {
   createdTasks        Task[]             @relation("CreatedTasks")
   assignedTasks       Task[]             @relation("AssignedTasks")
   completedTasks      Task[]             @relation("CompletedTasks")
+  clientNotes         ClientNote[]       @relation("NoteAuthor")
+  startedConversations Conversation[]    @relation("ConversationStarter")
+  resolvedConversations Conversation[]   @relation("ConversationResolver")
+  conversationMessages ConversationMsg[] @relation("MessageAuthor")
 
   @@map("users")
 }
@@ -271,6 +368,8 @@ model Case {
   feedPosts          FeedPost[]
   feedPostCases      FeedPostCase[]     @relation("FeedPostCases")
   tasks              Task[]
+  clientNotes        ClientNote[]
+  conversations      Conversation[]
 
   @@index([tabsNumber])
   @@map("cases")
@@ -906,4 +1005,218 @@ model FeedAttachment {
   createdAt DateTime @default(now())
 
   @@map("feed_attachments")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLIENT NOTES & PRACTITIONER CONVERSATIONS
+// ═══════════════════════════════════════════════════════════════
+
+model ClientNote {
+  id              String         @id @default(cuid())
+  caseId          String
+  case            Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User           @relation("NoteAuthor", fields: [authorId], references: [id])
+  noteType        NoteType       @default(GENERAL)
+  title           String?
+  content         String         @db.Text
+  taxYears        Int[]          @default([])
+  relatedFeature  FeatureArea?
+  pinned          Boolean        @default(false)
+  visibility      NoteVisibility @default(ALL_PRACTITIONERS)
+  isDeleted       Boolean        @default(false)
+  isPrivileged    Boolean        @default(false)
+  // Call log fields
+  callDate        DateTime?
+  callDuration    Int?           // minutes
+  callParticipants String?
+  callType        String?        // inbound, outbound
+  callDisposition String?
+  // IRS contact fields
+  irsEmployeeName String?
+  irsEmployeeId   String?
+  irsDepartment   String?
+  irsContactMethod String?      // phone, fax, mail, in-person
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  attachments     NoteAttachment[]
+
+  @@index([caseId, createdAt])
+  @@index([authorId])
+  @@index([noteType])
+  @@index([caseId, pinned])
+  @@map("client_notes")
+}
+
+model NoteAttachment {
+  id        String     @id @default(cuid())
+  noteId    String
+  note      ClientNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  createdAt DateTime   @default(now())
+
+  @@map("note_attachments")
+}
+
+model Conversation {
+  id               String               @id @default(cuid())
+  caseId           String
+  case             Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  startedById      String
+  startedBy        User                 @relation("ConversationStarter", fields: [startedById], references: [id])
+  subject          String
+  status           ConversationStatus   @default(OPEN)
+  priority         ConversationPriority @default(NORMAL)
+  relatedTaxYears  Int[]                @default([])
+  relatedFeature   FeatureArea?
+  participants     String[]             @default([])
+  resolvedAt       DateTime?
+  resolvedById     String?
+  resolvedBy       User?                @relation("ConversationResolver", fields: [resolvedById], references: [id])
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  messages         ConversationMsg[]
+
+  @@index([caseId, status])
+  @@index([startedById])
+  @@map("conversations")
+}
+
+model ConversationMsg {
+  id              String       @id @default(cuid())
+  conversationId  String
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User         @relation("MessageAuthor", fields: [authorId], references: [id])
+  content         String       @db.Text
+  isEdited        Boolean      @default(false)
+  isDeleted       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  attachments     ConversationMsgAttachment[]
+
+  @@index([conversationId, createdAt])
+  @@map("conversation_messages")
+}
+
+model ConversationMsgAttachment {
+  id        String          @id @default(cuid())
+  messageId String
+  message   ConversationMsg @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  createdAt DateTime        @default(now())
+
+  @@map("conversation_msg_attachments")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SOC 2 COMPLIANCE TRACKER
+// ═══════════════════════════════════════════════════════════════
+
+model ComplianceControl {
+  id                   String           @id @default(cuid())
+  controlId            String           @unique // CC1.1, A1.1, PI1.1, etc.
+  tsc                  TSC
+  controlFamily        String           // CC1, CC2, A1, PI1, C1, P1, etc.
+  description          String           @db.Text
+  monitoringMethod     MonitoringMethod @default(MANUAL)
+  status               ControlStatus    @default(NOT_ASSESSED)
+  whatSoc2Requires     String           @db.Text
+  howClearedMeetsIt    String           @db.Text
+  whyItMatters         String           @db.Text
+  ownerId              String?
+  lastEvidenceCollected DateTime?
+  nextReviewDate       DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  healthChecks         HealthCheck[]
+  issues               ComplianceIssue[]
+  evidence             EvidenceItem[]
+
+  @@index([tsc])
+  @@index([controlFamily])
+  @@index([status])
+  @@map("compliance_controls")
+}
+
+model HealthCheck {
+  id          String            @id @default(cuid())
+  controlId   String
+  control     ComplianceControl @relation(fields: [controlId], references: [id], onDelete: Cascade)
+  checkType   String            // automated, manual
+  interval    String            // 15m, 1h, daily, weekly
+  lastRun     DateTime?
+  lastResult  String?           // pass, fail, warning
+  nextRun     DateTime?
+  createdAt   DateTime          @default(now())
+  results     HealthCheckResult[]
+
+  @@index([controlId])
+  @@map("health_checks")
+}
+
+model HealthCheckResult {
+  id               String      @id @default(cuid())
+  healthCheckId    String
+  healthCheck      HealthCheck @relation(fields: [healthCheckId], references: [id], onDelete: Cascade)
+  timestamp        DateTime    @default(now())
+  status           String      // pass, fail, warning
+  details          Json?
+  evidenceSnapshot Json?
+
+  @@index([healthCheckId, timestamp])
+  @@map("health_check_results")
+}
+
+model ComplianceIssue {
+  id              String            @id @default(cuid())
+  controlId       String
+  control         ComplianceControl @relation(fields: [controlId], references: [id])
+  severity        IssueSeverity
+  status          IssueStatus       @default(OPEN)
+  description     String            @db.Text
+  remediationPlan String?           @db.Text
+  ownerId         String?
+  slaDeadline     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  resolvedAt      DateTime?
+
+  @@index([controlId])
+  @@index([severity, status])
+  @@map("compliance_issues")
+}
+
+model EvidenceItem {
+  id            String            @id @default(cuid())
+  controlId     String
+  control       ComplianceControl @relation(fields: [controlId], references: [id])
+  evidenceType  EvidenceType
+  collectedAt   DateTime          @default(now())
+  contentOrPath String            @db.Text
+  collector     String            // "system" or userId
+  validUntil    DateTime?
+  createdAt     DateTime          @default(now())
+
+  @@index([controlId])
+  @@map("evidence_items")
+}
+
+model AuditMilestone {
+  id          String          @id @default(cuid())
+  title       String
+  description String?         @db.Text
+  targetDate  DateTime
+  status      MilestoneStatus @default(NOT_STARTED)
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("audit_milestones")
 }

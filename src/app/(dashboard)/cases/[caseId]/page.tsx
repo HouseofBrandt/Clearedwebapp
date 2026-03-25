@@ -125,6 +125,12 @@ export default async function CaseDetailPage({
     console.error("Case feed posts error (non-blocking):", err?.message)
   }
 
+  // Note and conversation counts
+  const [noteCount, conversationCount] = await Promise.all([
+    prisma.clientNote.count({ where: { caseId: params.caseId, isDeleted: false } }).catch(() => 0),
+    prisma.conversation.count({ where: { caseId: params.caseId, status: { in: ["OPEN", "RESOLVED"] } } }).catch(() => 0),
+  ])
+
   // Serialize dates for client component
   const serializedDeadlines = deadlines.map((d) => ({
     ...d,
@@ -168,7 +174,7 @@ export default async function CaseDetailPage({
 
   return (
     <CaseDetail
-      caseData={decryptCasePII(caseData)}
+      caseData={{ ...decryptCasePII(caseData), noteCount, conversationCount }}
       practitioners={practitioners}
       deadlines={serializedDeadlines}
       intelligence={serializedIntelligence}

@@ -1,0 +1,625 @@
+import { prisma } from "@/lib/db"
+
+interface ControlSeed {
+  controlId: string
+  tsc: "SECURITY" | "AVAILABILITY" | "PROCESSING_INTEGRITY" | "CONFIDENTIALITY" | "PRIVACY"
+  controlFamily: string
+  description: string
+  monitoringMethod: "AUTOMATED" | "MANUAL" | "HYBRID"
+  whatSoc2Requires: string
+  howClearedMeetsIt: string
+  whyItMatters: string
+}
+
+const CONTROLS: ControlSeed[] = [
+  // ─── SECURITY: CC1 — Control Environment ───
+  {
+    controlId: "CC1.1",
+    tsc: "SECURITY",
+    controlFamily: "CC1",
+    description: "Integrity and ethical values",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization demonstrates a commitment to integrity and ethical values. Management and the board of directors set the tone at the top regarding the importance of internal controls and expected standards of conduct.",
+    howClearedMeetsIt: "Firm maintains a written Code of Professional Conduct aligned with Circular 230 and IRC § 7216 requirements. All practitioners sign annual ethics acknowledgments. Violations are logged and escalated through the compliance officer.",
+    whyItMatters: "Tax resolution practitioners hold positions of trust with taxpayers and the IRS. Circular 230 governs practitioner conduct, and IRC § 7216 imposes criminal penalties for unauthorized disclosure of taxpayer information. Ethical failures can result in practitioner disbarment, firm sanctions, and client harm.",
+  },
+  {
+    controlId: "CC1.2",
+    tsc: "SECURITY",
+    controlFamily: "CC1",
+    description: "Board oversight independence",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The board of directors demonstrates independence from management and exercises oversight of the development and performance of internal control.",
+    howClearedMeetsIt: "Firm leadership reviews compliance posture quarterly. An independent compliance officer reports directly to the managing partner, not through operational management. External compliance audits are conducted annually.",
+    whyItMatters: "Independent oversight prevents conflicts of interest where operational pressures might compromise data protection or client confidentiality. OPR (Office of Professional Responsibility) investigations often reveal governance failures as root causes.",
+  },
+  {
+    controlId: "CC1.3",
+    tsc: "SECURITY",
+    controlFamily: "CC1",
+    description: "Management structure",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "Management establishes, with board oversight, structures, reporting lines, and appropriate authorities and responsibilities in the pursuit of objectives.",
+    howClearedMeetsIt: "Organizational chart defines clear reporting lines. Data stewardship responsibilities are documented. System administration is separated from practitioner roles. The compliance officer role is formally defined with authority over data handling procedures.",
+    whyItMatters: "Clear management structure ensures accountability for protecting taxpayer data across the organization. IRS Publication 4557 recommends documented organizational structures for tax preparers handling sensitive information.",
+  },
+  {
+    controlId: "CC1.4",
+    tsc: "SECURITY",
+    controlFamily: "CC1",
+    description: "Competent individuals",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization demonstrates a commitment to attract, develop, and retain competent individuals in alignment with objectives.",
+    howClearedMeetsIt: "All practitioners maintain active EA, CPA, or Attorney licenses tracked in the system. Annual CPE requirements are monitored. Security awareness training is completed annually by all staff with system access.",
+    whyItMatters: "Incompetent handling of taxpayer data creates liability exposure. Circular 230 § 10.22 requires practitioners to exercise due diligence. Staff who lack training on data handling procedures are the most common vector for data breaches in tax practices.",
+  },
+  {
+    controlId: "CC1.5",
+    tsc: "SECURITY",
+    controlFamily: "CC1",
+    description: "Accountability",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization holds individuals accountable for their internal control responsibilities in the pursuit of objectives.",
+    howClearedMeetsIt: "Every action in Cleared is tied to an authenticated user via audit logs. Review actions require practitioner sign-off. Performance reviews include compliance metrics. Policy violations trigger documented corrective action procedures.",
+    whyItMatters: "Without accountability, controls are aspirational rather than operational. The IRS Written Information Security Plan (WISP) requirement under FTC Safeguards Rule mandates individual accountability for data protection.",
+  },
+
+  // ─── SECURITY: CC2 — Communication and Information ───
+  {
+    controlId: "CC2.1",
+    tsc: "SECURITY",
+    controlFamily: "CC2",
+    description: "Quality information",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization obtains or generates and uses relevant, quality information to support the functioning of internal control.",
+    howClearedMeetsIt: "All AI outputs include [VERIFY] and [PRACTITIONER JUDGMENT] flags for items requiring human validation. Document extraction quality is tracked. AI task metadata logs model version, temperature, and prompt version for reproducibility.",
+    whyItMatters: "Inaccurate case analysis can lead to incorrect OIC calculations, missed CSED dates, or erroneous penalty abatement requests. Each error potentially costs clients thousands of dollars and exposes the firm to malpractice claims.",
+  },
+  {
+    controlId: "CC2.2",
+    tsc: "SECURITY",
+    controlFamily: "CC2",
+    description: "Internal communication",
+    monitoringMethod: "HYBRID",
+    whatSoc2Requires: "The organization internally communicates information, including objectives and responsibilities for internal control, necessary to support the functioning of internal control.",
+    howClearedMeetsIt: "Platform feed system broadcasts compliance updates to all users. Case assignment notifications ensure practitioners know their responsibilities. The review queue surfaces pending items requiring action. Compliance dashboards provide real-time visibility.",
+    whyItMatters: "Tax resolution cases involve strict deadlines — a 30-day CDP hearing window, 60-day Tax Court petition period. Failure to communicate case status or pending actions internally can result in missed deadlines and loss of client rights.",
+  },
+  {
+    controlId: "CC2.3",
+    tsc: "SECURITY",
+    controlFamily: "CC2",
+    description: "External communication",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization communicates with external parties regarding matters affecting the functioning of internal control.",
+    howClearedMeetsIt: "Client engagement letters define data handling expectations. Privacy notices are maintained. IRS correspondence is generated through the platform with mandatory review. Breach notification procedures are documented and tested.",
+    whyItMatters: "IRC § 7216 requires specific consent language before disclosing taxpayer information. Engagement letters must clearly delineate what data is collected, how it is used, and who has access. Regulatory communications with the IRS must be accurate and authorized.",
+  },
+
+  // ─── SECURITY: CC3 — Risk Assessment ───
+  {
+    controlId: "CC3.1",
+    tsc: "SECURITY",
+    controlFamily: "CC3",
+    description: "Risk objectives",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization specifies objectives with sufficient clarity to enable the identification and assessment of risks relating to objectives.",
+    howClearedMeetsIt: "Risk objectives are documented covering: taxpayer data confidentiality, AI output accuracy, system availability during filing deadlines, and regulatory compliance. Each objective has measurable criteria and assigned ownership.",
+    whyItMatters: "Without clear risk objectives, the firm cannot systematically identify threats to taxpayer data. Tax resolution firms face unique risks including IRS impersonation attempts, social engineering targeting client SSNs, and AI hallucination of financial figures.",
+  },
+  {
+    controlId: "CC3.2",
+    tsc: "SECURITY",
+    controlFamily: "CC3",
+    description: "Risk analysis",
+    monitoringMethod: "HYBRID",
+    whatSoc2Requires: "The organization identifies risks to the achievement of its objectives across the entity and analyzes risks as a basis for determining how the risks should be managed.",
+    howClearedMeetsIt: "Annual risk assessments evaluate: PII exposure vectors, AI model risks, third-party API dependencies, infrastructure vulnerabilities, and insider threat scenarios. Platform health checks automatically flag new risk indicators.",
+    whyItMatters: "Tax resolution data includes the most sensitive personal information — SSNs, financial records, medical hardship documentation. A breach affects not just privacy but can enable identity theft, fraudulent tax filings, and financial harm to vulnerable taxpayers.",
+  },
+  {
+    controlId: "CC3.3",
+    tsc: "SECURITY",
+    controlFamily: "CC3",
+    description: "Fraud consideration",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization considers the potential for fraud in assessing risks to the achievement of objectives.",
+    howClearedMeetsIt: "Fraud risk assessment covers: unauthorized access to client data, manipulation of financial figures in working papers, falsification of IRS correspondence, and social engineering of practitioners. Segregation of duties prevents single-person fraud.",
+    whyItMatters: "Tax resolution is a high-value fraud target. Fraudulent OIC applications, fabricated hardship claims, and manipulated financial statements can result in criminal prosecution under IRC § 7206. The firm must demonstrate it actively considers and mitigates fraud vectors.",
+  },
+  {
+    controlId: "CC3.4",
+    tsc: "SECURITY",
+    controlFamily: "CC3",
+    description: "Change impacts",
+    monitoringMethod: "HYBRID",
+    whatSoc2Requires: "The organization identifies and assesses changes that could significantly impact the system of internal control.",
+    howClearedMeetsIt: "Platform changes go through documented deployment pipelines. AI model updates trigger re-validation of output quality. New feature deployments are tracked via audit logs. Regulatory changes (IRS procedures, tax law updates) trigger control reassessment.",
+    whyItMatters: "IRS procedures change frequently — collection standards, OIC guidelines, penalty relief criteria. Each change may require updates to AI prompts, calculation logic, and compliance controls. Unmanaged changes can produce incorrect client advice.",
+  },
+
+  // ─── SECURITY: CC4 — Monitoring Activities ───
+  {
+    controlId: "CC4.1",
+    tsc: "SECURITY",
+    controlFamily: "CC4",
+    description: "Ongoing evaluations",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization selects, develops, and performs ongoing and/or separate evaluations to ascertain whether the components of internal control are present and functioning.",
+    howClearedMeetsIt: "Automated health checks run continuously: MFA enrollment rates, inactive account detection, AI audit log integrity, encryption status verification, and access pattern monitoring. Results are stored as HealthCheckResult records.",
+    whyItMatters: "Continuous monitoring catches control degradation before it becomes a breach. A practitioner disabling MFA or an encryption key rotation failure needs immediate detection, not discovery during an annual audit.",
+  },
+  {
+    controlId: "CC4.2",
+    tsc: "SECURITY",
+    controlFamily: "CC4",
+    description: "Deficiency communication",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization evaluates and communicates internal control deficiencies in a timely manner to those parties responsible for taking corrective action.",
+    howClearedMeetsIt: "Compliance issues are automatically created when health checks fail. Issues are assigned severity levels (CRITICAL/HIGH/MEDIUM/LOW) with SLA deadlines. The compliance dashboard surfaces all open issues with remediation tracking.",
+    whyItMatters: "Delayed communication of security deficiencies extends the window of exposure. In tax resolution, a broken encryption control means client SSNs and financial data may be exposed until the issue is remediated.",
+  },
+
+  // ─── SECURITY: CC5 — Control Activities ───
+  {
+    controlId: "CC5.1",
+    tsc: "SECURITY",
+    controlFamily: "CC5",
+    description: "Control activities",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization selects and develops control activities that contribute to the mitigation of risks to the achievement of objectives to acceptable levels.",
+    howClearedMeetsIt: "Controls are mapped to specific risks: RBAC mitigates unauthorized access, PII tokenization mitigates data exposure to AI, mandatory review mitigates AI output errors, audit logging mitigates accountability gaps. Each control has documented testing procedures.",
+    whyItMatters: "Control activities are the operational mechanisms that prevent, detect, and correct security failures. In a tax resolution platform, a missing control can directly result in IRC § 7216 violations or Circular 230 sanctions.",
+  },
+  {
+    controlId: "CC5.2",
+    tsc: "SECURITY",
+    controlFamily: "CC5",
+    description: "Technology controls",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization selects and develops general control activities over technology to support the achievement of objectives.",
+    howClearedMeetsIt: "Application-level controls include: input validation on all API routes (zod schemas), parameterized database queries (Prisma ORM), CSRF protection, rate limiting, secure session management, and Content Security Policy headers.",
+    whyItMatters: "Technology controls prevent exploitation of the platform itself. SQL injection, XSS, or session hijacking against a tax resolution platform would expose the most sensitive taxpayer information in bulk.",
+  },
+  {
+    controlId: "CC5.3",
+    tsc: "SECURITY",
+    controlFamily: "CC5",
+    description: "Policies and procedures",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization deploys control activities through policies that establish what is expected and in procedures that put policies into action.",
+    howClearedMeetsIt: "Written policies cover: acceptable use, data classification, incident response, change management, vendor management, and data retention. Procedures are documented in the knowledge base and reviewed annually.",
+    whyItMatters: "The FTC Safeguards Rule requires tax preparers to maintain a Written Information Security Plan (WISP). IRS Publication 4557 provides specific guidance. Policies without procedures are unenforceable; procedures without policies lack authority.",
+  },
+
+  // ─── SECURITY: CC6 — Logical and Physical Access Controls ───
+  {
+    controlId: "CC6.1",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Logical access (RBAC)",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization implements logical access security software, infrastructure, and architectures over protected information assets to protect them from security events.",
+    howClearedMeetsIt: "RBAC enforced with Admin/Senior/Practitioner/Support Staff roles with row-level case access security.",
+    whyItMatters: "Logical access controls are the primary defense against unauthorized access to taxpayer data. Without RBAC, any authenticated user could access any client's SSN, financial records, and IRS correspondence regardless of their role or need.",
+  },
+  {
+    controlId: "CC6.2",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Authentication (MFA)",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "Prior to issuing system credentials and granting system access, the organization registers and authorizes new internal and external users whose access is administered by the organization.",
+    howClearedMeetsIt: "Multi-factor authentication is available for all users. TOTP-based MFA adds a second factor beyond email/password. Session management includes secure cookie handling, CSRF protection, and automatic session expiration.",
+    whyItMatters: "Credential theft is the most common attack vector against professional services firms. MFA prevents unauthorized access even when passwords are compromised. IRS Publication 4557 specifically recommends MFA for all tax professional systems.",
+  },
+  {
+    controlId: "CC6.3",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Access management",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization authorizes, modifies, or removes access to data, software, functions, and other protected information assets based on roles, responsibilities, or the system design.",
+    howClearedMeetsIt: "User provisioning and deprovisioning is managed through the admin settings. Role changes are audit-logged. Access reviews can be conducted using the user management interface. No public registration — all accounts are admin-created.",
+    whyItMatters: "Proper access lifecycle management ensures that former employees, role changes, and temporary access are properly controlled. A departed practitioner retaining access to client data is both a security risk and a potential Circular 230 violation.",
+  },
+  {
+    controlId: "CC6.4",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Physical access",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization restricts physical access to facilities and protected information assets to authorized personnel.",
+    howClearedMeetsIt: "Cloud-hosted infrastructure inherits physical security controls from the hosting provider (Vercel/Neon). No on-premises servers. Provider SOC 2 reports are reviewed annually. Physical office security policies cover workstation locking and clean desk requirements.",
+    whyItMatters: "While the platform is cloud-hosted, physical access to workstations running the application must still be controlled. An unlocked workstation with an active session provides full access to client data.",
+  },
+  {
+    controlId: "CC6.5",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Access discontinued",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization discontinues logical and physical access when access is no longer required.",
+    howClearedMeetsIt: "Inactive account detection flags users with no activity in 90 days. Admin can deactivate accounts. Session tokens expire automatically. Health checks monitor for stale accounts and report compliance issues.",
+    whyItMatters: "Orphaned accounts are a prime target for attackers. In tax resolution, a compromised inactive account still has access to historical client data including SSNs, financial statements, and IRS correspondence spanning years.",
+  },
+  {
+    controlId: "CC6.6",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Change management",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization manages changes to system components to minimize the risk of unauthorized changes.",
+    howClearedMeetsIt: "All code changes go through version control (Git). Deployments are automated through CI/CD pipelines with audit trails. Database migrations are versioned and tracked. Configuration changes are logged.",
+    whyItMatters: "Unauthorized changes to a tax resolution platform could alter financial calculations, bypass review requirements, or disable encryption — any of which could cause direct harm to clients and expose the firm to liability.",
+  },
+  {
+    controlId: "CC6.7",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Unauthorized changes",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization detects unauthorized changes to software and configuration parameters.",
+    howClearedMeetsIt: "Deployment monitoring tracks all production changes. System prompt versions are tracked in the database. AI model changes are logged. Database schema changes require migration files. Runtime configuration is validated on startup.",
+    whyItMatters: "An unauthorized change to an AI prompt could cause it to output incorrect tax advice. A change to encryption settings could expose PII. Detection of unauthorized changes is critical for maintaining trust in AI-generated work product.",
+  },
+  {
+    controlId: "CC6.8",
+    tsc: "SECURITY",
+    controlFamily: "CC6",
+    description: "Vulnerability management",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization evaluates and manages vulnerabilities in system components.",
+    howClearedMeetsIt: "Dependency vulnerabilities are monitored via automated scanning. Runtime errors are tracked in the AppError table. Security headers are enforced. Input validation prevents injection attacks. Regular security assessments are conducted.",
+    whyItMatters: "A vulnerability in a tax resolution platform is exceptionally high-value to attackers due to the concentration of SSNs, financial data, and IRS account information. The firm has a duty of care to maintain security patching.",
+  },
+
+  // ─── SECURITY: CC7 — System Operations ───
+  {
+    controlId: "CC7.1",
+    tsc: "SECURITY",
+    controlFamily: "CC7",
+    description: "Security event detection",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "To meet its objectives, the organization uses detection and monitoring procedures to identify changes to configurations that result in the introduction of new vulnerabilities and susceptibilities to newly discovered vulnerabilities.",
+    howClearedMeetsIt: "Comprehensive audit logging captures all authentication events, data access, AI interactions, and administrative actions. Failed login attempts are tracked. Unusual access patterns can be identified through audit log analysis.",
+    whyItMatters: "Early detection of security events limits the scope of data exposure. In tax resolution, the difference between detecting a breach in hours versus weeks can be the difference between notifying 10 clients versus 10,000.",
+  },
+  {
+    controlId: "CC7.2",
+    tsc: "SECURITY",
+    controlFamily: "CC7",
+    description: "Anomaly monitoring",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization monitors system components and the operation of those components for anomalies that are indicative of malicious acts, natural disasters, and errors affecting the entity's ability to meet its objectives.",
+    howClearedMeetsIt: "Health checks monitor system metrics including: user activity patterns, AI task volumes, error rates, authentication anomalies, and data access volumes. Anomalies trigger compliance issue creation for investigation.",
+    whyItMatters: "Anomaly monitoring catches threats that signature-based detection misses. A practitioner suddenly exporting large volumes of client data or accessing cases outside their normal portfolio warrants investigation even if each individual action is authorized.",
+  },
+  {
+    controlId: "CC7.3",
+    tsc: "SECURITY",
+    controlFamily: "CC7",
+    description: "Incident evaluation",
+    monitoringMethod: "HYBRID",
+    whatSoc2Requires: "The organization evaluates identified security events and determines whether they constitute security incidents.",
+    howClearedMeetsIt: "Compliance issues are triaged by severity. The issue tracker supports status progression from OPEN through VERIFIED/CLOSED. Investigation notes and remediation plans are documented. Root cause analysis is required for HIGH and CRITICAL issues.",
+    whyItMatters: "Not every security event is an incident, but every event must be evaluated. IRC § 7216 violations can occur through negligence as well as intent. Proper evaluation ensures proportionate response and accurate reporting.",
+  },
+  {
+    controlId: "CC7.4",
+    tsc: "SECURITY",
+    controlFamily: "CC7",
+    description: "Incident response",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization responds to identified security incidents by executing a defined incident response program to understand, contain, remediate, and communicate security incidents.",
+    howClearedMeetsIt: "Incident response plan documents roles, escalation procedures, containment steps, and communication templates. IRS breach notification procedures follow IRS Publication 4557 guidance. State breach notification requirements are mapped for all jurisdictions where clients reside.",
+    whyItMatters: "Tax resolution firms must notify the IRS, affected clients, and potentially state attorneys general in the event of a data breach. IRS Form 14039 (Identity Theft Affidavit) may be required for affected taxpayers. Response time directly impacts client harm.",
+  },
+  {
+    controlId: "CC7.5",
+    tsc: "SECURITY",
+    controlFamily: "CC7",
+    description: "Recovery",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization identifies, develops, and implements activities to recover from identified security incidents.",
+    howClearedMeetsIt: "Recovery procedures include: database restoration from backups, session invalidation for compromised accounts, credential rotation, and post-incident review. Recovery testing is conducted as part of business continuity planning.",
+    whyItMatters: "Recovery from a security incident in tax resolution must prioritize protecting client interests — freezing compromised accounts, notifying affected taxpayers to monitor for identity theft, and ensuring no corrupted data reaches the IRS.",
+  },
+
+  // ─── SECURITY: CC8 — Change Management ───
+  {
+    controlId: "CC8.1",
+    tsc: "SECURITY",
+    controlFamily: "CC8",
+    description: "Change process",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization manages changes to system components using a structured change management process.",
+    howClearedMeetsIt: "All changes follow: development → code review → automated testing → staging → production deployment pipeline. Database migrations are versioned. AI prompt changes are version-tracked. Rollback procedures are documented and tested.",
+    whyItMatters: "Uncontrolled changes to a tax resolution platform pose unique risks. A bug in CSED calculation could affect statute of limitations analysis across all active cases. A prompt change could alter the quality of OIC analyses. Structured change management prevents cascading errors.",
+  },
+
+  // ─── SECURITY: CC9 — Risk Mitigation ───
+  {
+    controlId: "CC9.1",
+    tsc: "SECURITY",
+    controlFamily: "CC9",
+    description: "Vendor risk",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization identifies, assesses, and manages risks associated with vendors and business partners.",
+    howClearedMeetsIt: "Vendor risk assessments are conducted for: Anthropic (AI provider), Vercel (hosting), Neon (database), and any other third-party services. PII tokenization ensures client data sent to AI APIs contains no real personally identifiable information. Vendor SOC 2 reports are reviewed annually.",
+    whyItMatters: "The AI provider processes tokenized but contextually rich tax resolution data. The database provider hosts encrypted client records. Each vendor in the supply chain is a potential point of data exposure. IRC § 7216 liability extends to unauthorized disclosures by third parties.",
+  },
+  {
+    controlId: "CC9.2",
+    tsc: "SECURITY",
+    controlFamily: "CC9",
+    description: "Business disruption",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization assesses and manages risks associated with disruptions to business operations.",
+    howClearedMeetsIt: "Business continuity plan addresses: infrastructure provider outages, AI API unavailability, database failover, and staff unavailability. Case deadlines are tracked independently. Critical IRS deadlines have manual backup procedures documented.",
+    whyItMatters: "Tax resolution involves non-negotiable statutory deadlines. A 30-day CDP hearing request window or 90-day Tax Court petition period cannot be extended due to system outages. Business continuity planning must ensure deadlines are met regardless of platform availability.",
+  },
+
+  // ─── AVAILABILITY: A1 ───
+  {
+    controlId: "A1.1",
+    tsc: "AVAILABILITY",
+    controlFamily: "A1",
+    description: "Processing capacity",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization maintains, monitors, and evaluates current processing capacity and use of system components to manage capacity demand and to enable the implementation of additional capacity to help meet its objectives.",
+    howClearedMeetsIt: "Infrastructure auto-scales via Vercel serverless functions. Database connection pooling manages concurrent load. AI API rate limits are handled with retry logic and queuing. Resource utilization is monitored through provider dashboards.",
+    whyItMatters: "Tax resolution workload is highly seasonal — OIC submissions surge before fiscal year deadlines, and filing season creates concentrated demand. The platform must handle peak loads without degradation to avoid missed deadlines.",
+  },
+  {
+    controlId: "A1.2",
+    tsc: "AVAILABILITY",
+    controlFamily: "A1",
+    description: "Environmental protections",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization authorizes, designs, develops or acquires, implements, operates, approves, maintains, and monitors environmental protections, software, data backup processes, and recovery infrastructure to meet its objectives.",
+    howClearedMeetsIt: "Cloud infrastructure provides multi-region redundancy. Database backups are automated by Neon with point-in-time recovery. Application deployments are immutable with instant rollback capability. Environment variables are managed through secure provider interfaces.",
+    whyItMatters: "Data loss in a tax resolution platform means losing working papers, case analyses, and client documents that may be irreplaceable. Court deadlines, IRS correspondence history, and audit trails must be preserved with high durability.",
+  },
+  {
+    controlId: "A1.3",
+    tsc: "AVAILABILITY",
+    controlFamily: "A1",
+    description: "Recovery plan tested",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization tests recovery plan procedures supporting system recovery to meet its objectives.",
+    howClearedMeetsIt: "Recovery procedures are documented and tested annually. Database restoration from backup is verified. Application redeployment procedures are tested. Communication procedures for extended outages are rehearsed.",
+    whyItMatters: "An untested recovery plan is not a plan — it is a hope. When the platform is down during a critical IRS response deadline, the firm needs proven procedures to restore service or execute manual fallbacks within hours, not days.",
+  },
+
+  // ─── PROCESSING INTEGRITY: PI1 ───
+  {
+    controlId: "PI1.1",
+    tsc: "PROCESSING_INTEGRITY",
+    controlFamily: "PI1",
+    description: "Quality information (AI outputs logged, reviewed)",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization obtains or generates, uses, and communicates relevant, quality information regarding the objectives related to processing, including definitions of data processed and product and service specifications.",
+    howClearedMeetsIt: "Every AI interaction is logged with full request/response data, model version, temperature, and prompt version. All AI outputs require mandatory practitioner review before use. [VERIFY] and [PRACTITIONER JUDGMENT] flags highlight items needing human validation.",
+    whyItMatters: "AI-generated tax analysis directly influences financial decisions worth tens or hundreds of thousands of dollars. An incorrect RCP calculation in an OIC could cause the IRS to reject an offer, or worse, cause the taxpayer to offer more than required. Every output must be verifiable.",
+  },
+  {
+    controlId: "PI1.2",
+    tsc: "PROCESSING_INTEGRITY",
+    controlFamily: "PI1",
+    description: "Input validation",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization implements policies and procedures over system inputs, including controls over completeness and accuracy.",
+    howClearedMeetsIt: "All API routes validate input using zod schemas. Document uploads are type-checked and size-limited. Financial data inputs are validated for numeric ranges and consistency. Case data requires mandatory fields before AI analysis can proceed.",
+    whyItMatters: "Garbage in, garbage out. If invalid financial data enters the OIC calculation pipeline, the resulting Reasonable Collection Potential will be wrong. Input validation is the first line of defense against both data entry errors and injection attacks.",
+  },
+  {
+    controlId: "PI1.3",
+    tsc: "PROCESSING_INTEGRITY",
+    controlFamily: "PI1",
+    description: "Processing accuracy (CSED/RCP verified)",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization implements policies and procedures over system processing to result in products, services, and reporting to meet the entity's objectives.",
+    howClearedMeetsIt: "Financial calculations (RCP, CSED, allowable expenses) use deterministic logic validated against known IRS standards. AI-generated calculations are flagged for practitioner verification. Calculation audit trails show inputs, formulas, and results.",
+    whyItMatters: "CSED (Collection Statute Expiration Date) errors can cause the firm to pursue unnecessary resolution when the statute is about to expire, or miss the window for a viable OIC. RCP miscalculation directly affects the minimum acceptable offer amount. These are not approximations — they must be exact.",
+  },
+  {
+    controlId: "PI1.4",
+    tsc: "PROCESSING_INTEGRITY",
+    controlFamily: "PI1",
+    description: "Corrections workflow",
+    monitoringMethod: "HYBRID",
+    whatSoc2Requires: "The organization implements policies and procedures to address processing errors identified during processing.",
+    howClearedMeetsIt: "The review workflow supports REJECT_REPROMPT and REJECT_MANUAL actions for incorrect AI outputs. Edited outputs are tracked with the original for comparison. Review actions are audit-logged with practitioner notes explaining corrections.",
+    whyItMatters: "Errors in tax resolution work product must be caught and corrected before reaching the IRS or the client. The review workflow ensures every correction is documented, creating a defensible record if the IRS or OPR questions the firm's work product.",
+  },
+  {
+    controlId: "PI1.5",
+    tsc: "PROCESSING_INTEGRITY",
+    controlFamily: "PI1",
+    description: "Output completeness",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization implements policies and procedures to address the completeness, accuracy, and timeliness of output.",
+    howClearedMeetsIt: "AI task outputs are validated for structural completeness before being marked READY_FOR_REVIEW. Working papers are checked for all required sections. Export functions validate document structure. Delivery to clients requires explicit approval action.",
+    whyItMatters: "An incomplete OIC working paper missing a section on future income could result in IRS rejection. A penalty abatement letter missing the legal basis section is ineffective. Output completeness checks prevent incomplete work product from reaching review.",
+  },
+
+  // ─── CONFIDENTIALITY: C1 ───
+  {
+    controlId: "C1.1",
+    tsc: "CONFIDENTIALITY",
+    controlFamily: "C1",
+    description: "Confidential data identified",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization identifies and maintains confidential information to meet the entity's objectives related to confidentiality.",
+    howClearedMeetsIt: "Data classification: PII (SSN/EIN encrypted), financial data, privileged communications, IRS transcript data — all classified and tagged.",
+    whyItMatters: "You cannot protect what you have not identified. Tax resolution data spans multiple confidentiality categories: taxpayer PII (IRC § 7216), attorney-client privilege (for attorney practitioners), and financial records (FTC Safeguards Rule). Each category has different protection requirements.",
+  },
+  {
+    controlId: "C1.2",
+    tsc: "CONFIDENTIALITY",
+    controlFamily: "C1",
+    description: "Disposal per policy",
+    monitoringMethod: "HYBRID",
+    whatSoc2Requires: "The organization disposes of confidential information to meet the entity's objectives related to confidentiality.",
+    howClearedMeetsIt: "Token maps have configurable expiration dates. Document retention policies are defined per document category. Expired documents are flagged for review and disposal. Disposal actions are audit-logged.",
+    whyItMatters: "Retaining taxpayer data beyond its useful life increases breach exposure without business justification. IRS guidelines recommend destroying client records after the applicable retention period. Improper disposal of records containing SSNs can result in identity theft.",
+  },
+
+  // ─── PRIVACY: P1 — Notice ───
+  {
+    controlId: "P1.1",
+    tsc: "PRIVACY",
+    controlFamily: "P1",
+    description: "Privacy notice",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization provides notice to data subjects about its privacy practices to meet the entity's objectives related to privacy.",
+    howClearedMeetsIt: "Privacy notices are provided to clients during engagement onboarding. Notices describe what data is collected, how it is used, who has access, and how long it is retained. IRC § 7216 consent forms are obtained where required.",
+    whyItMatters: "IRC § 7216 requires tax preparers to obtain specific written consent before using or disclosing tax return information for any purpose other than preparing the return. Privacy notices must be clear, specific, and documented. Failure to provide proper notice can result in criminal penalties.",
+  },
+  {
+    controlId: "P1.2",
+    tsc: "PRIVACY",
+    controlFamily: "P1",
+    description: "Collection consistent",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization collects personal information consistent with the entity's objectives related to privacy.",
+    howClearedMeetsIt: "Data collection is limited to what is necessary for case resolution. Document upload categories map to specific case needs. The platform does not collect data beyond what is required for the engaged service. Collection points are documented.",
+    whyItMatters: "Collecting more taxpayer data than necessary increases breach exposure and may violate privacy commitments. The principle of data minimization applies especially to sensitive tax data — collect only what is needed for the specific resolution type.",
+  },
+
+  // ─── PRIVACY: P2 — Choice and Consent ───
+  {
+    controlId: "P2.1",
+    tsc: "PRIVACY",
+    controlFamily: "P2",
+    description: "Choices communicated",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization communicates choices available regarding the collection, use, retention, disclosure, and disposal of personal information to the data subjects.",
+    howClearedMeetsIt: "Client engagement letters detail data handling choices. Opt-out mechanisms for non-essential data use are documented. Clients are informed of their right to request data deletion upon case closure. Communication preferences are tracked.",
+    whyItMatters: "Taxpayers have a right to understand and control how their sensitive data is used. IRC § 7216 consent must be specific and informed — a blanket consent form is insufficient. Clients must understand that AI tools are used in analysis and have the ability to opt out.",
+  },
+
+  // ─── PRIVACY: P3 — Collection ───
+  {
+    controlId: "P3.1",
+    tsc: "PRIVACY",
+    controlFamily: "P3",
+    description: "Collection for purpose",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization collects personal information only for the purposes identified in the notice.",
+    howClearedMeetsIt: "Document categories enforce purpose limitation — each category maps to specific case resolution needs. PII tokenization strips identifying information before AI processing, ensuring raw PII is used only for its stated purpose. Access controls restrict data visibility by role.",
+    whyItMatters: "Using taxpayer data beyond the stated purpose is a direct IRC § 7216 violation. The firm must demonstrate that SSNs are used only for IRS interactions, financial data only for resolution analysis, and no client data is used for marketing, training, or other secondary purposes.",
+  },
+  {
+    controlId: "P3.2",
+    tsc: "PRIVACY",
+    controlFamily: "P3",
+    description: "Retention consistent",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization retains personal information consistent with the entity's objectives related to privacy.",
+    howClearedMeetsIt: "Retention periods are defined per data category. Token maps expire based on case lifecycle. Document freshness tracking identifies stale records. Case closure triggers retention review. Retention policies align with IRS record-keeping requirements.",
+    whyItMatters: "IRS recommends retaining records for at least 3 years after filing (6 years for substantial understatement). However, retaining data indefinitely exposes the firm to unnecessary breach risk. Retention policies must balance regulatory requirements with data minimization principles.",
+  },
+
+  // ─── PRIVACY: P4 — Use, Retention, and Disposal ───
+  {
+    controlId: "P4.1",
+    tsc: "PRIVACY",
+    controlFamily: "P4",
+    description: "Use limited",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization limits the use of personal information to the purposes identified in the notice and for which the data subject has provided implicit or explicit consent.",
+    howClearedMeetsIt: "Access controls enforce purpose limitation. Bulk export restricted and logged. Client data never used for AI model training.",
+    whyItMatters: "Purpose limitation is a cornerstone of privacy compliance. Using client tax data to train AI models, for marketing, or for any purpose beyond case resolution violates both IRC § 7216 and the trust relationship with taxpayers who are often in vulnerable financial situations.",
+  },
+  {
+    controlId: "P4.2",
+    tsc: "PRIVACY",
+    controlFamily: "P4",
+    description: "Data protected",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization protects personal information against unauthorized access for purposes other than those indicated in the notice.",
+    howClearedMeetsIt: "AES-256-GCM at rest, TLS 1.2+ in transit, application-level encryption on TIN/SSN.",
+    whyItMatters: "Encryption is the last line of defense when other controls fail. If an attacker breaches the network perimeter, strong encryption ensures taxpayer SSNs and financial data remain protected. AES-256-GCM provides both confidentiality and integrity verification.",
+  },
+
+  // ─── PRIVACY: P5 — Access ───
+  {
+    controlId: "P5.1",
+    tsc: "PRIVACY",
+    controlFamily: "P5",
+    description: "Data subject access",
+    monitoringMethod: "HYBRID",
+    whatSoc2Requires: "The organization grants identified and authenticated data subjects the ability to access their stored personal information for review and, upon request, provides physical or electronic copies of that stored personal information to data subjects.",
+    howClearedMeetsIt: "Client data access requests can be fulfilled through case document exports. Practitioners can generate reports of all data held for a specific client. Access request procedures are documented. Response timelines comply with applicable state privacy laws.",
+    whyItMatters: "Taxpayers have a right to know what data the firm holds about them. State privacy laws (CCPA, state equivalents) may grant additional access rights. The ability to fulfill data subject access requests demonstrates respect for client autonomy and regulatory compliance.",
+  },
+
+  // ─── PRIVACY: P6 — Disclosure and Notification ───
+  {
+    controlId: "P6.1",
+    tsc: "PRIVACY",
+    controlFamily: "P6",
+    description: "Breach notification",
+    monitoringMethod: "MANUAL",
+    whatSoc2Requires: "The organization provides notification to affected data subjects, regulators, and others resulting from a privacy breach.",
+    howClearedMeetsIt: "Breach notification procedures follow IRS Publication 4557 guidance and state notification laws. Notification templates are pre-drafted. IRS notification procedures include filing Form 14039 on behalf of affected clients. Response timeline targets are documented.",
+    whyItMatters: "A data breach at a tax resolution firm is catastrophic for affected clients — their SSNs, complete financial profiles, and IRS account information could enable identity theft and fraudulent tax filings. Timely notification allows clients to protect themselves through identity monitoring and IRS identity protection PINs.",
+  },
+
+  // ─── PRIVACY: P7 — Quality ───
+  {
+    controlId: "P7.1",
+    tsc: "PRIVACY",
+    controlFamily: "P7",
+    description: "Privacy compliance monitored",
+    monitoringMethod: "AUTOMATED",
+    whatSoc2Requires: "The organization monitors compliance with the entity's privacy commitments and system requirements to achieve the entity's objectives related to privacy.",
+    howClearedMeetsIt: "Privacy controls are monitored through the SOC 2 compliance dashboard. PII tokenization effectiveness is tracked. Access patterns are analyzed for anomalies. Privacy-related compliance issues are flagged with appropriate severity and SLA timelines.",
+    whyItMatters: "Privacy compliance is not a point-in-time assessment — it requires continuous monitoring. IRC § 7216 obligations exist for every client interaction. The platform must continuously verify that tokenization is working, access controls are enforced, and no unauthorized data disclosure is occurring.",
+  },
+]
+
+export async function seedComplianceControls() {
+  const results: { controlId: string; status: "created" | "updated" }[] = []
+
+  for (const control of CONTROLS) {
+    await prisma.complianceControl.upsert({
+      where: { controlId: control.controlId },
+      update: {
+        tsc: control.tsc,
+        controlFamily: control.controlFamily,
+        description: control.description,
+        monitoringMethod: control.monitoringMethod,
+        whatSoc2Requires: control.whatSoc2Requires,
+        howClearedMeetsIt: control.howClearedMeetsIt,
+        whyItMatters: control.whyItMatters,
+      },
+      create: {
+        controlId: control.controlId,
+        tsc: control.tsc,
+        controlFamily: control.controlFamily,
+        description: control.description,
+        monitoringMethod: control.monitoringMethod,
+        status: "NOT_ASSESSED",
+        whatSoc2Requires: control.whatSoc2Requires,
+        howClearedMeetsIt: control.howClearedMeetsIt,
+        whyItMatters: control.whyItMatters,
+      },
+    })
+
+    const existing = await prisma.complianceControl.findUnique({
+      where: { controlId: control.controlId },
+    })
+    results.push({
+      controlId: control.controlId,
+      status: existing ? "updated" : "created",
+    })
+  }
+
+  return {
+    total: results.length,
+    results,
+  }
+}
