@@ -270,19 +270,19 @@ export function ComplianceSection() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Requests</p>
-              <p className="text-lg font-bold">{data.totalRequests.toLocaleString()}</p>
+              <p className="text-lg font-medium">{data.totalRequests.toLocaleString()}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Input Tokens</p>
-              <p className="text-lg font-bold">{data.totalInputTokens.toLocaleString()}</p>
+              <p className="text-lg font-medium">{data.totalInputTokens.toLocaleString()}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Output Tokens</p>
-              <p className="text-lg font-bold">{data.totalOutputTokens.toLocaleString()}</p>
+              <p className="text-lg font-medium">{data.totalOutputTokens.toLocaleString()}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Total Tokens</p>
-              <p className="text-lg font-bold">{(data.totalInputTokens + data.totalOutputTokens).toLocaleString()}</p>
+              <p className="text-lg font-medium">{(data.totalInputTokens + data.totalOutputTokens).toLocaleString()}</p>
             </div>
           </div>
           {data.modelBreakdown.length > 0 && (
@@ -325,25 +325,25 @@ export function ComplianceSection() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Total Reviews</p>
-              <p className="text-lg font-bold">{data.reviewStats.totalReviews}</p>
+              <p className="text-lg font-medium">{data.reviewStats.totalReviews}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Avg Review Time</p>
-              <p className="text-lg font-bold">{formatDuration(data.reviewStats.avgReviewTimeSeconds)}</p>
+              <p className="text-lg font-medium">{formatDuration(data.reviewStats.avgReviewTimeSeconds)}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <CheckCircle className="h-3 w-3 text-green-600" /> Approved
               </p>
-              <p className="text-lg font-bold text-green-700">{data.reviewStats.approvedCount}</p>
+              <p className="text-lg font-medium text-green-700">{data.reviewStats.approvedCount}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Edit + Approved</p>
-              <p className="text-lg font-bold text-blue-700">{data.reviewStats.editApprovedCount}</p>
+              <p className="text-lg font-medium text-blue-700">{data.reviewStats.editApprovedCount}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Rejected</p>
-              <p className="text-lg font-bold text-red-700">{data.reviewStats.rejectedCount}</p>
+              <p className="text-lg font-medium text-red-700">{data.reviewStats.rejectedCount}</p>
             </div>
           </div>
         </CardContent>
@@ -362,19 +362,19 @@ export function ComplianceSection() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">[VERIFY] Flags</p>
-              <p className="text-lg font-bold">{data.flagStats.totalVerifyFlags}</p>
+              <p className="text-lg font-medium">{data.flagStats.totalVerifyFlags}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">[JUDGMENT] Flags</p>
-              <p className="text-lg font-bold">{data.flagStats.totalJudgmentFlags}</p>
+              <p className="text-lg font-medium">{data.flagStats.totalJudgmentFlags}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Acknowledged</p>
-              <p className="text-lg font-bold text-green-700">{data.flagStats.flagsAcknowledgedCount}</p>
+              <p className="text-lg font-medium text-green-700">{data.flagStats.flagsAcknowledgedCount}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Resolution Rate</p>
-              <p className="text-lg font-bold">{flagResolutionRate}%</p>
+              <p className="text-lg font-medium">{flagResolutionRate}%</p>
             </div>
           </div>
         </CardContent>

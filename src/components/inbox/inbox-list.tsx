@@ -289,7 +289,7 @@ export function InboxList({
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold">Inbox</h1>
+            <h1 className="text-lg font-medium">Inbox</h1>
             {unreadCount > 0 && (
               <span className="text-sm text-muted-foreground">({unreadCount} unread)</span>
             )}
@@ -576,7 +576,7 @@ function MessageDetail({
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold">{message.subject}</h2>
+            <h2 className="text-lg font-medium">{message.subject}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>From {message.sender?.name || message.senderName || "System"}</span>
               <span>·</span>

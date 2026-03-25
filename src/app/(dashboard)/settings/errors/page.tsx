@@ -26,7 +26,7 @@ export default async function ErrorsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Error Log</h1>
+        <h1 className="text-display-md">Error Log</h1>
         <p className="text-sm text-muted-foreground">Recent application errors (last 30 days)</p>
       </div>
       <ErrorLog errors={JSON.parse(JSON.stringify(errors))} />

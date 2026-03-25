@@ -151,7 +151,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Knowledge Base</h1>
+        <h1 className="text-3xl font-medium tracking-tight">Knowledge Base</h1>
         <UploadDialog />
       </div>
 
@@ -162,7 +162,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
             <div className="flex items-center gap-2">
               <Database className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-2xl font-bold">{stats.totalDocs}</p>
+                <p className="text-2xl font-medium">{stats.totalDocs}</p>
                 <p className="text-xs text-muted-foreground">Documents</p>
               </div>
             </div>
@@ -173,7 +173,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-2xl font-bold">{stats.totalChunks.toLocaleString()}</p>
+                <p className="text-2xl font-medium">{stats.totalChunks.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">Chunks</p>
               </div>
             </div>
@@ -184,7 +184,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
               <div>
-                <p className="text-2xl font-bold">{stats.approvedOutputs}</p>
+                <p className="text-2xl font-medium">{stats.approvedOutputs}</p>
                 <p className="text-xs text-muted-foreground">Approved Outputs</p>
               </div>
             </div>
@@ -244,7 +244,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <BookOpen className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold">No documents yet</h3>
+            <h3 className="mt-4 text-lg font-medium">No documents yet</h3>
             <p className="text-sm text-muted-foreground mt-1">
               Upload IRM sections, treatise chapters, firm templates, or CLE notes.
             </p>
@@ -259,7 +259,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
                 onClick={() => toggleCategory(category)}
               >
                 {collapsedCategories[category] ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                <span className="text-sm font-semibold">
+                <span className="text-sm font-medium">
                   {CATEGORY_LABELS[category] || category} ({docs.length})
                 </span>
               </button>

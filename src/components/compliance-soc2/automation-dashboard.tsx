@@ -216,7 +216,7 @@ export function AutomationDashboard() {
       {/* Header with actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Compliance Automation</h2>
+          <h2 className="text-xl font-medium">Compliance Automation</h2>
           <p className="text-sm text-muted-foreground">
             Automated health checks, evidence collection, and control status
             updates
@@ -271,7 +271,7 @@ export function AutomationDashboard() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-lg font-semibold">
+              <span className="text-lg font-medium">
                 {formatTime(status?.lastRunAt || null)}
               </span>
             </div>
@@ -285,7 +285,7 @@ export function AutomationDashboard() {
           <CardContent>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span className="text-lg font-semibold text-green-700">
+              <span className="text-lg font-medium text-green-700">
                 {passCount}/{totalChecks}
               </span>
             </div>
@@ -299,7 +299,7 @@ export function AutomationDashboard() {
           <CardContent>
             <div className="flex items-center gap-2">
               <XCircle className="h-4 w-4 text-red-600" />
-              <span className="text-lg font-semibold text-red-700">
+              <span className="text-lg font-medium text-red-700">
                 {failCount}
               </span>
             </div>
@@ -313,7 +313,7 @@ export function AutomationDashboard() {
           <CardContent>
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <span className="text-lg font-semibold">
+              <span className="text-lg font-medium">
                 {status?.openIssues || 0}
               </span>
             </div>
@@ -332,7 +332,7 @@ export function AutomationDashboard() {
                 <Shield className="h-4 w-4 text-green-600" />
               )}
               <span
-                className={`text-lg font-semibold ${
+                className={`text-lg font-medium ${
                   (status?.slaBreaches || 0) > 0
                     ? "text-red-700"
                     : "text-green-700"
@@ -441,7 +441,7 @@ export function AutomationDashboard() {
           <div className="flex items-center gap-4">
             <Activity className="h-8 w-8 text-blue-600" />
             <div>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-medium">
                 {status?.evidenceCount || 0}
               </div>
               <div className="text-sm text-muted-foreground">

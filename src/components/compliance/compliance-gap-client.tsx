@@ -91,7 +91,7 @@ function formatDate(iso: string | null): string {
 function getComplianceLabel(filingStatus: FilingStatusType): string {
   switch (filingStatus) {
     case "filed": return "Compliant"
-    case "sfr": return "SFR — Needs Superseding Return"
+    case "sfr": return "IRS-Filed — Needs Original Return"
     case "unfiled": return "Non-Compliant — Filing Required"
   }
 }
@@ -99,7 +99,7 @@ function getComplianceLabel(filingStatus: FilingStatusType): string {
 function getActionNeeded(filingStatus: FilingStatusType, taxYear: number): string {
   switch (filingStatus) {
     case "filed": return "None"
-    case "sfr": return `Supersede SFR for TY ${taxYear}`
+    case "sfr": return `File Original Return for TY ${taxYear}`
     case "unfiled": return `File TY ${taxYear} — unfiled, filing required`
   }
 }
@@ -157,8 +157,8 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
       actions.push({
         priority: 2,
         label: potentialReduction
-          ? `Supersede SFR for TY ${p.taxYear} — potential ${formatCurrency(potentialReduction)} reduction`
-          : `Supersede SFR for TY ${p.taxYear}`,
+          ? `File Original Return for TY ${p.taxYear} — potential ${formatCurrency(potentialReduction)} reduction`
+          : `File Original Return for TY ${p.taxYear}`,
         type: "sfr",
         year: p.taxYear,
         potentialReduction,
@@ -222,7 +222,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Total Years
                 </p>
-                <p className="text-2xl font-bold mt-1">{analysis.periods.length}</p>
+                <p className="text-2xl font-medium mt-1">{analysis.periods.length}</p>
               </CardContent>
             </Card>
 
@@ -231,16 +231,16 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                 <p className="text-xs font-medium text-red-600 uppercase tracking-wider">
                   Unfiled
                 </p>
-                <p className="text-2xl font-bold mt-1 text-red-700">{analysis.unfiled.length}</p>
+                <p className="text-2xl font-medium mt-1 text-red-700 font-mono tabular-nums">{analysis.unfiled.length}</p>
               </CardContent>
             </Card>
 
             <Card className="border-amber-200">
               <CardContent className="pt-5 pb-4">
                 <p className="text-xs font-medium text-amber-600 uppercase tracking-wider">
-                  SFR Years
+                  IRS-Filed Years
                 </p>
-                <p className="text-2xl font-bold mt-1 text-amber-700">{analysis.sfr.length}</p>
+                <p className="text-2xl font-medium mt-1 text-amber-700 font-mono tabular-nums">{analysis.sfr.length}</p>
               </CardContent>
             </Card>
 
@@ -249,7 +249,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                 <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">
                   Compliant
                 </p>
-                <p className="text-2xl font-bold mt-1 text-emerald-700">{analysis.filed.length}</p>
+                <p className="text-2xl font-medium mt-1 text-emerald-700 font-mono tabular-nums">{analysis.filed.length}</p>
               </CardContent>
             </Card>
 
@@ -258,7 +258,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Est. Reduction
                 </p>
-                <p className="text-2xl font-bold mt-1 text-blue-600">
+                <p className="text-2xl font-medium mt-1 text-blue-600 font-mono tabular-nums">
                   {analysis.totalReduction > 0 ? formatCurrency(analysis.totalReduction) : "--"}
                 </p>
               </CardContent>
@@ -269,7 +269,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+                <CardTitle className="text-sm font-medium uppercase tracking-wider">
                   Year-by-Year Compliance Overview
                 </CardTitle>
                 <button
@@ -308,7 +308,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                       <TableHead className="w-28">Filing Status</TableHead>
                       <TableHead>Assessment Date</TableHead>
                       <TableHead className="text-right">Original Assessment</TableHead>
-                      <TableHead>SFR Indicator</TableHead>
+                      <TableHead>IRS Filing</TableHead>
                       <TableHead>Compliance Status</TableHead>
                       <TableHead>Action Needed</TableHead>
                       <TableHead className="w-10"></TableHead>
@@ -325,18 +325,18 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                             setExpandedYear(expandedYear === p.taxYear ? null : p.taxYear)
                           }
                         >
-                          <TableCell className="font-semibold">{p.taxYear}</TableCell>
+                          <TableCell className="font-medium">{p.taxYear}</TableCell>
                           <TableCell>
                             <FilingStatusBadge status={p.filingStatus} />
                           </TableCell>
                           <TableCell className="text-sm">{formatDate(p.assessmentDate)}</TableCell>
-                          <TableCell className="text-right text-sm font-mono">
+                          <TableCell className="text-right text-sm font-mono tabular-nums">
                             {formatCurrency(p.originalAssessment)}
                           </TableCell>
                           <TableCell>
                             {p.filingStatus === "sfr" ? (
                               <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-xs">
-                                SFR Detected
+                                IRS Filed
                               </Badge>
                             ) : (
                               <span className="text-xs text-muted-foreground">--</span>
@@ -387,7 +387,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
           {analysis.actions.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+                <CardTitle className="text-sm font-medium uppercase tracking-wider">
                   Prioritized Action Items ({analysis.actions.length})
                 </CardTitle>
               </CardHeader>
@@ -398,7 +398,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                       key={idx}
                       className="flex items-center gap-3 py-2.5 px-3 rounded-md border bg-white hover:bg-muted/30 transition-colors"
                     >
-                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#1B3A5C] text-white text-xs font-bold flex-shrink-0">
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#1B3A5C] text-white text-xs font-medium flex-shrink-0">
                         {idx + 1}
                       </span>
                       {action.type === "unfiled" ? (
@@ -410,7 +410,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                         variant={action.type === "unfiled" ? "destructive" : "default"}
                         className="text-[10px] flex-shrink-0"
                       >
-                        {action.type === "unfiled" ? "FILE" : "Supersede"}
+                        {action.type === "unfiled" ? "FILE" : "File Original"}
                       </Badge>
                       <span className="text-sm font-medium flex-1">{action.label}</span>
                       <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -426,9 +426,9 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
             <Card className="border-emerald-200">
               <CardContent className="py-8 text-center">
                 <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
-                <p className="font-semibold text-emerald-700">All Years Compliant</p>
+                <p className="font-medium text-emerald-700">All Years Compliant</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  No unfiled returns or SFR assessments detected for this case.
+                  No unfiled returns or IRS-filed assessments detected for this case.
                 </p>
               </CardContent>
             </Card>
@@ -461,7 +461,7 @@ function FilingStatusBadge({ status }: { status: FilingStatusType }) {
       return (
         <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-xs">
           <AlertTriangle className="h-3 w-3 mr-1" />
-          SFR
+          IRS Filed
         </Badge>
       )
   }
@@ -478,28 +478,28 @@ function SfrAnalysisPanel({ period }: { period: LiabilityPeriod & { filingStatus
     <div className="px-6 py-5 space-y-4">
       <div className="flex items-center gap-2 mb-1">
         <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <h4 className="text-sm font-semibold text-amber-800">
-          SFR Analysis — Tax Year {period.taxYear}
+        <h4 className="text-sm font-medium text-amber-800">
+          IRS Filing Analysis — Tax Year {period.taxYear}
         </h4>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wider">SFR Assessment</p>
-          <p className="text-lg font-bold text-red-700 mt-0.5">{formatCurrency(sfrAssessment)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">IRS-Filed Assessment</p>
+          <p className="text-lg font-medium text-red-700 mt-0.5 font-mono tabular-nums">{formatCurrency(sfrAssessment)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Est. Original Liability</p>
-          <p className="text-lg font-bold text-emerald-700 mt-0.5">{formatCurrency(estimatedActual)}</p>
+          <p className="text-lg font-medium text-emerald-700 mt-0.5 font-mono tabular-nums">{formatCurrency(estimatedActual)}</p>
           <p className="text-[10px] text-muted-foreground">Based on W&I data estimate</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Potential Reduction</p>
-          <p className="text-lg font-bold text-[#1B3A5C] mt-0.5">{formatCurrency(delta)}</p>
+          <p className="text-lg font-medium text-[#1B3A5C] mt-0.5 font-mono tabular-nums">{formatCurrency(delta)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Penalties + Interest</p>
-          <p className="text-lg font-bold mt-0.5">{formatCurrency(penaltiesOnSfr + interestOnSfr)}</p>
+          <p className="text-lg font-medium mt-0.5 font-mono tabular-nums">{formatCurrency(penaltiesOnSfr + interestOnSfr)}</p>
         </div>
       </div>
 
@@ -508,11 +508,11 @@ function SfrAnalysisPanel({ period }: { period: LiabilityPeriod & { filingStatus
           <Clock className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-blue-900">
-              Superseding the SFR could reduce liability by {formatCurrency(delta)}
+              Filing an original return could reduce liability by {formatCurrency(delta)}
             </p>
             <p className="text-xs text-blue-700 mt-1">
-              The IRS SFR does not include deductions, credits, or proper filing status.
-              Filing an original return for TY {period.taxYear} will supersede the SFR and likely
+              The IRS-filed return does not include deductions, credits, or proper filing status.
+              Filing an original return for TY {period.taxYear} will replace the IRS filing and likely
               result in a significantly lower assessed liability.
             </p>
           </div>

@@ -10,21 +10,36 @@ export default async function ReviewPage() {
   const session = await requireAuth()
   const accessFilter = await caseAccessFilter((session.user as any).id)
 
-  const pendingTasks = await prisma.aITask.findMany({
-    where: { status: "READY_FOR_REVIEW", case: accessFilter },
-    select: {
-      id: true,
-      taskType: true,
-      createdAt: true,
-      verifyFlagCount: true,
-      judgmentFlagCount: true,
-      banjoAssignmentId: true,
-      banjoStepNumber: true,
-      banjoStepLabel: true,
-      case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  })
+  const [pendingTasks, allPractitioners] = await Promise.all([
+    prisma.aITask.findMany({
+      where: { status: "READY_FOR_REVIEW", case: accessFilter },
+      select: {
+        id: true,
+        taskType: true,
+        createdAt: true,
+        verifyFlagCount: true,
+        judgmentFlagCount: true,
+        banjoAssignmentId: true,
+        banjoStepNumber: true,
+        banjoStepLabel: true,
+        case: {
+          select: {
+            id: true,
+            tabsNumber: true,
+            clientName: true,
+            caseType: true,
+            assignedPractitionerId: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { role: { in: ["PRACTITIONER", "SENIOR", "ADMIN"] } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ])
 
   // Serialize dates for client component
   const serializedTasks = pendingTasks.map((t) => ({
@@ -35,7 +50,7 @@ export default async function ReviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Review Queue</h1>
+        <h1 className="text-display-md">Review Queue</h1>
         <p className="text-muted-foreground">
           {serializedTasks.length === 0
             ? "No AI-generated outputs awaiting review"
@@ -43,7 +58,12 @@ export default async function ReviewPage() {
         </p>
       </div>
 
-      <ReviewQueue tasks={serializedTasks} userRole={(session.user as any).role} />
+      <ReviewQueue
+        tasks={serializedTasks}
+        userRole={(session.user as any).role}
+        currentUserId={(session.user as any).id}
+        practitioners={allPractitioners}
+      />
     </div>
   )
 }

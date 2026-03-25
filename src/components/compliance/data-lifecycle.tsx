@@ -302,7 +302,7 @@ export function DataLifecycleDashboard() {
                     Approaching Expiry
                   </p>
                 </div>
-                <p className="text-2xl font-bold mt-1">
+                <p className="text-2xl font-medium mt-1">
                   {expiredData.length}
                 </p>
               </CardContent>
@@ -316,7 +316,7 @@ export function DataLifecycleDashboard() {
                     Pending Disposal
                   </p>
                 </div>
-                <p className="text-2xl font-bold mt-1">
+                <p className="text-2xl font-medium mt-1">
                   {disposalRecords.filter(
                     (r) => r.status === "QUEUED" || r.status === "CONFIRMED"
                   ).length}
@@ -332,7 +332,7 @@ export function DataLifecycleDashboard() {
                     Completed
                   </p>
                 </div>
-                <p className="text-2xl font-bold mt-1">
+                <p className="text-2xl font-medium mt-1">
                   {
                     disposalRecords.filter(
                       (r) => r.status === "EXECUTED"
@@ -350,7 +350,7 @@ export function DataLifecycleDashboard() {
                     Retention Policy
                   </p>
                 </div>
-                <p className="text-lg font-bold mt-1">7 Years</p>
+                <p className="text-lg font-medium mt-1">7 Years</p>
               </CardContent>
             </Card>
           </div>
@@ -359,7 +359,7 @@ export function DataLifecycleDashboard() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+                <CardTitle className="text-sm font-medium uppercase tracking-wider">
                   Data Approaching Retention Expiry
                 </CardTitle>
                 <Button
@@ -452,7 +452,7 @@ export function DataLifecycleDashboard() {
           ).length > 0 && (
             <Card className="border-red-200">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-red-700">
+                <CardTitle className="text-sm font-medium uppercase tracking-wider text-red-700">
                   Pending Disposal Batches
                 </CardTitle>
               </CardHeader>
@@ -530,7 +530,7 @@ export function DataLifecycleDashboard() {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Total Requests
                 </p>
-                <p className="text-2xl font-bold mt-1">{dsrList.length}</p>
+                <p className="text-2xl font-medium mt-1">{dsrList.length}</p>
               </CardContent>
             </Card>
             <Card>
@@ -538,7 +538,7 @@ export function DataLifecycleDashboard() {
                 <p className="text-xs font-medium text-yellow-600 uppercase tracking-wider">
                   Pending
                 </p>
-                <p className="text-2xl font-bold mt-1 text-yellow-700">
+                <p className="text-2xl font-medium mt-1 text-yellow-700">
                   {pendingDsrs}
                 </p>
               </CardContent>
@@ -548,7 +548,7 @@ export function DataLifecycleDashboard() {
                 <p className="text-xs font-medium text-red-600 uppercase tracking-wider">
                   SLA Breached
                 </p>
-                <p className="text-2xl font-bold mt-1 text-red-700">
+                <p className="text-2xl font-medium mt-1 text-red-700">
                   {breachedDsrs}
                 </p>
               </CardContent>
@@ -558,7 +558,7 @@ export function DataLifecycleDashboard() {
                 <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">
                   Completed
                 </p>
-                <p className="text-2xl font-bold mt-1 text-emerald-700">
+                <p className="text-2xl font-medium mt-1 text-emerald-700">
                   {dsrList.filter((r) => r.status === "COMPLETED").length}
                 </p>
               </CardContent>
@@ -576,7 +576,7 @@ export function DataLifecycleDashboard() {
           {/* Request List */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+              <CardTitle className="text-sm font-medium uppercase tracking-wider">
                 Active Data Subject Requests
               </CardTitle>
             </CardHeader>
@@ -679,7 +679,7 @@ export function DataLifecycleDashboard() {
         <TabsContent value="certificates" className="space-y-4 mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+              <CardTitle className="text-sm font-medium uppercase tracking-wider">
                 Disposal Certificate History
               </CardTitle>
             </CardHeader>

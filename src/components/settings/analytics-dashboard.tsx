@@ -182,7 +182,7 @@ export function AnalyticsDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total AI Tasks</p>
-                    <p className="text-2xl font-bold">{data.totalTasks}</p>
+                    <p className="text-2xl font-medium">{data.totalTasks}</p>
                   </div>
                 </div>
               </CardContent>
@@ -195,7 +195,7 @@ export function AnalyticsDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Approval Rate</p>
-                    <p className={`text-2xl font-bold ${rateColor(overallApprovalRate)}`}>
+                    <p className={`text-2xl font-medium ${rateColor(overallApprovalRate)}`}>
                       {overallApprovalRate}%
                     </p>
                   </div>
@@ -210,7 +210,7 @@ export function AnalyticsDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Avg Review Time</p>
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-medium">
                       {avgReviewMinutes > 0 ? `${avgReviewMinutes}m` : "--"}
                     </p>
                   </div>
@@ -225,7 +225,7 @@ export function AnalyticsDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">KB Documents</p>
-                    <p className="text-2xl font-bold">{kbTotal}</p>
+                    <p className="text-2xl font-medium">{kbTotal}</p>
                   </div>
                 </div>
               </CardContent>

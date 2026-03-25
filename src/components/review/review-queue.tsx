@@ -59,19 +59,27 @@ interface PendingTask {
     tabsNumber: string
     clientName: string
     caseType: string
+    assignedPractitionerId?: string | null
   }
 }
 
 interface Practitioner {
   id: string
   name: string
-  role: string
-  licenseType: string | null
+  role?: string
+  licenseType?: string | null
+}
+
+interface AssigneeOption {
+  id: string
+  name: string
 }
 
 interface ReviewQueueProps {
   tasks: PendingTask[]
   userRole?: string
+  currentUserId?: string
+  practitioners?: AssigneeOption[]
 }
 
 function relativeTime(dateStr: string): string {
@@ -128,7 +136,7 @@ function BanjoBundleCard({
   }
 
   return (
-    <Card className={isOlderThan48Hours(bundle.earliestDate) ? "border-l-4 border-l-yellow-400" : ""}>
+    <Card className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${isOlderThan48Hours(bundle.earliestDate) ? "border-l-4 border-l-yellow-400" : ""}`}>
       <CardContent className="p-4 space-y-2">
         <div className="flex items-center gap-3">
           {canBulkOperate && (
@@ -207,8 +215,9 @@ function BanjoBundleCard({
   )
 }
 
-export function ReviewQueue({ tasks, userRole }: ReviewQueueProps) {
+export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: assigneeOptions }: ReviewQueueProps) {
   const router = useRouter()
+  const [assigneeFilter, setAssigneeFilter] = useState<string>(currentUserId || "ALL")
   const [caseTypeFilter, setCaseTypeFilter] = useState<string>("ALL")
   const [taskTypeFilter, setTaskTypeFilter] = useState<string>("ALL")
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest")
@@ -230,6 +239,9 @@ export function ReviewQueue({ tasks, userRole }: ReviewQueueProps) {
   const filteredTasks = useMemo(() => {
     let result = tasks
 
+    if (assigneeFilter !== "ALL") {
+      result = result.filter((t) => t.case.assignedPractitionerId === assigneeFilter)
+    }
     if (caseTypeFilter !== "ALL") {
       result = result.filter((t) => t.case.caseType === caseTypeFilter)
     }
@@ -244,12 +256,12 @@ export function ReviewQueue({ tasks, userRole }: ReviewQueueProps) {
     })
 
     return result
-  }, [tasks, caseTypeFilter, taskTypeFilter, sortOrder])
+  }, [tasks, assigneeFilter, caseTypeFilter, taskTypeFilter, sortOrder])
 
   // Clear selection when filters change
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [caseTypeFilter, taskTypeFilter])
+  }, [assigneeFilter, caseTypeFilter, taskTypeFilter])
 
   // All filtered task IDs for "select all"
   const allFilteredIds = useMemo(() => new Set(filteredTasks.map((t) => t.id)), [filteredTasks])
@@ -392,7 +404,7 @@ export function ReviewQueue({ tasks, userRole }: ReviewQueueProps) {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <CheckCircle2 className="h-12 w-12 text-green-500" />
-          <h3 className="mt-4 text-lg font-semibold">All caught up &mdash; no pending reviews</h3>
+          <h3 className="mt-4 text-lg font-medium">All caught up &mdash; no pending reviews</h3>
         </CardContent>
       </Card>
     )
@@ -412,6 +424,25 @@ export function ReviewQueue({ tasks, userRole }: ReviewQueueProps) {
             <span className="text-sm text-muted-foreground">All</span>
           </div>
         )}
+
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Assigned to" />
+          </SelectTrigger>
+          <SelectContent>
+            {currentUserId && (
+              <SelectItem value={currentUserId}>Me</SelectItem>
+            )}
+            {(assigneeOptions || [])
+              .filter((p) => p.id !== currentUserId)
+              .map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            <SelectItem value="ALL">All</SelectItem>
+          </SelectContent>
+        </Select>
 
         <Select value={caseTypeFilter} onValueChange={setCaseTypeFilter}>
           <SelectTrigger className="w-[180px]">
@@ -493,11 +524,11 @@ export function ReviewQueue({ tasks, userRole }: ReviewQueueProps) {
           {standaloneTasks.map((task) => (
             <Card
               key={task.id}
-              className={
+              className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${
                 isOlderThan48Hours(task.createdAt)
                   ? "border-l-4 border-l-yellow-400"
                   : ""
-              }
+              }`}
             >
               <CardContent className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-4">

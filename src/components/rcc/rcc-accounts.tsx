@@ -34,7 +34,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
+          <h2 className="text-xl font-medium text-slate-900 dark:text-slate-100 mb-1">
             Account Transcript Activity
           </h2>
           <p className="text-sm text-slate-500">
@@ -72,7 +72,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
               key={yr}
               className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-slate-200 dark:border-slate-700"
             >
-              <span className="font-mono font-bold mr-2">TY {yr}</span>
+              <span className="font-mono font-medium mr-2">TY {yr}</span>
               <span className="text-slate-400 text-sm">No account data / Requested data not found</span>
             </div>
           )
@@ -81,7 +81,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
         return (
           <details key={yr} className="mb-4 border border-slate-200 dark:border-slate-700 rounded-lg" open={txns.some((t: any) => CRITICAL_TC.has(t.code))}>
             <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
-              <span className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100">TY {yr}</span>
+              <span className="font-mono font-medium text-sm text-slate-900 dark:text-slate-100">TY {yr}</span>
               <span className="text-xs text-slate-400">
                 Balance: <strong className="text-slate-700 dark:text-slate-300">{fmt(acct.balance || 0)}</strong>
               </span>
@@ -92,7 +92,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
                 <span className="text-xs text-red-500">Pen: {fmt(acct.accrued_penalty)}</span>
               )}
               {(acct.flags || []).map((fl: string, fi: number) => (
-                <span key={fi} className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">{fl}</span>
+                <span key={fi} className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">{fl}</span>
               ))}
             </summary>
             <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800">
@@ -100,11 +100,11 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
                 <table className="w-full text-xs mt-2">
                   <thead>
                     <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                      <th className="py-1.5 px-2 text-left font-semibold text-slate-400 w-14">Code</th>
-                      <th className="py-1.5 px-2 text-left font-semibold text-slate-400">Description</th>
-                      <th className="py-1.5 px-2 text-left font-semibold text-slate-400 w-20">Cycle</th>
-                      <th className="py-1.5 px-2 text-left font-semibold text-slate-400 w-24">Date</th>
-                      <th className="py-1.5 px-2 text-right font-semibold text-slate-400 w-28">Amount</th>
+                      <th className="py-1.5 px-2 text-left font-medium text-slate-400 w-14">Code</th>
+                      <th className="py-1.5 px-2 text-left font-medium text-slate-400">Description</th>
+                      <th className="py-1.5 px-2 text-left font-medium text-slate-400 w-20">Cycle</th>
+                      <th className="py-1.5 px-2 text-left font-medium text-slate-400 w-24">Date</th>
+                      <th className="py-1.5 px-2 text-right font-medium text-slate-400 w-28">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -118,7 +118,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
                           }`}
                         >
                           <td
-                            className={`py-1.5 px-2 font-mono font-bold ${
+                            className={`py-1.5 px-2 font-mono font-medium ${
                               isCritical ? "text-red-600" : "text-slate-700 dark:text-slate-300"
                             }`}
                             title={TC_CODES[t.code] || ""}
@@ -129,7 +129,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
                           <td className="py-1.5 px-2 font-mono text-slate-400">{t.cycle || "\u2014"}</td>
                           <td className="py-1.5 px-2 font-mono text-slate-400">{t.date || "\u2014"}</td>
                           <td
-                            className={`py-1.5 px-2 text-right font-mono font-semibold ${
+                            className={`py-1.5 px-2 text-right font-mono font-medium ${
                               t.amount < 0 ? "text-green-600" : t.amount > 0 ? "text-slate-700 dark:text-slate-300" : "text-slate-400"
                             }`}
                           >

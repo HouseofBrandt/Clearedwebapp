@@ -57,7 +57,7 @@ export function AgendaView({ deadlines, users }: AgendaViewProps) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Calendar className="h-12 w-12 text-slate-300 mb-4" />
-        <h3 className="text-sm font-semibold text-slate-900">No deadlines tracked</h3>
+        <h3 className="text-sm font-medium text-slate-900">No deadlines tracked</h3>
         <p className="text-sm text-slate-500 mt-1 max-w-sm">
           Add your first deadline to start tracking CSEDs, filing deadlines, appeal windows, and more.
         </p>
@@ -74,7 +74,7 @@ export function AgendaView({ deadlines, users }: AgendaViewProps) {
             onClick={() => setCollapsed((c) => ({ ...c, [group.key]: !c[group.key] }))}
           >
             {collapsed[group.key] ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            <span className={`text-sm font-semibold ${group.color}`}>
+            <span className={`text-sm font-medium ${group.color}`}>
               {group.label} ({group.deadlines.length})
             </span>
           </button>

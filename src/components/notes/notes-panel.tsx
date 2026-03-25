@@ -275,7 +275,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <StickyNote className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">No notes yet</h3>
+              <h3 className="mt-4 text-lg font-medium">No notes yet</h3>
               <p className="text-sm text-muted-foreground">Add a note using the form on the right.</p>
             </CardContent>
           </Card>
@@ -300,7 +300,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
         {pinnedNotes.length > 0 && (
           <Card>
             <CardHeader className="py-2 px-3">
-              <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+              <CardTitle className="text-xs font-medium flex items-center gap-1.5">
                 <Pin className="h-3 w-3 text-amber-500" fill="currentColor" />
                 Pinned Notes ({pinnedNotes.length})
               </CardTitle>
@@ -324,7 +324,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
         {/* Quick-add form */}
         <Card>
           <CardHeader className="py-2 px-3">
-            <CardTitle className="text-xs font-semibold flex items-center gap-1.5">
+            <CardTitle className="text-xs font-medium flex items-center gap-1.5">
               <Plus className="h-3 w-3" />
               Add Note
             </CardTitle>
@@ -371,7 +371,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
             {/* Call log fields */}
             {formType === "CALL_LOG" && (
               <div className="space-y-2 border rounded p-2 bg-blue-50/30">
-                <p className="text-[10px] font-semibold text-blue-700">Call Details</p>
+                <p className="text-[10px] font-medium text-blue-700">Call Details</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-[10px]">Date</Label>
@@ -402,7 +402,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
             {/* IRS contact fields */}
             {formType === "IRS_CONTACT" && (
               <div className="space-y-2 border rounded p-2 bg-red-50/30">
-                <p className="text-[10px] font-semibold text-red-700">IRS Contact Details</p>
+                <p className="text-[10px] font-medium text-red-700">IRS Contact Details</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-[10px]">Employee Name</Label>

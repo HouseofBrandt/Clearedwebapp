@@ -27,7 +27,7 @@
     --border: 216 20% 90%;
     --input: 216 20% 90%;
     --ring: 218 46% 30%;
-    --radius: 0.375rem;
+    --radius: 0.75rem;
 
     /* V2 semantic colors */
     --risk-critical: 0 72% 51%;
@@ -111,7 +111,7 @@
     --border: 220 20% 18%;
     --input: 220 20% 18%;
     --ring: 218 46% 40%;
-    --radius: 0.375rem;
+    --radius: 0.75rem;
 
     --risk-critical: 0 72% 55%;
     --risk-high: 25 95% 58%;
@@ -200,7 +200,7 @@
 .review-document h1,
 .review-document h2 {
   font-size: 1.15em;
-  font-weight: 700;
+  font-weight: 500;
   margin-top: 2em;
   margin-bottom: 0.75em;
   padding-bottom: 0.5em;
@@ -211,7 +211,7 @@
 
 .review-document h3 {
   font-size: 1.05em;
-  font-weight: 600;
+  font-weight: 500;
   margin-top: 1.5em;
   margin-bottom: 0.5em;
 }
@@ -239,7 +239,7 @@
 
 .review-document th {
   background: hsl(var(--muted));
-  font-weight: 600;
+  font-weight: 500;
   text-align: left;
   padding: 8px 12px;
   border: 1px solid hsl(var(--border));
@@ -259,7 +259,7 @@
 }
 
 .review-document strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .review-document hr {
@@ -275,7 +275,7 @@
   color: #92400E;
   padding: 2px 6px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.85em;
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
@@ -286,7 +286,7 @@
   color: #1E40AF;
   padding: 2px 6px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.85em;
   border: 1px solid rgba(59, 130, 246, 0.2);
 }
@@ -313,14 +313,14 @@
 
 .junebug-prose h1, .junebug-prose h2 {
   font-size: 1.1em;
-  font-weight: 600;
+  font-weight: 500;
   margin-top: 1em;
   margin-bottom: 0.4em;
 }
 
 .junebug-prose h3, .junebug-prose h4 {
   font-size: 1em;
-  font-weight: 600;
+  font-weight: 500;
   margin-top: 0.8em;
   margin-bottom: 0.3em;
 }
@@ -347,20 +347,20 @@
 
 .junebug-prose hr {
   border: none;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--c-gray-100);
   margin: 1em 0;
 }
 
 .junebug-prose code {
-  background: #f1f5f9;
+  background: var(--c-gray-50);
   border-radius: 3px;
   padding: 1px 5px;
   font-size: 0.9em;
 }
 
 .junebug-prose pre {
-  background: #1e293b;
-  color: #e2e8f0;
+  background: var(--c-gray-900);
+  color: var(--c-gray-100);
   border-radius: 6px;
   padding: 12px;
   overflow-x: auto;
@@ -383,37 +383,37 @@
 }
 
 .junebug-prose th {
-  background: #f8fafc;
-  font-weight: 600;
+  background: var(--c-snow);
+  font-weight: 500;
   text-align: left;
   padding: 6px 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--c-gray-100);
   font-size: 12px;
 }
 
 .junebug-prose td {
   padding: 6px 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--c-gray-100);
   vertical-align: top;
 }
 
 .junebug-prose tr:nth-child(even) td {
-  background: #f8fafc;
+  background: var(--c-snow);
 }
 
 .junebug-prose blockquote {
-  border-left: 3px solid #cbd5e1;
+  border-left: 3px solid var(--c-gray-200);
   padding-left: 12px;
-  color: #64748b;
+  color: var(--c-gray-500);
   margin: 0.75em 0;
 }
 
 .junebug-prose strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .junebug-prose a {
-  color: #2563eb;
+  color: var(--c-teal);
   text-decoration: underline;
 }
 
@@ -460,4 +460,10 @@
   letter-spacing: -0.02em;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
+}
+
+/* Skeleton shimmer animation */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

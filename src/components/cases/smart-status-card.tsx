@@ -42,7 +42,7 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-sm">
+          <h3 className="font-medium text-sm">
             {caseData.tabsNumber || "No TABS #"}
             {" · "}{caseData.caseType}
             {intel?.resolutionType && <span className="text-muted-foreground"> ({intel.resolutionType})</span>}

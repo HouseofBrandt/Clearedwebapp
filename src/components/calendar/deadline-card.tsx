@@ -184,7 +184,7 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
             </div>
             <div className="text-right shrink-0">
               <p className="text-sm">{formatDate(deadline.dueDate, { month: "short", day: "numeric", year: "numeric" })}</p>
-              {isOverdue && <p className="text-xs font-semibold text-red-600">OVERDUE</p>}
+              {isOverdue && <p className="text-xs font-medium text-red-600">OVERDUE</p>}
             </div>
           </div>
 

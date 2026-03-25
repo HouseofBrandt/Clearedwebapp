@@ -166,7 +166,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                 Review Queue
               </button>
             </div>
-            <h1 className="text-lg font-semibold mt-1">{taskLabel}</h1>
+            <h1 className="text-lg font-medium mt-1">{taskLabel}</h1>
             <Link
               href={`/cases/${task.case?.id || task.caseId}`}
               className="text-sm text-muted-foreground hover:text-foreground hover:underline"

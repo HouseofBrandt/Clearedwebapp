@@ -26,7 +26,7 @@ function ConfidenceBadge({ level }: { level: string }) {
   }
   const m = map[level] || map.none
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${m.bg} ${m.text}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium ${m.bg} ${m.text}`}>
       {m.label}
     </span>
   )
@@ -35,12 +35,12 @@ function ConfidenceBadge({ level }: { level: string }) {
 // ─── Filing Badge (3 states) ───
 function FilingBadge({ filed, present }: { filed: boolean; present?: boolean }) {
   if (filed) {
-    return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">Filed</span>
+    return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">Filed</span>
   }
   if (present === false) {
-    return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500">No Data</span>
+    return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">No Data</span>
   }
-  return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">Not Filed</span>
+  return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">Not Filed</span>
 }
 
 // ─── Summary Strip ───
@@ -67,7 +67,7 @@ function SummaryStrip({ taxpayer, years, rawYears, getYearResults }: {
   return (
     <div className="flex items-stretch rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 mb-5">
       <div className="bg-slate-900 dark:bg-slate-800 px-4 py-3 flex flex-col justify-center min-w-[180px]">
-        <div className="text-sm font-bold text-white">{taxpayer?.name || "\u2014"}</div>
+        <div className="text-sm font-medium text-white">{taxpayer?.name || "\u2014"}</div>
         <div className="text-[10px] text-slate-400">SSN: XXX-XX-{taxpayer?.ssn_last4 || "\u2014"}</div>
       </div>
       <div className="flex-1 flex items-center gap-6 px-5 py-3 bg-white dark:bg-slate-900 flex-wrap">
@@ -85,7 +85,7 @@ function StatCell({ label, value, accent, green }: { label: string; value: strin
   return (
     <div className="min-w-[120px]">
       <div className="text-[10px] text-slate-400 mb-0.5">{label}</div>
-      <div className={`text-base font-bold font-mono ${accent ? "text-red-600" : green ? "text-green-600" : "text-slate-900 dark:text-slate-100"}`}>{value}</div>
+      <div className={`text-base font-medium font-mono ${accent ? "text-red-600" : green ? "text-green-600" : "text-slate-900 dark:text-slate-100"}`}>{value}</div>
     </div>
   )
 }
@@ -94,12 +94,12 @@ function StatCell({ label, value, accent, green }: { label: string; value: strin
 function TranscriptCoverage({ years, rawYears }: { years: string[]; rawYears: Record<string, any> }) {
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Transcript Coverage</div>
+      <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-3">Transcript Coverage</div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b-2 border-slate-200 dark:border-slate-700">
             {["Year", "W&I", "Acct", "Return", "Confidence"].map(h => (
-              <th key={h} className={`py-1.5 px-2 text-[11px] font-semibold text-slate-400 uppercase ${h === "Year" ? "text-left" : "text-center"}`}>{h}</th>
+              <th key={h} className={`py-1.5 px-2 text-[11px] font-medium text-slate-400 uppercase ${h === "Year" ? "text-left" : "text-center"}`}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -112,7 +112,7 @@ function TranscriptCoverage({ years, rawYears }: { years: string[]; rawYears: Re
             const conf = assessConfidence(yd)
             return (
               <tr key={yr} className="border-b border-slate-100 dark:border-slate-800">
-                <td className="py-1.5 px-2 font-mono font-bold text-sm">{yr}</td>
+                <td className="py-1.5 px-2 font-mono font-medium text-sm">{yr}</td>
                 <td className="py-1.5 px-2 text-center"><Check ok={hasWI} /></td>
                 <td className="py-1.5 px-2 text-center"><Check ok={hasAcct} /></td>
                 <td className="py-1.5 px-2 text-center"><Check ok={hasRet} /></td>
@@ -127,7 +127,7 @@ function TranscriptCoverage({ years, rawYears }: { years: string[]; rawYears: Re
 }
 
 function Check({ ok }: { ok: boolean }) {
-  return <span className={`text-sm font-bold ${ok ? "text-green-600" : "text-slate-300 dark:text-slate-600"}`}>{ok ? "\u2713" : "\u2014"}</span>
+  return <span className={`text-sm font-medium ${ok ? "text-green-600" : "text-slate-300 dark:text-slate-600"}`}>{ok ? "\u2713" : "\u2014"}</span>
 }
 
 // ─── Next Actions Panel ───
@@ -141,15 +141,15 @@ function NextActionsPanel({ actions }: { actions: NextAction[] }) {
   }
   return (
     <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
-      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">Next Actions</div>
+      <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-3">Next Actions</div>
       <div className="space-y-1.5">
         {actions.slice(0, 12).map((a, i) => {
           const c = colorMap[a.color] || colorMap.slate
           return (
             <div key={i} className={`flex items-center gap-3 px-3 py-2 rounded-md border ${c.bg} ${c.border}`}>
               <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
-              <span className={`font-mono text-[10px] font-bold min-w-[36px] ${c.text}`}>{a.year}</span>
-              <span className={`text-xs font-semibold ${c.text}`}>{a.label}</span>
+              <span className={`font-mono text-[10px] font-medium min-w-[36px] ${c.text}`}>{a.year}</span>
+              <span className={`text-xs font-medium ${c.text}`}>{a.label}</span>
               <span className={`text-[10px] ${c.text} opacity-70 ml-auto`}>{a.detail}</span>
             </div>
           )
@@ -178,8 +178,8 @@ function FreezeCodesPanel({ rawYears }: { rawYears: Record<string, any> }) {
   return (
     <details className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 mb-5">
       <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Freeze Codes Detected</span>
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+        <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Freeze Codes Detected</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
           {allFreezes.length}
         </span>
       </summary>
@@ -187,18 +187,18 @@ function FreezeCodesPanel({ rawYears }: { rawYears: Record<string, any> }) {
         {allFreezes.map((f, i) => (
           <div key={i} className="border border-red-200 dark:border-red-800/50 rounded-md bg-red-50 dark:bg-red-950/20 p-3">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-mono text-sm font-bold text-red-700 dark:text-red-400">{f.freezeCode}</span>
-              <span className="text-sm font-semibold text-red-800 dark:text-red-300">{f.details.name}</span>
+              <span className="font-mono text-sm font-medium text-red-700 dark:text-red-400">{f.freezeCode}</span>
+              <span className="text-sm font-medium text-red-800 dark:text-red-300">{f.details.name}</span>
               <span className="ml-auto font-mono text-[10px] text-red-600 dark:text-red-400">TY {f.year}</span>
             </div>
             <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">{f.details.description}</div>
             <div className="text-[10px] text-slate-500 mb-1">
-              <span className="font-semibold">Triggered by:</span> {f.triggeredBy}
+              <span className="font-medium">Triggered by:</span> {f.triggeredBy}
             </div>
             <div className="text-[10px] text-slate-500 mb-1">
-              <span className="font-semibold">Releases:</span> {f.details.releases.join(" | ")}
+              <span className="font-medium">Releases:</span> {f.details.releases.join(" | ")}
             </div>
-            <div className="mt-2 px-2 py-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded text-[11px] text-amber-800 dark:text-amber-300 font-semibold">
+            <div className="mt-2 px-2 py-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded text-[11px] text-amber-800 dark:text-amber-300 font-medium">
               Action: {f.details.practitionerAction}
             </div>
           </div>
@@ -225,8 +225,8 @@ function AnomalyAlertsPanel({ rawYears }: { rawYears: Record<string, any> }) {
   return (
     <details className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 mb-5" open={critCount > 0}>
       <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Anomaly Alerts</span>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${critCount > 0 ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"}`}>
+        <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Anomaly Alerts</span>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${critCount > 0 ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"}`}>
           {anomalies.length}
         </span>
       </summary>
@@ -237,14 +237,14 @@ function AnomalyAlertsPanel({ rawYears }: { rawYears: Record<string, any> }) {
             <div key={a.id} className={`border ${s.border} rounded-md ${s.bg} p-3`}>
               <div className="flex items-center gap-2 mb-1">
                 <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
-                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${s.badge}`}>{a.severity}</span>
-                <span className={`text-xs font-semibold ${s.text}`}>{a.type.replace(/_/g, " ")}</span>
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium uppercase ${s.badge}`}>{a.severity}</span>
+                <span className={`text-xs font-medium ${s.text}`}>{a.type.replace(/_/g, " ")}</span>
                 <span className="ml-auto font-mono text-[10px] text-slate-400">TY {a.taxYear}</span>
               </div>
-              <div className={`text-xs font-semibold ${s.text} mb-1`}>{a.description}</div>
+              <div className={`text-xs font-medium ${s.text} mb-1`}>{a.description}</div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">{a.details}</div>
               <div className="px-2 py-1.5 bg-white/60 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded text-[11px] text-slate-700 dark:text-slate-300">
-                <span className="font-semibold">Recommendation:</span> {a.recommendation}
+                <span className="font-medium">Recommendation:</span> {a.recommendation}
               </div>
             </div>
           )
@@ -270,8 +270,8 @@ function CrossYearLinksPanel({ rawYears }: { rawYears: Record<string, any> }) {
   return (
     <details className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 mb-5">
       <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cross-Year Links</span>
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+        <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Cross-Year Links</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
           {links.length}
         </span>
       </summary>
@@ -281,11 +281,11 @@ function CrossYearLinksPanel({ rawYears }: { rawYears: Record<string, any> }) {
           return (
             <div key={l.id} className={`border ${s.border} rounded-md ${s.bg} p-3`}>
               <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs font-semibold ${s.text}`}>{l.type.replace(/_/g, " ")}</span>
+                <span className={`text-xs font-medium ${s.text}`}>{l.type.replace(/_/g, " ")}</span>
                 <span className="ml-auto flex items-center gap-1 font-mono text-[10px] text-slate-500">
-                  <span className="font-bold">{l.sourceYear}</span>
+                  <span className="font-medium">{l.sourceYear}</span>
                   <span>{"\u2192"}</span>
-                  <span className="font-bold">{l.targetYear}</span>
+                  <span className="font-medium">{l.targetYear}</span>
                 </span>
               </div>
               <div className={`text-xs ${s.text}`}>{l.description}</div>
@@ -339,7 +339,7 @@ export function RCCDashboard({
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4">Taxpayer Dashboard</h2>
+      <h2 className="text-xl font-medium text-slate-900 dark:text-slate-100 mb-4">Taxpayer Dashboard</h2>
 
       <SummaryStrip taxpayer={taxpayer} years={years} rawYears={rawYears} getYearResults={getYearResults} />
 
@@ -365,13 +365,13 @@ export function RCCDashboard({
       </div>
 
       {/* Year Summary Table */}
-      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Year Summary</div>
+      <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-2">Year Summary</div>
       <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-900 dark:bg-slate-800 text-white text-[11px] uppercase tracking-wider">
               {["Year", "Filed", "Gross", "AGI", "Taxable", "Tax", "W/H", "Due/(Refund)", "Conf."].map((h) => (
-                <th key={h} className={`px-3 py-2.5 font-semibold ${h === "Year" ? "text-left" : "text-center"}`}>{h}</th>
+                <th key={h} className={`px-3 py-2.5 font-medium ${h === "Year" ? "text-left" : "text-center"}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -389,7 +389,7 @@ export function RCCDashboard({
                   }`}
                   onClick={() => onSelectYear(yr)}
                 >
-                  <td className="px-3 py-2.5 font-bold font-mono">{yr}</td>
+                  <td className="px-3 py-2.5 font-medium font-mono">{yr}</td>
                   <td className="px-3 py-2.5 text-center">
                     <FilingBadge filed={retFiled} present={rawYears[yr]?.account?.return_present} />
                   </td>
@@ -398,7 +398,7 @@ export function RCCDashboard({
                   <td className="px-3 py-2.5 text-center font-mono">{fmt(res.taxableIncome)}</td>
                   <td className="px-3 py-2.5 text-center font-mono">{fmt(res.taxLiability)}</td>
                   <td className="px-3 py-2.5 text-center font-mono">{fmt(res.withholding)}</td>
-                  <td className={`px-3 py-2.5 text-center font-mono font-bold ${
+                  <td className={`px-3 py-2.5 text-center font-mono font-medium ${
                     res.balanceDue > 0 ? "text-red-600" : res.balanceDue < 0 ? "text-green-600" : "text-slate-600"
                   }`}>
                     {res.balanceDue < 0 ? `(${fmt(Math.abs(res.balanceDue))})` : fmt(res.balanceDue)}

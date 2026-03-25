@@ -146,7 +146,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Cases</h1>
+          <h1 className="text-display-md">Cases</h1>
           <p className="text-muted-foreground">Manage client cases and matters</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -316,7 +316,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
           {filteredCases.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <FolderOpen className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-semibold">No cases found</h3>
+              <h3 className="mt-4 text-lg font-medium">No cases found</h3>
               <p className="text-sm text-muted-foreground">
                 {cases.length === 0
                   ? "Create your first case to get started."
@@ -342,8 +342,8 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
               </TableHeader>
               <TableBody>
                 {filteredCases.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/cases/${c.id}`)}>
-                    <TableCell className="font-medium">{c.tabsNumber || "—"}</TableCell>
+                  <TableRow key={c.id} className="cursor-pointer transition-all duration-200 hover:bg-muted/50 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)]" onClick={() => router.push(`/cases/${c.id}`)}>
+                    <TableCell className="font-medium font-mono tabular-nums">{c.tabsNumber || "—"}</TableCell>
                     <TableCell>{c.clientName}</TableCell>
                     <TableCell>
                       <span className="text-sm">{CASE_TYPE_LABELS[c.caseType as keyof typeof CASE_TYPE_LABELS] || c.caseType}</span>
@@ -356,7 +356,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
                         {CASE_STATUS_LABELS[c.status as keyof typeof CASE_STATUS_LABELS] || c.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{c.totalLiability != null && c.totalLiability !== "" ? formatCurrency(c.totalLiability) : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
+                    <TableCell className="font-mono tabular-nums">{c.totalLiability != null && c.totalLiability !== "" ? formatCurrency(c.totalLiability) : <span className="text-muted-foreground">&mdash;</span>}</TableCell>
                     <TableCell className="hidden xl:table-cell">{c.assignedPractitioner?.name || <span className="text-muted-foreground italic">Unassigned</span>}</TableCell>
                     <TableCell>
                       <span className="text-sm text-muted-foreground">{timeAgo(c.updatedAt)}</span>

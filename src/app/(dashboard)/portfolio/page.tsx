@@ -18,7 +18,7 @@ function RiskCell({ score, tabsNumber, id }: { score: number; tabsNumber: string
     "bg-emerald-500 hover:bg-emerald-600"
   return (
     <Link href={`/cases/${id}`}>
-      <div className={`${bg} rounded-sm w-10 h-10 flex items-center justify-center text-white text-[10px] font-bold cursor-pointer transition-colors`} title={`${tabsNumber} — Risk: ${score}`}>
+      <div className={`${bg} rounded-sm w-10 h-10 flex items-center justify-center text-white text-[10px] font-medium font-mono tabular-nums cursor-pointer transition-colors`} title={`${tabsNumber} — Risk: ${score}`}>
         {score}
       </div>
     </Link>
@@ -94,7 +94,7 @@ export default async function PortfolioPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Portfolio Intelligence</h1>
+        <h1 className="text-display-md">Portfolio Intelligence</h1>
         <p className="text-sm text-muted-foreground">
           Firm-wide view of {decrypted.length} active cases
         </p>
@@ -104,7 +104,7 @@ export default async function PortfolioPage() {
         {/* Risk Heat Map */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider">Risk Heat Map</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase tracking-wider">Risk Heat Map</CardTitle>
           </CardHeader>
           <CardContent>
             {riskCases.length === 0 ? (
@@ -122,7 +122,7 @@ export default async function PortfolioPage() {
         {/* Phase Distribution */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider">Phase Distribution</CardTitle>
+            <CardTitle className="text-sm font-medium uppercase tracking-wider">Phase Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -136,7 +136,7 @@ export default async function PortfolioPage() {
                     <div className="flex-1 h-2.5 rounded-full bg-gray-100 overflow-hidden">
                       <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-xs font-semibold w-8 text-right">{count}</span>
+                    <span className="text-xs font-medium font-mono tabular-nums w-8 text-right">{count}</span>
                   </div>
                 )
               })}
@@ -147,7 +147,7 @@ export default async function PortfolioPage() {
         {/* Stale Cases */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider">
               Stale Cases ({staleCases.length})
             </CardTitle>
           </CardHeader>
@@ -160,7 +160,7 @@ export default async function PortfolioPage() {
                   <Link key={c.id} href={`/cases/${c.id}`}>
                     <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted transition-colors cursor-pointer">
                       <div>
-                        <span className="text-sm font-medium">{c.tabsNumber}</span>
+                        <span className="text-sm font-medium font-mono tabular-nums">{c.tabsNumber}</span>
                         <span className="text-xs text-muted-foreground ml-2">{c.clientName}</span>
                       </div>
                       <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
@@ -177,7 +177,7 @@ export default async function PortfolioPage() {
         {/* Missed Opportunities */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider">
               Ready for Banjo ({missedOpportunities.length})
             </CardTitle>
           </CardHeader>
@@ -190,7 +190,7 @@ export default async function PortfolioPage() {
                   <Link key={c.id} href={`/cases/${c.id}#banjo`}>
                     <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted transition-colors cursor-pointer">
                       <div>
-                        <span className="text-sm font-medium">{c.tabsNumber}</span>
+                        <span className="text-sm font-medium font-mono tabular-nums">{c.tabsNumber}</span>
                         <span className="text-xs text-muted-foreground ml-2">
                           {CASE_TYPE_LABELS[c.caseType as keyof typeof CASE_TYPE_LABELS] || c.caseType}
                         </span>
@@ -209,7 +209,7 @@ export default async function PortfolioPage() {
         {/* Review Backlog */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+            <CardTitle className="text-sm font-medium uppercase tracking-wider">
               Review Backlog ({reviewBacklog.length} cases)
             </CardTitle>
           </CardHeader>

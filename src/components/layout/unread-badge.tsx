@@ -29,7 +29,7 @@ export function UnreadBadge({ initialCount = 0 }: UnreadBadgeProps) {
   if (count === 0) return null
 
   return (
-    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-600 px-1.5 text-[10px] font-semibold tabular-nums text-white dark:bg-slate-500">
+    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-600 px-1.5 text-[10px] font-medium tabular-nums text-white dark:bg-slate-500">
       {count > 99 ? "99+" : count}
     </span>
   )

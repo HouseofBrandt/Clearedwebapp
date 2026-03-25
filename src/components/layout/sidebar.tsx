@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import { Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ROLE_LABELS } from "@/types"
-import { UnreadBadge } from "@/components/layout/unread-badge"
 import { getVisibleNavItems, type NavSection } from "@/components/layout/navigation"
 
 interface SidebarProps {
@@ -33,7 +32,7 @@ const SECTION_LABELS: Record<NavSection, string> = {
 }
 
 /** Items that are pulled out of the normal nav flow */
-const STANDALONE_ITEMS = new Set(["Inbox", "Settings"])
+const STANDALONE_ITEMS = new Set(["Settings"])
 
 export function SidebarContent({
   user,
@@ -52,15 +51,11 @@ export function SidebarContent({
     TOOLS: [],
     ADMIN: [],
   }
-  const standaloneNavItems = allItems.filter((item) => STANDALONE_ITEMS.has(item.name))
-
   for (const item of allItems) {
     if (!STANDALONE_ITEMS.has(item.name)) {
       sectionItems[item.section].push(item)
     }
   }
-
-  const inboxItem = standaloneNavItems.find((i) => i.name === "Inbox")
 
   return (
     <div className="flex h-full flex-col" style={{ backgroundColor: "var(--c-navy-950)" }}>
@@ -75,18 +70,6 @@ export function SidebarContent({
               Cleared
             </span>
           </Link>
-        </div>
-      )}
-
-      {/* Inbox — standalone, above sections */}
-      {inboxItem && (
-        <div className="px-3 mb-2">
-          <NavLink
-            item={inboxItem}
-            pathname={pathname}
-            onLinkClick={onLinkClick}
-            badge={<UnreadBadge initialCount={unreadMessageCount || 0} />}
-          />
         </div>
       )}
 

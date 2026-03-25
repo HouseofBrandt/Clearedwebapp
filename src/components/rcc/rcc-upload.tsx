@@ -73,7 +73,7 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
+      <h2 className="text-xl font-medium text-slate-900 dark:text-slate-100 mb-1">
         Upload IRS Transcripts
       </h2>
       <p className="text-sm text-slate-500 mb-6">
@@ -163,7 +163,7 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
 
       {/* Help */}
       <div className="mt-8 p-5 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800/50">
-        <div className="text-sm font-bold text-amber-800 dark:text-amber-300 mb-2">
+        <div className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
           Supported Transcript Types
         </div>
         <div className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed space-y-1">

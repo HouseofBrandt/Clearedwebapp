@@ -259,7 +259,7 @@ export function SwitchboardDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total AI Tasks</p>
-                    <p className="text-2xl font-bold">{data.summary.totalTasks}</p>
+                    <p className="text-2xl font-medium">{data.summary.totalTasks}</p>
                   </div>
                 </div>
               </CardContent>
@@ -272,7 +272,7 @@ export function SwitchboardDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Approval Rate</p>
-                    <p className={`text-2xl font-bold ${rateColor(data.summary.approvalRate)}`}>
+                    <p className={`text-2xl font-medium ${rateColor(data.summary.approvalRate)}`}>
                       {data.summary.approvalRate}%
                     </p>
                   </div>
@@ -287,7 +287,7 @@ export function SwitchboardDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Avg Review Time</p>
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-medium">
                       {data.summary.avgReviewMinutes > 0 ? `${data.summary.avgReviewMinutes}m` : "--"}
                     </p>
                   </div>
@@ -302,7 +302,7 @@ export function SwitchboardDashboard() {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Active Learned Patterns</p>
-                    <p className="text-2xl font-bold">{data.summary.learnedPatternCount}</p>
+                    <p className="text-2xl font-medium">{data.summary.learnedPatternCount}</p>
                   </div>
                 </div>
               </CardContent>

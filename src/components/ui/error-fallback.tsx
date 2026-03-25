@@ -9,7 +9,7 @@ export function ErrorFallback({ error, reset }: { error: Error & { digest?: stri
         <AlertTriangle className="h-8 w-8 text-red-500" />
       </div>
       <div>
-        <h2 className="text-lg font-semibold text-slate-900">Something went wrong</h2>
+        <h2 className="text-lg font-medium text-slate-900">Something went wrong</h2>
         <p className="mt-1 text-sm text-slate-500">
           {error.message || "An unexpected error occurred. Please try again."}
         </p>

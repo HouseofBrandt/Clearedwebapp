@@ -143,7 +143,7 @@ export function PolicyGateModal({
             <Shield className="h-5 w-5 text-amber-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-medium text-white">
               Policy Acknowledgment Required
             </h2>
             <p className="text-sm text-zinc-400">
@@ -177,7 +177,7 @@ export function PolicyGateModal({
                 return (
                   <h3
                     key={i}
-                    className="mb-2 mt-4 text-base font-semibold text-white"
+                    className="mb-2 mt-4 text-base font-medium text-white"
                   >
                     {line.replace("### ", "")}
                   </h3>
@@ -187,7 +187,7 @@ export function PolicyGateModal({
                 return (
                   <h2
                     key={i}
-                    className="mb-2 mt-6 text-lg font-bold text-white"
+                    className="mb-2 mt-6 text-lg font-medium text-white"
                   >
                     {line.replace("## ", "")}
                   </h2>
@@ -197,7 +197,7 @@ export function PolicyGateModal({
                 return (
                   <h1
                     key={i}
-                    className="mb-3 mt-6 text-xl font-bold text-white"
+                    className="mb-3 mt-6 text-xl font-medium text-white"
                   >
                     {line.replace("# ", "")}
                   </h1>

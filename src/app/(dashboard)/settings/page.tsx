@@ -15,14 +15,14 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-display-md">Settings</h1>
         <p className="text-sm text-muted-foreground">Manage your account and workspace preferences</p>
       </div>
 
       <div className="grid gap-8">
         {/* Profile Section */}
         <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
             <User className="h-5 w-5" /> Profile
           </h2>
           <ProfileForm
@@ -36,7 +36,7 @@ export default async function SettingsPage() {
 
         {/* Security Section */}
         <div>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
             <Shield className="h-5 w-5" /> Security
           </h2>
           <PasswordChangeForm />
@@ -45,21 +45,21 @@ export default async function SettingsPage() {
         {/* System Health Section (admin only) */}
         {isAdmin && (
           <div>
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
               <Activity className="h-5 w-5" /> System Health
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="p-4">
                 <div className="text-xs text-muted-foreground">Encryption Status</div>
-                <div className="text-sm font-semibold text-green-600 mt-1">Active (AES-256-GCM)</div>
+                <div className="text-sm font-medium text-green-600 mt-1">Active (AES-256-GCM)</div>
               </Card>
               <Card className="p-4">
                 <div className="text-xs text-muted-foreground">API Keys</div>
-                <div className="text-sm font-semibold text-green-600 mt-1">Configured</div>
+                <div className="text-sm font-medium text-green-600 mt-1">Configured</div>
               </Card>
               <Card className="p-4">
                 <div className="text-xs text-muted-foreground">PII Tokenization</div>
-                <div className="text-sm font-semibold text-green-600 mt-1">Enforced</div>
+                <div className="text-sm font-medium text-green-600 mt-1">Enforced</div>
               </Card>
             </div>
           </div>

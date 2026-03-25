@@ -3,13 +3,10 @@ import {
   FolderOpen,
   ClipboardCheck,
   Calendar,
-  BookOpen,
-  Inbox,
   Settings,
   ScrollText,
   BarChart3,
   Calculator,
-  FileSearch,
   Scale,
   ShieldAlert,
   TrendingUp,
@@ -38,21 +35,18 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Portfolio", href: "/portfolio", icon: BarChart3, description: "Firm-wide case health", section: "MAIN" },
 
   // TOOLS section
-  { name: "Knowledge Base", href: "/knowledge", icon: BookOpen, description: "Firm institutional memory", section: "TOOLS" },
-  { name: "Return Compliance", href: "/rcc", icon: Calculator, description: "IRS transcript analysis & return estimator", section: "TOOLS" },
-  { name: "Compliance Gap", href: "/compliance-gap", icon: FileSearch, description: "Unfiled year analysis & gap closing", section: "TOOLS" },
+  { name: "Transcript Decoder", href: "/rcc", icon: Calculator, description: "IRS transcript analysis & return estimator", section: "TOOLS" },
   { name: "OIC Modeler", href: "/oic-modeler", icon: Scale, description: "Offer in Compromise RCP modeling", section: "TOOLS" },
   { name: "Penalty Abatement", href: "/penalty-abatement", icon: ShieldAlert, description: "FTA & reasonable cause letters", section: "TOOLS" },
 
-  // Standalone items (Inbox, Settings — rendered separately)
-  { name: "Inbox", href: "/inbox", icon: Inbox, description: "Messages and alerts", section: "MAIN" },
+  // Standalone items (Settings — rendered separately)
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences", section: "MAIN" },
 
   // ADMIN section
-  { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true, section: "ADMIN" },
-  { name: "SOC 2 Compliance", href: "/admin/compliance", icon: Shield, description: "SOC 2 Type II compliance tracker", adminOnly: true, section: "ADMIN" },
-  { name: "Switchboard", href: "/admin/switchboard", icon: Network, description: "AI pipeline visibility", adminOnly: true, section: "ADMIN" },
+  { name: "SOC 2", href: "/admin/compliance", icon: Shield, description: "SOC 2 Type II compliance tracker", adminOnly: true, section: "ADMIN" },
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true, section: "ADMIN" },
+  { name: "Switchboard", href: "/admin/switchboard", icon: Network, description: "AI pipeline visibility", adminOnly: true, section: "ADMIN" },
+  { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true, section: "ADMIN" },
 ]
 
 export function getVisibleNavItems(role?: string) {

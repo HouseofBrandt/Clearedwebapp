@@ -10,7 +10,7 @@ export default async function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Feedback Analytics</h1>
+        <h1 className="text-display-md">Feedback Analytics</h1>
         <p className="text-muted-foreground">
           AI output quality, review patterns, and system learning signals
         </p>

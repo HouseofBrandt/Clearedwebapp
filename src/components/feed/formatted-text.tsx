@@ -15,7 +15,7 @@ function parseLine(text: string): React.ReactNode[] {
     if (part.startsWith("**") && part.endsWith("**")) {
       const inner = part.slice(2, -2)
       return (
-        <strong key={i} className="font-semibold text-foreground">
+        <strong key={i} className="font-medium text-foreground">
           {inner}
         </strong>
       )

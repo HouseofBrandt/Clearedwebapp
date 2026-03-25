@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
-import { FeedPage } from "@/components/feed/feed-page"
+import { getCommandCenterData } from "@/lib/dashboard/command-center"
+import { DailyBrief } from "@/components/dashboard/command-center"
 
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
 
@@ -9,123 +10,80 @@ export default async function DashboardPage() {
   const session = await requireAuth()
   const userId = session.user.id
 
-  let posts: any[] = []
-  let myTaskCount = 0
-  let pinnedPosts: any[] = []
-  let cases: any[] = []
-  let users: any[] = []
+  let pendingReviews = 0
+  let deadlinesThisWeek = 0
+  let activeCases = 0
+  let openTasks = 0
+  let commandData: any = null
 
   try {
-    const [feedPosts, taskCount, pinned, activeCases, allUsers] = await Promise.all([
-      prisma.feedPost.findMany({
-        take: 20,
-        orderBy: { createdAt: "desc" },
-        where: { archived: false },
-        include: {
-          author: { select: { id: true, name: true, role: true } },
-          case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
-          taskAssignee: { select: { id: true, name: true } },
-          task: { select: { id: true, title: true, status: true, priority: true, dueDate: true, completedAt: true } },
-          replies: {
-            take: 3,
-            orderBy: { createdAt: "asc" },
-            include: { author: { select: { id: true, name: true } } },
-          },
-          reactions: {
-            where: { userId },
-            select: { id: true, type: true },
-          },
-          _count: { select: { replies: true, likes: true, reactions: true } },
-          likes: {
-            where: { userId },
-            select: { id: true },
-          },
-        },
-      }),
-      prisma.task.count({
-        where: {
-          assigneeId: userId,
-          status: "open",
-        },
-      }).catch(() =>
-        // Fallback: count legacy feed tasks if Task table doesn't exist yet
-        prisma.feedPost.count({
-          where: {
-            postType: "task",
-            taskAssigneeId: userId,
-            taskCompleted: false,
-          },
-        })
-      ),
-      prisma.feedPost.findMany({
-        where: { pinned: true, archived: false },
-        orderBy: { updatedAt: "desc" },
-        take: 5,
-        include: {
-          author: { select: { id: true, name: true, role: true } },
-          case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
-        },
-      }).catch(() => []),
-      prisma.case.findMany({
-        where: { status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } },
-        select: { id: true, tabsNumber: true, clientName: true },
-        orderBy: { updatedAt: "desc" },
-        take: 50,
-      }),
-      prisma.user.findMany({
-        select: { id: true, name: true },
-        orderBy: { name: "asc" },
-      }),
-    ])
+    // Fetch command center data (includes briefing, action queue, deadlines, etc.)
+    commandData = await getCommandCenterData(userId)
+    pendingReviews = commandData.pendingReviews ?? 0
+    activeCases = commandData.stats?.totalActive ?? 0
 
-    // Transform posts for client (add liked flag, flatten counts)
-    posts = feedPosts.map((post) => ({
-      ...post,
-      replyCount: post._count.replies,
-      likeCount: post._count.likes,
-      reactionCount: post._count.reactions,
-      liked: post.likes.length > 0,
-      myReactions: post.reactions.map((r) => r.type),
-      likes: undefined,
-      reactions: undefined,
-      _count: undefined,
-    }))
-    myTaskCount = taskCount
-    pinnedPosts = pinned
-    cases = activeCases
-    users = allUsers
+    // Count deadlines this week
+    const now = new Date()
+    const endOfWeek = new Date(now)
+    endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()))
+    deadlinesThisWeek = (commandData.deadlines || []).filter((d: any) => {
+      const due = new Date(d.dueDate)
+      return due >= now && due <= endOfWeek
+    }).length
+
+    // Count open tasks
+    openTasks = await prisma.task.count({
+      where: { assigneeId: userId, status: "open" },
+    }).catch(() => 0)
   } catch (error: any) {
-    console.error("Dashboard feed data error:", error?.message)
-    // Feed tables may not exist yet — fall back to empty feed
-    // Still fetch cases and users which use existing tables
+    console.error("Dashboard data error:", error?.message)
+    // Fallback: try to get basic counts
     try {
-      const [activeCases, allUsers] = await Promise.all([
-        prisma.case.findMany({
+      const [caseCount, taskCount] = await Promise.all([
+        prisma.case.count({
           where: { status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } },
-          select: { id: true, tabsNumber: true, clientName: true },
-          orderBy: { updatedAt: "desc" },
-          take: 50,
         }),
-        prisma.user.findMany({
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-        }),
+        prisma.task.count({
+          where: { assigneeId: userId, status: "open" },
+        }).catch(() => 0),
       ])
-      cases = activeCases
-      users = allUsers
+      activeCases = caseCount
+      openTasks = taskCount
     } catch {
       // Database completely unavailable
     }
   }
 
   return (
-    <FeedPage
-      currentUser={session.user}
-      initialPosts={posts}
-      myTaskCount={myTaskCount}
-      pinnedPosts={pinnedPosts}
-      cases={cases}
-      users={users}
-    />
+    <div className="max-w-5xl mx-auto">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-4 gap-3 mb-8">
+        <div className="rounded-xl border border-[var(--c-gray-100)] p-5" style={{ background: 'var(--c-danger-soft)' }}>
+          <div className="text-overline" style={{ color: 'var(--c-danger)' }}>AWAITING REVIEW</div>
+          <div className="stat-number mt-1" style={{ color: 'var(--c-danger)' }}>{pendingReviews}</div>
+        </div>
+        <div className="rounded-xl border border-[var(--c-gray-100)] p-5" style={{ background: 'var(--c-warning-soft)' }}>
+          <div className="text-overline" style={{ color: 'var(--c-warning)' }}>DEADLINES THIS WEEK</div>
+          <div className="stat-number mt-1" style={{ color: 'var(--c-warning)' }}>{deadlinesThisWeek}</div>
+        </div>
+        <div className="rounded-xl border border-[var(--c-gray-100)] bg-[var(--c-gray-50)] p-5">
+          <div className="text-overline">ACTIVE CASES</div>
+          <div className="stat-number mt-1">{activeCases}</div>
+        </div>
+        <div className="rounded-xl border border-[var(--c-gray-100)] bg-[var(--c-gray-50)] p-5">
+          <div className="text-overline">OPEN TASKS</div>
+          <div className="stat-number mt-1">{openTasks}</div>
+        </div>
+      </div>
+
+      {/* Daily Brief / Command Center */}
+      {commandData ? (
+        <DailyBrief data={commandData} userName={session.user.name || "there"} />
+      ) : (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-sm">Unable to load dashboard data. Please try refreshing.</p>
+        </div>
+      )}
+    </div>
   )
 }

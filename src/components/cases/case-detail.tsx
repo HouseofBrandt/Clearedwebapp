@@ -253,7 +253,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold truncate">{caseData.tabsNumber || "No TABS #"}</h1>
+            <h1 className="text-lg font-medium truncate">{caseData.tabsNumber || "No TABS #"}</h1>
             <span className="text-sm text-muted-foreground truncate">{caseData.clientName}</span>
             <Badge className={`${statusColors[caseData.status] || ""} shrink-0`} variant="secondary">
               {CASE_STATUS_LABELS[caseData.status as keyof typeof CASE_STATUS_LABELS]}
@@ -368,7 +368,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <Download className="h-12 w-12 text-muted-foreground/50" />
-                      <h3 className="mt-4 text-lg font-semibold">No approved deliverables yet</h3>
+                      <h3 className="mt-4 text-lg font-medium">No approved deliverables yet</h3>
                       <p className="text-sm text-muted-foreground">Approve AI outputs from the Review Queue.</p>
                     </CardContent>
                   </Card>
@@ -455,7 +455,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <CalendarIcon className="h-12 w-12 text-muted-foreground/50" />
-                      <h3 className="mt-4 text-lg font-semibold">No deadlines</h3>
+                      <h3 className="mt-4 text-lg font-medium">No deadlines</h3>
                       <p className="text-sm text-muted-foreground">Add deadlines to track important dates.</p>
                     </CardContent>
                   </Card>
@@ -532,7 +532,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             {workspace === "settings" && (
               <div className="space-y-4 max-w-2xl">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Case Settings</h2>
+                  <h2 className="text-lg font-medium">Case Settings</h2>
                   <div className="flex gap-2">
                     {editing ? (
                       <>

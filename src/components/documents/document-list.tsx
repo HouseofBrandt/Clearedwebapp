@@ -166,7 +166,7 @@ export function DocumentList({ documents }: DocumentListProps) {
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
           <FileText className="h-12 w-12 text-muted-foreground/50" />
-          <h3 className="mt-4 text-lg font-semibold">No documents</h3>
+          <h3 className="mt-4 text-lg font-medium">No documents</h3>
           <p className="text-sm text-muted-foreground">
             Upload documents using the area above.
           </p>

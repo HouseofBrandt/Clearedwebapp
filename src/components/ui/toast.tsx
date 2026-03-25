@@ -49,7 +49,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             )}
           >
             <div className="flex flex-col gap-1">
-              {toast.title && <p className="text-sm font-semibold">{toast.title}</p>}
+              {toast.title && <p className="text-sm font-medium">{toast.title}</p>}
               {toast.description && <p className="text-sm opacity-90">{toast.description}</p>}
             </div>
             <button onClick={() => removeToast(toast.id)} className="ml-4 shrink-0 rounded-md p-1 opacity-70 hover:opacity-100">

@@ -102,7 +102,7 @@ export function ControlDetail({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
 
-        <span className="font-mono text-sm font-semibold w-16 shrink-0">
+        <span className="font-mono text-sm font-medium w-16 shrink-0">
           {control.controlId}
         </span>
 
@@ -137,19 +137,19 @@ export function ControlDetail({
           {/* Three Explanation Sections */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 What SOC 2 Requires
               </h4>
               <p className="text-sm">{control.whatSoc2Requires}</p>
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-blue-600">
                 How Cleared Meets It
               </h4>
               <p className="text-sm">{control.howClearedMeetsIt}</p>
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-600">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-amber-600">
                 Why It Matters
               </h4>
               <p className="text-sm">{control.whyItMatters}</p>
@@ -203,7 +203,7 @@ export function ControlDetail({
           {(control.status === "NON_COMPLIANT" ||
             control.status === "NOT_ASSESSED") && (
             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-red-600 mb-1">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-red-600 mb-1">
                 Gap Analysis
               </h4>
               <p className="text-sm text-red-700 dark:text-red-300">

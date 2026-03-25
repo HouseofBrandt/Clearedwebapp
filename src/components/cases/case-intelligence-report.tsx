@@ -109,7 +109,7 @@ function formatDate(date: string | null): string {
 
 function csedColorClass(days: number | null): string {
   if (days === null) return "text-muted-foreground"
-  if (days < 365) return "text-red-600 font-semibold"
+  if (days < 365) return "text-red-600 font-medium"
   if (days < 730) return "text-amber-600 font-medium"
   return "text-green-600"
 }
@@ -233,7 +233,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
           <CardContent className="p-4">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-xl font-bold">Case Intelligence Report</h2>
+                <h2 className="text-xl font-medium">Case Intelligence Report</h2>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-sm font-medium">{data.caseNumber}</span>
                   <span className="text-sm text-muted-foreground">{data.clientName}</span>
@@ -267,7 +267,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Total Liability</p>
               </div>
-              <p className="text-lg font-bold mt-1">{formatCurrency(summary.totalLiability)}</p>
+              <p className="text-lg font-medium mt-1">{formatCurrency(summary.totalLiability)}</p>
               <p className="text-[10px] text-muted-foreground">
                 Penalties: {formatCurrency(summary.totalPenalties)} | Interest: {formatCurrency(summary.totalInterest)}
               </p>
@@ -279,7 +279,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Total Penalties</p>
               </div>
-              <p className="text-lg font-bold mt-1">{formatCurrency(summary.totalPenalties)}</p>
+              <p className="text-lg font-medium mt-1">{formatCurrency(summary.totalPenalties)}</p>
               <p className="text-[10px] text-muted-foreground">
                 {roadmap.penaltyAbatement.eligible.length} year(s) eligible for abatement
               </p>
@@ -291,7 +291,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Years at Issue</p>
               </div>
-              <p className="text-lg font-bold mt-1">{summary.yearsAtIssue}</p>
+              <p className="text-lg font-medium mt-1">{summary.yearsAtIssue}</p>
               <p className="text-[10px] text-muted-foreground">
                 {summary.filedYears} filed | {summary.unfiledYears} unfiled
               </p>
@@ -303,7 +303,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 <FileCheck className="h-4 w-4 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Compliance Rate</p>
               </div>
-              <p className="text-lg font-bold mt-1">{summary.complianceRate}%</p>
+              <p className="text-lg font-medium mt-1">{summary.complianceRate}%</p>
               <Progress value={summary.complianceRate} className="h-1.5 mt-1" />
             </CardContent>
           </Card>
@@ -313,7 +313,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
         {liabilityTable.length > 0 && (
           <Card>
             <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-sm font-semibold">Liability by Tax Year</CardTitle>
+              <CardTitle className="text-sm font-medium">Liability by Tax Year</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3">
               <div className="overflow-x-auto">
@@ -371,7 +371,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
 
         {/* Resolution Roadmap */}
         <div>
-          <h3 className="text-sm font-semibold mb-2">Resolution Roadmap</h3>
+          <h3 className="text-sm font-medium mb-2">Resolution Roadmap</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* OIC Viability */}
             <Card>
@@ -379,14 +379,14 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-xs font-semibold">OIC Viability</p>
+                    <p className="text-xs font-medium">OIC Viability</p>
                   </div>
                   <Badge variant="secondary" className={`text-[10px] ${scoreColor(roadmap.oicViability.score)}`}>
                     {roadmap.oicViability.label}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-2xl font-bold ${scoreColor(roadmap.oicViability.score)}`}>
+                  <span className={`text-2xl font-medium ${scoreColor(roadmap.oicViability.score)}`}>
                     {roadmap.oicViability.score}
                   </span>
                   <div className="flex-1">
@@ -422,7 +422,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <TrendingDown className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold">Penalty Abatement</p>
+                  <p className="text-xs font-medium">Penalty Abatement</p>
                 </div>
                 <p className="text-sm font-medium">
                   Abatable: {formatCurrency(roadmap.penaltyAbatement.totalPenalties)}
@@ -458,7 +458,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold">CNC Indicators</p>
+                  <p className="text-xs font-medium">CNC Indicators</p>
                   {roadmap.cncIndicators.needsData && (
                     <Badge variant="outline" className="text-[9px]">Needs Data</Badge>
                   )}
@@ -480,7 +480,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-xs font-semibold">Installment Agreement</p>
+                  <p className="text-xs font-medium">Installment Agreement</p>
                   {roadmap.iaProjection.streamlined && (
                     <Badge variant="secondary" className="text-[9px] bg-green-100 text-green-800">Streamlined Eligible</Badge>
                   )}
@@ -504,7 +504,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
         {deadlines.length > 0 && (
           <Card>
             <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-sm font-semibold">Upcoming Deadlines</CardTitle>
+              <CardTitle className="text-sm font-medium">Upcoming Deadlines</CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3">
               <div className="space-y-1.5">
@@ -519,7 +519,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                     <div className="text-right">
                       <span className="text-xs text-muted-foreground">{formatDate(d.dueDate)}</span>
                       <span className={`text-[10px] ml-2 ${
-                        d.daysRemaining < 0 ? "text-red-600 font-semibold" :
+                        d.daysRemaining < 0 ? "text-red-600 font-medium" :
                         d.daysRemaining < 7 ? "text-red-600" :
                         d.daysRemaining < 30 ? "text-amber-600" :
                         "text-green-600"
@@ -538,7 +538,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
         {intelligence?.digest && (
           <Card>
             <CardHeader className="pb-2 pt-3 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
                 AI Case Digest
                 {intelligence.riskScore !== null && (
                   <Badge variant="secondary" className={`text-[10px] ${

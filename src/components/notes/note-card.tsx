@@ -124,7 +124,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
   }
 
   return (
-    <Card className={`${note.pinned ? "border-amber-300 bg-amber-50/30" : ""}`}>
+    <Card className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${note.pinned ? "border-amber-300 bg-amber-50/30" : ""}`}>
       <CardContent className="p-4 space-y-2">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">

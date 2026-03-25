@@ -286,7 +286,7 @@ export function IncidentDashboard() {
                 Critical
               </p>
             </div>
-            <p className="text-2xl font-bold mt-1 text-red-700">
+            <p className="text-2xl font-medium mt-1 text-red-700">
               {severityCounts.CRITICAL}
             </p>
           </CardContent>
@@ -300,7 +300,7 @@ export function IncidentDashboard() {
                 High
               </p>
             </div>
-            <p className="text-2xl font-bold mt-1 text-orange-700">
+            <p className="text-2xl font-medium mt-1 text-orange-700">
               {severityCounts.HIGH}
             </p>
           </CardContent>
@@ -314,7 +314,7 @@ export function IncidentDashboard() {
                 Medium
               </p>
             </div>
-            <p className="text-2xl font-bold mt-1 text-yellow-700">
+            <p className="text-2xl font-medium mt-1 text-yellow-700">
               {severityCounts.MEDIUM}
             </p>
           </CardContent>
@@ -328,7 +328,7 @@ export function IncidentDashboard() {
                 Low
               </p>
             </div>
-            <p className="text-2xl font-bold mt-1 text-blue-700">
+            <p className="text-2xl font-medium mt-1 text-blue-700">
               {severityCounts.LOW}
             </p>
           </CardContent>
@@ -400,7 +400,7 @@ export function IncidentDashboard() {
       {/* Incident List */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+          <CardTitle className="text-sm font-medium uppercase tracking-wider">
             Incidents ({incidents.length})
           </CardTitle>
         </CardHeader>
@@ -476,7 +476,7 @@ export function IncidentDashboard() {
                       <span
                         className={`text-xs font-mono ${
                           incident.slaBreached
-                            ? "text-red-600 font-bold"
+                            ? "text-red-600 font-medium"
                             : "text-muted-foreground"
                         }`}
                       >

@@ -178,7 +178,7 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#1B3A5C] text-white text-xs font-bold flex-shrink-0">
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-[#1B3A5C] text-white text-xs font-medium flex-shrink-0">
                 {sectionIndex + 1}
               </span>
               {module.sections[sectionIndex].title}
@@ -314,7 +314,7 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
               {quizResult.passed ? (
                 <>
                   <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
-                  <p className="text-lg font-semibold text-emerald-700">Training Complete</p>
+                  <p className="text-lg font-medium text-emerald-700">Training Complete</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     You scored {quizResult.score}% ({quizResult.correct}/{quizResult.total} correct).
                     Passing score: {module.passingScore}%.
@@ -323,7 +323,7 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
               ) : (
                 <>
                   <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
-                  <p className="text-lg font-semibold text-red-700">Not Passed</p>
+                  <p className="text-lg font-medium text-red-700">Not Passed</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     You scored {quizResult.score}% ({quizResult.correct}/{quizResult.total} correct).
                     You need {module.passingScore}% to pass.
@@ -340,7 +340,7 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
           {/* Detailed Results */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+              <CardTitle className="text-sm font-medium uppercase tracking-wider">
                 Quiz Review
               </CardTitle>
             </CardHeader>

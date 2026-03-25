@@ -74,7 +74,7 @@ export function MonthView({ deadlines, users }: MonthViewProps) {
         <Button variant="outline" size="icon" onClick={prevMonth}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <h3 className="text-lg font-semibold">{monthName}</h3>
+        <h3 className="text-lg font-medium">{monthName}</h3>
         <Button variant="outline" size="icon" onClick={nextMonth}>
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -99,7 +99,7 @@ export function MonthView({ deadlines, users }: MonthViewProps) {
             >
               {day && (
                 <>
-                  <span className={`text-sm ${isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold" : ""}`}>
+                  <span className={`text-sm ${isToday ? "flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground font-medium" : ""}`}>
                     {day}
                   </span>
                   <div className="flex flex-wrap gap-1 mt-1">

@@ -311,18 +311,18 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card className="p-4">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">Penalties Selected</div>
-            <div className="text-xl font-bold mt-1">{selectedPeriodIds.size}</div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-xl font-medium mt-1 font-mono tabular-nums">{selectedPeriodIds.size}</div>
+            <div className="text-xs text-muted-foreground mt-1 font-mono tabular-nums">
               {formatCurrency(totalPenaltiesSelected)}
             </div>
           </Card>
           <Card className="p-4 border-green-200">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">FTA Eligible</div>
-            <div className="text-xl font-bold text-green-600 mt-1">{formatCurrency(ftaEligibleAmount)}</div>
+            <div className="text-xl font-medium text-green-600 mt-1 font-mono tabular-nums">{formatCurrency(ftaEligibleAmount)}</div>
           </Card>
           <Card className="p-4 border-amber-200">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">Reasonable Cause</div>
-            <div className="text-xl font-bold text-amber-600 mt-1">{formatCurrency(reasonableCauseAmount)}</div>
+            <div className="text-xl font-medium text-amber-600 mt-1 font-mono tabular-nums">{formatCurrency(reasonableCauseAmount)}</div>
           </Card>
         </div>
       )}
@@ -335,7 +335,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
             const currentStepIndex = stepMap[step] ?? 0
             return (
               <div key={label} className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
                   i <= currentStepIndex ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-400"
                 }`}>
                   {i + 1}
@@ -439,8 +439,8 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                           ))}
                         </select>
                       </TableCell>
-                      <TableCell className="text-xs font-mono">{info.irc}</TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-xs font-mono tabular-nums">{info.irc}</TableCell>
+                      <TableCell className="text-right font-medium font-mono tabular-nums">
                         {formatCurrency(lp.penalties)}
                       </TableCell>
                       <TableCell>
@@ -573,7 +573,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
 
             {/* Factor breakdown */}
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                 Factor-by-Factor Analysis
               </h4>
               {ftaResult.factors.map((factor, idx) => (
@@ -630,7 +630,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
           <CardContent className="space-y-6">
             {/* Category selector */}
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold">Reasonable Cause Category</h4>
+              <h4 className="text-sm font-medium">Reasonable Cause Category</h4>
               <div className="space-y-2">
                 {REASONABLE_CAUSE_CATEGORIES.map((cat) => (
                   <label
@@ -666,7 +666,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
             {reasonableCauseId && (
               <div className="space-y-3">
                 <div>
-                  <h4 className="text-sm font-semibold">Factual Narrative</h4>
+                  <h4 className="text-sm font-medium">Factual Narrative</h4>
                   <p className="text-xs text-muted-foreground mt-1">
                     Describe the specific facts and circumstances that constitute reasonable cause.
                     This section will appear in the letter as practitioner input. Minimum 50 characters
@@ -696,7 +696,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="text-sm font-semibold">Supporting Dates (optional)</h4>
+                  <h4 className="text-sm font-medium">Supporting Dates (optional)</h4>
                   <Textarea
                     value={supportingDates}
                     onChange={(e) => setSupportingDates(e.target.value)}

@@ -41,26 +41,26 @@ export function CalendarClient({ deadlines, users, cases, currentUserId, summary
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Calendar & Deadlines</h1>
+        <h1 className="text-display-md">Calendar & Deadlines</h1>
         <AddDeadlineDialog cases={cases} users={users} />
       </div>
 
       <div className="grid grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Overdue</div>
-          <div className="text-2xl font-bold text-red-600">{summaryStats.overdueCount}</div>
+          <div className="text-2xl font-medium text-red-600 font-mono tabular-nums">{summaryStats.overdueCount}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">This Week</div>
-          <div className="text-2xl font-bold text-amber-600">{summaryStats.thisWeekCount}</div>
+          <div className="text-2xl font-medium text-amber-600 font-mono tabular-nums">{summaryStats.thisWeekCount}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">This Month</div>
-          <div className="text-2xl font-bold">{summaryStats.thisMonthCount}</div>
+          <div className="text-2xl font-medium font-mono tabular-nums">{summaryStats.thisMonthCount}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Total Active</div>
-          <div className="text-2xl font-bold">{summaryStats.totalCount}</div>
+          <div className="text-2xl font-medium font-mono tabular-nums">{summaryStats.totalCount}</div>
         </Card>
       </div>
 

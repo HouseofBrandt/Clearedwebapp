@@ -121,7 +121,7 @@ export default async function AuditLogPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Audit Log</h1>
+        <h1 className="text-display-md">Audit Log</h1>
         <p className="text-sm text-muted-foreground">
           SOC 2 compliance — all security-relevant events. {total} total entries.
         </p>
@@ -131,19 +131,19 @@ export default async function AuditLogPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Total Entries</div>
-          <div className="text-2xl font-bold">{totalCount.toLocaleString()}</div>
+          <div className="text-2xl font-medium">{totalCount.toLocaleString()}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">AI Requests</div>
-          <div className="text-2xl font-bold text-blue-600">{aiCount.toLocaleString()}</div>
+          <div className="text-2xl font-medium text-blue-600">{aiCount.toLocaleString()}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Security Events</div>
-          <div className="text-2xl font-bold text-amber-600">{securityCount.toLocaleString()}</div>
+          <div className="text-2xl font-medium text-amber-600">{securityCount.toLocaleString()}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Users Active</div>
-          <div className="text-2xl font-bold">{uniqueUsers}</div>
+          <div className="text-2xl font-medium">{uniqueUsers}</div>
         </Card>
       </div>
 
@@ -245,7 +245,7 @@ export default async function AuditLogPage({
                 <td colSpan={5} className="px-3 py-8">
                   <div className="flex flex-col items-center justify-center py-8 text-center">
                     <ScrollText className="h-12 w-12 text-slate-300 mb-4" />
-                    <h3 className="text-sm font-semibold text-slate-900">No matching audit entries</h3>
+                    <h3 className="text-sm font-medium text-slate-900">No matching audit entries</h3>
                     <p className="text-sm text-slate-500 mt-1">Try adjusting your filters or selecting a different time range.</p>
                   </div>
                 </td>

@@ -67,7 +67,7 @@ export function DailyBrief({ data, userName }: { data: CommandCenterData; userNa
 
           {/* Layer 1: Briefing */}
           <section className="pt-2 pb-8">
-            <p className="text-lg font-medium text-foreground leading-relaxed">
+            <p className="text-display-md text-foreground leading-relaxed">
               {greeting}, {userName.split(" ")[0]}.
             </p>
             <div className="mt-2 space-y-1">
@@ -99,7 +99,7 @@ export function DailyBrief({ data, userName }: { data: CommandCenterData; userNa
         <aside className="w-[220px] shrink-0 hidden lg:block border-l pl-6 pt-2">
           {/* Deadlines */}
           <div className="mb-6">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Deadlines</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-3">Deadlines</p>
             {data.deadlines.length === 0 ? (
               <p className="text-xs text-muted-foreground">None this week</p>
             ) : (
@@ -135,7 +135,7 @@ export function DailyBrief({ data, userName }: { data: CommandCenterData; userNa
 
           {/* Reviews */}
           <div className="mb-6">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Reviews</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Reviews</p>
             {data.pendingReviews > 0 ? (
               <Link href="/review" className="text-sm text-foreground hover:text-muted-foreground transition-colors">
                 {data.pendingReviews} pending &rarr;
@@ -147,7 +147,7 @@ export function DailyBrief({ data, userName }: { data: CommandCenterData; userNa
 
           {/* Status */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Status</p>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">Status</p>
             <p className="text-sm text-foreground">
               {data.stats.totalActive} active case{data.stats.totalActive !== 1 ? "s" : ""}
             </p>

@@ -232,7 +232,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
         <div className="flex items-center gap-3">
           <CalendarDays className="h-5 w-5 text-[#1B3A5C]" />
           <div>
-            <h2 className="text-lg font-semibold">Governance Meeting Records</h2>
+            <h2 className="text-lg font-medium">Governance Meeting Records</h2>
             <p className="text-sm text-muted-foreground">
               Quarterly compliance governance meeting documentation
             </p>
@@ -502,7 +502,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
                             <div className="p-5 space-y-4">
                               <div className="grid grid-cols-2 gap-6">
                                 <div>
-                                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                                  <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
                                     Agenda
                                   </h4>
                                   <pre className="text-sm whitespace-pre-wrap font-sans text-muted-foreground bg-white p-3 rounded-md border">
@@ -510,7 +510,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
                                   </pre>
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                                  <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
                                     Decisions
                                   </h4>
                                   <pre className="text-sm whitespace-pre-wrap font-sans text-muted-foreground bg-white p-3 rounded-md border">
@@ -521,7 +521,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
 
                               {items.length > 0 && (
                                 <div>
-                                  <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                                  <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
                                     Action Items
                                   </h4>
                                   <div className="space-y-2">
@@ -534,7 +534,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
                                           key={i}
                                           className="flex items-center gap-3 p-2.5 rounded-md bg-white border text-sm"
                                         >
-                                          <span className="flex items-center justify-center h-5 w-5 rounded-full bg-[#1B3A5C] text-white text-[10px] font-bold flex-shrink-0">
+                                          <span className="flex items-center justify-center h-5 w-5 rounded-full bg-[#1B3A5C] text-white text-[10px] font-medium flex-shrink-0">
                                             {i + 1}
                                           </span>
                                           <span className="flex-1">

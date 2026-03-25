@@ -183,7 +183,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
             <TableHeader>
               <TableRow>
                 {currentTab.columns.map((col) => (
-                  <TableHead key={col} className="font-bold bg-slate-50 whitespace-nowrap">
+                  <TableHead key={col} className="font-medium bg-slate-50 whitespace-nowrap">
                     {col}
                   </TableHead>
                 ))}

@@ -19,7 +19,7 @@ export function RCCAssumptions({
 }: RCCAssumptionsProps) {
   return (
     <div className="flex items-center gap-4 px-4 py-2.5 bg-slate-100 dark:bg-slate-800/50 rounded-lg mb-5 flex-wrap">
-      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+      <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
         Global Assumptions
       </span>
 

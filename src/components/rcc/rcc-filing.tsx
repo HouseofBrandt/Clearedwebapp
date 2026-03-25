@@ -17,13 +17,13 @@ function ConfidenceBadge({ level }: { level: string }) {
     none: { bg: "bg-slate-100 dark:bg-slate-800", text: "text-slate-500", label: "No Data" },
   }
   const m = map[level] || map.none
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${m.bg} ${m.text}`}>{m.label}</span>
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${m.bg} ${m.text}`}>{m.label}</span>
 }
 
 function FilingBadge({ filed, present }: { filed: boolean; present?: boolean }) {
-  if (filed) return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">Yes</span>
-  if (present === false) return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500">No Data</span>
-  return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">No</span>
+  if (filed) return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">Yes</span>
+  if (present === false) return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">No Data</span>
+  return <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">No</span>
 }
 
 interface RCCFilingProps {
@@ -50,7 +50,7 @@ export function RCCFiling({
 
   return (
     <div>
-      <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">Filing Requirements Analysis</h2>
+      <h2 className="text-xl font-medium text-slate-900 dark:text-slate-100 mb-1">Filing Requirements Analysis</h2>
       <p className="text-sm text-slate-500 mb-4">
         Determines whether a return was required for each year based on gross income, filing status, and entity type.
       </p>
@@ -70,7 +70,7 @@ export function RCCFiling({
           <thead>
             <tr className="bg-slate-900 dark:bg-slate-800 text-white text-[11px] uppercase tracking-wider">
               {["Year", "Entity", "Status", "Gross Income", "Threshold", "Required?", "Filed?", "Confidence", "Action"].map((h) => (
-                <th key={h} className={`px-3 py-2.5 font-semibold ${h === "Year" ? "text-left" : "text-center"}`}>{h}</th>
+                <th key={h} className={`px-3 py-2.5 font-medium ${h === "Year" ? "text-left" : "text-center"}`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -91,15 +91,15 @@ export function RCCFiling({
 
               return (
                 <tr key={yr} className={i % 2 ? "bg-slate-50 dark:bg-slate-800/30" : "bg-white dark:bg-slate-900"}>
-                  <td className="px-3 py-2.5 font-bold font-mono">{yr}</td>
+                  <td className="px-3 py-2.5 font-medium font-mono">{yr}</td>
                   <td className="px-3 py-2.5 text-center text-[11px] text-slate-400">{ov.entityType === "individual" ? "1040" : "1041"}</td>
                   <td className="px-3 py-2.5 text-center text-[11px]">{ov.filingStatus?.toUpperCase()}</td>
                   <td className="px-3 py-2.5 text-center font-mono">{fmt(res.grossIncome)}</td>
                   <td className="px-3 py-2.5 text-center font-mono text-slate-400">{fmt(res.filingThreshold)}</td>
-                  <td className="px-3 py-2.5 text-center"><span className={`font-bold ${res.filingRequired ? "text-red-600" : "text-slate-400"}`}>{res.filingRequired ? "YES" : "No"}</span></td>
+                  <td className="px-3 py-2.5 text-center"><span className={`font-medium ${res.filingRequired ? "text-red-600" : "text-slate-400"}`}>{res.filingRequired ? "YES" : "No"}</span></td>
                   <td className="px-3 py-2.5 text-center"><FilingBadge filed={filed} present={rawYears[yr]?.account?.return_present} /></td>
                   <td className="px-3 py-2.5 text-center"><ConfidenceBadge level={conf.level} /></td>
-                  <td className={`px-3 py-2.5 text-center text-[11px] font-semibold ${actionColor}`}>{action}</td>
+                  <td className={`px-3 py-2.5 text-center text-[11px] font-medium ${actionColor}`}>{action}</td>
                 </tr>
               )
             })}

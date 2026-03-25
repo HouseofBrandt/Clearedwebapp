@@ -139,37 +139,37 @@ export function ReportsView() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center">
-              <p className="text-4xl font-bold">{executiveSummary.overallScore}%</p>
+              <p className="text-4xl font-medium">{executiveSummary.overallScore}%</p>
               <p className="text-sm text-muted-foreground">Overall Score</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl font-bold">{executiveSummary.totalControls}</p>
+              <p className="text-4xl font-medium">{executiveSummary.totalControls}</p>
               <p className="text-sm text-muted-foreground">Total Controls</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl font-bold text-red-600">{executiveSummary.criticalIssueCount}</p>
+              <p className="text-4xl font-medium text-red-600">{executiveSummary.criticalIssueCount}</p>
               <p className="text-sm text-muted-foreground">Critical Issues</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl font-bold text-orange-600">{executiveSummary.openIssueCount}</p>
+              <p className="text-4xl font-medium text-orange-600">{executiveSummary.openIssueCount}</p>
               <p className="text-sm text-muted-foreground">Open Issues</p>
             </div>
           </div>
           <div className="grid grid-cols-4 gap-4 mt-6">
             <div className="p-3 rounded bg-green-50 dark:bg-green-950 text-center">
-              <p className="text-lg font-semibold text-green-700 dark:text-green-300">{executiveSummary.controlsByStatus.compliant}</p>
+              <p className="text-lg font-medium text-green-700 dark:text-green-300">{executiveSummary.controlsByStatus.compliant}</p>
               <p className="text-xs text-green-600">Compliant</p>
             </div>
             <div className="p-3 rounded bg-yellow-50 dark:bg-yellow-950 text-center">
-              <p className="text-lg font-semibold text-yellow-700 dark:text-yellow-300">{executiveSummary.controlsByStatus.partiallyCompliant}</p>
+              <p className="text-lg font-medium text-yellow-700 dark:text-yellow-300">{executiveSummary.controlsByStatus.partiallyCompliant}</p>
               <p className="text-xs text-yellow-600">Partial</p>
             </div>
             <div className="p-3 rounded bg-red-50 dark:bg-red-950 text-center">
-              <p className="text-lg font-semibold text-red-700 dark:text-red-300">{executiveSummary.controlsByStatus.nonCompliant}</p>
+              <p className="text-lg font-medium text-red-700 dark:text-red-300">{executiveSummary.controlsByStatus.nonCompliant}</p>
               <p className="text-xs text-red-600">Non-Compliant</p>
             </div>
             <div className="p-3 rounded bg-gray-50 dark:bg-gray-900 text-center">
-              <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">{executiveSummary.controlsByStatus.notAssessed}</p>
+              <p className="text-lg font-medium text-gray-700 dark:text-gray-300">{executiveSummary.controlsByStatus.notAssessed}</p>
               <p className="text-xs text-gray-600">Not Assessed</p>
             </div>
           </div>
@@ -201,19 +201,19 @@ export function ReportsView() {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             <div className="p-3 rounded bg-green-50 dark:bg-green-950 text-center">
-              <p className="text-2xl font-bold text-green-700 dark:text-green-300">{evidenceIndex.summary.current}</p>
+              <p className="text-2xl font-medium text-green-700 dark:text-green-300">{evidenceIndex.summary.current}</p>
               <p className="text-xs text-green-600">Current</p>
             </div>
             <div className="p-3 rounded bg-yellow-50 dark:bg-yellow-950 text-center">
-              <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">{evidenceIndex.summary.stale}</p>
+              <p className="text-2xl font-medium text-yellow-700 dark:text-yellow-300">{evidenceIndex.summary.stale}</p>
               <p className="text-xs text-yellow-600">Stale</p>
             </div>
             <div className="p-3 rounded bg-orange-50 dark:bg-orange-950 text-center">
-              <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">{evidenceIndex.summary.expired}</p>
+              <p className="text-2xl font-medium text-orange-700 dark:text-orange-300">{evidenceIndex.summary.expired}</p>
               <p className="text-xs text-orange-600">Expired</p>
             </div>
             <div className="p-3 rounded bg-red-50 dark:bg-red-950 text-center">
-              <p className="text-2xl font-bold text-red-700 dark:text-red-300">{evidenceIndex.summary.missing}</p>
+              <p className="text-2xl font-medium text-red-700 dark:text-red-300">{evidenceIndex.summary.missing}</p>
               <p className="text-xs text-red-600">Missing</p>
             </div>
           </div>
@@ -224,7 +224,7 @@ export function ReportsView() {
         <CardHeader>
           <CardTitle>Audit Readiness Assessment</CardTitle>
           <CardDescription>
-            <span className={`font-semibold ${READINESS_COLORS[readinessAssessment.overall] || ""}`}>
+            <span className={`font-medium ${READINESS_COLORS[readinessAssessment.overall] || ""}`}>
               {READINESS_LABELS[readinessAssessment.overall] || readinessAssessment.overall}
             </span>
           </CardDescription>
@@ -240,7 +240,7 @@ export function ReportsView() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{factor.factor}</span>
-                      <span className="text-sm font-bold">{factor.score}%</span>
+                      <span className="text-sm font-medium">{factor.score}%</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{factor.detail}</p>
                     <Progress value={factor.score} className="mt-2 h-1.5" />

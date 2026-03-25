@@ -87,9 +87,9 @@ export function ClearedRCC() {
       {/* Sidebar */}
       <div className="w-56 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col">
         <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-800">
-          <div className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-            Return Compliance
-          </div>
+          <h1 className="text-display-md text-slate-900 dark:text-slate-100">
+            Transcript Decoder
+          </h1>
           <div className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">
             Calculator
           </div>

@@ -250,7 +250,7 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
         {/* Header */}
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">Conversations</h3>
+            <h3 className="text-sm font-medium">Conversations</h3>
             <NewConversationDialog caseId={caseId} onCreated={() => { fetchConversations(); }} />
           </div>
           {/* Status filter */}
@@ -308,7 +308,7 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
                   <button
                     key={conv.id}
                     onClick={() => setSelectedConvId(conv.id)}
-                    className={`w-full text-left px-3 py-2.5 transition-colors hover:bg-muted/50 ${
+                    className={`w-full text-left px-3 py-2.5 transition-all duration-200 hover:bg-muted/50 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${
                       isSelected ? "bg-muted" : ""
                     }`}
                   >
@@ -369,14 +369,14 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
                       <Input
                         value={editSubjectText}
                         onChange={(e) => setEditSubjectText(e.target.value)}
-                        className="h-7 text-sm font-semibold"
+                        className="h-7 text-sm font-medium"
                       />
                       <Button size="sm" className="h-7 text-xs" onClick={handleEditSubject}>Save</Button>
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditingSubject(false)}>Cancel</Button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold">{selectedConv.subject}</h3>
+                      <h3 className="text-sm font-medium">{selectedConv.subject}</h3>
                       <button
                         onClick={() => setEditingSubject(true)}
                         className="p-0.5 rounded hover:bg-muted text-muted-foreground"

@@ -172,7 +172,7 @@ export function OverviewDashboard() {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4">
         <Shield className="h-16 w-16 text-muted-foreground/50" />
-        <h2 className="text-xl font-semibold">No compliance controls found</h2>
+        <h2 className="text-xl font-medium">No compliance controls found</h2>
         <p className="text-muted-foreground text-center max-w-md">
           Seed the compliance controls database to get started with SOC 2 monitoring.
         </p>
@@ -226,7 +226,7 @@ export function OverviewDashboard() {
               <p className="text-sm text-muted-foreground font-medium">
                 Overall Compliance Score
               </p>
-              <p className="text-6xl font-bold tabular-nums mt-1">
+              <p className="text-6xl font-medium font-mono tabular-nums mt-1">
                 {score}
                 <span className="text-2xl text-muted-foreground">%</span>
               </p>
@@ -279,7 +279,7 @@ export function OverviewDashboard() {
                 <CardTitle className="text-sm">{group.label}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{group.score}%</div>
+                <div className="text-2xl font-medium font-mono tabular-nums">{group.score}%</div>
                 <Progress value={group.score} className="mt-2 h-2" />
               </CardContent>
             </Card>
@@ -359,19 +359,19 @@ export function OverviewDashboard() {
           <CardContent>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-950">
-                <p className="text-2xl font-bold text-green-700 dark:text-green-300">
+                <p className="text-2xl font-medium text-green-700 dark:text-green-300 font-mono tabular-nums">
                   {withEvidence.length - staleEvidence.length}
                 </p>
                 <p className="text-xs text-green-600 dark:text-green-400">Current</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950">
-                <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">
+                <p className="text-2xl font-medium text-yellow-700 dark:text-yellow-300 font-mono tabular-nums">
                   {staleEvidence.length}
                 </p>
                 <p className="text-xs text-yellow-600 dark:text-yellow-400">Stale</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-red-50 dark:bg-red-950">
-                <p className="text-2xl font-bold text-red-700 dark:text-red-300">
+                <p className="text-2xl font-medium text-red-700 dark:text-red-300 font-mono tabular-nums">
                   {totalControls - withEvidence.length}
                 </p>
                 <p className="text-xs text-red-600 dark:text-red-400">Missing</p>

@@ -85,7 +85,7 @@ export function DocumentViewerPanel({ documents }: DocumentViewerPanelProps) {
           ) : (selectedDoc.fileType === "TEXT" || selectedDoc.fileType === "DOCX") && selectedDoc.extractedText ? (
             <div className="overflow-y-auto max-h-[600px]">
               <div className="p-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
+                <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">
                   {selectedDoc.fileType === "TEXT" ? "File Contents" : "Extracted Text"}
                 </h4>
                 <pre className="text-xs whitespace-pre-wrap font-mono bg-muted/30 rounded p-3">
@@ -97,7 +97,7 @@ export function DocumentViewerPanel({ documents }: DocumentViewerPanelProps) {
           {(selectedDoc.fileType === "PDF" || selectedDoc.fileType === "IMAGE") && selectedDoc.extractedText && (
             <div className="overflow-y-auto max-h-[600px]">
               <div className="p-4">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Extracted Text</h4>
+                <h4 className="text-xs font-medium text-muted-foreground uppercase mb-2">Extracted Text</h4>
                 <pre className="text-xs whitespace-pre-wrap font-mono bg-muted/30 rounded p-3">
                   {selectedDoc.extractedText}
                 </pre>
