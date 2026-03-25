@@ -385,7 +385,7 @@ function LoginForm() {
           className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: mounted ? 0.45 : 0, transition: "opacity 2s ease-out" }}
         >
-          <source src="https://iivubf6t07cfbvos.public.blob.vercel-storage.com/Video%20Project.mp4" type="video/mp4" />
+          <source src="/api/video/login-bg" type="video/mp4" />
         </video>
 
         {/* Dark gradient overlay for text readability */}
