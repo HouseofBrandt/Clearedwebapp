@@ -43,7 +43,7 @@ export default async function ReviewPage() {
         </p>
       </div>
 
-      <ReviewQueue tasks={serializedTasks} />
+      <ReviewQueue tasks={serializedTasks} userRole={(session.user as any).role} />
     </div>
   )
 }

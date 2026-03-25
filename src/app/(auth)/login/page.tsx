@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense, useRef } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 
@@ -330,7 +330,6 @@ function LoginForm() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -341,73 +340,6 @@ function LoginForm() {
       setError("Session expired due to inactivity. Please sign in again.")
     }
   }, [searchParams])
-
-  // Particle starfield background
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    let animId: number
-    const dpr = window.devicePixelRatio || 1
-    const resize = () => {
-      canvas.width = canvas.offsetWidth * dpr
-      canvas.height = canvas.offsetHeight * dpr
-      ctx.scale(dpr, dpr)
-    }
-    resize()
-    window.addEventListener("resize", resize)
-
-    const stars: { x: number; y: number; z: number; pz: number }[] = []
-    const COUNT = 120
-    const W = () => canvas.offsetWidth
-    const H = () => canvas.offsetHeight
-
-    for (let i = 0; i < COUNT; i++) {
-      stars.push({
-        x: Math.random() * W() - W() / 2,
-        y: Math.random() * H() - H() / 2,
-        z: Math.random() * W(),
-        pz: 0,
-      })
-    }
-
-    function draw() {
-      ctx!.fillStyle = "rgba(8, 15, 30, 0.15)"
-      ctx!.fillRect(0, 0, W(), H())
-
-      for (const star of stars) {
-        star.pz = star.z
-        star.z -= 0.3
-
-        if (star.z < 1) {
-          star.x = Math.random() * W() - W() / 2
-          star.y = Math.random() * H() - H() / 2
-          star.z = W()
-          star.pz = star.z
-        }
-
-        const sx = (star.x / star.z) * (W() / 2) + W() / 2
-        const sy = (star.y / star.z) * (H() / 2) + H() / 2
-        const r = Math.max(0, (1 - star.z / W()) * 1.5)
-        const alpha = Math.max(0, (1 - star.z / W()) * 0.4)
-
-        ctx!.beginPath()
-        ctx!.arc(sx, sy, r, 0, Math.PI * 2)
-        ctx!.fillStyle = `rgba(46, 134, 171, ${alpha})`
-        ctx!.fill()
-      }
-
-      animId = requestAnimationFrame(draw)
-    }
-    draw()
-
-    return () => {
-      cancelAnimationFrame(animId)
-      window.removeEventListener("resize", resize)
-    }
-  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -440,14 +372,27 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left panel — cockpit instruments */}
-      <div className="hidden lg:flex lg:w-[50%] relative overflow-hidden flex-col justify-between text-white"
+      {/* Left panel — takeoff video background */}
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col justify-between text-white"
         style={{ backgroundColor: "#080f1e" }}
       >
-        {/* Starfield canvas */}
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ opacity: 0.6 }} />
+        {/* Video background */}
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: mounted ? 0.45 : 0, transition: "opacity 2s ease-out" }}
+        >
+          <source src="https://iivubf6t07cfbvos.public.blob.vercel-storage.com/Video%20Project.mp4" type="video/mp4" />
+        </video>
 
-        {/* Content over starfield */}
+        {/* Dark gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#080f1e]/90 via-[#080f1e]/70 to-[#080f1e]/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#080f1e]/90 via-transparent to-[#080f1e]/60" />
+
+        {/* Content over video */}
         <div className="relative z-10 flex flex-col justify-between h-full p-10">
           {/* Top — Logo */}
           <div
@@ -458,94 +403,74 @@ function LoginForm() {
             }}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-teal-500/20 bg-teal-500/10 backdrop-blur">
-                <span className="text-lg font-bold leading-none text-teal-400">C</span>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 backdrop-blur-sm">
+                <span className="text-lg font-bold leading-none text-white">C</span>
               </div>
               <div>
                 <span className="text-xl font-semibold tracking-tight">Cleared</span>
-                <div className="text-[9px] font-mono tracking-[0.3em] text-teal-400/50 uppercase">Flight Control</div>
+                <div className="text-[9px] font-mono tracking-[0.3em] text-teal-400/60 uppercase">Tax Resolution Platform</div>
               </div>
             </div>
           </div>
 
-          {/* Center — Instruments */}
-          <div className="flex-1 flex flex-col items-center justify-center gap-6 -mt-8">
-            {/* Heading text */}
+          {/* Center — Hero text */}
+          <div className="flex-1 flex flex-col items-start justify-center max-w-lg">
             <div
-              className="text-center transition-all duration-1000 ease-out"
+              className="transition-all duration-1000 ease-out"
               style={{
                 opacity: mounted ? 1 : 0,
-                transform: mounted ? "translateY(0)" : "translateY(20px)",
-                transitionDelay: "300ms",
+                transform: mounted ? "translateY(0)" : "translateY(30px)",
+                transitionDelay: "500ms",
               }}
             >
-              <h1 className="text-[2.5rem] font-semibold leading-[1.1] tracking-tight">
+              <h1 className="text-[3.5rem] font-bold leading-[1.05] tracking-tight">
                 Cleared for
                 <br />
-                <span className="text-teal-400/70">takeoff.</span>
+                <span className="bg-gradient-to-r from-teal-400 to-teal-300 bg-clip-text text-transparent">takeoff.</span>
               </h1>
-              <p className="mt-4 text-[13px] leading-relaxed text-white/30 max-w-xs mx-auto">
-                Your tax resolution command center.
-                Every case, every deadline, every work product — under your control.
+              <p className="mt-6 text-[15px] leading-relaxed text-white/50 max-w-sm">
+                From notice to resolution. Your AI-powered command center for tax resolution — every case, every deadline, every work product.
               </p>
             </div>
 
-            {/* Instrument cluster */}
+            {/* Stats strip */}
             <div
-              className="w-full max-w-md transition-all duration-1000 ease-out"
+              className="mt-10 flex items-center gap-8 transition-all duration-1000 ease-out"
               style={{
                 opacity: mounted ? 1 : 0,
-                transform: mounted ? "scale(1)" : "scale(0.95)",
-                transitionDelay: "600ms",
+                transform: mounted ? "translateY(0)" : "translateY(20px)",
+                transitionDelay: "1000ms",
               }}
             >
-              {/* Top row — 3 round instruments */}
-              <div className="flex items-center justify-center gap-3">
-                <div className="h-28 w-28 flex-shrink-0">
-                  <AirspeedIndicator mounted={mounted} />
+              {[
+                { label: "Resolution Pathways", value: "6" },
+                { label: "AI Work Products", value: "12+" },
+                { label: "Compliance Checks", value: "45" },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <div className="text-2xl font-bold text-white/90 font-mono">{stat.value}</div>
+                  <div className="text-[10px] text-white/30 uppercase tracking-wider mt-1">{stat.label}</div>
                 </div>
-                <div className="h-32 w-32 flex-shrink-0">
-                  <AltitudeIndicator mounted={mounted} />
-                </div>
-                <div className="h-28 w-28 flex-shrink-0">
-                  <HeadingIndicator mounted={mounted} />
-                </div>
-              </div>
-
-              {/* Artificial horizon */}
-              <div className="mt-3 mx-auto max-w-[280px]">
-                <HorizonIndicator mounted={mounted} />
-              </div>
-            </div>
-
-            {/* Radar — smaller, below instruments */}
-            <div
-              className="h-32 w-32 transition-all duration-1000 ease-out"
-              style={{
-                opacity: mounted ? 1 : 0,
-                transitionDelay: "1200ms",
-              }}
-            >
-              <RadarSweep mounted={mounted} />
+              ))}
             </div>
           </div>
 
-          {/* Bottom — Status strip */}
-          <div className="flex items-center justify-between">
-            <StatusStrip mounted={mounted} />
-            <div
-              className="flex items-center gap-4 text-[9px] font-mono tracking-[0.2em] text-white/15"
-              style={{
-                opacity: mounted ? 1 : 0,
-                transition: "opacity 2s ease-out 2.5s",
-              }}
-            >
-              <span>JUNEBUG</span>
-              <span className="h-px w-3 bg-white/10" />
-              <span>BANJO</span>
-              <span className="h-px w-3 bg-white/10" />
-              <span>SWITCHBOARD</span>
-            </div>
+          {/* Bottom — Platform names */}
+          <div
+            className="flex items-center gap-6 text-[10px] font-mono tracking-[0.2em] text-white/20"
+            style={{
+              opacity: mounted ? 1 : 0,
+              transition: "opacity 2s ease-out 2s",
+            }}
+          >
+            <span className="text-teal-400/40">●</span>
+            <span>JUNEBUG</span>
+            <span className="h-px w-4 bg-white/10" />
+            <span>BANJO</span>
+            <span className="h-px w-4 bg-white/10" />
+            <span>SWITCHBOARD</span>
+            <span className="h-px w-4 bg-white/10" />
+            <span>GRAPH ENGINE</span>
           </div>
         </div>
       </div>
@@ -659,19 +584,6 @@ function LoginForm() {
         </div>
       </div>
 
-      {/* Keyframe animations */}
-      <style>{`
-        @keyframes radar-sweep {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes radar-blip {
-          0% { opacity: 0; r: 1; }
-          10% { opacity: 0.8; r: 2.5; }
-          40% { opacity: 0.4; r: 2; }
-          100% { opacity: 0; r: 1; }
-        }
-      `}</style>
     </div>
   )
 }

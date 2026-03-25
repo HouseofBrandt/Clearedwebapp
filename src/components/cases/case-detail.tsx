@@ -46,6 +46,7 @@ import { ActivityFeed } from "@/components/cases/activity-feed"
 import { FeedPage } from "@/components/feed/feed-page"
 import { NotesPanel } from "@/components/notes/notes-panel"
 import { ConversationsPanel } from "@/components/conversations/conversations-panel"
+import { CaseIntelligenceReport } from "@/components/cases/case-intelligence-report"
 import { DEADLINE_PRIORITY_DOTS } from "@/types"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
 
@@ -102,7 +103,7 @@ interface CaseDetailProps {
   currentUser?: any
 }
 
-const WORKSPACES = ["documents", "banjo", "deliverables", "deadlines", "activity", "notes", "conversations", "settings"] as const
+const WORKSPACES = ["documents", "banjo", "deliverables", "deadlines", "activity", "notes", "conversations", "intel-report", "settings"] as const
 type Workspace = typeof WORKSPACES[number]
 
 export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [], feedPosts = [], currentUser }: CaseDetailProps) {
@@ -311,6 +312,9 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             <WorkspaceTab active={workspace === "conversations"} onClick={() => handleWorkspaceChange("conversations")} count={caseData.conversationCount}>
               Conversations
             </WorkspaceTab>
+            <WorkspaceTab active={workspace === "intel-report"} onClick={() => handleWorkspaceChange("intel-report")}>
+              Intelligence Report
+            </WorkspaceTab>
           </div>
 
           {/* Workspace content */}
@@ -517,6 +521,11 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                 currentUserId={currentUser.id}
                 currentUserRole={currentUser.role}
               />
+            )}
+
+            {/* ── Intelligence Report ── */}
+            {workspace === "intel-report" && (
+              <CaseIntelligenceReport caseId={caseData.id} />
             )}
 
             {/* ── Settings (Case editing) ── */}

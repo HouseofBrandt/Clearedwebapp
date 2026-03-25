@@ -4,6 +4,9 @@ import { useMemo } from "react"
 import type { TaxpayerInfo } from "./cleared-rcc"
 import type { ReturnEstimate } from "@/lib/tax/engine"
 import { assessConfidence, getReviewFlags, getNextActions, type ReviewFlag, type NextAction, type ConfidenceResult } from "@/lib/tax/engine"
+import { detectFreezeCodesInTranscript, type FreezeCode } from "@/lib/tax/freeze-codes"
+import { detectAnomalies, type TranscriptAnomaly } from "@/lib/tax/anomaly-detector"
+import { detectCrossYearLinks, type CrossYearLink } from "@/lib/tax/cross-year-linker"
 import { RCCAssumptions } from "./rcc-assumptions"
 
 const fmt = (n: number | null | undefined) =>
@@ -156,6 +159,150 @@ function NextActionsPanel({ actions }: { actions: NextAction[] }) {
   )
 }
 
+// ─── Freeze Codes Panel ───
+function FreezeCodesPanel({ rawYears }: { rawYears: Record<string, any> }) {
+  const allFreezes = useMemo(() => {
+    const results: { year: string; freezeCode: string; details: FreezeCode; triggeredBy: string }[] = []
+    for (const [year, data] of Object.entries(rawYears)) {
+      const transactions = data?.account?.transactions || []
+      const detected = detectFreezeCodesInTranscript(transactions)
+      for (const d of detected) {
+        results.push({ year, ...d })
+      }
+    }
+    return results
+  }, [rawYears])
+
+  if (allFreezes.length === 0) return null
+
+  return (
+    <details className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 mb-5">
+      <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Freeze Codes Detected</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
+          {allFreezes.length}
+        </span>
+      </summary>
+      <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 space-y-3 mt-0">
+        {allFreezes.map((f, i) => (
+          <div key={i} className="border border-red-200 dark:border-red-800/50 rounded-md bg-red-50 dark:bg-red-950/20 p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-mono text-sm font-bold text-red-700 dark:text-red-400">{f.freezeCode}</span>
+              <span className="text-sm font-semibold text-red-800 dark:text-red-300">{f.details.name}</span>
+              <span className="ml-auto font-mono text-[10px] text-red-600 dark:text-red-400">TY {f.year}</span>
+            </div>
+            <div className="text-xs text-slate-600 dark:text-slate-400 mb-2">{f.details.description}</div>
+            <div className="text-[10px] text-slate-500 mb-1">
+              <span className="font-semibold">Triggered by:</span> {f.triggeredBy}
+            </div>
+            <div className="text-[10px] text-slate-500 mb-1">
+              <span className="font-semibold">Releases:</span> {f.details.releases.join(" | ")}
+            </div>
+            <div className="mt-2 px-2 py-1.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded text-[11px] text-amber-800 dark:text-amber-300 font-semibold">
+              Action: {f.details.practitionerAction}
+            </div>
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
+// ─── Anomaly Alerts Panel ───
+function AnomalyAlertsPanel({ rawYears }: { rawYears: Record<string, any> }) {
+  const anomalies = useMemo(() => detectAnomalies(rawYears), [rawYears])
+
+  if (anomalies.length === 0) return null
+
+  const severityStyles: Record<string, { bg: string; border: string; text: string; dot: string; badge: string }> = {
+    critical: { bg: "bg-red-50 dark:bg-red-950/20", border: "border-red-200 dark:border-red-800/50", text: "text-red-800 dark:text-red-300", dot: "bg-red-600", badge: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" },
+    warning: { bg: "bg-amber-50 dark:bg-amber-950/20", border: "border-amber-200 dark:border-amber-800/50", text: "text-amber-800 dark:text-amber-300", dot: "bg-amber-600", badge: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
+    info: { bg: "bg-blue-50 dark:bg-blue-950/20", border: "border-blue-200 dark:border-blue-800/50", text: "text-blue-800 dark:text-blue-300", dot: "bg-blue-600", badge: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" },
+  }
+
+  const critCount = anomalies.filter(a => a.severity === "critical").length
+
+  return (
+    <details className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 mb-5" open={critCount > 0}>
+      <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Anomaly Alerts</span>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${critCount > 0 ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"}`}>
+          {anomalies.length}
+        </span>
+      </summary>
+      <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 space-y-2 mt-0">
+        {anomalies.map((a) => {
+          const s = severityStyles[a.severity] || severityStyles.info
+          return (
+            <div key={a.id} className={`border ${s.border} rounded-md ${s.bg} p-3`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${s.dot}`} />
+                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${s.badge}`}>{a.severity}</span>
+                <span className={`text-xs font-semibold ${s.text}`}>{a.type.replace(/_/g, " ")}</span>
+                <span className="ml-auto font-mono text-[10px] text-slate-400">TY {a.taxYear}</span>
+              </div>
+              <div className={`text-xs font-semibold ${s.text} mb-1`}>{a.description}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">{a.details}</div>
+              <div className="px-2 py-1.5 bg-white/60 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 rounded text-[11px] text-slate-700 dark:text-slate-300">
+                <span className="font-semibold">Recommendation:</span> {a.recommendation}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </details>
+  )
+}
+
+// ─── Cross-Year Links Panel ───
+function CrossYearLinksPanel({ rawYears }: { rawYears: Record<string, any> }) {
+  const links = useMemo(() => detectCrossYearLinks(rawYears), [rawYears])
+
+  if (links.length === 0) return null
+
+  const typeStyles: Record<string, { bg: string; border: string; text: string }> = {
+    OVERPAYMENT_TRANSFER: { bg: "bg-blue-50 dark:bg-blue-950/20", border: "border-blue-200 dark:border-blue-800/50", text: "text-blue-800 dark:text-blue-300" },
+    CREDIT_TRANSFERRED_IN: { bg: "bg-green-50 dark:bg-green-950/20", border: "border-green-200 dark:border-green-800/50", text: "text-green-800 dark:text-green-300" },
+    CREDIT_TRANSFERRED_OUT: { bg: "bg-amber-50 dark:bg-amber-950/20", border: "border-amber-200 dark:border-amber-800/50", text: "text-amber-800 dark:text-amber-300" },
+    ESCALATING_BALANCES: { bg: "bg-red-50 dark:bg-red-950/20", border: "border-red-200 dark:border-red-800/50", text: "text-red-800 dark:text-red-300" },
+  }
+
+  return (
+    <details className="border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 mb-5">
+      <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cross-Year Links</span>
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+          {links.length}
+        </span>
+      </summary>
+      <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800 space-y-2 mt-0">
+        {links.map((l) => {
+          const s = typeStyles[l.type] || typeStyles.OVERPAYMENT_TRANSFER
+          return (
+            <div key={l.id} className={`border ${s.border} rounded-md ${s.bg} p-3`}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xs font-semibold ${s.text}`}>{l.type.replace(/_/g, " ")}</span>
+                <span className="ml-auto flex items-center gap-1 font-mono text-[10px] text-slate-500">
+                  <span className="font-bold">{l.sourceYear}</span>
+                  <span>{"\u2192"}</span>
+                  <span className="font-bold">{l.targetYear}</span>
+                </span>
+              </div>
+              <div className={`text-xs ${s.text}`}>{l.description}</div>
+              {l.sourceTransaction.code !== "pattern" && (
+                <div className="mt-1.5 text-[10px] text-slate-400">
+                  TC {l.sourceTransaction.code} on {l.sourceTransaction.date || "N/A"}
+                  {l.targetTransaction && ` \u2194 TC ${l.targetTransaction.code} on ${l.targetTransaction.date || "N/A"}`}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </details>
+  )
+}
+
 // ─── Main Dashboard ───
 interface RCCDashboardProps {
   taxpayer: TaxpayerInfo | null
@@ -206,6 +353,11 @@ export function RCCDashboard({
         <TranscriptCoverage years={years} rawYears={rawYears} />
         <NextActionsPanel actions={actions} />
       </div>
+
+      {/* Freeze Codes + Anomalies + Cross-Year Links */}
+      <FreezeCodesPanel rawYears={rawYears} />
+      <AnomalyAlertsPanel rawYears={rawYears} />
+      <CrossYearLinksPanel rawYears={rawYears} />
 
       {/* Disclaimer */}
       <div className="mb-4 px-3 py-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 rounded-md text-[11px] text-amber-700 dark:text-amber-400 italic">
