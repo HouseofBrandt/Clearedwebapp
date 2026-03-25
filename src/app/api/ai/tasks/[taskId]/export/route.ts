@@ -38,9 +38,9 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  if (task.status !== "APPROVED") {
+  if (!["APPROVED", "READY_FOR_REVIEW"].includes(task.status)) {
     return NextResponse.json(
-      { error: "Only approved tasks can be exported. This task must be reviewed first." },
+      { error: "This task is still processing. Export is available once generation is complete." },
       { status: 400 }
     )
   }
