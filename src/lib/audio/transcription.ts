@@ -92,7 +92,7 @@ export async function transcribeAudio(
 
   // Build multipart form data
   const formData = new FormData()
-  const blob = new Blob([buffer], { type: mime })
+  const blob = new Blob([new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)], { type: mime })
   formData.append("file", blob, fileName)
   formData.append("model", "whisper-1")
   formData.append("response_format", "verbose_json")
