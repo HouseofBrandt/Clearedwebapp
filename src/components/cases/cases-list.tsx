@@ -342,7 +342,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
               </TableHeader>
               <TableBody>
                 {filteredCases.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer" onClick={() => router.push(`/cases/${c.id}`)}>
+                  <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/cases/${c.id}`)}>
                     <TableCell className="font-medium">{c.tabsNumber || "—"}</TableCell>
                     <TableCell>{c.clientName}</TableCell>
                     <TableCell>
