@@ -12,11 +12,11 @@ import { requireAuth } from "@/lib/auth/session"
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ postId: string }> }
+  { params }: { params: { postId: string } }
 ) {
   try {
     const session = await requireAuth()
-    const { postId } = await params
+    const { postId } = params
     const body = await req.json()
     const { replyId } = body
 
