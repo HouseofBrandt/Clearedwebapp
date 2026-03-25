@@ -6,7 +6,13 @@ import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 function isEncrypted(value: string | null): boolean {
   if (!value) return true // null/empty doesn't need encryption
-  // Encrypted values are hex format: iv_hex:authTag_hex:ciphertext_hex
+  // v1: prefix format from newer encryptField
+  if (value.startsWith("v1:")) {
+    const parts = value.substring(3).split(":")
+    if (parts.length !== 3) return false
+    return parts.every(p => p.length >= 16 && /^[0-9a-f]+$/i.test(p))
+  }
+  // Legacy format: iv_hex:authTag_hex:ciphertext_hex
   const parts = value.split(":")
   if (parts.length !== 3) return false
   // Each part should be valid hex and reasonable length

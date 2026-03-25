@@ -2,6 +2,8 @@ import { requireRole } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { formatDateTime } from "@/lib/date-utils"
 import { AUDIT_ACTIONS } from "@/lib/ai/audit"
+import { Card } from "@/components/ui/card"
+import { ScrollText } from "lucide-react"
 
 const ACTION_GROUPS: Record<string, string[]> = {
   Auth: ["LOGIN_SUCCESS", "LOGIN_FAILURE", "LOGOUT", "PASSWORD_CHANGED", "PASSWORD_RESET"],
@@ -16,6 +18,9 @@ const ACTION_GROUPS: Record<string, string[]> = {
   Messages: ["MESSAGE_SENT", "BUG_REPORT_SUBMITTED", "FEATURE_REQUEST_SUBMITTED"],
 }
 
+const AI_ACTIONS = new Set(["AI_REQUEST", "AI_COMPLETED", "AI_FAILED"])
+const SECURITY_ACTIONS = new Set(["LOGIN_FAILURE", "LOGIN_SUCCESS", "LOGOUT", "PASSWORD_CHANGED", "PASSWORD_RESET", "USER_DEACTIVATED", "USER_ROLE_CHANGED"])
+
 function getActionBadgeColor(action: string): string {
   if (action.includes("LOGIN_FAILURE") || action.includes("DELETE") || action.includes("REJECT")) return "bg-red-100 text-red-700"
   if (action.includes("CREATED") || action.includes("APPROVE") || action.includes("LOGIN_SUCCESS")) return "bg-green-100 text-green-700"
@@ -27,7 +32,7 @@ function getActionBadgeColor(action: string): string {
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams: { action?: string; user?: string; case?: string; from?: string; page?: string }
+  searchParams: { action?: string; user?: string; case?: string; from?: string; page?: string; q?: string }
 }) {
   await requireRole(["ADMIN"])
 
@@ -37,6 +42,7 @@ export default async function AuditLogPage({
   const userFilter = searchParams.user
   const caseFilter = searchParams.case
   const dateFrom = searchParams.from
+  const searchQuery = searchParams.q
 
   const where: any = {}
   if (actionFilter) where.action = actionFilter
@@ -44,7 +50,7 @@ export default async function AuditLogPage({
   if (caseFilter) where.caseId = caseFilter
   if (dateFrom) where.timestamp = { gte: new Date(dateFrom) }
 
-  const [logs, total, users] = await Promise.all([
+  const [logs, total, users, allLogsForStats] = await Promise.all([
     prisma.auditLog.findMany({
       where,
       include: {
@@ -57,9 +63,60 @@ export default async function AuditLogPage({
     }),
     prisma.auditLog.count({ where }),
     prisma.user.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    // Fetch summary stats from filtered results (without pagination)
+    prisma.auditLog.findMany({
+      where,
+      select: {
+        action: true,
+        practitionerId: true,
+      },
+    }),
   ])
 
+  // Compute summary stats
+  const totalCount = allLogsForStats.length
+  const aiCount = allLogsForStats.filter(l => AI_ACTIONS.has(l.action)).length
+  const securityCount = allLogsForStats.filter(l => SECURITY_ACTIONS.has(l.action)).length
+  const uniqueUsers = new Set(allLogsForStats.map(l => l.practitionerId).filter(Boolean)).size
+
+  // Apply text search filter on the current page results
+  const filteredLogs = searchQuery
+    ? logs.filter(log => {
+        const meta = (log.metadata as any) || {}
+        const details = Object.entries(meta)
+          .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+          .join(", ")
+        const searchLower = searchQuery.toLowerCase()
+        return (
+          log.action.toLowerCase().includes(searchLower) ||
+          (log.practitioner?.name || "").toLowerCase().includes(searchLower) ||
+          (log.practitioner?.email || "").toLowerCase().includes(searchLower) ||
+          details.toLowerCase().includes(searchLower) ||
+          ((log.case as any)?.tabsNumber || "").toLowerCase().includes(searchLower)
+        )
+      })
+    : logs
+
   const totalPages = Math.ceil(total / pageSize)
+
+  // Build query string helper for pagination links
+  function buildQs(overrides: Record<string, string | undefined>) {
+    const params = new URLSearchParams()
+    if (overrides.page) params.set("page", overrides.page)
+    else if (searchParams.page) params.set("page", searchParams.page)
+    if (actionFilter) params.set("action", actionFilter)
+    if (userFilter) params.set("user", userFilter)
+    if (dateFrom) params.set("from", dateFrom)
+    if (searchQuery) params.set("q", searchQuery)
+    // Apply overrides
+    for (const [k, v] of Object.entries(overrides)) {
+      if (v !== undefined) params.set(k, v)
+      else params.delete(k)
+    }
+    return params.toString()
+  }
+
+  const hasFilters = actionFilter || userFilter || caseFilter || dateFrom || searchQuery
 
   return (
     <div className="space-y-6">
@@ -70,8 +127,38 @@ export default async function AuditLogPage({
         </p>
       </div>
 
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Total Entries</div>
+          <div className="text-2xl font-bold">{totalCount.toLocaleString()}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">AI Requests</div>
+          <div className="text-2xl font-bold text-blue-600">{aiCount.toLocaleString()}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Security Events</div>
+          <div className="text-2xl font-bold text-amber-600">{securityCount.toLocaleString()}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Users Active</div>
+          <div className="text-2xl font-bold">{uniqueUsers}</div>
+        </Card>
+      </div>
+
       {/* Filters */}
       <form className="flex flex-wrap gap-3 items-end">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">Search</label>
+          <input
+            type="text"
+            name="q"
+            defaultValue={searchQuery || ""}
+            placeholder="Search logs..."
+            className="block w-48 rounded-md border bg-background px-2 py-1.5 text-sm placeholder:text-muted-foreground/60"
+          />
+        </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground">Action</label>
           <select name="action" defaultValue={actionFilter || ""} className="block w-48 rounded-md border bg-background px-2 py-1.5 text-sm">
@@ -101,7 +188,7 @@ export default async function AuditLogPage({
         <button type="submit" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           Filter
         </button>
-        {(actionFilter || userFilter || caseFilter || dateFrom) && (
+        {hasFilters && (
           <a href="/settings/audit-log" className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
             Clear
           </a>
@@ -121,7 +208,7 @@ export default async function AuditLogPage({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {logs.map(log => {
+            {filteredLogs.map(log => {
               const meta = (log.metadata as any) || {}
               const details = Object.entries(meta)
                 .filter(([k]) => !["timestamp", "resourceType", "ipAddress", "resourceId"].includes(k))
@@ -153,10 +240,14 @@ export default async function AuditLogPage({
                 </tr>
               )
             })}
-            {logs.length === 0 && (
+            {filteredLogs.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-muted-foreground">
-                  No audit log entries found.
+                <td colSpan={5} className="px-3 py-8">
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <ScrollText className="h-12 w-12 text-slate-300 mb-4" />
+                    <h3 className="text-sm font-semibold text-slate-900">No matching audit entries</h3>
+                    <p className="text-sm text-slate-500 mt-1">Try adjusting your filters or selecting a different time range.</p>
+                  </div>
                 </td>
               </tr>
             )}
@@ -172,13 +263,13 @@ export default async function AuditLogPage({
           </span>
           <div className="flex gap-2">
             {page > 1 && (
-              <a href={`/settings/audit-log?page=${page - 1}${actionFilter ? `&action=${actionFilter}` : ""}${userFilter ? `&user=${userFilter}` : ""}${dateFrom ? `&from=${dateFrom}` : ""}`}
+              <a href={`/settings/audit-log?${buildQs({ page: String(page - 1) })}`}
                 className="rounded-md border px-3 py-1 hover:bg-muted">
                 Previous
               </a>
             )}
             {page < totalPages && (
-              <a href={`/settings/audit-log?page=${page + 1}${actionFilter ? `&action=${actionFilter}` : ""}${userFilter ? `&user=${userFilter}` : ""}${dateFrom ? `&from=${dateFrom}` : ""}`}
+              <a href={`/settings/audit-log?${buildQs({ page: String(page + 1) })}`}
                 className="rounded-md border px-3 py-1 hover:bg-muted">
                 Next
               </a>

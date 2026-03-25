@@ -9,18 +9,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Card } from "@/components/ui/card"
 import { AgendaView } from "./agenda-view"
 import { MonthView } from "./month-view"
 import { AddDeadlineDialog } from "./add-deadline-dialog"
+
+interface SummaryStats {
+  overdueCount: number
+  thisWeekCount: number
+  thisMonthCount: number
+  totalCount: number
+}
 
 interface CalendarClientProps {
   deadlines: any[]
   users: { id: string; name: string; role: string }[]
   cases: { id: string; tabsNumber: string; clientName: string }[]
   currentUserId: string
+  summaryStats: SummaryStats
 }
 
-export function CalendarClient({ deadlines, users, cases, currentUserId }: CalendarClientProps) {
+export function CalendarClient({ deadlines, users, cases, currentUserId, summaryStats }: CalendarClientProps) {
   const [userFilter, setUserFilter] = useState("all")
 
   const filtered = userFilter === "all"
@@ -34,6 +43,25 @@ export function CalendarClient({ deadlines, users, cases, currentUserId }: Calen
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Calendar & Deadlines</h1>
         <AddDeadlineDialog cases={cases} users={users} />
+      </div>
+
+      <div className="grid grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Overdue</div>
+          <div className="text-2xl font-bold text-red-600">{summaryStats.overdueCount}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">This Week</div>
+          <div className="text-2xl font-bold text-amber-600">{summaryStats.thisWeekCount}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">This Month</div>
+          <div className="text-2xl font-bold">{summaryStats.thisMonthCount}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-xs text-muted-foreground">Total Active</div>
+          <div className="text-2xl font-bold">{summaryStats.totalCount}</div>
+        </Card>
       </div>
 
       <Tabs defaultValue="agenda">

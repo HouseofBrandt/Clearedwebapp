@@ -27,6 +27,7 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronUp,
+  ClipboardCopy,
 } from "lucide-react"
 import {
   type FilingStatusType,
@@ -113,6 +114,7 @@ function estimateDaysToCompliance(unfiledCount: number, sfrCount: number): numbe
 export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
   const [selectedCaseId, setSelectedCaseId] = useState<string>("")
   const [expandedYear, setExpandedYear] = useState<number | null>(null)
+  const [reportCopied, setReportCopied] = useState(false)
 
   const selectedCase = useMemo(
     () => cases.find((c) => c.id === selectedCaseId) ?? null,
@@ -164,7 +166,9 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
     }
     actions.sort((a, b) => a.priority - b.priority || a.year - b.year)
 
-    return { periods, filed, unfiled, sfr, estDays, actions }
+    const totalReduction = actions.reduce((sum, a) => sum + (a.potentialReduction ?? 0), 0)
+
+    return { periods, filed, unfiled, sfr, estDays, actions, totalReduction }
   }, [selectedCase])
 
   return (
@@ -252,10 +256,10 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
             <Card>
               <CardContent className="pt-5 pb-4">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Est. Days to Close
+                  Est. Reduction
                 </p>
-                <p className="text-2xl font-bold mt-1">
-                  {analysis.estDays > 0 ? `~${analysis.estDays}` : "0"}
+                <p className="text-2xl font-bold mt-1 text-blue-600">
+                  {analysis.totalReduction > 0 ? formatCurrency(analysis.totalReduction) : "--"}
                 </p>
               </CardContent>
             </Card>
@@ -264,9 +268,32 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
           {/* Compliance Overview Grid */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider">
-                Year-by-Year Compliance Overview
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold uppercase tracking-wider">
+                  Year-by-Year Compliance Overview
+                </CardTitle>
+                <button
+                  onClick={() => {
+                    const report =
+                      `COMPLIANCE GAP ANALYSIS \u2014 ${selectedCase.clientName}\n` +
+                      `Case: ${selectedCase.tabsNumber}\n` +
+                      `Date: ${new Date().toLocaleDateString()}\n\n` +
+                      analysis.periods
+                        .map(
+                          (p) =>
+                            `TY ${p.taxYear}: ${p.filingStatus.toUpperCase()} \u2014 ${p.actionNeeded}`
+                        )
+                        .join("\n")
+                    navigator.clipboard.writeText(report)
+                    setReportCopied(true)
+                    setTimeout(() => setReportCopied(false), 2000)
+                  }}
+                  className="text-xs px-3 py-1.5 rounded border hover:bg-slate-50 flex items-center gap-1"
+                >
+                  <ClipboardCopy className="h-3.5 w-3.5" />
+                  {reportCopied ? "Copied!" : "Copy Report"}
+                </button>
+              </div>
             </CardHeader>
             <CardContent>
               {analysis.periods.length === 0 ? (
@@ -318,8 +345,14 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                           </TableCell>
                           <TableCell className="text-sm">{p.complianceLabel}</TableCell>
                           <TableCell className="text-sm">
-                            {p.filingStatus !== "filed" ? (
-                              <span className="text-[#1B3A5C] font-medium">{p.actionNeeded}</span>
+                            {p.filingStatus === "unfiled" ? (
+                              <Badge variant="destructive" className="text-[10px]">
+                                {p.actionNeeded}
+                              </Badge>
+                            ) : p.filingStatus === "sfr" ? (
+                              <Badge variant="default" className="text-[10px]">
+                                {p.actionNeeded}
+                              </Badge>
                             ) : (
                               <span className="text-muted-foreground">None</span>
                             )}
@@ -374,6 +407,12 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                       ) : (
                         <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
                       )}
+                      <Badge
+                        variant={action.type === "unfiled" ? "destructive" : "default"}
+                        className="text-[10px] flex-shrink-0"
+                      >
+                        {action.type === "unfiled" ? "FILE" : "Supersede"}
+                      </Badge>
                       <span className="text-sm font-medium flex-1">{action.label}</span>
                       <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     </div>

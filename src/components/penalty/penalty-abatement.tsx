@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ChevronRight, CheckCircle } from "lucide-react"
 import {
   PENALTY_TYPES,
   REASONABLE_CAUSE_CATEGORIES,
@@ -112,6 +113,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
   // Letter
   const [generatedLetter, setGeneratedLetter] = useState<string>("")
   const [copySuccess, setCopySuccess] = useState(false)
+  const [letterJustGenerated, setLetterJustGenerated] = useState(false)
 
   // ─── Derived ───
   const selectedCase = useMemo(
@@ -247,6 +249,8 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
       })
       setGeneratedLetter(letter)
       setStep("letter")
+      setLetterJustGenerated(true)
+      setTimeout(() => setLetterJustGenerated(false), 4000)
     } else {
       if (!reasonableCauseId || factualNarrative.length < 50) return
       const letter = generateReasonableCauseLetter({
@@ -263,6 +267,8 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
       })
       setGeneratedLetter(letter)
       setStep("letter")
+      setLetterJustGenerated(true)
+      setTimeout(() => setLetterJustGenerated(false), 4000)
     }
   }
 
@@ -301,26 +307,46 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
   return (
     <div className="space-y-6">
       {/* ─── Summary Stats ─── */}
-      {selectedPeriods.length > 0 && (
+      {selectedPeriodIds.size > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Penalties Selected</p>
-              <p className="text-2xl font-bold mt-1">{formatCurrency(totalPenaltiesSelected)}</p>
-            </CardContent>
+          <Card className="p-4">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">Penalties Selected</div>
+            <div className="text-xl font-bold mt-1">{selectedPeriodIds.size}</div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {formatCurrency(totalPenaltiesSelected)}
+            </div>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">FTA Eligible Amount</p>
-              <p className="text-2xl font-bold mt-1 text-emerald-600">{formatCurrency(ftaEligibleAmount)}</p>
-            </CardContent>
+          <Card className="p-4 border-green-200">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">FTA Eligible</div>
+            <div className="text-xl font-bold text-green-600 mt-1">{formatCurrency(ftaEligibleAmount)}</div>
           </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Reasonable Cause Amount</p>
-              <p className="text-2xl font-bold mt-1 text-amber-600">{formatCurrency(reasonableCauseAmount)}</p>
-            </CardContent>
+          <Card className="p-4 border-amber-200">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">Reasonable Cause</div>
+            <div className="text-xl font-bold text-amber-600 mt-1">{formatCurrency(reasonableCauseAmount)}</div>
           </Card>
+        </div>
+      )}
+
+      {/* ─── Workflow Step Indicator ─── */}
+      {selectedCase && selectedPeriodIds.size > 0 && (
+        <div className="flex items-center gap-2 mb-0 text-sm flex-wrap">
+          {(["Select Penalties", "Check FTA", "Reasonable Cause", "Generate Letter"] as const).map((label, i) => {
+            const stepMap: Record<WorkflowStep, number> = { "select": 0, "fta": 1, "reasonable-cause": 2, "letter": 3 }
+            const currentStepIndex = stepMap[step] ?? 0
+            return (
+              <div key={label} className="flex items-center gap-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  i <= currentStepIndex ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-400"
+                }`}>
+                  {i + 1}
+                </div>
+                <span className={i <= currentStepIndex ? "text-slate-900 font-medium" : "text-slate-400"}>
+                  {label}
+                </span>
+                {i < 3 && <ChevronRight className="h-4 w-4 text-slate-300" />}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -699,6 +725,12 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
       {/* ─── Letter Preview ─── */}
       {step === "letter" && generatedLetter && (
         <Card>
+          {letterJustGenerated && (
+            <div className="mx-6 mt-6 p-3 rounded-md bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-sm text-emerald-800">
+              <CheckCircle className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              Letter generated successfully. Review the content below before copying or exporting.
+            </div>
+          )}
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>

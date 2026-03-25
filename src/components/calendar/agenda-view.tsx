@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { DeadlineCard } from "./deadline-card"
-import { ChevronDown, ChevronRight } from "lucide-react"
+import { Calendar, ChevronDown, ChevronRight } from "lucide-react"
 
 interface AgendaViewProps {
   deadlines: any[]
@@ -55,10 +55,11 @@ export function AgendaView({ deadlines, users }: AgendaViewProps) {
 
   if (deadlines.length === 0) {
     return (
-      <div className="flex flex-col items-center py-16 text-center">
-        <p className="text-lg font-medium">No deadlines yet</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Add deadlines to track important dates for your cases.
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <Calendar className="h-12 w-12 text-slate-300 mb-4" />
+        <h3 className="text-sm font-semibold text-slate-900">No deadlines tracked</h3>
+        <p className="text-sm text-slate-500 mt-1 max-w-sm">
+          Add your first deadline to start tracking CSEDs, filing deadlines, appeal windows, and more.
         </p>
       </div>
     )

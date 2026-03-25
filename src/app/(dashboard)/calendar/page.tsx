@@ -29,7 +29,9 @@ export default async function CalendarPage() {
     }),
   ])
 
-  // Serialize dates for client component
+  const now = new Date()
+
+  // Serialize dates for client component and add urgency fields
   const serialized = deadlines.map((d) => ({
     ...d,
     dueDate: d.dueDate.toISOString(),
@@ -38,7 +40,27 @@ export default async function CalendarPage() {
     irsNoticeDate: d.irsNoticeDate?.toISOString() || null,
     createdAt: d.createdAt.toISOString(),
     updatedAt: d.updatedAt.toISOString(),
+    urgency: d.status === "COMPLETED" ? "completed" as const :
+             d.dueDate < now ? "overdue" as const :
+             d.dueDate < new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) ? "urgent" as const :
+             d.dueDate < new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) ? "soon" as const : "normal" as const,
+    daysUntil: Math.ceil((d.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
   }))
+
+  // Compute summary stats (exclude completed deadlines)
+  const activeDeadlines = serialized.filter((d) => d.status !== "COMPLETED")
+  const overdueCount = activeDeadlines.filter((d) => d.urgency === "overdue").length
+  const endOfWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const thisWeekCount = activeDeadlines.filter((d) => {
+    const due = new Date(d.dueDate)
+    return due >= now && due <= endOfWeek
+  }).length
+  const endOfMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const thisMonthCount = activeDeadlines.filter((d) => {
+    const due = new Date(d.dueDate)
+    return due >= now && due <= endOfMonth
+  }).length
+  const totalCount = activeDeadlines.length
 
   return (
     <CalendarClient
@@ -46,6 +68,7 @@ export default async function CalendarPage() {
       users={users}
       cases={cases}
       currentUserId={userId}
+      summaryStats={{ overdueCount, thisWeekCount, thisMonthCount, totalCount }}
     />
   )
 }

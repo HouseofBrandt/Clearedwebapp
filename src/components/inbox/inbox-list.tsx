@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   Inbox, Clock, ClipboardCheck, CheckCircle2, XCircle,
   Bug, Lightbulb, MessageSquare, Megaphone, ArrowLeft,
   ArchiveX, Reply, ExternalLink, RefreshCw, Trash2,
-  Mail, MailOpen, Archive, CheckSquare,
+  Mail, MailOpen, Archive, CheckSquare, Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -112,6 +112,7 @@ export function InboxList({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<FilterType>("ALL")
+  const [searchQuery, setSearchQuery] = useState("")
   const [showCompose, setShowCompose] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -131,7 +132,17 @@ export function InboxList({
 
   const selected = messages.find((m) => m.id === selectedId) || null
 
-  const filteredMessages = messages.filter((m) => {
+  const searchFiltered = useMemo(() => {
+    if (!searchQuery.trim()) return messages
+    const q = searchQuery.toLowerCase()
+    return messages.filter((m) =>
+      m.subject?.toLowerCase().includes(q) ||
+      m.body?.toLowerCase().includes(q) ||
+      m.sender?.name?.toLowerCase().includes(q)
+    )
+  }, [messages, searchQuery])
+
+  const filteredMessages = searchFiltered.filter((m) => {
     if (filter === "UNREAD") return !m.read
     if (filter === "BUGS_AND_FEATURES") return m.type === "BUG_REPORT" || m.type === "FEATURE_REQUEST"
     if (filter === "NOTIFICATIONS") {
@@ -298,6 +309,20 @@ export function InboxList({
           </Button>
         </div>
 
+        {/* Search bar */}
+        <div className="px-4 py-3 border-b">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+            />
+          </div>
+        </div>
+
         {/* Filter pills */}
         <div className="flex gap-1.5 border-b px-4 py-2">
           {filters.map((f) => (
@@ -439,6 +464,15 @@ export function InboxList({
               )
             })
           )}
+        </div>
+
+        {/* Keyboard shortcuts hint */}
+        <div className="px-4 py-2 border-t text-xs text-muted-foreground">
+          <kbd className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono">&#8593;&#8595;</kbd> Navigate
+          <span className="mx-2">&middot;</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono">Enter</kbd> Open
+          <span className="mx-2">&middot;</span>
+          <kbd className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono">e</kbd> Archive
         </div>
 
         {/* Bottom buttons */}
