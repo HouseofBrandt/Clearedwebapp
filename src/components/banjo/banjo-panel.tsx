@@ -149,6 +149,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   }, [])
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const polishingStartRef = useRef<number | null>(null)
 
   function startPolling(id: string) {
     pollingRef.current = setInterval(async () => {
@@ -156,8 +157,24 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
         const res = await fetch(`/api/banjo/${id}`)
         if (!res.ok) return
         const data = await res.json()
+
+        // Handle stuck POLISHING state — if revision takes > 3 minutes, force complete
+        if (data.status === "POLISHING") {
+          if (!polishingStartRef.current) {
+            polishingStartRef.current = Date.now()
+          } else if (Date.now() - polishingStartRef.current > 180_000) {
+            // Stuck for 3+ minutes — force complete the assignment
+            try {
+              await fetch(`/api/banjo/${id}/force-complete`, { method: "POST" })
+            } catch { /* ignore */ }
+            polishingStartRef.current = null
+          }
+          return
+        }
+
         if (data.status === "COMPLETED" || data.status === "FAILED") {
           if (pollingRef.current) clearInterval(pollingRef.current)
+          polishingStartRef.current = null
           stopTimer()
           if (data.status === "COMPLETED") {
             const tasks = data.tasks?.filter((t: any) =>
