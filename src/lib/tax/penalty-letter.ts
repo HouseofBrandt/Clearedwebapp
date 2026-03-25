@@ -134,7 +134,7 @@ Internal Revenue Service
 **Re: Request for First Time Abate (FTA) Penalty Relief**
 **Taxpayer:** ${input.taxpayerName}
 **${tinLabel}:** ${input.taxpayerTIN}
-**Tax Year(s):** ${[...new Set(input.penalties.map((p) => p.taxYear))].sort().join(", ")}
+**Tax Year(s):** ${Array.from(new Set(input.penalties.map((p) => p.taxYear))).sort().join(", ")}
 **Total Penalty Amount:** $${formatCurrency(total)}
 
 ---
@@ -206,7 +206,7 @@ Internal Revenue Service
 **Re: Request for Penalty Abatement Based on Reasonable Cause**
 **Taxpayer:** ${input.taxpayerName}
 **${tinLabel}:** ${input.taxpayerTIN}
-**Tax Year(s):** ${[...new Set(input.penalties.map((p) => p.taxYear))].sort().join(", ")}
+**Tax Year(s):** ${Array.from(new Set(input.penalties.map((p) => p.taxYear))).sort().join(", ")}
 **Total Penalty Amount:** $${formatCurrency(total)}
 
 ---
