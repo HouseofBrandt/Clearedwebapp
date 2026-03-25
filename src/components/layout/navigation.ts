@@ -9,6 +9,9 @@ import {
   ScrollText,
   BarChart3,
   Calculator,
+  FileSearch,
+  Scale,
+  ShieldAlert,
   Shield,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -29,6 +32,9 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Portfolio", href: "/portfolio", icon: BarChart3, description: "Firm-wide case health" },
   { name: "Knowledge Base", href: "/knowledge", icon: BookOpen, description: "Firm institutional memory" },
   { name: "Return Compliance", href: "/rcc", icon: Calculator, description: "IRS transcript analysis & return estimator" },
+  { name: "Compliance", href: "/compliance-gap", icon: FileSearch, description: "Unfiled year analysis & gap closing" },
+  { name: "OIC Modeler", href: "/oic-modeler", icon: Scale, description: "Offer in Compromise RCP modeling" },
+  { name: "Penalty Abatement", href: "/penalty-abatement", icon: ShieldAlert, description: "FTA & reasonable cause letters" },
   { name: "Inbox", href: "/inbox", icon: Inbox, description: "Messages and alerts" },
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences" },
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true },
