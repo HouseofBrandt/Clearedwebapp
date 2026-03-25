@@ -240,7 +240,7 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
     let result = tasks
 
     if (assigneeFilter !== "ALL") {
-      result = result.filter((t) => t.case.assignedPractitionerId === assigneeFilter)
+      result = result.filter((t) => t.createdById === assigneeFilter || t.case.assignedPractitionerId === assigneeFilter)
     }
     if (caseTypeFilter !== "ALL") {
       result = result.filter((t) => t.case.caseType === caseTypeFilter)
