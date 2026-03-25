@@ -49,7 +49,7 @@ export async function GET(req: Request) {
 
     // 4. Review velocity — avg minutes per action type
     const reviewVelocityRaw = await prisma.reviewAction.findMany({
-      where: { reviewCompletedAt: { gte: since }, reviewStartedAt: { not: null } },
+      where: { reviewCompletedAt: { gte: since }, NOT: { reviewStartedAt: null } },
       select: { action: true, reviewStartedAt: true, reviewCompletedAt: true },
     }).catch(() => [])
 
