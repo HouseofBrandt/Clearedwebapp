@@ -92,7 +92,7 @@ export async function GET(
   }
 
   // Document completeness
-  const docCategories = caseData.documents.map((d) => d.documentCategory)
+  const docCategories = caseData.documents.map((d) => d.documentCategory as string)
   const requiredCategories = ["IRS_NOTICE", "TAX_RETURN", "BANK_STATEMENT", "PAYROLL"]
   const docCompleteness =
     requiredCategories.filter((c) => docCategories.includes(c)).length /
