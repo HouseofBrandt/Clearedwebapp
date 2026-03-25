@@ -338,6 +338,17 @@ model User {
   resolvedConversations Conversation[]   @relation("ConversationResolver")
   conversationMessages ConversationMsg[] @relation("MessageAuthor")
 
+  // SOC 2 Policy Acknowledgment Gate
+  policyAcknowledgments PolicyAcknowledgment[] @relation("PolicyAcknowledgments")
+  securityTrainings     SecurityTraining[]     @relation("SecurityTrainings")
+  backgroundChecks      BackgroundCheck[]      @relation("BackgroundChecks")
+  backgroundCheckEntries BackgroundCheck[]     @relation("BackgroundCheckEntries")
+  policiesCreated       CompliancePolicy[]     @relation("PolicyCreator")
+  governanceMeetings    GovernanceMeeting[]    @relation("GovernanceMeetings")
+  incidentsAssigned     IncidentRecord[]       @relation("IncidentAssignee")
+  disposalsConfirmed    DataDisposalRecord[]   @relation("DisposalConfirmer")
+  dsrAssigned           DataSubjectRequest[]   @relation("DSRAssignee")
+
   @@map("users")
 }
 
@@ -1224,4 +1235,173 @@ model AuditMilestone {
   updatedAt   DateTime        @updatedAt
 
   @@map("audit_milestones")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SOC 2 POLICY ACKNOWLEDGMENT GATE (CC1.1, CC2.2, CC5.3)
+// ═══════════════════════════════════════════════════════════════
+
+model CompliancePolicy {
+  id            String   @id @default(cuid())
+  slug          String   @unique // "code-of-conduct", "security-policy", "data-handling", "acceptable-use", "incident-response"
+  title         String
+  content       String   @db.Text // The policy content (markdown)
+  version       Int      @default(1)
+  effectiveDate DateTime @default(now())
+  createdById   String
+  createdBy     User     @relation("PolicyCreator", fields: [createdById], references: [id])
+  isActive      Boolean  @default(true)
+  acknowledgments PolicyAcknowledgment[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([slug, version])
+  @@map("compliance_policies")
+}
+
+model PolicyAcknowledgment {
+  id         String   @id @default(cuid())
+  policyId   String
+  policy     CompliancePolicy @relation(fields: [policyId], references: [id])
+  userId     String
+  user       User     @relation("PolicyAcknowledgments", fields: [userId], references: [id])
+  version    Int      // The version they acknowledged
+  acknowledgedAt DateTime @default(now())
+  ipAddress  String?
+
+  @@unique([policyId, userId, version])
+  @@index([userId])
+  @@map("policy_acknowledgments")
+}
+
+model SecurityTraining {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("SecurityTrainings", fields: [userId], references: [id])
+  moduleId      String   // "data-handling", "phishing", "incident-reporting", "client-confidentiality"
+  moduleName    String
+  version       Int      @default(1)
+  score         Int?     // Quiz score (0-100)
+  passed        Boolean  @default(false)
+  completedAt   DateTime @default(now())
+
+  @@unique([userId, moduleId, version])
+  @@index([userId])
+  @@map("security_trainings")
+}
+
+model BackgroundCheck {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("BackgroundChecks", fields: [userId], references: [id])
+  provider     String   // "Sterling", "Checkr", etc.
+  dateCompleted DateTime
+  result       String   // "CLEAR", "FLAGGED", "PENDING"
+  nextCheckDate DateTime?
+  notes        String?  @db.Text
+  enteredById  String
+  enteredBy    User     @relation("BackgroundCheckEntries", fields: [enteredById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("background_checks")
+}
+
+model GovernanceMeeting {
+  id          String   @id @default(cuid())
+  meetingDate DateTime
+  attendeeIds String[] // User IDs
+  agenda      String   @db.Text
+  decisions   String   @db.Text
+  actionItems Json     // Array of { description, assigneeId, dueDate, status }
+  quarter     String   // "2026-Q1"
+  createdById String
+  createdBy   User     @relation("GovernanceMeetings", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("governance_meetings")
+}
+
+model VendorRecord {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  service           String   // What service they provide
+  dataShared        String   // What data is shared with them
+  integrationType   String   // "API", "SDK", "Cloud Infrastructure", "SaaS"
+  soc2ReportDate    DateTime? // When their SOC 2 report was issued
+  soc2ExpiryDate    DateTime? // When it expires
+  dpaStatus         String   @default("NOT_STARTED") // "NOT_STARTED", "IN_PROGRESS", "SIGNED"
+  lastAssessmentDate DateTime?
+  riskLevel         String   @default("MEDIUM") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  notes             String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("vendor_records")
+}
+
+model IncidentRecord {
+  id              String   @id @default(cuid())
+  title           String
+  severity        String   // "CRITICAL", "HIGH", "MEDIUM", "LOW"
+  status          String   @default("DETECTED") // "DETECTED", "CLASSIFIED", "RESPONDING", "RESOLVED", "POST_MORTEM"
+  classification  String?  // "unauthorized_access", "data_breach", "configuration_drift", "anomalous_export", etc.
+  description     String   @db.Text
+  detectedAt      DateTime @default(now())
+  detectedBy      String   // "system" or userId
+  assignedToId    String?
+  assignedTo      User?    @relation("IncidentAssignee", fields: [assignedToId], references: [id])
+  resolvedAt      DateTime?
+  resolvedById    String?
+  postMortemNotes String?  @db.Text
+  rootCause       String?  @db.Text
+  affectedClients Int      @default(0)
+  affectedStates  String[] // For breach notification
+  playbookSteps   Json?    // Array of { step, assignee, status, completedAt }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([severity])
+  @@map("incident_records")
+}
+
+model DataDisposalRecord {
+  id            String   @id @default(cuid())
+  clientCount   Int
+  recordCount   Int
+  method        String   @default("CRYPTO_SHRED") // "CRYPTO_SHRED", "PHYSICAL_DESTRUCTION"
+  status        String   @default("QUEUED") // "QUEUED", "CONFIRMED", "EXECUTED", "CERTIFIED"
+  queuedAt      DateTime @default(now())
+  confirmedById String?
+  confirmedBy   User?    @relation("DisposalConfirmer", fields: [confirmedById], references: [id])
+  confirmedAt   DateTime?
+  executedAt    DateTime?
+  certificateId String?  // Reference to generated certificate
+  details       Json     // Array of { clientId, clientName, dataTypes, retentionExpiry }
+  createdAt     DateTime @default(now())
+
+  @@map("data_disposal_records")
+}
+
+model DataSubjectRequest {
+  id            String   @id @default(cuid())
+  requestType   String   // "ACCESS", "CORRECTION", "DELETION"
+  subjectName   String
+  subjectEmail  String
+  description   String   @db.Text
+  status        String   @default("RECEIVED") // "RECEIVED", "IN_PROGRESS", "COMPLETED", "DENIED"
+  slaDeadline   DateTime // 30 days from receipt
+  assignedToId  String?
+  assignedTo    User?    @relation("DSRAssignee", fields: [assignedToId], references: [id])
+  responseData  Json?    // Auto-compiled data package for access requests
+  completedAt   DateTime?
+  completedById String?
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@map("data_subject_requests")
 }
