@@ -716,10 +716,15 @@ export function ChatPanel() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 shadow-lg transition-all hover:scale-105 hover:bg-slate-800 lg:h-14 lg:w-14"
-          title="Ask Junebug"
+          className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 shadow-lg transition-all hover:scale-110 hover:bg-slate-800 hover:shadow-xl lg:h-14 lg:w-14"
+          title="Ask Junebug 🐕"
         >
-          <JunebugIcon className="h-7 w-7 text-white" />
+          <span className="group-hover:hidden">
+            <JunebugIcon className="h-7 w-7 text-white" mood="idle" />
+          </span>
+          <span className="hidden group-hover:block">
+            <JunebugIcon className="h-7 w-7 text-white" mood="happy" />
+          </span>
         </button>
       )}
 
@@ -731,8 +736,16 @@ export function ChatPanel() {
           {/* Header */}
           <div className="flex items-center justify-between bg-slate-900 px-4 py-3">
             <div className="flex items-center gap-3">
-              <JunebugIcon className="h-5 w-5 text-white" />
-              <h2 className="text-base font-semibold text-white">Junebug</h2>
+              <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                <JunebugIcon className="h-5 w-5 text-amber-400" mood="happy" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-white flex items-center gap-1.5">
+                  Junebug
+                  <span className="text-xs font-normal text-amber-400/80">🐕</span>
+                </h2>
+                <p className="text-[10px] text-slate-400 -mt-0.5">Your tax resolution assistant</p>
+              </div>
             </div>
             <div className="flex items-center gap-1">
               {/* New conversation */}
@@ -779,13 +792,16 @@ export function ChatPanel() {
             {messages.length === 0 ? (
               /* Empty state with suggestions */
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center px-6">
-                <div className="rounded-full bg-slate-50 p-5">
-                  <JunebugIcon className="h-10 w-10 text-slate-300" />
+                <div className="rounded-full bg-amber-50 dark:bg-amber-900/20 p-5 border border-amber-200/50 dark:border-amber-800/30">
+                  <JunebugIcon className="h-12 w-12 text-amber-600 dark:text-amber-400" mood="happy" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-700">{JUNEBUG_EMPTY_STATE.greeting}</p>
+                  <p className="text-sm font-medium text-slate-700">
+                    Junebug is ready to help! 🐕
+                  </p>
                   <p className="mt-1.5 text-[13px] leading-relaxed text-slate-400">
-                    {JUNEBUG_EMPTY_STATE.subtitle}
+                    Ask about the case, tax law, what to do next, or anything else.
+                    I&apos;ll fetch the answer.
                   </p>
                 </div>
                 <div className="mt-2 flex w-full flex-col gap-2">

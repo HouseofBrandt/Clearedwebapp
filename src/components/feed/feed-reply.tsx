@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import { JunebugIcon, TreatBoneIcon } from "@/components/assistant/junebug-icon"
 import { JUNEBUG_LOADING_MESSAGES } from "@/lib/junebug/loading-messages"
-import { Send } from "lucide-react"
 import { FormattedText } from "./formatted-text"
+import { Send } from "lucide-react"
 
 function getInitials(name: string): string {
   return name
@@ -64,7 +64,7 @@ export function FeedReplyList({ replies, totalReplyCount, postId, onReplyAdded }
   return (
     <div className="ml-4 pl-4 border-l border-border/50 mt-2 space-y-2">
       {displayReplies.map((reply: any) => (
-        <ReplyItem key={reply.id} reply={reply} />
+        <ReplyItem key={reply.id} reply={reply} postId={postId} />
       ))}
       {hasMore && (
         <button
@@ -79,29 +79,67 @@ export function FeedReplyList({ replies, totalReplyCount, postId, onReplyAdded }
   )
 }
 
-function ReplyItem({ reply }: { reply: any }) {
+function ReplyItem({ reply, postId }: { reply: any; postId: string }) {
   const isJunebug = reply.authorType === "junebug"
   const isThinking = reply.content === null
+  const [treated, setTreated] = useState(false)
+  const [treatAnimating, setTreatAnimating] = useState(false)
+  const [iconMood, setIconMood] = useState<"idle" | "happy" | "thinking" | "treat">(
+    isThinking ? "thinking" : "idle"
+  )
 
   // Rotating loading message for thinking state
   const [msgIndex, setMsgIndex] = useState(0)
   const pool = JUNEBUG_LOADING_MESSAGES.thinking
-  useState(() => {
+
+  useEffect(() => {
     if (!isThinking) return
     const interval = setInterval(() => {
       setMsgIndex((i) => (i + 1) % pool.length)
     }, 5000)
     return () => clearInterval(interval)
-  })
+  }, [isThinking, pool.length])
+
+  async function handleTreat() {
+    if (treatAnimating) return
+    setTreatAnimating(true)
+    setTreated(!treated)
+    setIconMood("treat")
+
+    try {
+      await fetch(`/api/feed/${postId}/treat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ replyId: reply.id }),
+      })
+    } catch {
+      setTreated((prev) => !prev)
+    }
+
+    // Show happy mood for 2 seconds after treat
+    setTimeout(() => {
+      setIconMood(treated ? "idle" : "happy")
+      setTreatAnimating(false)
+    }, 600)
+
+    // Return to idle after the happy period
+    if (!treated) {
+      setTimeout(() => setIconMood("idle"), 3000)
+    }
+  }
 
   return (
-    <div className="flex items-start gap-2 py-1">
+    <div className="flex items-start gap-2 py-1.5 group">
       {isJunebug ? (
-        <div className="h-6 w-6 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-          <JunebugIcon className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" animated={isThinking} />
+        <div className="h-7 w-7 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/30 flex items-center justify-center shrink-0">
+          <JunebugIcon
+            className="h-4 w-4 text-amber-700 dark:text-amber-400"
+            animated={isThinking}
+            mood={iconMood}
+          />
         </div>
       ) : (
-        <Avatar className="h-6 w-6">
+        <Avatar className="h-7 w-7">
           <AvatarFallback className="text-[10px]">
             {reply.author ? getInitials(reply.author.name) : "?"}
           </AvatarFallback>
@@ -109,15 +147,37 @@ function ReplyItem({ reply }: { reply: any }) {
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-medium">
-            {isJunebug ? "Junebug" : reply.author?.name || "Unknown"}
+          <span className={`text-xs font-medium ${isJunebug ? "text-amber-700 dark:text-amber-400" : ""}`}>
+            {isJunebug ? "Junebug 🐕" : reply.author?.name || "Unknown"}
           </span>
           <span className="text-xs text-muted-foreground">{timeAgo(reply.createdAt)}</span>
+          {/* Treat button — only for Junebug replies with content */}
+          {isJunebug && !isThinking && (
+            <button
+              onClick={handleTreat}
+              className={`ml-1 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium transition-all
+                ${treated
+                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                  : "opacity-0 group-hover:opacity-100 bg-muted/50 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-muted-foreground hover:text-amber-600 border border-transparent hover:border-amber-200"
+                }`}
+              title={treated ? "Treat given! Junebug will remember this." : "Give Junebug a treat for a helpful answer"}
+            >
+              <TreatBoneIcon className="h-3 w-3" />
+              {treated ? "Good girl!" : "Treat"}
+            </button>
+          )}
         </div>
         {isThinking ? (
-          <p className="text-xs text-muted-foreground italic animate-pulse">
-            {pool[msgIndex]}
-          </p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className="text-xs text-amber-600/70 dark:text-amber-400/70 italic">
+              {pool[msgIndex]}
+            </span>
+            <span className="flex gap-0.5">
+              <span className="h-1 w-1 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+              <span className="h-1 w-1 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+              <span className="h-1 w-1 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+            </span>
+          </div>
         ) : isJunebug ? (
           <FormattedText content={reply.content} className="mt-0.5" />
         ) : (
