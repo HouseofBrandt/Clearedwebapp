@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { X, Trash2, Copy, Check, Send, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
-import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import { JunebugIcon, TreatBoneIcon } from "@/components/assistant/junebug-icon"
 import {
   getJunebugLoadingMessage,
   getJunebugErrorMessage,
@@ -97,6 +97,46 @@ function CopyButton({ text }: { text: string }) {
       title="Copy message"
     >
       {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+    </button>
+  )
+}
+
+// -------------------------------------------------------------------
+// Treat button for chat — give Junebug a treat for good answers
+// -------------------------------------------------------------------
+function ChatTreatButton({ messageId }: { messageId: string }) {
+  const [treated, setTreated] = useState(false)
+  const [animating, setAnimating] = useState(false)
+
+  const handleTreat = async () => {
+    if (animating) return
+    setAnimating(true)
+    setTreated(!treated)
+
+    try {
+      await fetch("/api/assistant/treat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId, action: treated ? "remove" : "give" }),
+      })
+    } catch { /* silent */ }
+
+    setTimeout(() => setAnimating(false), 800)
+  }
+
+  return (
+    <button
+      onClick={handleTreat}
+      className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium transition-all
+        opacity-0 group-hover:opacity-100
+        ${treated
+          ? "bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700 opacity-100"
+          : "bg-muted/50 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-muted-foreground hover:text-amber-600 border border-transparent hover:border-amber-200"
+        }`}
+      title={treated ? "Treat given! Junebug will remember this." : "Give Junebug a treat for a helpful answer"}
+    >
+      <TreatBoneIcon className="h-3 w-3" />
+      {treated ? "Good girl!" : "Treat"}
     </button>
   )
 }
@@ -828,8 +868,13 @@ export function ChatPanel() {
                   return (
                   <div
                     key={msg.id}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start gap-2"}`}
                   >
+                    {msg.role === "assistant" && (
+                      <div className="mt-1 flex-shrink-0">
+                        <JunebugIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" mood={isStreaming && msg === messages[messages.length - 1] ? "thinking" : "idle"} animated={isStreaming && msg === messages[messages.length - 1]} />
+                      </div>
+                    )}
                     <div
                       className={`group relative max-w-[85%] rounded-lg px-3 py-2 text-sm ${
                         msg.role === "user"
@@ -872,7 +917,12 @@ export function ChatPanel() {
                               <span className="text-[13px]">{loadingMessage || "Thinking..."}</span>
                             </div>
                           ) : null}
-                          {msg.content && <CopyButton text={msg.content} />}
+                          {msg.content && (
+                            <div className="mt-1 flex items-center gap-1">
+                              <CopyButton text={msg.content} />
+                              <ChatTreatButton messageId={msg.id} />
+                            </div>
+                          )}
                         </>
                       ) : (
                         <span className="whitespace-pre-wrap">{msg.content}</span>
