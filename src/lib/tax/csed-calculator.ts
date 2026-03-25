@@ -104,7 +104,7 @@ export function detectTollingEvents(
   }
 
   // Any still-open events (ongoing tolling)
-  for (const [type, data] of openEvents) {
+  for (const [type, data] of Array.from(openEvents.entries())) {
     events.push({
       type,
       startDate: data.startDate,
