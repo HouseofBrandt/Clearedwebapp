@@ -27,29 +27,41 @@ function RiskCell({ score, tabsNumber, id }: { score: number; tabsNumber: string
 
 export default async function PortfolioPage() {
   const session = await requireAuth()
-  const accessFilter = await caseAccessFilter((session.user as any).id)
+  const userId = session.user.id
+  const accessFilter = await caseAccessFilter(userId)
   const now = new Date()
 
-  const [activeCases, reviewBacklog, phaseDistribution] = await Promise.all([
-    prisma.case.findMany({
-      where: { ...accessFilter, status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } },
-      include: {
-        intelligence: true,
-        assignedPractitioner: { select: { name: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-    prisma.aITask.groupBy({
-      by: ["caseId"],
-      where: { status: "READY_FOR_REVIEW", case: accessFilter },
-      _count: true,
-    }),
-    prisma.case.groupBy({
-      by: ["status"],
-      where: accessFilter,
-      _count: true,
-    }),
-  ])
+  let activeCases: any[] = []
+  let reviewBacklog: any[] = []
+  let phaseDistribution: any[] = []
+
+  try {
+    const results = await Promise.all([
+      prisma.case.findMany({
+        where: { ...accessFilter, status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] } },
+        include: {
+          intelligence: true,
+          assignedPractitioner: { select: { name: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.aITask.groupBy({
+        by: ["caseId"],
+        where: { status: "READY_FOR_REVIEW", case: accessFilter },
+        _count: true,
+      }).catch(() => []),
+      prisma.case.groupBy({
+        by: ["status"],
+        where: accessFilter,
+        _count: true,
+      }).catch(() => []),
+    ])
+    activeCases = results[0]
+    reviewBacklog = results[1]
+    phaseDistribution = results[2]
+  } catch {
+    // If queries fail, render with empty data
+  }
 
   const decrypted = activeCases.map(decryptCasePII)
 
