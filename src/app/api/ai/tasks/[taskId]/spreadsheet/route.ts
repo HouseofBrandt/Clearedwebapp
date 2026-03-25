@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
+import { decryptField } from "@/lib/encryption"
 import { parseOICOutput, oicToSpreadsheetData } from "@/lib/ai/parsers/oic-parser"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 
@@ -44,7 +45,7 @@ export async function GET(
       { status: 400 }
     )
   }
-  const output = task.detokenizedOutput
+  const output = decryptField(task.detokenizedOutput)
 
   // Try new template format first
   try {

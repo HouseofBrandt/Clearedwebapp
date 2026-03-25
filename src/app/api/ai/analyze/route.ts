@@ -1,10 +1,12 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import * as Sentry from "@sentry/nextjs"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { prisma, startDbKeepalive } from "@/lib/db"
 import { callClaudeStream } from "@/lib/ai/client"
 import { tokenizeText, encryptTokenMap, detokenizeText, validateTokenization } from "@/lib/ai/tokenizer"
-import { logAIRequest } from "@/lib/ai/audit"
+import { encryptField } from "@/lib/encryption"
+import { logAIRequest, createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 import { OIC_TEMPLATE, getExtractionKeys } from "@/lib/templates/oic-working-papers"
@@ -235,6 +237,14 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  const rateCheck = checkRateLimit(auth.userId, "ai-analysis", RATE_LIMITS.aiAnalysis)
+  if (!rateCheck.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+      { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)) } },
+    )
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return new Response(
       JSON.stringify({ error: "AI service is not configured. Please set the ANTHROPIC_API_KEY environment variable." }),
@@ -407,7 +417,18 @@ export async function POST(request: NextRequest) {
             throw new Error("PII tokenization failed: Tier 1 PII detected in tokenized text. Aborting.")
           }
           // Tier 2/3 warnings are logged but allowed
-          console.warn("[AI Analyze] PII validation warnings:", piiValidation.warnings)
+          console.warn("[SECURITY] Tokenization validation warnings:", piiValidation.warnings)
+          // Audit log PII validation warnings for compliance tracking
+          createAuditLog({
+            practitionerId: userId,
+            action: AUDIT_ACTIONS.PII_TOKENIZED,
+            caseId,
+            aiTaskId: aiTaskId || undefined,
+            metadata: {
+              warnings: piiValidation.warnings,
+              warningCount: piiValidation.warnings.length,
+            },
+          }).catch((err) => console.error("[Audit] PII validation audit log failed:", err.message))
         }
 
         // Load system prompts
@@ -647,7 +668,7 @@ export async function POST(request: NextRequest) {
                   status: "READY_FOR_REVIEW",
                   tokenizedInput: tokenizedText.substring(0, 10000),
                   tokenizedOutput: fullContent,
-                  detokenizedOutput: detokenized,
+                  detokenizedOutput: detokenized ? encryptField(detokenized) : null,
                   modelUsed: responseModel,
                   temperature,
                   systemPromptVersion: promptName,
@@ -773,7 +794,7 @@ export async function POST(request: NextRequest) {
                 status: "READY_FOR_REVIEW",
                 tokenizedInput: tokenizedText.substring(0, 10000),
                 tokenizedOutput: fullContent,
-                detokenizedOutput: detokenized,
+                detokenizedOutput: detokenized ? encryptField(detokenized) : null,
                 modelUsed: responseModel,
                 temperature,
                 systemPromptVersion: promptName,
@@ -852,7 +873,7 @@ export async function POST(request: NextRequest) {
             where: { id: aiTaskId },
             data: {
               status: "REJECTED",
-              detokenizedOutput: `Error: ${errorMessage}`,
+              detokenizedOutput: encryptField(`Error: ${errorMessage}`),
             },
           }).catch((e) => console.error("Failed to update task status:", e))
         }

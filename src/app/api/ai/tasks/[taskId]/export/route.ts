@@ -8,6 +8,7 @@ import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
 import { generateDocx, generateTemplateDocx } from "@/lib/documents/docx"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { decryptField } from "@/lib/encryption"
 import { canAccessCase } from "@/lib/auth/case-access"
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
@@ -50,7 +51,7 @@ export async function GET(
       { status: 400 }
     )
   }
-  const output = task.detokenizedOutput
+  const output = decryptField(task.detokenizedOutput)
   const format = request.nextUrl.searchParams.get("format") || "xlsx"
 
   // Audit log for export (fire-and-forget)

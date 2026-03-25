@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { encryptField, decryptField } from "@/lib/encryption"
 import { logReviewAction } from "@/lib/ai/audit"
 import { notify } from "@/lib/notifications"
 import { autoIngestToKnowledgeBase } from "@/lib/banjo/auto-ingest"
@@ -92,19 +93,20 @@ export async function POST(
       data: {
         status: newStatus,
         ...(action === "EDIT_APPROVE" && editedOutput
-          ? { detokenizedOutput: editedOutput }
+          ? { detokenizedOutput: encryptField(editedOutput) }
           : {}),
       },
     })
 
     // Learning loop: track edits and rejections (fire-and-forget)
     if (action === "EDIT_APPROVE" && editedOutput && task.detokenizedOutput) {
+      const decryptedOriginal = decryptField(task.detokenizedOutput)
       prisma.editHistory.create({
         data: {
           aiTaskId: task.id,
           caseType: task.case.caseType,
           taskType: task.taskType,
-          originalOutput: task.detokenizedOutput,
+          originalOutput: decryptedOriginal,
           editedOutput,
           practitionerId: auth.userId,
         },
@@ -130,7 +132,12 @@ export async function POST(
         select: { id: true, taskType: true, caseId: true, detokenizedOutput: true, createdById: true },
       })
       if (finalTask) {
-        autoIngestToKnowledgeBase(finalTask, auth.userId).catch((err) => {
+        // Decrypt before passing to KB ingest
+        const decryptedTask = {
+          ...finalTask,
+          detokenizedOutput: finalTask.detokenizedOutput ? decryptField(finalTask.detokenizedOutput) : null,
+        }
+        autoIngestToKnowledgeBase(decryptedTask, auth.userId).catch((err) => {
           console.error("[Review] Auto-KB-ingest failed (non-blocking):", err.message)
         })
       }

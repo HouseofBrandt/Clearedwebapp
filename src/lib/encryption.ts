@@ -11,15 +11,29 @@ import crypto from "crypto"
 
 const DEV_KEY = "dev-encryption-key-change-in-production-32chars"
 
+/**
+ * Derive the AES-256 key from the ENCRYPTION_KEY environment variable.
+ *
+ * NOTE: Production uses PBKDF2 (100k iterations) for brute-force resistance.
+ * Development fallback uses simple SHA-256 hash for speed.
+ *
+ * Tradeoff: Using a deterministic salt derived from the key itself so that
+ * key derivation is reproducible across server restarts without external state.
+ * A truly random salt would be stronger but would require storing it separately.
+ */
 function getKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY
   if (!key) {
     if (process.env.NODE_ENV === "production") {
       throw new Error("ENCRYPTION_KEY environment variable is required in production.")
     }
+    // Development fallback
     return crypto.createHash("sha256").update(DEV_KEY).digest()
   }
-  return crypto.createHash("sha256").update(key).digest()
+  // Use PBKDF2 for production key derivation (more resistant to brute-force)
+  // Salt is deterministic from key itself since we need reproducible derivation
+  const salt = crypto.createHash("sha256").update("cleared-encryption-salt:" + key.substring(0, 8)).digest()
+  return crypto.pbkdf2Sync(key, salt, 100000, 32, "sha256")
 }
 
 export function encryptField(plaintext: string): string {
@@ -29,15 +43,28 @@ export function encryptField(plaintext: string): string {
   let encrypted = cipher.update(plaintext, "utf8", "hex")
   encrypted += cipher.final("hex")
   const authTag = cipher.getAuthTag().toString("hex")
-  return `${iv.toString("hex")}:${authTag}:${encrypted}`
+  // v1: prefix for key versioning support — allows future key rotation
+  return `v1:${iv.toString("hex")}:${authTag}:${encrypted}`
 }
 
 export function decryptField(encrypted: string): string {
   if (!encrypted) return encrypted
   const key = getKey()
-  const [ivHex, authTagHex, ciphertext] = encrypted.split(":")
+
+  let ivHex: string, authTagHex: string, ciphertext: string
+
+  // Check for version prefix (v1: format from new encryptField)
+  if (encrypted.startsWith("v1:")) {
+    const parts = encrypted.substring(3).split(":")
+    ;[ivHex, authTagHex, ciphertext] = parts
+  } else {
+    // Legacy format (no version prefix) — backward compatible
+    ;[ivHex, authTagHex, ciphertext] = encrypted.split(":")
+  }
+
   if (!ivHex || !authTagHex || !ciphertext) {
-    // Not encrypted (legacy plaintext) — return as-is
+    // Not encrypted (legacy plaintext)
+    console.warn("[SECURITY] Unencrypted field detected. Run /api/admin/encrypt-existing to migrate.")
     return encrypted
   }
   try {

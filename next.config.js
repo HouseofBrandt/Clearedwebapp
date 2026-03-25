@@ -40,6 +40,14 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // No-cache for API routes that return PII
+        source: "/api/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, private" },
+          { key: "Pragma", value: "no-cache" },
+        ],
+      },
     ]
   },
 }

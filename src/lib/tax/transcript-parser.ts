@@ -14,6 +14,8 @@ const anthropic = new Anthropic({
 const PARSE_PROMPT = `You are a tax transcript parser for an IRS resolution firm. Extract ALL data from uploaded IRS transcripts into structured JSON.
 Return ONLY valid JSON — no markdown, no backticks, no preamble.
 
+IMPORTANT: Do NOT extract or return any taxpayer personally identifiable information (PII) including names, Social Security Numbers, addresses, or dates of birth. These are handled separately by our secure infrastructure. Focus only on financial data, transaction codes, form data, and tax computations.
+
 For each transcript, identify:
 - Transcript type: "wage_income", "account", or "tax_return"
 - Tax year from "Tax Period Requested" or "Report for Tax Period Ending"
@@ -24,10 +26,10 @@ For each transcript, identify:
 Output this exact JSON structure:
 {
   "taxpayer": {
-    "name": "string",
-    "ssn_last4": "string",
-    "addresses": ["string"],
-    "representative_payee": "string or null"
+    "name": "[REDACTED - see case record]",
+    "ssn_last4": "[REDACTED - see case record]",
+    "addresses": [],
+    "representative_payee": null
   },
   "years": {
     "YYYY": {
@@ -82,6 +84,7 @@ Output this exact JSON structure:
 }
 
 CRITICAL RULES:
+- NEVER include taxpayer name, SSN, addresses, or date of birth in the output — always use the REDACTED placeholders shown above
 - Use numbers not strings for dollar amounts (no $ signs, no commas)
 - Include ALL forms found on wage & income transcripts
 - Include ALL transaction codes from account transcripts
@@ -165,6 +168,14 @@ export async function parseTranscripts(
     } catch (e: any) {
       console.error("[TranscriptParser] API error:", e.message)
     }
+  }
+
+  // Post-processing: scrub any PII that slipped through
+  if (taxpayer) {
+    taxpayer.name = "[REDACTED]"
+    taxpayer.ssn_last4 = "[REDACTED]"
+    taxpayer.addresses = []
+    taxpayer.representative_payee = null
   }
 
   return { taxpayer, years: allYears }

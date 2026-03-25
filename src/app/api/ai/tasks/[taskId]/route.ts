@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
+import { decryptField } from "@/lib/encryption"
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +28,13 @@ export async function GET(
     return NextResponse.json({ error: "Task not found" }, { status: 404 })
   }
 
-  return NextResponse.json(task)
+  // Decrypt detokenizedOutput before returning to client
+  const decryptedTask = {
+    ...task,
+    detokenizedOutput: task.detokenizedOutput ? decryptField(task.detokenizedOutput) : null,
+  }
+
+  return NextResponse.json(decryptedTask)
 }
 
 export async function DELETE(

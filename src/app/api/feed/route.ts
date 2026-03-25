@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { generateJunebugReply } from "@/lib/feed/junebug-reply"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
 
 const createPostSchema = z.object({
@@ -125,6 +126,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth()
   if (!auth.authorized) return auth.response
+
+  const rateCheck = checkRateLimit(auth.userId, "feed-post", RATE_LIMITS.feedPost)
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)) } }
+    )
+  }
 
   try {
     const body = await request.json()

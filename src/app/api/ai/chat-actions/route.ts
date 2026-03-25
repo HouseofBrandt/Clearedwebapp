@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { encryptField } from "@/lib/encryption"
 import { z } from "zod"
 import { formatDate } from "@/lib/date-utils"
 import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
             caseId: resolvedCaseId,
             taskType: "CASE_MEMO",
             status: "APPROVED",
-            detokenizedOutput: letterContent,
+            detokenizedOutput: encryptField(letterContent),
             modelUsed: "practitioner-generated",
             createdById: auth.userId,
           },

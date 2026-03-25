@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import JSZip from "jszip"
 import { generateDocx } from "@/lib/documents/docx"
 import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
+import { decryptField } from "@/lib/encryption"
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
 
@@ -41,7 +42,7 @@ export async function GET(
   const clientName = assignment.case.clientName || ""
 
   for (const task of assignment.tasks) {
-    const output = task.detokenizedOutput || ""
+    const output = task.detokenizedOutput ? decryptField(task.detokenizedOutput) : ""
     const stepLabel = (task.banjoStepLabel || task.taskType).replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_")
     const fileName = `${task.banjoStepNumber || 0}_${stepLabel}`
 

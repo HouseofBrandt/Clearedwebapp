@@ -32,6 +32,30 @@ export function scrubForKnowledgeBase(
   scrubbed = scrubbed.replace(/\b\d{2}-\d{7}\b/g, "[EIN]")
   scrubbed = scrubbed.replace(/\*{2,}\d{4}/g, "[ACCT]")
 
+  // Unhyphenated SSNs near labels
+  scrubbed = scrubbed.replace(/(?:SSN|TIN|Social\s*Security)\s*:?\s*\d{9}/gi, "[SSN]")
+
+  // Bank account numbers (various formats)
+  scrubbed = scrubbed.replace(/(?:account|acct|routing)\s*(?:#|no\.?|number)?\s*:?\s*\d{4,17}/gi, "[ACCOUNT]")
+
+  // Routing numbers
+  scrubbed = scrubbed.replace(/(?:routing|ABA|RTN)\s*(?:#|no\.?|number)?\s*:?\s*\d{9}/gi, "[ROUTING]")
+
+  // Dates of birth
+  scrubbed = scrubbed.replace(/(?:DOB|date\s*of\s*birth|born|birthday)\s*:?\s*\d{1,2}[-/]\d{1,2}[-/]\d{2,4}/gi, "[DOB]")
+
+  // More address patterns - PO Box
+  scrubbed = scrubbed.replace(/P\.?O\.?\s*Box\s*\d+/gi, "[ADDRESS]")
+
+  // Apartment/Suite/Unit numbers
+  scrubbed = scrubbed.replace(/(?:Apt|Suite|Unit|#)\s*\d+[A-Za-z]?\b/gi, "[UNIT]")
+
+  // ZIP codes in context (5+4 format)
+  scrubbed = scrubbed.replace(/\b\d{5}-\d{4}\b/g, "[ZIP]")
+
+  // Full names after common labels
+  scrubbed = scrubbed.replace(/(?:taxpayer|client|petitioner|respondent|spouse)\s*:?\s*[A-Z][a-z]+ [A-Z][a-z]+/gi, "[NAME]")
+
   // Phone numbers
   scrubbed = scrubbed.replace(
     /\b\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, "[PHONE]"

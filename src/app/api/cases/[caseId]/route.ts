@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { encryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
+import { encryptField, decryptField, encryptCasePII, decryptCasePII } from "@/lib/encryption"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { canAccessCase } from "@/lib/auth/case-access"
 import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
@@ -58,7 +58,25 @@ export async function GET(
     return NextResponse.json({ error: "Case not found" }, { status: 404 })
   }
 
-  return NextResponse.json(decryptCasePII(caseData))
+  // Audit log: case viewed
+  logAudit({
+    userId: (session.user as any).id,
+    action: AUDIT_ACTIONS.CASE_VIEWED,
+    caseId: params.caseId,
+    metadata: { tabsNumber: caseData.tabsNumber },
+    ipAddress: getClientIP(),
+  })
+
+  // Decrypt detokenizedOutput on aiTasks before returning
+  const decryptedCaseData = {
+    ...decryptCasePII(caseData),
+    aiTasks: caseData.aiTasks.map((task: any) => ({
+      ...task,
+      detokenizedOutput: task.detokenizedOutput ? decryptField(task.detokenizedOutput) : null,
+    })),
+  }
+
+  return NextResponse.json(decryptedCaseData)
 }
 
 export async function PATCH(

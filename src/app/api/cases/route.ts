@@ -5,17 +5,18 @@ import { prisma } from "@/lib/db"
 import { encryptCasePII, decryptCasePII } from "@/lib/encryption"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { caseAccessFilter } from "@/lib/auth/case-access"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
 
 const createCaseSchema = z.object({
-  clientName: z.string().min(1, "Client name is required"),
+  clientName: z.string().min(1, "Client name is required").max(255),
   caseType: z.enum(["OIC", "IA", "PENALTY", "INNOCENT_SPOUSE", "CNC", "TFRP", "ERC", "UNFILED", "AUDIT", "CDP", "AMENDED", "VOLUNTARY_DISCLOSURE", "OTHER"]),
   filingStatus: z.enum(["SINGLE", "MFJ", "MFS", "HOH", "QSS"]).optional().nullable(),
   clientEmail: z.string().email().optional().or(z.literal("")).nullable(),
   clientPhone: z.string().optional().nullable(),
   totalLiability: z.number().optional().nullable(),
   assignedPractitionerId: z.string().optional(),
-  notes: z.string().optional().nullable(),
+  notes: z.string().max(10000).optional().nullable(),
   tabsNumber: z.string().min(1, "TABS number is required"),
 })
 
@@ -63,6 +64,14 @@ export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const rateCheck = checkRateLimit((session.user as any).id, "case-create", RATE_LIMITS.caseCreate)
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)) } }
+    )
   }
 
   try {

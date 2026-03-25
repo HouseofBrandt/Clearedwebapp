@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
 import { extractWithDetails } from "@/lib/documents/extract"
@@ -9,6 +10,7 @@ import { autoDetectCategory } from "@/lib/documents/auto-category"
 import { triageDocument, processTriageResult } from "@/lib/case-intelligence/document-triage"
 import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { canAccessCase } from "@/lib/auth/case-access"
 import { createFeedEvent } from "@/lib/feed/create-event"
 
 /**
@@ -83,6 +85,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const rateCheck = checkRateLimit((session.user as any).id, "document-upload", RATE_LIMITS.documentUpload)
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.resetAt - Date.now()) / 1000)) } }
+    )
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get("file") as File | null
@@ -93,6 +103,12 @@ export async function POST(request: NextRequest) {
         { error: "File and caseId are required" },
         { status: 400 }
       )
+    }
+
+    // Verify user has access to this case
+    const hasAccess = await canAccessCase((session.user as any).id, caseId)
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
     const userCat = (formData.get("documentCategory") as string) || "OTHER"

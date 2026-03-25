@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { createAuditLog } from "@/lib/ai/audit"
 
 const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -52,11 +53,13 @@ export async function deleteFromS3(key: string): Promise<void> {
 /**
  * Generate a presigned PUT URL for direct browser-to-S3 uploads.
  * Bypasses the serverless function body size limit entirely.
+ * Expires in 30 minutes to limit exposure window.
  */
 export async function getPresignedUploadUrl(
   key: string,
   contentType: string,
-  maxSizeBytes?: number
+  maxSizeBytes?: number,
+  userId?: string
 ): Promise<{ url: string; key: string }> {
   const command = new PutObjectCommand({
     Bucket: BUCKET,
@@ -64,19 +67,41 @@ export async function getPresignedUploadUrl(
     ContentType: contentType,
     ...(maxSizeBytes ? { ContentLength: maxSizeBytes } : {}),
   })
-  const url = await getSignedUrl(s3, command, { expiresIn: 3600 }) // 1 hour
+  const url = await getSignedUrl(s3, command, { expiresIn: 1800 }) // 30 minutes
+
+  // Audit log presigned URL generation
+  if (userId) {
+    createAuditLog({
+      practitionerId: userId,
+      action: "PRESIGNED_UPLOAD_URL_GENERATED",
+      metadata: { key, contentType, expiresIn: 1800 },
+    }).catch((err) => console.error("[Storage] Audit log failed:", err.message))
+  }
+
   return { url, key }
 }
 
 /**
  * Generate a presigned GET URL for downloading/reading files from S3.
+ * Expires in 15 minutes to limit exposure window.
  */
-export async function getPresignedDownloadUrl(key: string): Promise<string> {
+export async function getPresignedDownloadUrl(key: string, userId?: string): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET,
     Key: key,
   })
-  return getSignedUrl(s3, command, { expiresIn: 3600 })
+  const url = await getSignedUrl(s3, command, { expiresIn: 900 }) // 15 minutes
+
+  // Audit log presigned URL generation
+  if (userId) {
+    createAuditLog({
+      practitionerId: userId,
+      action: "PRESIGNED_DOWNLOAD_URL_GENERATED",
+      metadata: { key, expiresIn: 900 },
+    }).catch((err) => console.error("[Storage] Audit log failed:", err.message))
+  }
+
+  return url
 }
 
 /**

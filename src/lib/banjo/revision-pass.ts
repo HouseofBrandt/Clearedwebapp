@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db"
 import { callClaude } from "@/lib/ai/client"
+import { encryptField } from "@/lib/encryption"
 import { loadPrompt } from "@/lib/ai/prompts"
 
 interface CompletedDeliverable {
@@ -54,7 +55,7 @@ export async function runRevisionPass(
       await prisma.aITask.update({
         where: { id: task.taskId },
         data: {
-          detokenizedOutput: revision.revisedOutput,
+          detokenizedOutput: revision.revisedOutput ? encryptField(revision.revisedOutput) : null,
         },
       })
 

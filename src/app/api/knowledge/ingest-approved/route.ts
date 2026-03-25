@@ -3,6 +3,7 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { ingestDocument } from "@/lib/knowledge/ingest"
 import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
+import { decryptField } from "@/lib/encryption"
 import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { formatDate } from "@/lib/date-utils"
 import { TASK_TYPE_LABELS, CASE_TYPE_LABELS } from "@/types"
@@ -33,9 +34,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Task has no output" }, { status: 400 })
   }
 
-  // Scrub PII
+  // Decrypt and scrub PII
+  const decryptedOutput = decryptField(task.detokenizedOutput)
   const scrubbed = scrubForKnowledgeBase(
-    task.detokenizedOutput,
+    decryptedOutput,
     task.case.clientName,
     task.case.tabsNumber
   )

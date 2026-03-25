@@ -3,6 +3,7 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma, startDbKeepalive } from "@/lib/db"
 import { callClaudeStream } from "@/lib/ai/client"
 import { tokenizeText, encryptTokenMap, detokenizeText } from "@/lib/ai/tokenizer"
+import { encryptField } from "@/lib/encryption"
 import { logAIRequest } from "@/lib/ai/audit"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { getBanjoKnowledgeContext } from "@/lib/banjo/knowledge-retrieval"
@@ -204,7 +205,7 @@ export async function POST(
               caseId: caseData.id,
               taskType: "WEB_RESEARCH" as any,
               status: "APPROVED", // Research doesn't need review
-              detokenizedOutput: result.fullText,
+              detokenizedOutput: result.fullText ? encryptField(result.fullText) : null,
               modelUsed: "claude-opus-4-6",
               banjoAssignmentId: assignmentId,
               banjoStepNumber: stepNumber,
@@ -401,7 +402,7 @@ export async function POST(
               status: "READY_FOR_REVIEW",
               tokenizedInput: tokenizedDocText.substring(0, 10000),
               tokenizedOutput: fullContent,
-              detokenizedOutput: detokenized,
+              detokenizedOutput: detokenized ? encryptField(detokenized) : null,
               modelUsed: responseModel,
               temperature,
               systemPromptVersion: promptName,
@@ -492,7 +493,7 @@ export async function POST(
               caseId: caseData.id,
               taskType: skippedDeliverable.taskType as any,
               status: "SKIPPED",
-              detokenizedOutput: `Skipped: dependency failed.`,
+              detokenizedOutput: encryptField(`Skipped: dependency failed.`),
               createdById: userId,
               banjoAssignmentId: assignmentId,
               banjoStepNumber: skippedStep,

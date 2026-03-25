@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { deleteFromS3 } from "@/lib/storage"
 import { recalculateDocCompleteness } from "@/lib/case-intelligence/doc-completeness"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
+import { canAccessCase } from "@/lib/auth/case-access"
 import { z } from "zod"
 
 const bulkDeleteSchema = z.object({
@@ -31,6 +32,15 @@ export async function POST(request: NextRequest) {
       select: { id: true, filePath: true, caseId: true, fileName: true },
     })
 
+    // Verify user has access to all affected cases
+    const caseIdsForAccess = Array.from(new Set(documents.map(d => d.caseId)))
+    for (const cid of caseIdsForAccess) {
+      const hasAccess = await canAccessCase((session.user as any).id, cid)
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Access denied to one or more document cases" }, { status: 403 })
+      }
+    }
+
     // Delete from storage
     await Promise.allSettled(
       documents.map((doc) => deleteFromS3(doc.filePath).catch(() => {}))
@@ -47,13 +57,17 @@ export async function POST(request: NextRequest) {
       recalculateDocCompleteness(cid).catch(() => {})
     }
 
-    // Audit log
-    logAudit({
-      userId: (session.user as any).id,
-      action: AUDIT_ACTIONS.DOCUMENT_DELETED,
-      metadata: { documentIds: documents.map(d => d.id), fileNames: documents.map(d => d.fileName), count: result.count },
-      ipAddress: getClientIP(),
-    })
+    // Audit log — log per case for traceability
+    for (const cid of caseIds) {
+      const caseDocs = documents.filter(d => d.caseId === cid)
+      logAudit({
+        userId: (session.user as any).id,
+        action: AUDIT_ACTIONS.DOCUMENT_DELETED,
+        caseId: cid,
+        metadata: { documentIds: caseDocs.map(d => d.id), fileNames: caseDocs.map(d => d.fileName), count: caseDocs.length },
+        ipAddress: getClientIP(),
+      })
+    }
 
     return NextResponse.json({ deleted: result.count })
   } catch (error) {
