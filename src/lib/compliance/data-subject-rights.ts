@@ -123,7 +123,7 @@ export async function compileAccessData(
       where: { caseId: { in: caseIds } },
       select: {
         id: true,
-        title: true,
+        subject: true,
         status: true,
         createdAt: true,
         caseId: true,
@@ -172,7 +172,7 @@ export async function compileAccessData(
     })),
     conversations: conversations.map((c: any) => ({
       id: c.id,
-      title: c.title,
+      subject: c.subject,
       status: c.status,
       createdAt: c.createdAt,
       messageCount: c._count?.messages || 0,
