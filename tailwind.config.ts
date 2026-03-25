@@ -10,8 +10,10 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "DM Sans", "system-ui", "sans-serif"],
-        heading: ["DM Sans", "Inter", "system-ui", "sans-serif"],
+        display: ["Instrument Serif", "Georgia", "serif"],
+        sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+        mono: ["var(--font-jetbrains)", "JetBrains Mono", "SF Mono", "monospace"],
+        heading: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
