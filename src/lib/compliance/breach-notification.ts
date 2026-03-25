@@ -424,7 +424,7 @@ export function identifyAffectedStates(
   const states = clientData
     .map((c) => c.state)
     .filter((s): s is string => !!s)
-  return [...new Set(states)]
+  return Array.from(new Set(states))
 }
 
 /**

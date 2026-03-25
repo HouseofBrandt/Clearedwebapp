@@ -24,7 +24,7 @@ export async function GET() {
     })
 
     // Resolve attendee names
-    const allUserIds = [...new Set(meetings.flatMap((m) => m.attendeeIds))]
+    const allUserIds = Array.from(new Set(meetings.flatMap((m) => m.attendeeIds)))
     const users = await prisma.user.findMany({
       where: { id: { in: allUserIds } },
       select: { id: true, name: true, email: true },
