@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Trash2, Upload, FileText } from "lucide-react"
+import { Plus, Trash2, Upload, FileText, HelpCircle } from "lucide-react"
 import type { FieldDef, ConditionalRule } from "@/lib/forms/types"
 
 // ---------------------------------------------------------------------------
@@ -129,21 +129,36 @@ export interface FieldRendererProps {
   onChange: (value: any) => void
   error?: string
   allValues: Record<string, any>
+  /** Called when the user clicks the help icon on a field that has helpText or irsReference */
+  onFieldHelp?: (fieldId: string) => void
+  /** Auto-population metadata for this field (if auto-populated) */
+  autoPopulated?: {
+    confidence: "high" | "medium" | "low"
+    sourceName: string
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function FieldRenderer({ field, value, onChange, error, allValues }: FieldRendererProps) {
+export function FieldRenderer({ field, value, onChange, error, allValues, onFieldHelp, autoPopulated }: FieldRendererProps) {
   // Check conditional visibility
   if (!evaluateConditions(field.conditionals, allValues)) return null
 
   const isRequired = field.required
   const irsRef = field.irsReference
+  const hasHelpContent = !!(field.helpText || field.irsReference)
+
+  // Auto-population border color
+  const autoBorderClass = autoPopulated
+    ? autoPopulated.confidence === "high"
+      ? "border-l-4 border-l-blue-400 pl-3"
+      : "border-l-4 border-l-amber-400 pl-3"
+    : ""
 
   return (
-    <div className="space-y-1.5">
+    <div className={`space-y-1.5 ${autoBorderClass}`} title={autoPopulated ? `From ${autoPopulated.sourceName}` : undefined}>
       {/* Label row */}
       <div className="flex items-center gap-2">
         <Label htmlFor={field.id} className="text-sm font-medium text-c-gray-700">
@@ -154,6 +169,21 @@ export function FieldRenderer({ field, value, onChange, error, allValues }: Fiel
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal text-c-gray-300 border-c-gray-100">
             {irsRef}
           </Badge>
+        )}
+        {hasHelpContent && onFieldHelp && (
+          <button
+            type="button"
+            onClick={() => onFieldHelp(field.id)}
+            className="text-c-gray-300 hover:text-[var(--c-teal)] transition-colors"
+            title={`Get help with ${field.label}`}
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {autoPopulated && (
+          <span className="inline-flex items-center" title={`Auto-populated from ${autoPopulated.sourceName}`}>
+            <FileText className="h-3 w-3 text-c-gray-300" />
+          </span>
         )}
       </div>
 

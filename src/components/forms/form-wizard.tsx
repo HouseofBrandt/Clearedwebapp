@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useMemo } from "react"
+import { useState, useCallback, useRef, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +20,8 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Loader2,
+  FileSearch,
+  X,
 } from "lucide-react"
 import type {
   FormSchema,
@@ -34,6 +36,9 @@ import {
   evaluateConditions,
   evaluateFormula,
 } from "@/components/forms/field-renderer"
+import { JunebugFormAssistant } from "@/components/forms/junebug-form-assistant"
+import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import type { AutoPopulationResult, AutoPopulatedField } from "@/lib/forms/auto-populate"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -202,6 +207,16 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
   const [leftOpen, setLeftOpen] = useState(true)
   const [rightOpen, setRightOpen] = useState(true)
 
+  // Junebug assistant state
+  const [junebugOpen, setJunebugOpen] = useState(false)
+  const [focusedFieldId, setFocusedFieldId] = useState<string | undefined>(undefined)
+
+  // Auto-populate state
+  const [autoPopLoading, setAutoPopLoading] = useState(false)
+  const [autoPopResult, setAutoPopResult] = useState<AutoPopulationResult | null>(null)
+  const [autoPopDialogOpen, setAutoPopDialogOpen] = useState(false)
+  const [autoPopApplied, setAutoPopApplied] = useState<Record<string, AutoPopulatedField>>({})
+
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const activeSectionIndex = sections.findIndex((s) => s.id === activeSection)
@@ -288,6 +303,80 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
     }
     return counts
   }, [sections, errors])
+
+  // ---------------------------------------------------------------------------
+  // Ctrl+J keyboard shortcut for Junebug
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "j") {
+        e.preventDefault()
+        setJunebugOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [])
+
+  // ---------------------------------------------------------------------------
+  // Field help handler — opens Junebug with field context
+  // ---------------------------------------------------------------------------
+
+  const handleFieldHelp = useCallback((fieldId: string) => {
+    setFocusedFieldId(fieldId)
+    setJunebugOpen(true)
+  }, [])
+
+  // Find the focused field definition for passing context to Junebug
+  const focusedFieldDef = useMemo(() => {
+    if (!focusedFieldId) return undefined
+    for (const section of sections) {
+      const found = section.fields.find((f) => f.id === focusedFieldId)
+      if (found) return found
+    }
+    return undefined
+  }, [focusedFieldId, sections])
+
+  // ---------------------------------------------------------------------------
+  // Auto-populate handler
+  // ---------------------------------------------------------------------------
+
+  const handleAutoPopulate = useCallback(async () => {
+    setAutoPopLoading(true)
+    try {
+      const res = await fetch(`/api/forms/${instance.id}/auto-populate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
+      if (!res.ok) throw new Error("Auto-populate failed")
+      const result: AutoPopulationResult = await res.json()
+      setAutoPopResult(result)
+      setAutoPopDialogOpen(true)
+    } catch {
+      // Silent failure
+    } finally {
+      setAutoPopLoading(false)
+    }
+  }, [instance.id])
+
+  const applyAutoPopulated = useCallback(
+    (fields: AutoPopulatedField[]) => {
+      const newValues = { ...values }
+      const applied: Record<string, AutoPopulatedField> = { ...autoPopApplied }
+      for (const field of fields) {
+        newValues[field.fieldId] = field.value
+        applied[field.fieldId] = field
+      }
+      setValues(newValues)
+      setAutoPopApplied(applied)
+      setAutoPopDialogOpen(false)
+      // Trigger save
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      saveTimerRef.current = setTimeout(() => doSave(newValues), 500)
+    },
+    [values, autoPopApplied, doSave]
+  )
 
   // ---------------------------------------------------------------------------
   // Navigation
@@ -412,7 +501,23 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
             <>
               {/* Section header */}
               <div className="mb-6">
-                <h1 className="text-display-md mb-1">{currentSection.title}</h1>
+                <div className="flex items-center justify-between">
+                  <h1 className="text-display-md mb-1">{currentSection.title}</h1>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAutoPopulate}
+                    disabled={autoPopLoading}
+                    className="text-xs shrink-0"
+                  >
+                    {autoPopLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <FileSearch className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Auto-populate from documents
+                  </Button>
+                </div>
                 {currentSection.description && (
                   <p className="text-sm text-c-gray-300">{currentSection.description}</p>
                 )}
@@ -443,6 +548,15 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                       onChange={(val) => handleFieldChange(field.id, val)}
                       error={errors[field.id]?.[0]}
                       allValues={values}
+                      onFieldHelp={handleFieldHelp}
+                      autoPopulated={
+                        autoPopApplied[field.id]
+                          ? {
+                              confidence: autoPopApplied[field.id].confidence,
+                              sourceName: autoPopApplied[field.id].source.documentName,
+                            }
+                          : undefined
+                      }
                     />
                   </div>
                 ))}
@@ -490,10 +604,95 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
         </div>
       </div>
 
+      {/* Junebug FAB button */}
+      {!junebugOpen && (
+        <button
+          onClick={() => setJunebugOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-[var(--c-teal)] px-4 py-2.5 text-white shadow-lg hover:shadow-xl transition-shadow"
+          title="Ask Junebug (Ctrl+J)"
+        >
+          <JunebugIcon className="h-5 w-5" />
+          <span className="text-sm font-medium">Ask Junebug</span>
+        </button>
+      )}
+
+      {/* Auto-populate results dialog */}
+      {autoPopDialogOpen && autoPopResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-c-gray-900">Auto-Populate Results</h3>
+              <button onClick={() => setAutoPopDialogOpen(false)} className="text-c-gray-300 hover:text-c-gray-700">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {autoPopResult.totalFound === 0 ? (
+              <div className="text-center py-6">
+                <FileSearch className="h-8 w-8 mx-auto mb-3 text-c-gray-200" />
+                <p className="text-sm text-c-gray-500">No matching data found in case documents.</p>
+                <p className="text-xs text-c-gray-300 mt-1">Upload more source documents and try again.</p>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-lg bg-c-gray-50 p-3 mb-4 space-y-1">
+                  <p className="text-sm text-c-gray-700">
+                    Found <span className="font-medium">{autoPopResult.totalFound}</span> fields from{" "}
+                    <span className="font-medium">{autoPopResult.documentsUsed.length}</span> documents.
+                  </p>
+                  <p className="text-xs text-c-gray-300">
+                    {autoPopResult.highConfidence} high confidence, {autoPopResult.needsReview} need review.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => applyAutoPopulated(autoPopResult.fields.filter((f) => f.confidence === "high"))}
+                  >
+                    Accept High Confidence ({autoPopResult.highConfidence})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => applyAutoPopulated(autoPopResult.fields)}
+                  >
+                    Accept All ({autoPopResult.totalFound})
+                  </Button>
+                </div>
+              </>
+            )}
+            <button
+              onClick={() => setAutoPopDialogOpen(false)}
+              className="w-full mt-3 text-xs text-c-gray-300 hover:text-c-gray-500 text-center"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ------------------------------------------------------------------ */}
-      {/* RIGHT PANEL — Live Summary */}
+      {/* RIGHT PANEL — Live Summary or Junebug */}
       {/* ------------------------------------------------------------------ */}
-      {rightOpen ? (
+      {junebugOpen ? (
+        /* Junebug panel replaces right summary when open */
+        <JunebugFormAssistant
+          formNumber={schema.formNumber}
+          formTitle={schema.formTitle}
+          activeSection={activeSection}
+          activeSectionTitle={currentSection?.title || ""}
+          activeField={focusedFieldId}
+          activeFieldLabel={focusedFieldDef?.label}
+          fieldIrsReference={focusedFieldDef?.irsReference}
+          currentValues={values}
+          caseId={instance.caseId}
+          onClose={() => {
+            setJunebugOpen(false)
+            setFocusedFieldId(undefined)
+          }}
+        />
+      ) : rightOpen ? (
         <div className="w-[300px] shrink-0 border-l border-[var(--c-gray-100)] overflow-y-auto">
           <div className="p-4 space-y-5">
             <div className="flex items-center justify-between">
