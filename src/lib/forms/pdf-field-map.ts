@@ -23,70 +23,71 @@ export const PDF_COORDINATES: Record<string, Record<string, PDFFieldCoordinate>>
     // ═══════════════════════════════════════════════════════════════════
 
     // Line 1a: Full Name of Taxpayer
-    "taxpayer_name": { page: 0, x: 150, y: 667, fontSize: 9, maxWidth: 200 },
-    // Line 1b: SSN
-    "ssn": { page: 0, x: 452, y: 667, fontSize: 9, maxWidth: 110 },
+    "taxpayer_name": { page: 0, x: 55, y: 580, fontSize: 9, maxWidth: 300 },
 
-    // Line 1c: Spouse name (if joint)
-    "spouse_name": { page: 0, x: 150, y: 649, fontSize: 9, maxWidth: 200 },
-    // Line 1c: Spouse SSN
-    "spouse_ssn": { page: 0, x: 452, y: 649, fontSize: 9, maxWidth: 110 },
+    // Line 2b: Taxpayer SSN
+    "ssn": { page: 0, x: 55, y: 395, fontSize: 9, maxWidth: 120 },
+    // Line 2b: Taxpayer DOB
+    "dob": { page: 0, x: 370, y: 395, fontSize: 9, maxWidth: 80 },
 
-    // Line 2a: Address — street
-    "address_street": { page: 0, x: 150, y: 620, fontSize: 9, maxWidth: 250 },
-    // Line 2a: Address — city
-    "address_city": { page: 0, x: 150, y: 605, fontSize: 9, maxWidth: 150 },
-    // Line 2a: Address — state
-    "address_state": { page: 0, x: 365, y: 605, fontSize: 9, maxWidth: 40 },
-    // Line 2a: Address — zip
-    "address_zip": { page: 0, x: 452, y: 605, fontSize: 9, maxWidth: 80 },
+    // Spouse name (right side of Line 1a or separate field)
+    "spouse_name": { page: 0, x: 310, y: 580, fontSize: 9, maxWidth: 200 },
+    // Spouse SSN (Line 2b, second row)
+    "spouse_ssn": { page: 0, x: 55, y: 385, fontSize: 9, maxWidth: 120 },
+    // Spouse DOB
+    "spouse_dob": { page: 0, x: 370, y: 385, fontSize: 9, maxWidth: 80 },
 
-    // Line 3: County of Residence
-    "county": { page: 0, x: 150, y: 585, fontSize: 9, maxWidth: 160 },
+    // Line 1b: Address — street
+    "address_street": { page: 0, x: 55, y: 550, fontSize: 9, maxWidth: 350 },
+    // City / State / ZIP row
+    "address_city": { page: 0, x: 55, y: 530, fontSize: 9, maxWidth: 140 },
+    "address_state": { page: 0, x: 200, y: 530, fontSize: 9, maxWidth: 50 },
+    "address_zip": { page: 0, x: 260, y: 530, fontSize: 9, maxWidth: 70 },
 
-    // Line 3: Date of birth (taxpayer)
-    "dob": { page: 0, x: 452, y: 585, fontSize: 9, maxWidth: 80 },
-    // Line 3: Spouse DOB
-    "spouse_dob": { page: 0, x: 452, y: 570, fontSize: 9, maxWidth: 80 },
+    // Line 1c: County of Residence
+    "county": { page: 0, x: 55, y: 490, fontSize: 9, maxWidth: 200 },
+    // Line 1d: Home phone
+    "home_phone": { page: 0, x: 310, y: 490, fontSize: 9, maxWidth: 120 },
+    // Line 1e: Cell phone
+    "cell_phone": { page: 0, x: 55, y: 470, fontSize: 9, maxWidth: 120 },
+    // Line 1f: Work phone
+    "work_phone": { page: 0, x: 310, y: 470, fontSize: 9, maxWidth: 120 },
 
-    // Line 4: Home phone
-    "home_phone": { page: 0, x: 150, y: 555, fontSize: 9, maxWidth: 120 },
-    // Line 4: Cell phone
-    "cell_phone": { page: 0, x: 330, y: 555, fontSize: 9, maxWidth: 120 },
-    // Line 4: Work phone
-    "work_phone": { page: 0, x: 485, y: 555, fontSize: 9, maxWidth: 100 },
+    // Line 2a: Marital status
+    "marital_status": { page: 0, x: 145, y: 430, fontSize: 9, maxWidth: 100 },
 
-    // Line 4: Marital status (draw the text value: "Married", "Single", etc.)
-    "marital_status": { page: 0, x: 150, y: 530, fontSize: 9, maxWidth: 100 },
-
-    // ── Dependents (Line 6 table) ──
+    // ── Dependents (Line 2c table — right side of page) ──
     // Row 1
-    "dependents.0.dep_name": { page: 0, x: 62, y: 460, fontSize: 8, maxWidth: 140 },
-    "dependents.0.dep_relationship": { page: 0, x: 210, y: 460, fontSize: 8, maxWidth: 80 },
-    "dependents.0.dep_dob": { page: 0, x: 310, y: 460, fontSize: 8, maxWidth: 70 },
-    "dependents.0.dep_lives_with": { page: 0, x: 400, y: 460, fontSize: 8, maxWidth: 40 },
-    "dependents.0.dep_contributes": { page: 0, x: 470, y: 460, fontSize: 8, maxWidth: 40 },
+    "dependents.0.dep_name": { page: 0, x: 390, y: 565, fontSize: 8, maxWidth: 100 },
+    "dependents.0.dep_relationship": { page: 0, x: 540, y: 565, fontSize: 8, maxWidth: 50 },
+    "dependents.0.dep_dob": { page: 0, x: 460, y: 565, fontSize: 8, maxWidth: 60 },
+    "dependents.0.dep_age": { page: 0, x: 500, y: 565, fontSize: 8, maxWidth: 30 },
+    "dependents.0.dep_lives_with": { page: 0, x: 570, y: 565, fontSize: 8, maxWidth: 30 },
+    "dependents.0.dep_contributes": { page: 0, x: 590, y: 565, fontSize: 8, maxWidth: 20 },
     // Row 2
-    "dependents.1.dep_name": { page: 0, x: 62, y: 446, fontSize: 8, maxWidth: 140 },
-    "dependents.1.dep_relationship": { page: 0, x: 210, y: 446, fontSize: 8, maxWidth: 80 },
-    "dependents.1.dep_dob": { page: 0, x: 310, y: 446, fontSize: 8, maxWidth: 70 },
-    "dependents.1.dep_lives_with": { page: 0, x: 400, y: 446, fontSize: 8, maxWidth: 40 },
-    "dependents.1.dep_contributes": { page: 0, x: 470, y: 446, fontSize: 8, maxWidth: 40 },
+    "dependents.1.dep_name": { page: 0, x: 390, y: 550, fontSize: 8, maxWidth: 100 },
+    "dependents.1.dep_relationship": { page: 0, x: 540, y: 550, fontSize: 8, maxWidth: 50 },
+    "dependents.1.dep_dob": { page: 0, x: 460, y: 550, fontSize: 8, maxWidth: 60 },
+    "dependents.1.dep_age": { page: 0, x: 500, y: 550, fontSize: 8, maxWidth: 30 },
+    "dependents.1.dep_lives_with": { page: 0, x: 570, y: 550, fontSize: 8, maxWidth: 30 },
+    "dependents.1.dep_contributes": { page: 0, x: 590, y: 550, fontSize: 8, maxWidth: 20 },
     // Row 3
-    "dependents.2.dep_name": { page: 0, x: 62, y: 432, fontSize: 8, maxWidth: 140 },
-    "dependents.2.dep_relationship": { page: 0, x: 210, y: 432, fontSize: 8, maxWidth: 80 },
-    "dependents.2.dep_dob": { page: 0, x: 310, y: 432, fontSize: 8, maxWidth: 70 },
-    "dependents.2.dep_lives_with": { page: 0, x: 400, y: 432, fontSize: 8, maxWidth: 40 },
-    "dependents.2.dep_contributes": { page: 0, x: 470, y: 432, fontSize: 8, maxWidth: 40 },
+    "dependents.2.dep_name": { page: 0, x: 390, y: 535, fontSize: 8, maxWidth: 100 },
+    "dependents.2.dep_relationship": { page: 0, x: 540, y: 535, fontSize: 8, maxWidth: 50 },
+    "dependents.2.dep_dob": { page: 0, x: 460, y: 535, fontSize: 8, maxWidth: 60 },
+    "dependents.2.dep_age": { page: 0, x: 500, y: 535, fontSize: 8, maxWidth: 30 },
+    "dependents.2.dep_lives_with": { page: 0, x: 570, y: 535, fontSize: 8, maxWidth: 30 },
+    "dependents.2.dep_contributes": { page: 0, x: 590, y: 535, fontSize: 8, maxWidth: 20 },
     // Row 4
-    "dependents.3.dep_name": { page: 0, x: 62, y: 418, fontSize: 8, maxWidth: 140 },
-    "dependents.3.dep_relationship": { page: 0, x: 210, y: 418, fontSize: 8, maxWidth: 80 },
-    "dependents.3.dep_dob": { page: 0, x: 310, y: 418, fontSize: 8, maxWidth: 70 },
-    "dependents.3.dep_lives_with": { page: 0, x: 400, y: 418, fontSize: 8, maxWidth: 40 },
-    "dependents.3.dep_contributes": { page: 0, x: 470, y: 418, fontSize: 8, maxWidth: 40 },
+    "dependents.3.dep_name": { page: 0, x: 390, y: 520, fontSize: 8, maxWidth: 100 },
+    "dependents.3.dep_relationship": { page: 0, x: 540, y: 520, fontSize: 8, maxWidth: 50 },
+    "dependents.3.dep_dob": { page: 0, x: 460, y: 520, fontSize: 8, maxWidth: 60 },
+    "dependents.3.dep_age": { page: 0, x: 500, y: 520, fontSize: 8, maxWidth: 30 },
+    "dependents.3.dep_lives_with": { page: 0, x: 570, y: 520, fontSize: 8, maxWidth: 30 },
+    "dependents.3.dep_contributes": { page: 0, x: 590, y: 520, fontSize: 8, maxWidth: 20 },
 
     // Line 8: Lived outside US
-    "outside_us_details": { page: 0, x: 150, y: 370, fontSize: 8, maxWidth: 400 },
+    "outside_us_details": { page: 0, x: 55, y: 370, fontSize: 8, maxWidth: 500 },
 
     // ═══════════════════════════════════════════════════════════════════
     // PAGE 1 (PDF page 2) — Section 2: Employment Information
