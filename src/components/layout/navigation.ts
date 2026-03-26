@@ -14,6 +14,7 @@ import {
   Network,
   Mail,
   FileText,
+  BookOpen,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -35,6 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Review Queue", href: "/review", icon: ClipboardCheck, description: "Approve AI work product", section: "MAIN" },
   { name: "Calendar", href: "/calendar", icon: Calendar, description: "Deadlines and hearings", section: "MAIN" },
   { name: "Portfolio", href: "/portfolio", icon: BarChart3, description: "Firm-wide case health", section: "MAIN" },
+  { name: "Knowledge Base", href: "/knowledge", icon: BookOpen, description: "Firm knowledge and reference library", section: "MAIN" as NavSection },
   { name: "Inbox", href: "/inbox", icon: Mail, description: "Messages and notifications", section: "MAIN" },
 
   // TOOLS section
