@@ -90,6 +90,7 @@ export async function POST() {
     `CREATE TABLE IF NOT EXISTS "note_attachments" (
       "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
       "noteId" TEXT NOT NULL,
+      "documentId" TEXT,
       "fileName" TEXT NOT NULL,
       "fileUrl" TEXT NOT NULL,
       "fileType" TEXT NOT NULL,
@@ -98,6 +99,8 @@ export async function POST() {
       CONSTRAINT "note_attachments_pkey" PRIMARY KEY ("id"),
       CONSTRAINT "note_attachments_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "client_notes"("id") ON DELETE CASCADE
     )`,
+    // Add documentId column if missing (for existing deployments)
+    \`ALTER TABLE "note_attachments" ADD COLUMN IF NOT EXISTS "documentId" TEXT\`,
 
     // ─── Conversations ───
     `CREATE TABLE IF NOT EXISTS "conversations" (
