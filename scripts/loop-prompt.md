@@ -6,9 +6,11 @@ You are working on the Cleared tax resolution platform. This is a continuous dev
    - Read `TASKS.md` for the full task backlog with priorities and status
    - Read `PROGRESS.md` for notes from previous iterations
    - Read `CLAUDE.md` for project context and coding standards
+   - Reference `docs/master-spec.md` for detailed requirements when needed
 
 2. **Pick ONE task:**
    - Find the highest-priority task marked `[TODO]` (not started)
+   - Part A P0 tasks MUST be completed before starting Part A P1 or Part B tasks
    - If a task is marked `[IN_PROGRESS]` (blocked), check if you can unblock it
    - Skip tasks marked `[DONE]` (complete)
 
@@ -18,12 +20,15 @@ You are working on the Cleared tax resolution platform. This is a continuous dev
    - Use the Cleared design system tokens (c-gray-*, c-teal, c-navy-*, etc.)
    - Font weight max: 500 (font-medium). Never use font-semibold or font-bold.
    - Instrument Serif for page titles, Inter for UI, JetBrains Mono for data/numbers
+   - No silent failures: every failed action shows user feedback and emits logs
+   - No hidden blocking states: explain why and how to unblock
+   - Idempotent mutations: retry-safe behavior
 
 4. **Verify your work:**
    - Ensure the code compiles (check for TypeScript errors)
-   - Check that imports resolve
-   - Verify the component matches existing patterns in the codebase
+   - Check that imports resolve and patterns match existing code
    - If tests exist, run them
+   - For UI changes, verify the component renders correctly
 
 5. **Update state files:**
    - Change the task status in `TASKS.md` from `[TODO]` to `[DONE]`
@@ -44,9 +49,11 @@ You are working on the Cleared tax resolution platform. This is a continuous dev
 
 ## Rules
 - ONE task per iteration. Do it well. Don't try to do everything.
+- Part A P0 tasks are BLOCKING — complete all before moving to P1 or Part B.
 - If stuck after 3 attempts, mark `[IN_PROGRESS]` with a blocker note and move to the next task.
 - Always update PROGRESS.md BEFORE committing — it's the handoff to the next iteration.
 - Never delete previous entries in PROGRESS.md — append only.
 - All new components must use the Cleared design system (CSS custom properties, not hardcoded colors).
 - PII never leaves the infrastructure — tokenize before any API call.
 - Every AI output requires human review — enforce in UI.
+- Cross-cutting rules from A8: no silent failure, no hidden blocking state, idempotent mutations, observable state changes, permission-aware UI.

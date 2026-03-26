@@ -1,13 +1,14 @@
 # Cleared — Task Backlog
 
 > Claude picks the highest-priority unfinished task, implements it, tests it, and updates PROGRESS.md.
-> Tasks are ordered by priority. Work top-down.
+> Tasks are ordered by priority. Work top-down within each priority level.
+> Source: Master Product Specification (docs/master-spec.md)
 
 ## Format
-
 ```
 ## [STATUS] Task Title
 Priority: P0 | P1 | P2 | P3
+Source: Part A (stabilization) or Part B (form builder)
 Scope: files/areas affected
 Acceptance: what "done" looks like
 ```
@@ -16,154 +17,315 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`, `BLOCKED`
 
 ---
 
-## [TODO] Fix Vercel build warnings
-Priority: P1
-Scope: next.config.js, sentry configs, layout.tsx
+# PART A: PLATFORM STABILIZATION
+
+## ═══ P0 — Must Fix Now ═══
+
+## [TODO] A4.1 Junebug Live-Context Safety Guardrails
+Priority: P0
+Source: Part A — Junebug chat reliability
+Scope: src/components/assistant/chat-panel.tsx, src/app/api/assistant/chat/route.ts, src/lib/switchboard/context-packet.ts
 Acceptance:
-- `npm run build` produces 0 warnings (not just 0 errors)
-- Sentry configs migrated to instrumentation files
+- Backend adds `context_available` flag to every Junebug request
+- Case-scoped chats inject live case context on open and every turn
+- If context_available = false, Junebug uses constrained fallback: "I do not currently have live case data..."
+- Junebug never fabricates case counts, filenames, deadlines, or status when context is missing
+- Missing-context events logged with userId, caseId, route, timestamp
+- Tests: context present → live data; context absent → refusal; partial → only available fields
+
+## [TODO] A4.2 Junebug Multiple Submissions Per Session
+Priority: P0
+Source: Part A — Junebug submission reliability
+Scope: src/components/assistant/chat-panel.tsx
+Acceptance:
+- Remove single-submission lockout
+- User can submit 3+ bug reports/feature requests in one chat session
+- Each gets a unique ID
+- Retry-safe (idempotent)
+- Success state shown after each, with report ID
+- Conversation continues after submission (no forced reset)
+
+## [TODO] A4.3 Banjo Task Lifecycle — Unblock New Assignments
+Priority: P0
+Source: Part A — Banjo stuck tasks
+Scope: src/app/api/banjo/*, src/components/cases/case-detail.tsx (Banjo tab)
+Acceptance:
+- New Assignment CTA always renders when user has permission
+- Pending review does NOT block new assignment creation
+- Stuck tasks (timeout exceeded) expose cancel/clear options
+- Export failures move task to terminal error state
+- Locking is task-specific, not case-global
+- Clear reason codes when creation is blocked
+
+## [TODO] A4.4 Review Queue Reject Flow
+Priority: P0
+Source: Part A — Review Queue
+Scope: src/app/api/review/[taskId]/route.ts, src/components/review/task-review.tsx
+Acceptance:
+- Reject endpoint works and item removed from queue or updated to Rejected
+- Reject & Re-prompt prompts for instructions and creates follow-on task
+- Inline error toast on failure
+- Audit trail entries recorded
+- Queue list and counts refresh immediately after mutation
+
+## [TODO] A4.5 Knowledge Base Search — Fix Category Filter
+Priority: P0
+Source: Part A — KB search failure
+Scope: src/app/api/knowledge/search/route.ts
+Acceptance:
+- KB search with category filter returns results (no Postgres operator error)
+- Search failures are observable and test-covered
+- Fix raw query enum/text mismatch
+- Parameterized queries replace unsafe string handling
+
+## [TODO] A4.6 Inbox Real-Time State Correctness
+Priority: P0
+Source: Part A — Inbox refresh
+Scope: src/components/inbox/inbox-list.tsx, src/app/api/inbox/route.ts
+Acceptance:
+- Poll every 30 seconds (or real-time subscription)
+- Manual Refresh button in Inbox UI
+- Mark-as-read updates badge, row styling, and detail immediately
+- New messages appear within 30 seconds without full page reload
+- State survives page refresh
+
+## ═══ P1 — Next After P0 ═══
+
+## [TODO] A5.1 Junebug Chat Persistence + Screenshots + Uploads
+Priority: P1
+Source: Part A — Junebug enhancements
+Scope: src/components/assistant/chat-panel.tsx
+Acceptance:
+- Chat history persists across panel close/reopen in same session
+- Previously sent bug reports visible in chat
+- Screenshot capture offered during bug reporting
+- Image and document uploads supported in chat
+- Attachments stored with chat/report record
+
+## [TODO] A5.2 Banjo Pre-Export Validation
+Priority: P1
+Source: Part A — Banjo quality
+Scope: src/app/api/banjo/[assignmentId]/export-zip/route.ts
+Acceptance:
+- Validation layer checks required fields, schema validity, output completeness before export
+- User-readable validation errors with field-level detail
+- Export blocked if validation fails
+- Validation failure separate from system processing failure
+
+## [TODO] A5.3 Document Completeness Baseline + 0% Bug Fix
+Priority: P1
+Source: Part A — Document tracking
+Scope: src/lib/case-intelligence/doc-completeness.ts
+Acceptance:
+- Completeness computed against dynamic required-document checklist (by case type, filing status)
+- Progress % reflects checklist matches, not raw upload count
+- Cases with uploaded+categorized docs show non-zero progress
+- Checklist shows: missing, received, stale/expired, not applicable
+
+## [TODO] A5.5 Numbered List Rendering Fix
+Priority: P1
+Source: Part A — Chat formatting
+Scope: src/components/feed/formatted-text.tsx or markdown renderer
+Acceptance:
+- Ordered lists render as 1, 2, 3 (not repeated 1)
+- Both chat and feed correctly render numbered lists
+
+## [TODO] A5.6 Home Feed Tagging + Notifications
+Priority: P1
+Source: Part A — Feed behavior
+Scope: src/components/feed/feed-card.tsx, notification system
+Acceptance:
+- Tags persist and display correctly in feed
+- Tagged users receive a notification
+- Tagged user can navigate back to source feed item
+
+## [TODO] Fix Vercel Build Warnings
+Priority: P1
+Source: Part A — Build quality
+Scope: next.config.js, sentry configs, feed-page.tsx, inbox-list.tsx
+Acceptance:
+- `npm run build` produces 0 warnings
+- React Hook dependency warnings fixed
 - No "Invalid next.config.js options" warning
-- No React Hook dependency warnings in feed-page.tsx and inbox-list.tsx
 
-## [TODO] Design system — migrate remaining hardcoded colors in app/ routes
+## [TODO] Skeleton Loading States for All Routes
 Priority: P1
-Scope: src/app/**/*.tsx (page routes, not components)
-Acceptance:
-- `grep -rn "text-slate-\|bg-slate-\|border-slate-\|text-gray-[0-9]" src/app/ --include="*.tsx" | wc -l` returns 0
-- All page routes use Cleared design tokens (c-gray-*, c-danger, c-warning, c-success, c-teal)
-
-## [TODO] Skeleton loading states for all routes
-Priority: P1
+Source: Design system
 Scope: src/app/(dashboard)/*/loading.tsx
 Acceptance:
-- Every route has a loading.tsx that renders SkeletonStatCard + SkeletonCard shapes matching the page layout
-- No route shows a blank page or spinner during loading
-- Skeletons use the shimmer animation from globals.css
+- Every route has loading.tsx with SkeletonStatCard + SkeletonCard shapes
+- Skeletons use shimmer animation
+- No blank pages or spinners
 
-## [TODO] Case detail — Intelligence Report tab functional
+## [TODO] Case Intelligence Report Tab Functional
 Priority: P1
-Scope: src/components/cases/case-intelligence-report.tsx, src/app/api/cases/[caseId]/intelligence-report/route.ts
+Source: Platform spec
+Scope: src/components/cases/case-intelligence-report.tsx
 Acceptance:
-- Intelligence Report tab on case detail fetches and renders a one-page report
-- Summary cards (total liability, penalties, years, compliance rate)
-- Resolution roadmap with OIC/penalty/CNC/IA scoring
-- Print button works (window.print with @media print CSS)
-- Handles cases with no liability periods gracefully
+- Intelligence Report tab fetches and renders one-page report
+- Summary cards, resolution roadmap with scoring
+- Print button works
+- Handles empty data gracefully
 
-## [TODO] SOC 2 — seed controls and verify automation dashboard
+## [TODO] SOC 2 — Seed Controls and Verify Automation
 Priority: P1
-Scope: src/app/api/admin/migrate-soc2-automation/route.ts, seed-controls.ts
+Source: SOC 2 spec
+Scope: seed-controls.ts, migrate-soc2-automation route
 Acceptance:
-- POST /api/admin/migrate-soc2-automation creates all SOC 2 tables
-- POST /api/admin/seed-compliance seeds all 50+ controls
-- /admin/compliance shows the overview dashboard with TSC cards
-- /admin/compliance/automation shows health check status
-- Automation engine can be triggered and records results
+- Migration creates all tables
+- Seed populates 50+ controls
+- Overview dashboard shows TSC cards
+- Automation engine can be triggered
 
-## [TODO] Transcript Decoder — add freeze code + anomaly panels to RCC dashboard
+## ═══ P2 — Planned Enhancements ═══
+
+## [TODO] A6.1 Inbox Bulk Actions
 Priority: P2
-Scope: src/components/rcc/rcc-dashboard.tsx, freeze-codes.ts, anomaly-detector.ts, cross-year-linker.ts
-Acceptance:
-- After parsing transcripts, freeze codes are detected and displayed
-- Anomalies (duplicate assessments, misapplied payments, missing credits) are flagged
-- Cross-year links (overpayment transfers) are shown
-- Each panel is collapsible
+Source: Part A
+Acceptance: Multi-select, bulk archive/delete/read/unread/export, keyboard shortcuts
 
-## [TODO] OIC Modeler — export Form 433-A/B worksheet as .xlsx
+## [TODO] A6.2 Export Filtering Defaults
 Priority: P2
-Scope: src/components/oic/oic-modeler.tsx, new export API route
-Acceptance:
-- "Export 433-A" button generates a structured .xlsx matching IRS Form 433-A layout
-- Income, expenses, assets tabs map to correct form sections
-- Uses Times New Roman font per document export standard
-- File downloads with proper filename (433-A_[client]_[date].xlsx)
+Source: Part A
+Acceptance: Default excludes resolved items, "Include resolved" opt-in control
 
-## [TODO] Penalty Abatement — export generated letter as .docx
+## [TODO] A6.3 Document Freshness Rules
 Priority: P2
-Scope: src/components/penalty/penalty-abatement.tsx, new export route
-Acceptance:
-- After generating an FTA or reasonable cause letter, "Export .docx" button works
-- Letter uses Times New Roman font, firm letterhead
-- IRC citations and IRM references render correctly
-- File downloads with proper filename
+Source: Part A
+Acceptance: Expiration by doc type (bank=90d, pay stubs=60d, etc.), UI states: current/expiring/expired/unknown
 
-## [TODO] Audio transcription — verify Whisper integration end-to-end
+## [TODO] A6.4 Banjo Delete Previous Assignments
 Priority: P2
-Scope: src/lib/audio/transcription.ts, document upload route
-Acceptance:
-- Upload an audio file (.mp3, .m4a, .wav) to a case
-- System auto-transcribes via Whisper API (or gracefully falls back if no OPENAI_API_KEY)
-- Transcript stored in document.extractedText
-- Audio player renders on note/conversation attachments
-- Transcripts flow into AI context assembly
+Source: Part A
+Acceptance: Delete/archive old assignments with confirmation, audit record, permission-gated
 
-## [TODO] Data subject rights portal — admin UI for GDPR/CCPA requests
+## [TODO] A6.5 Platform Timezone — Central Time Default
 Priority: P2
-Scope: src/components/compliance/data-lifecycle.tsx, data-requests API
-Acceptance:
-- Admin can create access/correction/deletion requests
-- 30-day SLA tracked with countdown
-- Access requests auto-compile data package
-- Deletion requests show confirmation gate
+Source: Part A
+Acceptance: Default America/Chicago, respect DST, apply to all timestamps, per-user override in settings
 
-## [TODO] Client Notes — test creating notes of every type with structured fields
+## [TODO] OIC Modeler — Export Form 433-A/B as .xlsx
 Priority: P2
-Scope: src/components/notes/notes-panel.tsx, note-card.tsx
-Acceptance:
-- Create journal, call_log, irs_contact, strategy, client_interaction, research, general notes
-- Each type persists and displays correctly
-- IRS contact notes show structured fields (employee name, ID, department)
-- Call log notes show duration, participants, disposition
-- Pin/unpin works and pinned notes appear at top
-- Visibility filtering works (all_practitioners, case_team_only, private)
+Source: Platform spec
+Acceptance: Export button generates structured .xlsx, Times New Roman font, proper filename
 
-## [TODO] Conversations — test thread lifecycle
+## [TODO] Penalty Abatement — Export Letter as .docx
 Priority: P2
-Scope: src/components/conversations/conversations-panel.tsx
-Acceptance:
-- Create conversation with subject, priority, tax years
-- Post replies with @mentions
-- Resolve and archive conversations
-- Status transitions work correctly
-- @mentions trigger notification records
+Source: Platform spec
+Acceptance: Export generates .docx with Times New Roman, firm letterhead, IRC/IRM citations
 
-## [TODO] Review Queue — test full approve/reject/edit workflow
+## [TODO] Audio Transcription — Verify Whisper End-to-End
 Priority: P2
-Scope: src/components/review/review-queue.tsx, task-review.tsx
-Acceptance:
-- Click "Review" on a Banjo deliverable
-- View the AI output with verify/judgment flags
-- Edit the output inline
-- Approve → status changes, audit log created
-- Reject → status changes, rejection notes saved
-- Bulk approve/reject works for ADMIN/SENIOR
+Source: Platform spec
+Acceptance: Audio upload → Whisper transcription → stored in extractedText → flows into AI context
 
-## [TODO] Dashboard — Junebug chat assistant responsive and helpful
+## [TODO] Transcript Decoder — Freeze Code + Anomaly Panels
+Priority: P2
+Source: Platform spec
+Acceptance: Detected freeze codes, anomalies, and cross-year links shown in collapsible panels
+
+## [TODO] Client Notes — Test All Note Types with Structured Fields
+Priority: P2
+Source: Platform spec
+Acceptance: All 7 types persist, IRS contact structured fields, pin/unpin, visibility filtering
+
+## [TODO] Conversations — Test Thread Lifecycle
+Priority: P2
+Source: Platform spec
+Acceptance: Create, reply, @mention, resolve, archive — full lifecycle
+
+## [TODO] Review Queue — Full Approve/Reject/Edit Workflow Test
+Priority: P2
+Source: Platform spec
+Acceptance: Review, edit, approve, reject, bulk operations all functional
+
+## ═══ P3 — Larger Initiatives ═══
+
+## [TODO] A7.1 Full Junebug Platform Data Access
 Priority: P3
-Scope: src/components/assistant/chat-panel.tsx, junebug-icon.tsx
-Acceptance:
-- Junebug FAB opens chat panel
-- Can ask questions about cases
-- Responses use case context from context-assembly
-- Treat system works (give treat → records positive signal)
-- Chat panel styling matches design system
+Source: Part A
+Acceptance: Junebug can read all platform data (cases, docs, deadlines, reviews) in real-time
 
-## [TODO] Responsive design — tablet and mobile breakpoints
+## [TODO] A7.5 SOC 2 DOCX Audit Export
 Priority: P3
-Scope: all components
-Acceptance:
-- Sidebar collapses on tablet (768-1024px)
-- Stat cards reflow to 2-across on tablet, 1-across on mobile
-- Tables become scrollable on mobile
-- Login page card centers on mobile
-- No horizontal overflow on any page at 375px width
+Source: Part A
+Acceptance: Generate comprehensive SOC 2 audit report as .docx
 
-## [TODO] Dark mode for content area
+## [TODO] A7.6 IRS Appeals Packet Generator
 Priority: P3
-Scope: globals.css, all components
-Acceptance:
-- Toggle in settings enables dark mode
-- Sidebar stays navy-950 (unchanged)
-- Content area inverts: dark backgrounds, light text
-- Semantic colors remain visible
-- Design tokens have dark mode variants
+Source: Part A
+Acceptance: Generate appeals packet with cover letter, supporting docs, timeline
+
+## [TODO] Responsive Design — Tablet and Mobile Breakpoints
+Priority: P3
+Source: Design system
+Acceptance: Sidebar collapses, stat cards reflow, tables scroll, no overflow at 375px
+
+## [TODO] Dark Mode for Content Area
+Priority: P3
+Source: Design system
+Acceptance: Toggle in settings, sidebar unchanged, content inverts, semantic colors visible
+
+---
+
+# PART B: INTELLIGENT IRS FORM BUILDER
+
+> These tasks are Phase 1 of the Form Builder (B5-B6 of the master spec).
+> Do not start Part B until Part A P0 items are all DONE.
+
+## ═══ Phase 1: Foundation ═══
+
+## [TODO] B1.1 Form Schema Engine — TypeScript Types
+Priority: P1 (after Part A P0)
+Source: Part B Section 5.1
+Acceptance: FormSchema, Section, Field, FieldType, ValidationRule, ConditionalLogic, PDFMapping types defined
+
+## [TODO] B1.2 Form 433-A Schema (JSON)
+Priority: P1
+Source: Part B Section 5.6.1
+Acceptance: All 6 sections, all fields, validation rules, conditional logic in JSON
+
+## [TODO] B1.3 Form 433-A (OIC) Schema
+Priority: P1
+Source: Part B Section 5.6.2
+Acceptance: Extends 433-A with OIC-specific sections, RCP computation fields
+
+## [TODO] B1.4 Form 12153 Schema
+Priority: P1
+Source: Part B Section 5.6.3
+Acceptance: CDP/equivalent hearing fields, 30-day deadline tracker fields
+
+## [TODO] B1.5 Form 911 Schema
+Priority: P1
+Source: Part B Section 5.6.4
+Acceptance: Taxpayer Advocate fields, hardship category selection, narrative prompts
+
+## [TODO] B1.6 Three-Panel Form Wizard Layout
+Priority: P1
+Source: Part B Section 5.2.1
+Acceptance: Left sidebar navigator, center form panel, right PDF preview placeholder
+
+## [TODO] B1.7 Section Navigator Component
+Priority: P1
+Source: Part B Section 5.2.2
+Acceptance: Completion state indicators (empty/in-progress/complete/error), click-to-navigate
+
+## [TODO] B1.8 Field Renderer Components (14 types)
+Priority: P1
+Source: Part B Section 5.1.2
+Acceptance: All field types render and accept input correctly
+
+## [TODO] B1.9 Validation Engine (3 tiers)
+Priority: P1
+Source: Part B Section 5.5
+Acceptance: Field-level, section-level, cross-section validation with error presentation
+
+## [TODO] B1.10 Auto-Save and Session Persistence
+Priority: P1
+Source: Part B Section 5.2.3
+Acceptance: Debounced 500ms auto-save, "All changes saved" indicator, session recovery
+
+## [TODO] B1.11 PDF Generation — Form 433-A
+Priority: P1
+Source: Part B Section 5.3
+Acceptance: Draft mode (watermark), final mode (clean), field overlay at mapped coordinates
