@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { FeedComposer } from "./feed-composer"
 import { FeedCard } from "./feed-card"
 import { FeedFilters } from "./feed-filters"
 import { PinnedNowStrip } from "./pinned-now-strip"
-import { Loader2 } from "lucide-react"
+import { Loader2, ChevronDown, ChevronRight } from "lucide-react"
 
 type FilterType = "all" | "post" | "task" | "my_tasks" | "system_event"
 
@@ -178,22 +178,19 @@ export function FeedPage({
         </button>
       )}
 
-      {/* Feed */}
+      {/* Feed — grouped by day with accordion */}
       <div>
         {posts.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-sm" style={{ color: 'var(--c-gray-300)' }}>No posts yet. Start a conversation!</p>
           </div>
         ) : (
-          posts.map((post: any) => (
-            <FeedCard
-              key={post.id}
-              post={post}
-              currentUser={currentUser}
-              onRefresh={fetchPosts}
-              onCaseFilter={caseId ? undefined : setCaseFilter}
-            />
-          ))
+          <DayGroupedFeed
+            posts={posts}
+            currentUser={currentUser}
+            onRefresh={fetchPosts}
+            onCaseFilter={caseId ? undefined : setCaseFilter}
+          />
         )}
       </div>
 
@@ -206,6 +203,126 @@ export function FeedPage({
           <p className="text-xs" style={{ color: 'var(--c-gray-300)' }}>No more posts</p>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Day-grouped feed with accordion ──
+
+function getDayLabel(dateStr: string): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const postDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffDays = Math.floor((today.getTime() - postDay.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) return "Today"
+  if (diffDays === 1) return "Yesterday"
+  if (diffDays < 7) return date.toLocaleDateString("en-US", { weekday: "long" })
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+}
+
+function getDayKey(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+function DayGroupedFeed({
+  posts,
+  currentUser,
+  onRefresh,
+  onCaseFilter,
+}: {
+  posts: any[]
+  currentUser: any
+  onRefresh: () => void
+  onCaseFilter?: (id: string) => void
+}) {
+  // Group posts by day
+  const dayGroups = useMemo(() => {
+    const groups: { key: string; label: string; posts: any[] }[] = []
+    const seen = new Map<string, number>()
+
+    for (const post of posts) {
+      const key = getDayKey(post.createdAt)
+      if (seen.has(key)) {
+        groups[seen.get(key)!].posts.push(post)
+      } else {
+        seen.set(key, groups.length)
+        groups.push({ key, label: getDayLabel(post.createdAt), posts: [post] })
+      }
+    }
+    return groups
+  }, [posts])
+
+  // Today expanded by default, others collapsed
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    const set = new Set<string>()
+    const todayKey = getDayKey(new Date().toISOString())
+    for (const g of dayGroups) {
+      if (g.key !== todayKey) set.add(g.key)
+    }
+    return set
+  })
+
+  const toggle = (key: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      {dayGroups.map(group => {
+        const isCollapsed = collapsed.has(group.key)
+        return (
+          <div key={group.key}>
+            {/* Day header */}
+            <button
+              onClick={() => toggle(group.key)}
+              className="flex items-center gap-2 w-full py-2 px-1 group cursor-pointer"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--c-gray-300)' }} />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--c-gray-300)' }} />
+              )}
+              <span className="text-sm font-medium" style={{ color: 'var(--c-gray-700)' }}>
+                {group.label}
+              </span>
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-mono"
+                style={{ background: 'var(--c-gray-50)', color: 'var(--c-gray-500)' }}
+              >
+                {group.posts.length}
+              </span>
+              <div className="flex-1 h-px" style={{ background: 'var(--c-gray-100)' }} />
+            </button>
+
+            {/* Posts — animate open/close */}
+            <div
+              style={{
+                maxHeight: isCollapsed ? 0 : `${group.posts.length * 600}px`,
+                overflow: "hidden",
+                transition: "max-height 350ms cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              {group.posts.map((post: any) => (
+                <FeedCard
+                  key={post.id}
+                  post={post}
+                  currentUser={currentUser}
+                  onRefresh={onRefresh}
+                  onCaseFilter={onCaseFilter}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
