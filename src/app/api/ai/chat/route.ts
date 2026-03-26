@@ -6,6 +6,7 @@ import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
 import { searchKnowledge } from "@/lib/knowledge/search"
 import { detectDataNeeds, fetchPlatformData } from "@/lib/ai/platform-data"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
+import { createAuditLog } from "@/lib/ai/audit"
 import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
@@ -25,6 +26,10 @@ export async function POST(request: NextRequest) {
   // Build system prompt
   let systemPrompt = loadPrompt("research_assistant_v1")
 
+  // Track whether live case context was successfully loaded
+  let contextAvailable = false
+  let contextFailureReason: string | null = null
+
   // Add case context if on a case page — use unified context packet
   if (caseContext?.caseId) {
     try {
@@ -34,10 +39,29 @@ export async function POST(request: NextRequest) {
       })
       if (packet) {
         systemPrompt += "\n\n" + formatContextForPrompt(packet)
+        contextAvailable = true
+      } else {
+        contextFailureReason = "Context packet returned null — case not found or empty"
       }
-    } catch {
-      // Fallback to basic context if packet fails
-      systemPrompt += `\n\nCONTEXT: Case ${caseContext.tabsNumber}. Type: ${caseContext.caseType}. Status: ${caseContext.status}.`
+    } catch (ctxErr: any) {
+      contextFailureReason = ctxErr?.message || "Context packet loading failed"
+    }
+
+    // When context was requested but unavailable, add guardrail to prevent fabrication
+    if (!contextAvailable) {
+      systemPrompt = `IMPORTANT: You do NOT have live case data for this conversation. Do not fabricate or guess specific case details like document counts, file names, Smart Status details, deadlines, AI task status, review queue status, or liability amounts. If asked about specific case data, respond: "I don't currently have live case data loaded for this case. I can help with general tax resolution guidance, but for specific case details, please check the case detail page directly."\n\n` + systemPrompt
+
+      // Log missing-context event for audit trail
+      createAuditLog({
+        practitionerId: (session.user as any).id,
+        caseId: caseContext.caseId,
+        action: "CHAT_CONTEXT_UNAVAILABLE",
+        metadata: {
+          route: "/api/ai/chat",
+          reason: contextFailureReason,
+          timestamp: new Date().toISOString(),
+        },
+      }).catch(() => { /* non-fatal logging */ })
     }
   }
 
@@ -137,6 +161,10 @@ export async function POST(request: NextRequest) {
     const readable = new ReadableStream({
       start(controller) {
         try {
+          // Send metadata (including contextAvailable flag) as first event
+          if (caseContext?.caseId) {
+            controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ meta: { contextAvailable } })}\n\n`))
+          }
           controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text: textContent })}\n\n`))
           controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ done: true })}\n\n`))
           controller.close()

@@ -153,16 +153,23 @@ export function InboxList({
 
   const markAsRead = useCallback(async (msg: MessageData) => {
     if (msg.read) return
+    // Optimistically update UI immediately
+    setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, read: true, readAt: new Date().toISOString() } : m))
+    setUnreadCount((c) => Math.max(0, c - 1))
     try {
-      await fetch(`/api/messages/${msg.id}`, {
+      const res = await fetch(`/api/messages/${msg.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ read: true }),
       })
-      setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, read: true, readAt: new Date().toISOString() } : m))
-      setUnreadCount((c) => Math.max(0, c - 1))
-    } catch { /* ignore */ }
-  }, [])
+      if (!res.ok) throw new Error("Failed to mark as read")
+    } catch {
+      // Revert optimistic update on failure
+      setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, read: false, readAt: null } : m))
+      setUnreadCount((c) => c + 1)
+      addToast({ title: "Failed to mark message as read", variant: "destructive" })
+    }
+  }, [addToast])
 
   const archiveMessage = useCallback(async (msgId: string) => {
     try {

@@ -178,6 +178,7 @@ function parseMessageDraft(content: string): { before: string; draft: MessageDra
 function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onStatusChange?: (status: "sent" | "cancelled") => void }) {
   const [status, setStatus] = useState<"draft" | "sending" | "sent" | "error" | "cancelled">("draft")
   const [errorMsg, setErrorMsg] = useState("")
+  const [submissionId, setSubmissionId] = useState<string | null>(null)
 
   const typeConfig: Record<string, { icon: React.ElementType; label: string; border: string }> = {
     BUG_REPORT: { icon: Bug, label: "Bug Report", border: "border-l-c-danger" },
@@ -189,11 +190,13 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
 
   const handleSend = async () => {
     setStatus("sending")
+    const requestId = crypto.randomUUID()
     try {
       const res = await fetch("/api/messages/from-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          requestId,
           type: draft.type,
           subject: draft.subject,
           body: draft.body,
@@ -203,6 +206,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
       })
       if (!res.ok) throw new Error("Failed to send")
       setStatus("sent")
+      setSubmissionId(requestId)
       onStatusChange?.("sent")
     } catch (err: any) {
       setStatus("error")
@@ -215,7 +219,8 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
     return (
       <div className="flex items-center gap-2 rounded-lg border bg-c-success-soft px-3 py-2 text-sm text-c-success">
         <CheckCircle2 className="h-4 w-4" />
-        {config.label} sent to {target}
+        <span>{config.label} sent to {target}</span>
+        {submissionId && <span className="ml-auto text-[10px] text-c-success/60">{submissionId.slice(0, 8)}</span>}
       </div>
     )
   }
@@ -542,6 +547,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [caseContext, setCaseContext] = useState<CaseContext | null>(null)
+  const [contextAvailable, setContextAvailable] = useState<boolean | null>(null)
   const model = "claude-opus-4-6"
   const [loadingMessage, setLoadingMessage] = useState("")
   const recentLoadingMessagesRef = useRef<string[]>([])
@@ -585,12 +591,15 @@ export function ChatPanel() {
             filingStatus: data.filingStatus,
             totalLiability: data.totalLiability,
           })
+          setContextAvailable(null) // Reset until next API response
         })
         .catch(() => {
           setCaseContext(null)
+          setContextAvailable(null)
         })
     } else {
       setCaseContext(null)
+      setContextAvailable(null)
     }
   }, [pathname])
 
@@ -685,6 +694,12 @@ export function ChatPanel() {
             if (!line.startsWith("data: ")) continue
             try {
               const data = JSON.parse(line.slice(6))
+              if (data.meta) {
+                // Handle metadata events (e.g., contextAvailable flag)
+                if (typeof data.meta.contextAvailable === "boolean") {
+                  setContextAvailable(data.meta.contextAvailable)
+                }
+              }
               if (data.text) {
                 setMessages((prev) =>
                   prev.map((m) =>
@@ -742,6 +757,7 @@ export function ChatPanel() {
     }
     setMessages([])
     setIsStreaming(false)
+    setContextAvailable(null)
   }
 
   const suggestions = getSuggestions(caseContext)
@@ -824,6 +840,15 @@ export function ChatPanel() {
                   <X className="h-3 w-3" />
                 </button>
               </span>
+            </div>
+          )}
+
+          {/* Context unavailable banner */}
+          {caseContext && contextAvailable === false && (
+            <div className="border-b border-c-gray-100 bg-c-gray-50 px-4 py-1.5">
+              <p className="text-[11px] text-muted-foreground">
+                General mode &mdash; live case data not loaded
+              </p>
             </div>
           )}
 

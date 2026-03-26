@@ -82,6 +82,31 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } })
   }
 
+  // Only block if there is an actively processing assignment (not stuck).
+  // Assignments in PROCESSING for >10 minutes are considered stuck and do NOT block.
+  // Terminal statuses (COMPLETED, CANCELLED, FAILED) and review statuses never block.
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
+  const activeAssignment = await prisma.banjoAssignment.findFirst({
+    where: {
+      caseId,
+      status: { in: ["EXECUTING", "POLISHING"] },
+      updatedAt: { gte: tenMinutesAgo },
+    },
+    select: { id: true, status: true, startedAt: true },
+  })
+
+  if (activeAssignment) {
+    const startedMinutesAgo = activeAssignment.startedAt
+      ? Math.floor((Date.now() - new Date(activeAssignment.startedAt).getTime()) / 60_000)
+      : 0
+    return new Response(
+      JSON.stringify({
+        error: `Another assignment is currently processing (started ${startedMinutesAgo} minute${startedMinutesAgo !== 1 ? "s" : ""} ago). Wait for it to finish or cancel it first.`,
+      }),
+      { status: 409, headers: { "Content-Type": "application/json" } }
+    )
+  }
+
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
     include: {

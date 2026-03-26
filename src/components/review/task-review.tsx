@@ -112,13 +112,16 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
 
     setSubmitting(true)
     try {
+      const isReject = action === "REJECT_REPROMPT" || action === "REJECT_MANUAL"
+      const notesForAction = isReject ? (correctionNotes || reviewNotes) : reviewNotes
+
       const res = await fetch(`/api/review/${task.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action,
           editedOutput: hasJunebugEdits ? output : undefined,
-          reviewNotes: action === "REJECT_REPROMPT" ? correctionNotes : reviewNotes,
+          reviewNotes: notesForAction || undefined,
           reviewStartedAt: new Date(reviewStartedAt).toISOString(),
           flagsAcknowledged: allFlagsAcknowledged,
         }),
@@ -129,10 +132,13 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
         throw new Error(err.detail || err.error || "Review action failed")
       }
 
+      const actionLabel = action === "APPROVE" || action === "EDIT_APPROVE" ? "approved" : "rejected"
       addToast({
-        title: `Task ${action === "APPROVE" || action === "EDIT_APPROVE" ? "approved" : "rejected"}`,
+        title: `Task ${actionLabel}`,
+        description: isReject && action === "REJECT_REPROMPT" ? "Task rejected and queued for re-prompt." : undefined,
       })
-      setTimeout(() => router.push("/review"), 1200)
+      router.push("/review")
+      router.refresh()
     } catch (err: any) {
       addToast({
         title: "Review failed",
@@ -291,7 +297,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             {/* Reject dialog (inline, above buttons) */}
             {rejectDialogOpen && (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 mb-3 space-y-3">
-                <label className="text-sm font-medium">Correction notes for re-prompt:</label>
+                <label className="text-sm font-medium">Rejection notes (required for re-prompt, optional for reject):</label>
                 <textarea
                   value={correctionNotes}
                   onChange={(e) => setCorrectionNotes(e.target.value)}
@@ -301,11 +307,18 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                 />
                 <div className="flex gap-2">
                   <button
+                    onClick={() => handleReviewAction("REJECT_MANUAL")}
+                    disabled={submitting}
+                    className="rounded-md px-4 py-2 text-sm font-medium text-destructive border border-destructive/30 hover:bg-destructive/10 disabled:opacity-40"
+                  >
+                    {submitting ? "Rejecting..." : "Reject"}
+                  </button>
+                  <button
                     onClick={() => handleReviewAction("REJECT_REPROMPT")}
                     disabled={submitting || correctionNotes.trim().length === 0}
                     className="rounded-md px-4 py-2 text-sm font-medium text-white bg-destructive hover:bg-destructive/90 disabled:opacity-40"
                   >
-                    Confirm & Re-prompt
+                    {submitting ? "Submitting..." : "Reject & Re-prompt"}
                   </button>
                   <button
                     onClick={() => {

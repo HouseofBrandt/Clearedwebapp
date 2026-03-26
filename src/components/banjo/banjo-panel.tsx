@@ -71,6 +71,8 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   const { addToast } = useToast()
 
   const existingTaskTypes = existingTasks.map((t) => t.taskType)
+  const [stuckAssignment, setStuckAssignment] = useState<{ id: string; status: string; stuckMinutes: number } | null>(null)
+  const [cancellingStuck, setCancellingStuck] = useState(false)
 
   // Navigate-away recovery: check for active assignments on mount
   useEffect(() => {
@@ -79,6 +81,12 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
         const res = await fetch(`/api/banjo/active?caseId=${caseId}`)
         if (!res.ok) return
         const data = await res.json()
+
+        // Handle stuck assignment info
+        if (data.stuckAssignment) {
+          setStuckAssignment(data.stuckAssignment)
+        }
+
         if (!data.assignment) return
 
         setAssignmentId(data.assignment.id)
@@ -132,6 +140,25 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
     checkActive()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseId])
+
+  async function handleCancelStuck() {
+    if (!stuckAssignment) return
+    setCancellingStuck(true)
+    try {
+      const res = await fetch(`/api/banjo/${stuckAssignment.id}/cancel`, { method: "POST" })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to cancel")
+      }
+      setStuckAssignment(null)
+      addToast({ title: "Stuck assignment cancelled" })
+      router.refresh()
+    } catch (err: any) {
+      addToast({ title: "Error", description: err.message, variant: "destructive" })
+    } finally {
+      setCancellingStuck(false)
+    }
+  }
 
   const startTimer = useCallback(() => {
     startTimeRef.current = Date.now()
@@ -445,6 +472,25 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Stuck assignment banner */}
+        {stuckAssignment && phase !== "executing" && (
+          <div className="rounded-lg border border-c-warning/30 bg-c-warning-soft p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-c-warning">A previous assignment is stuck</p>
+              <p className="text-xs text-muted-foreground">
+                Another assignment has been processing for {stuckAssignment.stuckMinutes} minute{stuckAssignment.stuckMinutes !== 1 ? "s" : ""} without progress.
+              </p>
+            </div>
+            <button
+              onClick={handleCancelStuck}
+              disabled={cancellingStuck}
+              className="rounded-md px-3 py-1.5 text-sm font-medium text-c-warning border border-c-warning/40 hover:bg-c-warning/10 disabled:opacity-40"
+            >
+              {cancellingStuck ? "Cancelling..." : "Cancel Stuck Assignment"}
+            </button>
+          </div>
+        )}
+
         {phase === "idle" && (
           <AssignmentInput
             caseType={caseType}

@@ -5,6 +5,7 @@ import { notifyAdmins } from "@/lib/notifications"
 import { z } from "zod"
 
 const chatMessageSchema = z.object({
+  requestId: z.string().uuid().optional(),
   type: z.enum(["BUG_REPORT", "FEATURE_REQUEST", "DIRECT_MESSAGE"]),
   subject: z.string().min(1).max(500),
   body: z.string().min(1),
@@ -12,6 +13,9 @@ const chatMessageSchema = z.object({
   priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   tags: z.array(z.string()).optional(),
 })
+
+// In-memory set to track processed requestIds for idempotency (per server instance)
+const processedRequestIds = new Set<string>()
 
 export async function POST(request: NextRequest) {
   const auth = await requireApiAuth()
@@ -27,6 +31,23 @@ export async function POST(request: NextRequest) {
     }
 
     const data = parsed.data
+
+    // Idempotency check: reject duplicate requestIds
+    if (data.requestId) {
+      if (processedRequestIds.has(data.requestId)) {
+        return NextResponse.json(
+          { error: "Duplicate submission", requestId: data.requestId },
+          { status: 409 }
+        )
+      }
+      processedRequestIds.add(data.requestId)
+      // Prevent unbounded memory growth — evict old entries after 10,000
+      if (processedRequestIds.size > 10000) {
+        const first = processedRequestIds.values().next().value
+        if (first) processedRequestIds.delete(first)
+      }
+    }
+
     const sender = await prisma.user.findUnique({
       where: { id: auth.userId },
       select: { name: true },

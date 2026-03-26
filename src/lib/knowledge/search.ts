@@ -123,9 +123,18 @@ export async function searchKnowledge(
   }
 
   if (categoryFilter && categoryFilter.length > 0) {
-    sql += ` AND kd.category = ANY($${paramIndex}::text[])`
-    params.push(categoryFilter)
-    paramIndex++
+    // Validate category values against known enum values
+    const validCategories = [
+      "IRC_STATUTE", "TREASURY_REGULATION", "IRM_SECTION", "REVENUE_PROCEDURE",
+      "REVENUE_RULING", "CASE_LAW", "TREATISE", "FIRM_TEMPLATE", "WORK_PRODUCT",
+      "APPROVED_OUTPUT", "FIRM_PROCEDURE", "TRAINING_MATERIAL", "CLIENT_GUIDE", "CUSTOM",
+    ]
+    const filtered = categoryFilter.filter((c) => validCategories.includes(c))
+    if (filtered.length > 0) {
+      sql += ` AND kd.category::text = ANY($${paramIndex}::text[])`
+      params.push(filtered)
+      paramIndex++
+    }
   }
 
   if (tagFilter && tagFilter.length > 0) {
