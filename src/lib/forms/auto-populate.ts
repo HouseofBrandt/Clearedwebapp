@@ -285,26 +285,140 @@ export async function autoPopulateForm(
       const text = doc.extractedText
       if (text && text.length > 20 && !structuredData) {
         // Extract dollar amounts near keywords
-        const patterns: { pattern: RegExp; fieldId: string; confidence: "high" | "medium" }[] = [
+        const patterns: { pattern: RegExp; fieldId: string; confidence: "high" | "medium"; annual?: boolean }[] = [
+          // --- Original patterns ---
           { pattern: /total\s+(?:assessed?\s+)?(?:balance|liability|due)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "total_liability", confidence: "medium" },
           { pattern: /(?:gross|total)\s+(?:monthly\s+)?(?:wages?|salary|income|pay)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_wages", confidence: "medium" },
           { pattern: /social\s+security[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_ss", confidence: "medium" },
           { pattern: /(?:rent|mortgage)\s+(?:payment)?[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "expense_housing", confidence: "medium" },
+
+          // --- Employer/payer patterns from W&I transcripts ---
+          { pattern: /(?:employer|payer)\s*(?:name)?[:\s]+([A-Z][A-Za-z\s&.,]+?)(?:\s{2,}|\n|$)/i, fieldId: "employers.emp_name", confidence: "medium" },
+
+          // --- Withholding/tax amounts (annual → monthly) ---
+          { pattern: /(?:federal\s+)?(?:tax\s+)?(?:withheld|withholding)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_wages", confidence: "medium", annual: true },
+
+          // --- Pension/retirement income (annual → monthly) ---
+          { pattern: /(?:pension|retirement|annuity|1099-R|gross\s+distribution)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_pension", confidence: "medium", annual: true },
+
+          // --- Interest income (annual → monthly) ---
+          { pattern: /(?:interest\s+(?:income|earned)|1099-INT)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_interest_dividends", confidence: "medium", annual: true },
+
+          // --- Self-employment income (annual → monthly) ---
+          { pattern: /(?:self[- ]?employment|schedule\s+C|1099-NEC|nonemployee\s+comp)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_self_employment", confidence: "medium", annual: true },
+
+          // --- Account balance patterns from bank statements ---
+          { pattern: /(?:account|checking|savings)\s+(?:balance|ending)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "bank_accounts.bank_balance", confidence: "medium" },
+
+          // --- Mortgage/housing expense ---
+          { pattern: /(?:mortgage|housing|rent)\s+(?:payment|expense)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "expense_housing", confidence: "medium" },
+
+          // --- Vehicle payment ---
+          { pattern: /(?:car|vehicle|auto)\s+(?:payment|loan)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "expense_vehicle_ownership", confidence: "medium" },
+
+          // --- Insurance ---
+          { pattern: /(?:health|medical)\s+(?:insurance|premium)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "expense_health_insurance", confidence: "medium" },
+
+          // --- Child support/alimony ---
+          { pattern: /(?:child\s+support|alimony)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "expense_court_ordered", confidence: "medium" },
+
+          // --- IRS transcript TC code amounts ---
+          { pattern: /TC\s*150[^$]*\$?([\d,]+\.?\d*)/i, fieldId: "total_liability", confidence: "medium" },
+          { pattern: /TC\s*806[^$]*\$?([\d,]+\.?\d*)/i, fieldId: "income_wages", confidence: "medium", annual: true },
+
+          // --- Address patterns ---
+          { pattern: /(?:address|street|residence)[:\s]+(\d+\s+[A-Za-z\s]+(?:St|Ave|Blvd|Dr|Rd|Ln|Way|Ct|Pl|Cir)\.?)/i, fieldId: "address_street", confidence: "medium" },
+
+          // --- SSN pattern (partial - last 4 only for display) ---
+          { pattern: /SSN[:\s]+\*{3}-?\*{2}-?(\d{4})/i, fieldId: "ssn_last4", confidence: "high" },
+
+          // --- Filing status from transcripts ---
+          { pattern: /filing\s+status[:\s]+(single|married|head\s+of\s+household|qualifying\s+widow)/i, fieldId: "marital_status", confidence: "high" },
         ]
 
-        for (const { pattern, fieldId, confidence } of patterns) {
+        for (const { pattern, fieldId, confidence, annual } of patterns) {
           const match = text.match(pattern)
           if (match) {
-            const value = parseFloat(match[1].replace(/,/g, ""))
-            if (value > 0 && value < 10000000) {
+            // For non-numeric fields (employer name, address, filing status, ssn_last4)
+            if (fieldId === "employers.emp_name" || fieldId === "address_street" || fieldId === "marital_status" || fieldId === "ssn_last4") {
+              const strValue = match[1].trim()
+              if (strValue.length > 1) {
+                allFields.push({
+                  fieldId,
+                  value: strValue,
+                  confidence,
+                  source: { documentId: doc.id, documentName: doc.fileName, documentType: doc.documentCategory },
+                  extractedFrom: `Text extraction: "${match[0].slice(0, 60)}"`,
+                })
+                documentsUsed.add(doc.fileName)
+              }
+              continue
+            }
+
+            const rawValue = parseFloat(match[1].replace(/,/g, ""))
+            if (rawValue > 0 && rawValue < 10000000) {
+              // Convert annual amounts to monthly
+              const value = annual ? Math.round((rawValue / 12) * 100) / 100 : rawValue
+              const description = annual
+                ? `Text extraction: "${match[0].slice(0, 50)}" ($${rawValue}/yr → $${value}/mo)`
+                : `Text extraction: "${match[0].slice(0, 50)}"`
               allFields.push({
                 fieldId,
                 value,
                 confidence,
                 source: { documentId: doc.id, documentName: doc.fileName, documentType: doc.documentCategory },
-                extractedFrom: `Text extraction: "${match[0].slice(0, 50)}"`,
+                extractedFrom: description,
               })
               documentsUsed.add(doc.fileName)
+            }
+          }
+        }
+
+        // Special: Parse IRS transcript format "TC CODE  DATE  AMOUNT"
+        const tcLines = text.match(/TC\s*(\d{3})\s+\d{2}[-/]\d{2}[-/]\d{4}\s+\$?([\d,]+\.?\d*)/gi)
+        if (tcLines) {
+          for (const line of tcLines) {
+            const tcMatch = line.match(/TC\s*(\d{3})\s+\d{2}[-/]\d{2}[-/]\d{4}\s+\$?([\d,]+\.?\d*)/)
+            if (tcMatch) {
+              const [, tc, amount] = tcMatch
+              const tcValue = parseFloat(amount.replace(/,/g, ""))
+
+              // TC 150 = return filed (tax assessed)
+              if (tc === "150" && tcValue > 0) {
+                allFields.push({
+                  fieldId: "total_liability",
+                  value: tcValue,
+                  confidence: "medium" as const,
+                  source: { documentId: doc.id, documentName: doc.fileName, documentType: "IRS_TRANSCRIPT" },
+                  extractedFrom: `TC 150 tax assessed: $${tcValue}`,
+                })
+                documentsUsed.add(doc.fileName)
+              }
+
+              // TC 806 = W-2 withholding (annual → monthly)
+              if (tc === "806" && tcValue > 0) {
+                const monthlyValue = Math.round((tcValue / 12) * 100) / 100
+                allFields.push({
+                  fieldId: "income_wages",
+                  value: monthlyValue,
+                  confidence: "medium" as const,
+                  source: { documentId: doc.id, documentName: doc.fileName, documentType: "IRS_TRANSCRIPT" },
+                  extractedFrom: `TC 806 withholding $${tcValue}/yr → $${monthlyValue}/mo`,
+                })
+                documentsUsed.add(doc.fileName)
+              }
+
+              // TC 670 = payment (reduces liability)
+              if (tc === "670" && tcValue > 0) {
+                allFields.push({
+                  fieldId: "total_liability",
+                  value: -tcValue,
+                  confidence: "medium" as const,
+                  source: { documentId: doc.id, documentName: doc.fileName, documentType: "IRS_TRANSCRIPT" },
+                  extractedFrom: `TC 670 payment: $${tcValue}`,
+                })
+                documentsUsed.add(doc.fileName)
+              }
             }
           }
         }
