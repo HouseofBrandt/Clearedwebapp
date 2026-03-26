@@ -36,6 +36,7 @@ export async function notifyAdmins(params: {
   senderId?: string
   senderName?: string
   tags?: string[]
+  metadata?: Record<string, any>
 }) {
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN" },
@@ -54,6 +55,7 @@ export async function notifyAdmins(params: {
           senderId: params.senderId,
           senderName: params.senderName,
           tags: params.tags || [],
+          metadata: params.metadata || undefined,
         },
       })
     )

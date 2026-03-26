@@ -12,6 +12,7 @@ const chatMessageSchema = z.object({
   recipientId: z.string().optional(),
   priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   tags: z.array(z.string()).optional(),
+  screenshot: z.string().optional(),
 })
 
 // In-memory set to track processed requestIds for idempotency (per server instance)
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
         senderId: auth.userId,
         senderName: sender?.name || "Unknown",
         tags: data.tags,
+        metadata: data.screenshot ? { screenshot: data.screenshot } : undefined,
       })
       return NextResponse.json({ sent: results.length, type: data.type })
     }

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  const { messages, caseContext, model } = await request.json()
+  const { messages, caseContext, model, attachments } = await request.json()
 
   // Build system prompt
   let systemPrompt = loadPrompt("research_assistant_v1")
@@ -129,10 +129,58 @@ export async function POST(request: NextRequest) {
     const knownNames: string[] = caseContext?.clientName ? [caseContext.clientName] : []
     const sessionTokenMap: Record<string, string> = {}
 
-    const apiMessages = messages.map((m: { role: string; content: string }) => {
+    const apiMessages = messages.map((m: { role: string; content: string }, idx: number) => {
       if (m.role === "user") {
         const { tokenizedText, tokenMap: msgTokenMap } = tokenizeText(m.content, knownNames)
         Object.assign(sessionTokenMap, msgTokenMap)
+
+        // For the last user message, attach any uploaded files
+        const isLast = idx === messages.length - 1
+        if (isLast && attachments?.length > 0) {
+          const contentBlocks: any[] = []
+
+          // Add text content first
+          if (tokenizedText.trim()) {
+            contentBlocks.push({ type: "text", text: tokenizedText })
+          }
+
+          // Add attachments
+          for (const att of attachments) {
+            if (att.type?.startsWith("image/")) {
+              // Extract base64 data from data URL
+              const base64Match = att.dataUrl?.match(/^data:(image\/[^;]+);base64,(.+)$/)
+              if (base64Match) {
+                contentBlocks.push({
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: base64Match[1],
+                    data: base64Match[2],
+                  },
+                })
+              }
+            } else {
+              // For non-image files, extract text from the data URL and include as context
+              try {
+                const textContent = Buffer.from(att.dataUrl.split(",")[1] || "", "base64").toString("utf-8")
+                if (textContent.trim()) {
+                  contentBlocks.push({
+                    type: "text",
+                    text: `[Attached file: ${att.name}]\n${textContent}`,
+                  })
+                }
+              } catch {
+                contentBlocks.push({
+                  type: "text",
+                  text: `[Attached file: ${att.name} — could not extract text]`,
+                })
+              }
+            }
+          }
+
+          return { role: m.role, content: contentBlocks.length > 0 ? contentBlocks : tokenizedText }
+        }
+
         return { role: m.role, content: tokenizedText }
       }
       return { role: m.role, content: m.content }
