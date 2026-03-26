@@ -14,7 +14,7 @@ const schema = z.object({
   activeField: z.string().optional(),
   activeFieldLabel: z.string().optional(),
   fieldIrsReference: z.string().optional(),
-  currentValues: z.record(z.any()).optional(),
+  currentValues: z.record(z.string(), z.any()).optional(),
   caseId: z.string().optional(),
   mode: z.enum(["scoped", "general"]).default("scoped"),
 })
