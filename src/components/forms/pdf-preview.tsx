@@ -159,7 +159,7 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
       {/* PDF iframe — shows the filled PDF from our API */}
       <div style={{ flex: 1, overflow: "hidden" }}>
         <iframe
-          key={refreshKey}
+          key={displayUrl}
           src={`${displayUrl}#page=${currentPage}`}
           style={{ width: "100%", height: "100%", border: "none" }}
           title={`IRS Form ${formNumber} Preview`}
