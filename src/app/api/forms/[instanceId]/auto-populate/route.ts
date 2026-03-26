@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
-import { readInstance } from "../../route"
+import { getFormInstance } from "@/lib/forms/form-store"
 import { autoPopulateForm } from "@/lib/forms/auto-populate"
 
 /**
@@ -23,7 +23,7 @@ export async function POST(
     }
 
     // Load the form instance to get caseId and formNumber
-    const instance = await readInstance(params.instanceId)
+    const instance = getFormInstance(params.instanceId)
     if (!instance) {
       return NextResponse.json(
         { error: "Form instance not found" },

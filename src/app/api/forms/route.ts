@@ -3,59 +3,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { getFormSchema, getAvailableForms } from "@/lib/forms/registry"
 import { FormInstance } from "@/lib/forms/types"
+import { getFormInstance, saveFormInstance, listFormInstances } from "@/lib/forms/form-store"
 import { randomUUID } from "crypto"
-import { promises as fs } from "fs"
-import path from "path"
-
-// File-based storage for form instances (development only)
-// In production, this would use the Prisma database
-const FORMS_DATA_DIR = path.join(process.cwd(), "data", "form-instances")
-
-async function ensureDataDir(): Promise<void> {
-  try {
-    await fs.mkdir(FORMS_DATA_DIR, { recursive: true })
-  } catch {
-    // Directory already exists
-  }
-}
-
-async function readInstance(instanceId: string): Promise<FormInstance | null> {
-  try {
-    const filePath = path.join(FORMS_DATA_DIR, `${instanceId}.json`)
-    const data = await fs.readFile(filePath, "utf-8")
-    return JSON.parse(data) as FormInstance
-  } catch {
-    return null
-  }
-}
-
-async function writeInstance(instance: FormInstance): Promise<void> {
-  await ensureDataDir()
-  const filePath = path.join(FORMS_DATA_DIR, `${instance.id}.json`)
-  await fs.writeFile(filePath, JSON.stringify(instance, null, 2), "utf-8")
-}
-
-async function listInstancesForCase(caseId: string): Promise<FormInstance[]> {
-  await ensureDataDir()
-  const files = await fs.readdir(FORMS_DATA_DIR).catch(() => [] as string[])
-  const instances: FormInstance[] = []
-
-  for (const file of files) {
-    if (!file.endsWith(".json")) continue
-    try {
-      const filePath = path.join(FORMS_DATA_DIR, file)
-      const data = await fs.readFile(filePath, "utf-8")
-      const instance = JSON.parse(data) as FormInstance
-      if (instance.caseId === caseId) {
-        instances.push(instance)
-      }
-    } catch {
-      // Skip corrupt files
-    }
-  }
-
-  return instances.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-}
 
 /**
  * GET /api/forms?caseId=xxx
@@ -78,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Return form instances for the case
-    const instances = await listInstancesForCase(caseId)
+    const instances = listFormInstances(caseId)
     return NextResponse.json({ instances })
   } catch (error) {
     console.error("Error listing form instances:", error)
@@ -142,7 +91,7 @@ export async function POST(request: NextRequest) {
       version: 1,
     }
 
-    await writeInstance(instance)
+    saveFormInstance(instance)
 
     return NextResponse.json({ instance }, { status: 201 })
   } catch (error) {
@@ -150,6 +99,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-
-// Re-export helpers for the [instanceId] route
-export { readInstance, writeInstance }
