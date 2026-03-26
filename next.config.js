@@ -42,6 +42,8 @@ const nextConfig = {
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               "connect-src 'self' https://api.anthropic.com https://api.openai.com https://*.neon.tech",
+              "frame-src 'self'",
+              "object-src 'self'",
               "frame-ancestors 'none'",
             ].join("; "),
           },

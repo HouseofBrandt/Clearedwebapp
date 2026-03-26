@@ -15,7 +15,7 @@ const FORM_PDF_MAP: Record<string, string> = {
   "911": "/forms/f911.pdf",
 }
 
-export function PDFFormPreview({ formNumber, currentPage = 1, zoom = 100 }: PDFFormPreviewProps) {
+export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewProps) {
   const pdfUrl = FORM_PDF_MAP[formNumber]
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -33,14 +33,13 @@ export function PDFFormPreview({ formNumber, currentPage = 1, zoom = 100 }: PDFF
     )
   }
 
-  // Build URL with page parameter for PDF viewers that support it
-  const pdfSrc = `${pdfUrl}#page=${currentPage}&zoom=${zoom}`
+  const pdfSrc = `${pdfUrl}#page=${currentPage}`
 
   if (isExpanded) {
     return (
       <div style={{
         position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-        zIndex: 50, background: "rgba(0,0,0,0.7)",
+        zIndex: 50, background: "rgba(0,0,0,0.85)",
         display: "flex", flexDirection: "column",
       }}>
         <div style={{
@@ -50,21 +49,35 @@ export function PDFFormPreview({ formNumber, currentPage = 1, zoom = 100 }: PDFF
           <span style={{ color: "white", fontSize: 13, fontWeight: 500 }}>
             IRS Form {formNumber}
           </span>
-          <button
-            onClick={() => setIsExpanded(false)}
-            style={{
-              background: "none", border: "1px solid rgba(255,255,255,0.2)",
-              color: "white", padding: "4px 12px", borderRadius: 6,
-              cursor: "pointer", fontSize: 12,
-            }}
-          >
-            Close
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: "none", border: "1px solid rgba(255,255,255,0.2)",
+                color: "white", padding: "4px 12px", borderRadius: 6,
+                cursor: "pointer", fontSize: 12, textDecoration: "none",
+              }}
+            >
+              Open in new tab ↗
+            </a>
+            <button
+              onClick={() => setIsExpanded(false)}
+              style={{
+                background: "none", border: "1px solid rgba(255,255,255,0.2)",
+                color: "white", padding: "4px 12px", borderRadius: 6,
+                cursor: "pointer", fontSize: 12,
+              }}
+            >
+              Close
+            </button>
+          </div>
         </div>
-        <iframe
+        <embed
           src={pdfSrc}
-          style={{ flex: 1, border: "none", width: "100%" }}
-          title={`IRS Form ${formNumber}`}
+          type="application/pdf"
+          style={{ flex: 1, width: "100%", border: "none" }}
         />
       </div>
     )
@@ -84,32 +97,39 @@ export function PDFFormPreview({ formNumber, currentPage = 1, zoom = 100 }: PDFF
         <span style={{ fontSize: 11, fontWeight: 500, color: "var(--c-gray-500)" }}>
           IRS Form {formNumber}
         </span>
-        <button
-          onClick={() => setIsExpanded(true)}
-          style={{
-            background: "none", border: "1px solid var(--c-gray-100)",
-            padding: "2px 8px", borderRadius: 4, cursor: "pointer",
-            fontSize: 11, color: "var(--c-gray-500)",
-          }}
-        >
-          Expand
-        </button>
+        <div style={{ display: "flex", gap: 4 }}>
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: "none", border: "1px solid var(--c-gray-100)",
+              padding: "2px 8px", borderRadius: 4, cursor: "pointer",
+              fontSize: 11, color: "var(--c-gray-500)", textDecoration: "none",
+            }}
+          >
+            New tab ↗
+          </a>
+          <button
+            onClick={() => setIsExpanded(true)}
+            style={{
+              background: "none", border: "1px solid var(--c-gray-100)",
+              padding: "2px 8px", borderRadius: 4, cursor: "pointer",
+              fontSize: 11, color: "var(--c-gray-500)",
+            }}
+          >
+            Expand
+          </button>
+        </div>
       </div>
 
-      {/* PDF embed */}
-      <div style={{ flex: 1, overflow: "auto", background: "var(--c-gray-50)" }}>
-        <object
-          data={pdfSrc}
+      {/* PDF embed - use embed tag which Chrome renders better for PDFs */}
+      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+        <embed
+          src={pdfSrc}
           type="application/pdf"
-          style={{ width: "100%", height: "100%", border: "none", minHeight: 500 }}
-        >
-          {/* Fallback if object tag doesn't work */}
-          <iframe
-            src={pdfSrc}
-            style={{ width: "100%", height: "100%", border: "none", minHeight: 500 }}
-            title={`IRS Form ${formNumber} Preview`}
-          />
-        </object>
+          style={{ width: "100%", height: "100%", border: "none" }}
+        />
       </div>
 
       {/* Footer */}
@@ -125,7 +145,7 @@ export function PDFFormPreview({ formNumber, currentPage = 1, zoom = 100 }: PDFF
             padding: "4px 16px",
           }}
         >
-          View Full Tax Form ↗
+          View Full Tax Form
         </button>
       </div>
     </div>
