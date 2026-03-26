@@ -12,7 +12,6 @@ import {
   TrendingUp,
   Shield,
   Network,
-  Mail,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -41,7 +40,6 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Penalty Abatement", href: "/penalty-abatement", icon: ShieldAlert, description: "FTA & reasonable cause letters", section: "TOOLS" },
 
   // Standalone items
-  { name: "Inbox", href: "/inbox", icon: Mail, description: "Messages and notifications", section: "MAIN" },
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences", section: "MAIN" },
 
   // ADMIN section

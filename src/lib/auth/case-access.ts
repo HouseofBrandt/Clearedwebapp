@@ -2,8 +2,8 @@ import { prisma } from "@/lib/db"
 
 /**
  * Returns true if the user has access to the given case.
- * ADMIN and SENIOR roles have access to all cases.
- * PRACTITIONER and SUPPORT_STAFF only access cases assigned to them.
+ * All authenticated users can access all cases — this is a small firm
+ * where every practitioner needs visibility into the full caseload.
  */
 export async function canAccessCase(userId: string, caseId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
@@ -11,21 +11,13 @@ export async function canAccessCase(userId: string, caseId: string): Promise<boo
     select: { role: true },
   })
 
-  if (!user) return false
-  if (user.role === "ADMIN" || user.role === "SENIOR") return true
-
-  const caseRecord = await prisma.case.findUnique({
-    where: { id: caseId },
-    select: { assignedPractitionerId: true },
-  })
-
-  return caseRecord?.assignedPractitionerId === userId
+  // Any authenticated user can access any case
+  return !!user
 }
 
 /**
  * Returns a Prisma where clause that scopes queries to the user's accessible cases.
- * ADMIN and SENIOR get an empty filter (see all).
- * Others get filtered to their assigned cases.
+ * All authenticated users see all cases.
  */
 export async function caseAccessFilter(userId: string): Promise<Record<string, any>> {
   const user = await prisma.user.findUnique({
@@ -34,7 +26,5 @@ export async function caseAccessFilter(userId: string): Promise<Record<string, a
   })
 
   if (!user) return { id: "impossible" } // No access
-  if (user.role === "ADMIN" || user.role === "SENIOR") return {} // No filter
-
-  return { assignedPractitionerId: userId }
+  return {} // All users see all cases
 }
