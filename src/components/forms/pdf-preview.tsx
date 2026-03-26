@@ -18,11 +18,13 @@ const FORM_PDF_MAP: Record<string, string> = {
 export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewProps) {
   const localPath = FORM_PDF_MAP[formNumber]
   const [isExpanded, setIsExpanded] = useState(false)
-  const [origin, setOrigin] = useState("")
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setOrigin(window.location.origin)
+    setMounted(true)
   }, [])
+
+  const origin = mounted ? window.location.origin : ""
 
   if (!localPath) {
     return (
@@ -135,18 +137,12 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
 
       {/* PDF via Google Docs Viewer — reliable cross-browser rendering */}
       <div style={{ flex: 1, overflow: "hidden" }}>
-        {origin ? (
-          <iframe
-            src={viewerUrl}
-            style={{ width: "100%", height: "100%", border: "none" }}
-            title={`IRS Form ${formNumber} Preview`}
-            allow="autoplay"
-          />
-        ) : (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--c-gray-300)", fontSize: 12 }}>
-            Loading preview...
-          </div>
-        )}
+        <iframe
+          src={mounted ? viewerUrl : "about:blank"}
+          style={{ width: "100%", height: "100%", border: "none" }}
+          title={`IRS Form ${formNumber} Preview`}
+          allow="autoplay"
+        />
       </div>
 
       {/* Footer */}
