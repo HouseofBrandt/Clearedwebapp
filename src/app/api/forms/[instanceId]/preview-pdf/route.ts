@@ -99,6 +99,11 @@ export async function GET(
           }
         }
 
+        console.log(`[PDF FILL] Form ${formNumber}: ${fields.length} PDF fields, ${Object.keys(reverseMap).length} mapped, ${Object.keys(flatValues).length} values available`)
+        // Log which of our values have matching PDF fields
+        const mappedFields = Object.entries(fieldMap).filter(([ourId]) => flatValues[ourId] !== undefined && flatValues[ourId] !== "")
+        console.log(`[PDF FILL] Values with mappings: ${mappedFields.map(([id, pdf]) => `${id}`).join(", ")}`)
+
         for (const field of fields) {
           const pdfFieldName = field.getName()
 
@@ -153,8 +158,9 @@ export async function GET(
                 if (typeof displayValue === "number") displayValue = String(displayValue)
                 textField.setText(String(displayValue))
                 filledViaAcroForm = true
-              } catch {
-                // Not a text field (could be dropdown, radio, etc.) — skip
+                console.log(`[PDF FILL] Filled ${ourFieldId} → ${pdfFieldName} = "${displayValue}"`)
+              } catch (fieldErr: any) {
+                console.log(`[PDF FILL ERROR] Failed to fill ${ourFieldId} → ${pdfFieldName}: ${fieldErr?.message}`)
               }
             }
           }
