@@ -251,13 +251,13 @@ export async function POST(request: NextRequest) {
     ]
     styleHeaderRow(assetSheet)
 
-    function addAssetRow(
+    const addAssetRow = (
       label: string,
       fmv: number,
       loan: number,
       equity: number,
       notes: string
-    ) {
+    ) => {
       const row = assetSheet.addRow([label, fmv, loan, equity, notes])
       row.eachCell((cell, colNumber) => {
         cell.font = colNumber === 1 ? LABEL_FONT : BODY_FONT
@@ -322,7 +322,7 @@ export async function POST(request: NextRequest) {
     ]
     styleHeaderRow(rcpSheet)
 
-    function addRcpRow(label: string, lump: number, periodic: number, isBold = false) {
+    const addRcpRow = (label: string, lump: number, periodic: number, isBold = false) => {
       const row = rcpSheet.addRow([label, lump, periodic])
       row.eachCell((cell, colNumber) => {
         cell.font = isBold
