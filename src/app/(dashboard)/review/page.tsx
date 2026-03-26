@@ -17,6 +17,7 @@ export default async function ReviewPage() {
         id: true,
         taskType: true,
         createdAt: true,
+        createdById: true,
         verifyFlagCount: true,
         judgmentFlagCount: true,
         banjoAssignmentId: true,

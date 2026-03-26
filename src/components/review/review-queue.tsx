@@ -49,6 +49,7 @@ interface PendingTask {
   id: string
   taskType: string
   createdAt: string
+  createdById: string
   verifyFlagCount: number
   judgmentFlagCount: number
   banjoAssignmentId?: string | null
