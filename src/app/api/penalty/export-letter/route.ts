@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
     const dateStr = new Date().toISOString().split("T")[0]
     const filename = `Penalty_Abatement_${typeLabel}_${dateStr}.docx`
 
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         "Content-Type":
