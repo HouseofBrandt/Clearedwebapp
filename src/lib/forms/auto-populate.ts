@@ -136,22 +136,209 @@ export async function autoPopulateForm(
   caseId: string,
   formNumber: string
 ): Promise<AutoPopulationResult> {
-  // In the future, this will:
-  // 1. Fetch all documents for this case via Prisma
-  // 2. For each document with extractedData, check FIELD_MAPPINGS
-  // 3. Extract values using resolveExtractPath
-  // 4. Assign confidence scores
-  // 5. Handle conflicts (multiple docs providing same field)
+  try {
+    const { prisma } = await import("@/lib/db")
 
-  // For now, return empty result — will be connected to real document extraction
-  // once the document processing pipeline populates extractedData on documents
-  return {
-    fields: [],
-    highConfidence: 0,
-    needsReview: 0,
-    totalFound: 0,
-    documentsUsed: [],
+    // 1. Fetch all documents for this case with extracted text
+    const documents = await prisma.document.findMany({
+      where: { caseId },
+      select: {
+        id: true,
+        fileName: true,
+        documentCategory: true,
+        extractedText: true,
+        fileType: true,
+      },
+    })
+
+    if (!documents.length) {
+      return { fields: [], highConfidence: 0, needsReview: 0, totalFound: 0, documentsUsed: [] }
+    }
+
+    // 2. Also fetch case data for client info
+    const caseData = await prisma.case.findUnique({
+      where: { id: caseId },
+      select: {
+        clientName: true,
+        filingStatus: true,
+        tabsNumber: true,
+        liabilityPeriods: {
+          select: { taxYear: true, totalBalance: true, penalties: true, interest: true },
+        },
+      },
+    })
+
+    const allFields: AutoPopulatedField[] = []
+    const documentsUsed = new Set<string>()
+
+    // 3. Try to populate from case record directly (high confidence)
+    if (caseData) {
+      // Decrypt client name if available
+      try {
+        const { decryptField } = await import("@/lib/encryption")
+        const clientName = decryptField(caseData.clientName)
+        if (clientName && !clientName.includes(":")) {
+          allFields.push({
+            fieldId: "taxpayer_name",
+            value: clientName,
+            confidence: "high",
+            source: { documentId: "case-record", documentName: "Case Record", documentType: "CASE" },
+            extractedFrom: "Client name from case record",
+          })
+        }
+      } catch { /* ignore decryption failures */ }
+
+      // Filing status
+      if (caseData.filingStatus) {
+        const statusMap: Record<string, string> = {
+          SINGLE: "single", MFJ: "married", MFS: "married",
+          HOH: "single", QW: "widowed",
+        }
+        const mapped = statusMap[caseData.filingStatus]
+        if (mapped) {
+          allFields.push({
+            fieldId: "marital_status",
+            value: mapped,
+            confidence: "medium",
+            source: { documentId: "case-record", documentName: "Case Record", documentType: "CASE" },
+            extractedFrom: `Filing status: ${caseData.filingStatus}`,
+          })
+        }
+      }
+
+      // Total liability
+      if (caseData.liabilityPeriods?.length) {
+        const totalBalance = caseData.liabilityPeriods.reduce(
+          (sum: number, lp: any) => sum + (Number(lp.totalBalance) || 0), 0
+        )
+        if (totalBalance > 0) {
+          allFields.push({
+            fieldId: "total_liability",
+            value: totalBalance,
+            confidence: "high",
+            source: { documentId: "case-record", documentName: "Case Record", documentType: "CASE" },
+            extractedFrom: `Sum of ${caseData.liabilityPeriods.length} liability periods`,
+          })
+          documentsUsed.add("Case Record")
+        }
+      }
+    }
+
+    // 4. Process each document's extracted text for structured data
+    for (const doc of documents) {
+      if (!doc.extractedText) continue
+
+      // Try to parse extractedText as JSON (some docs have structured extraction)
+      let structuredData: Record<string, any> | null = null
+      try {
+        const parsed = JSON.parse(doc.extractedText)
+        if (typeof parsed === "object" && parsed !== null) {
+          structuredData = parsed
+        }
+      } catch {
+        // Not JSON — try text-based extraction below
+      }
+
+      // Map document category to our mapping keys
+      const categoryToType: Record<string, string> = {
+        BANK_STATEMENT: "BANK_STATEMENT",
+        TAX_RETURN: "TAX_RETURN",
+        IRS_NOTICE: "IRS_NOTICE",
+        PAYROLL: "W-2",
+        MEETING_NOTES: "MEETING_NOTES",
+      }
+
+      if (structuredData) {
+        // If we have wage_income forms (from transcript parser)
+        if (structuredData.wage_income?.forms) {
+          for (const form of structuredData.wage_income.forms) {
+            const matched = matchDocumentToFields(doc.id, doc.fileName, form.type, form)
+            allFields.push(...matched)
+            if (matched.length > 0) documentsUsed.add(doc.fileName)
+          }
+        }
+
+        // If we have account data
+        if (structuredData.account) {
+          if (structuredData.account.balance) {
+            allFields.push({
+              fieldId: "total_liability",
+              value: Math.abs(structuredData.account.balance),
+              confidence: "medium",
+              source: { documentId: doc.id, documentName: doc.fileName, documentType: "ACCOUNT_TRANSCRIPT" },
+              extractedFrom: "Account transcript balance",
+            })
+            documentsUsed.add(doc.fileName)
+          }
+        }
+
+        // Direct category mapping
+        const mappingKey = categoryToType[doc.documentCategory] || doc.documentCategory
+        const mapped = matchDocumentToFields(doc.id, doc.fileName, mappingKey, structuredData)
+        if (mapped.length > 0) {
+          allFields.push(...mapped)
+          documentsUsed.add(doc.fileName)
+        }
+      }
+
+      // Text-based extraction for common patterns
+      const text = doc.extractedText
+      if (text && text.length > 20 && !structuredData) {
+        // Extract dollar amounts near keywords
+        const patterns: { pattern: RegExp; fieldId: string; confidence: "high" | "medium" }[] = [
+          { pattern: /total\s+(?:assessed?\s+)?(?:balance|liability|due)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "total_liability", confidence: "medium" },
+          { pattern: /(?:gross|total)\s+(?:monthly\s+)?(?:wages?|salary|income|pay)[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_wages", confidence: "medium" },
+          { pattern: /social\s+security[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "income_ss", confidence: "medium" },
+          { pattern: /(?:rent|mortgage)\s+(?:payment)?[:\s]*\$?([\d,]+\.?\d*)/i, fieldId: "expense_housing", confidence: "medium" },
+        ]
+
+        for (const { pattern, fieldId, confidence } of patterns) {
+          const match = text.match(pattern)
+          if (match) {
+            const value = parseFloat(match[1].replace(/,/g, ""))
+            if (value > 0 && value < 10000000) {
+              allFields.push({
+                fieldId,
+                value,
+                confidence,
+                source: { documentId: doc.id, documentName: doc.fileName, documentType: doc.documentCategory },
+                extractedFrom: `Text extraction: "${match[0].slice(0, 50)}"`,
+              })
+              documentsUsed.add(doc.fileName)
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Deduplicate — keep highest confidence per field
+    const fieldMap = new Map<string, AutoPopulatedField>()
+    for (const field of allFields) {
+      const existing = fieldMap.get(field.fieldId)
+      if (!existing || confidenceRank(field.confidence) > confidenceRank(existing.confidence)) {
+        fieldMap.set(field.fieldId, field)
+      }
+    }
+
+    const dedupedFields = Array.from(fieldMap.values())
+    const highCount = dedupedFields.filter(f => f.confidence === "high").length
+    const reviewCount = dedupedFields.filter(f => f.confidence === "medium" || f.confidence === "low").length
+
+    return {
+      fields: dedupedFields,
+      highConfidence: highCount,
+      needsReview: reviewCount,
+      totalFound: dedupedFields.length,
+      documentsUsed: Array.from(documentsUsed),
+    }
+  } catch (error) {
+    console.error("Auto-populate error:", error)
+    return { fields: [], highConfidence: 0, needsReview: 0, totalFound: 0, documentsUsed: [] }
   }
+}
+
+function confidenceRank(c: "high" | "medium" | "low"): number {
+  return c === "high" ? 3 : c === "medium" ? 2 : 1
 }
 
 /**
