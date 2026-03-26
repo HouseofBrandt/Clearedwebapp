@@ -38,6 +38,7 @@ import {
 } from "@/components/forms/field-renderer"
 import { JunebugFormAssistant } from "@/components/forms/junebug-form-assistant"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import { PDFPreview } from "@/components/forms/pdf-preview"
 import type { AutoPopulationResult, AutoPopulatedField } from "@/lib/forms/auto-populate"
 
 // ---------------------------------------------------------------------------
@@ -693,103 +694,78 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
           }}
         />
       ) : rightOpen ? (
-        <div className="w-[300px] shrink-0 border-l border-[var(--c-gray-100)] overflow-y-auto">
-          <div className="p-4 space-y-5">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-c-gray-700">Live Summary</h3>
-              <button
-                onClick={() => setRightOpen(false)}
-                className="text-c-gray-300 hover:text-c-gray-700 transition-colors"
-              >
-                <PanelRightClose className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Completion */}
-            <div className="rounded-xl border border-[var(--c-gray-100)] p-4 space-y-3">
-              <p className="text-xs font-medium text-c-gray-300 uppercase tracking-wider">
-                Completion
-              </p>
-              <Progress value={completion} size="md" variant={completion === 100 ? "success" : "default"} showPercent />
-              <p className="text-xs text-c-gray-300">
-                {sections.filter((s) => getSectionState(s, values, errors) === "complete").length} of{" "}
-                {sections.length} sections complete
-              </p>
-            </div>
-
-            {/* Key Values */}
-            {summaryValues.length > 0 && (
-              <div className="rounded-xl border border-[var(--c-gray-100)] p-4 space-y-3">
-                <p className="text-xs font-medium text-c-gray-300 uppercase tracking-wider">
-                  Key Values
-                </p>
-                {summaryValues.map((sv) => (
-                  <div key={sv.label} className="flex items-center justify-between">
-                    <span className="text-xs text-c-gray-300">{sv.label}</span>
-                    <span className="text-sm font-mono tabular-nums font-medium text-c-gray-700">
-                      {sv.value}
-                    </span>
+        <div className="w-[340px] shrink-0 flex flex-col" style={{ height: "calc(100vh - 80px)" }}>
+          {/* Collapsible stats bar */}
+          <div className="border-l border-[var(--c-gray-100)] bg-[var(--c-white)]">
+            <div className="px-3 py-2 border-b border-[var(--c-gray-100)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="h-1.5 rounded-full bg-[var(--c-gray-100)]"
+                    style={{ width: 48 }}
+                  >
+                    <div
+                      className="h-1.5 rounded-full transition-all duration-300"
+                      style={{
+                        width: `${completion}%`,
+                        background: completion === 100 ? "var(--c-success)" : "var(--c-teal)",
+                      }}
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Validation Status */}
-            <div className="rounded-xl border border-[var(--c-gray-100)] p-4 space-y-2">
-              <p className="text-xs font-medium text-c-gray-300 uppercase tracking-wider">
-                Validation
-              </p>
-              <div className="flex items-center gap-2">
-                {errorCount === 0 ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 text-c-success" />
-                    <span className="text-sm text-c-success">No errors</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="h-4 w-4 text-c-danger" />
-                    <span className="text-sm text-c-danger">
-                      {errorCount} error{errorCount !== 1 ? "s" : ""}
-                    </span>
-                  </>
+                  <span className="text-[10px] tabular-nums text-c-gray-300 font-medium">
+                    {completion}%
+                  </span>
+                </div>
+                {errorCount > 0 && (
+                  <span className="flex items-center gap-1 text-[10px] text-c-danger">
+                    <AlertCircle className="h-3 w-3" />
+                    {errorCount}
+                  </span>
+                )}
+                {summaryValues.length > 0 && (
+                  <span className="text-[10px] text-c-gray-300 font-mono tabular-nums">
+                    {summaryValues[summaryValues.length - 1]?.value}
+                  </span>
                 )}
               </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => validateAll()}
+                  title="Validate All"
+                >
+                  <CheckCircle className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => doSave(values)}
+                  disabled={saving}
+                  title={saving ? "Saving..." : "Save"}
+                >
+                  <Save className="h-3 w-3" />
+                </Button>
+                <button
+                  onClick={() => setRightOpen(false)}
+                  className="text-c-gray-300 hover:text-c-gray-700 transition-colors ml-1"
+                >
+                  <PanelRightClose className="h-4 w-4" />
+                </button>
+              </div>
             </div>
+          </div>
 
-            {/* Quick Actions */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-c-gray-300 uppercase tracking-wider">
-                Actions
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-sm"
-                onClick={() => validateAll()}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Validate All
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-sm"
-                onClick={() => doSave(values)}
-                disabled={saving}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? "Saving..." : "Save & Close"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-sm"
-                disabled
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Generate Draft PDF
-              </Button>
-            </div>
+          {/* PDF Preview fills remaining space */}
+          <div className="flex-1 min-h-0">
+            <PDFPreview
+              schema={schema}
+              values={values}
+              activeSection={activeSection}
+              activeSectionIndex={activeSectionIndex}
+            />
           </div>
         </div>
       ) : (
