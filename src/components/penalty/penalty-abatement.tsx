@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ChevronRight, CheckCircle } from "lucide-react"
+import { ChevronRight, CheckCircle, Download } from "lucide-react"
 import {
   PENALTY_TYPES,
   REASONABLE_CAUSE_CATEGORIES,
@@ -114,6 +114,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
   const [generatedLetter, setGeneratedLetter] = useState<string>("")
   const [copySuccess, setCopySuccess] = useState(false)
   const [letterJustGenerated, setLetterJustGenerated] = useState(false)
+  const [docxExporting, setDocxExporting] = useState(false)
 
   // ─── Derived ───
   const selectedCase = useMemo(
@@ -287,6 +288,45 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
       document.body.removeChild(textarea)
       setCopySuccess(true)
       setTimeout(() => setCopySuccess(false), 2000)
+    }
+  }
+
+  async function exportDocx() {
+    if (!generatedLetter) return
+    setDocxExporting(true)
+    try {
+      const letterType = ftaResult?.eligible ? "fta" : "reasonable-cause"
+      const res = await fetch("/api/penalty/export-letter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letterText: generatedLetter,
+          letterType,
+          taxpayerName: selectedCase?.clientName,
+          taxYears: selectedPeriods.map((lp) => lp.taxYear),
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Export failed" }))
+        throw new Error(err.error || "Export failed")
+      }
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const typeLabel = letterType === "fta" ? "FTA" : "Reasonable_Cause"
+      const dateStr = new Date().toISOString().split("T")[0]
+      a.download = `Penalty_Abatement_${typeLabel}_${dateStr}.docx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      console.error("Export failed:", err)
+    } finally {
+      setDocxExporting(false)
     }
   }
 
@@ -746,6 +786,14 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                   onClick={copyToClipboard}
                 >
                   {copySuccess ? "Copied!" : "Copy to Clipboard"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={exportDocx}
+                  disabled={docxExporting}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  {docxExporting ? "Exporting..." : "Export .docx"}
                 </Button>
                 <Button
                   variant="outline"

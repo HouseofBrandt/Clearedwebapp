@@ -6,7 +6,7 @@ import {
   Inbox, Clock, ClipboardCheck, CheckCircle2, XCircle,
   Bug, Lightbulb, MessageSquare, Megaphone, ArrowLeft,
   ArchiveX, Reply, ExternalLink, RefreshCw, Trash2,
-  Mail, MailOpen, Archive, CheckSquare, Search,
+  Mail, MailOpen, Archive, CheckSquare, Search, AlertTriangle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -116,6 +116,7 @@ export function InboxList({
   const [showCompose, setShowCompose] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const router = useRouter()
   const { addToast } = useToast()
 
@@ -129,6 +130,11 @@ export function InboxList({
     }, 30000)
     return () => clearInterval(interval)
   }, [router])
+
+  // Clear selection when filters or search change
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [filter, searchQuery])
 
   const selected = messages.find((m) => m.id === selectedId) || null
 
@@ -330,32 +336,38 @@ export function InboxList({
           </div>
         </div>
 
-        {/* Filter pills */}
-        <div className="flex gap-1.5 border-b px-4 py-2">
-          {filters.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                filter === f.key
-                  ? "bg-primary/10 text-primary"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Filter pills + Select All */}
+        <div className="flex items-center gap-1.5 border-b px-4 py-2">
+          <input
+            type="checkbox"
+            checked={selectedIds.size === filteredMessages.length && filteredMessages.length > 0}
+            ref={(el) => {
+              if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredMessages.length
+            }}
+            onChange={toggleSelectAll}
+            className="h-4 w-4 shrink-0 rounded border-c-gray-200 accent-primary cursor-pointer"
+            title="Select all"
+          />
+          <div className="flex gap-1.5 flex-1">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  filter === f.key
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
           <div className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/10 px-4 py-2">
-            <input
-              type="checkbox"
-              checked={selectedIds.size === filteredMessages.length && filteredMessages.length > 0}
-              onChange={toggleSelectAll}
-              className="h-4 w-4 rounded border-c-gray-200 accent-primary"
-            />
             <span className="text-xs font-medium text-muted-foreground">
               {selectedIds.size} selected
             </span>
@@ -365,18 +377,20 @@ export function InboxList({
                 size="sm"
                 className="h-7 text-xs"
                 disabled={bulkLoading}
-                onClick={() => {
-                  const allRead = Array.from(selectedIds).every(
-                    (id) => messages.find((m) => m.id === id)?.read
-                  )
-                  bulkUpdate({ read: !allRead })
-                }}
+                onClick={() => bulkUpdate({ read: true })}
               >
-                {Array.from(selectedIds).every((id) => messages.find((m) => m.id === id)?.read) ? (
-                  <><MailOpen className="mr-1 h-3.5 w-3.5" />Mark Unread</>
-                ) : (
-                  <><Mail className="mr-1 h-3.5 w-3.5" />Mark Read</>
-                )}
+                <Mail className="mr-1 h-3.5 w-3.5" />
+                Mark Read
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={bulkLoading}
+                onClick={() => bulkUpdate({ read: false })}
+              >
+                <MailOpen className="mr-1 h-3.5 w-3.5" />
+                Mark Unread
               </Button>
               <Button
                 variant="ghost"
@@ -393,7 +407,7 @@ export function InboxList({
                 size="sm"
                 className="h-7 text-xs text-destructive hover:text-destructive"
                 disabled={bulkLoading}
-                onClick={bulkDelete}
+                onClick={() => setShowDeleteConfirm(true)}
               >
                 <Trash2 className="mr-1 h-3.5 w-3.5" />
                 Delete
@@ -530,6 +544,44 @@ export function InboxList({
 
       {showExport && (
         <ExportDialog open={showExport} onClose={() => setShowExport(false)} />
+      )}
+
+      {/* Delete confirmation dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-sm rounded-lg border bg-background p-6 shadow-lg">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <div>
+                <h3 className="text-sm font-medium">Delete {selectedIds.size} message{selectedIds.size === 1 ? "" : "s"}?</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This action cannot be undone. The selected messages will be permanently removed.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={bulkLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={bulkLoading}
+                onClick={async () => {
+                  await bulkDelete()
+                  setShowDeleteConfirm(false)
+                }}
+              >
+                {bulkLoading ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

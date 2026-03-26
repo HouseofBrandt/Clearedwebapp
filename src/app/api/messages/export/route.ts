@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     where.type = { in: ["BUG_REPORT", "FEATURE_REQUEST"] }
   }
   if (!includeResolved) {
+    where.archived = false
     where.OR = [
       { implementationStatus: null },
       { implementationStatus: { in: ["open", "in_progress"] } },

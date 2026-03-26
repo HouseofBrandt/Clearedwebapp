@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   Scale,
+  Download,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -312,6 +313,82 @@ export function OICModeler() {
 
   // Liability comparison
   const isOfferViable = household.totalLiability > 0 && rcp.rcpLumpSum < household.totalLiability
+
+  // Export state
+  const [exporting, setExporting] = useState(false)
+
+  const exportXlsx = async () => {
+    setExporting(true)
+    try {
+      const payload = {
+        income: {
+          wages: data.wages,
+          selfEmployment: data.selfEmployment,
+          socialSecurity: data.socialSecurity,
+          pension: data.pension,
+          rentalIncome: data.rentalIncome,
+          otherIncome: data.otherIncome,
+        },
+        expenses: {
+          housing: data.housing,
+          utilities: data.utilities,
+          transportation: data.transportation,
+          healthInsurance: data.healthInsurance,
+          courtOrderedPayments: data.courtOrderedPayments,
+          childcare: data.childcare,
+          otherExpenses: data.otherExpenses,
+        },
+        irsStandards: {
+          housing: standards.housing,
+          utilities: 0,
+          transportation: standards.transportationOwnership + standards.transportationOperating,
+          healthInsurance: standards.healthcare,
+          foodClothing: standards.foodClothing,
+        },
+        assets: {
+          bankAccounts: data.bankAccounts,
+          investments: data.investments,
+          retirement: data.retirement,
+          realEstate: data.realEstate,
+          vehicles: data.vehicles,
+          otherAssets: data.otherAssets,
+          lifeInsurance: data.lifeInsurance,
+        },
+        householdConfig: household,
+        rcp,
+        options: {
+          excludeRetirement: options.excludeRetirement,
+          challengeVehicleEquity: options.challengeVehicleEquity,
+        },
+      }
+
+      const res = await fetch("/api/oic/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Export failed" }))
+        throw new Error(err.error || "Export failed")
+      }
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const dateStr = new Date().toISOString().split("T")[0]
+      a.download = `433-A_Worksheet_${dateStr}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      console.error("Export failed:", err)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <TooltipProvider>
@@ -1175,11 +1252,23 @@ export function OICModeler() {
                     }`}
                   >
                     <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <Scale className="h-4 w-4 text-c-gray-500 dark:text-c-gray-300" />
-                        <CardTitle className="text-sm">
-                          Reasonable Collection Potential
-                        </CardTitle>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Scale className="h-4 w-4 text-c-gray-500 dark:text-c-gray-300" />
+                          <CardTitle className="text-sm">
+                            Reasonable Collection Potential
+                          </CardTitle>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={exportXlsx}
+                          disabled={exporting}
+                          className="text-xs h-7 px-2"
+                        >
+                          <Download className="h-3.5 w-3.5 mr-1" />
+                          {exporting ? "Exporting..." : "Export .xlsx"}
+                        </Button>
                       </div>
                       {household.totalLiability > 0 && (
                         <div

@@ -1,4 +1,4 @@
-const DEFAULT_TIMEZONE = "America/Chicago" // Central Time
+import { getUserTimezone } from "@/lib/timezone"
 
 export function formatDate(
   date: Date | string,
@@ -6,7 +6,7 @@ export function formatDate(
 ): string {
   const d = typeof date === "string" ? new Date(date) : date
   return d.toLocaleDateString("en-US", {
-    timeZone: DEFAULT_TIMEZONE,
+    timeZone: getUserTimezone(),
     ...options,
   })
 }
@@ -17,7 +17,7 @@ export function formatDateTime(
 ): string {
   const d = typeof date === "string" ? new Date(date) : date
   return d.toLocaleString("en-US", {
-    timeZone: DEFAULT_TIMEZONE,
+    timeZone: getUserTimezone(),
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -30,7 +30,7 @@ export function formatDateTime(
 export function formatTime(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date
   return d.toLocaleTimeString("en-US", {
-    timeZone: DEFAULT_TIMEZONE,
+    timeZone: getUserTimezone(),
     hour: "numeric",
     minute: "2-digit",
   })

@@ -6,7 +6,15 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/toast"
-import { Lock, Save, Shield, Clock, AlertTriangle, CheckCircle, BarChart3 } from "lucide-react"
+import { Lock, Save, Shield, Clock, AlertTriangle, CheckCircle, BarChart3, Globe } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { getUserTimezone, setUserTimezone, TIMEZONE_OPTIONS, DEFAULT_TIMEZONE } from "@/lib/timezone"
 
 interface ProfileFormProps {
   userId: string
@@ -257,7 +265,7 @@ export function ComplianceSection() {
 
   return (
     <div className="space-y-4">
-      {/* API Usage */}
+      {/* API Usage  */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -380,5 +388,52 @@ export function ComplianceSection() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export function TimezoneForm() {
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
+  const { addToast } = useToast()
+
+  useEffect(() => {
+    setTimezone(getUserTimezone())
+  }, [])
+
+  function handleChange(value: string) {
+    setTimezone(value)
+    setUserTimezone(value)
+    addToast({ title: `Timezone set to ${TIMEZONE_OPTIONS.find((o) => o.value === value)?.label || value}` })
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Globe className="h-5 w-5" />
+          Timezone
+        </CardTitle>
+        <CardDescription>
+          Controls how dates and times are displayed throughout the platform.
+          Defaults to Central Time (America/Chicago).
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="max-w-xs space-y-2">
+          <Label htmlFor="timezone-select">Display timezone</Label>
+          <Select value={timezone} onValueChange={handleChange}>
+            <SelectTrigger id="timezone-select">
+              <SelectValue placeholder="Select timezone" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIMEZONE_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

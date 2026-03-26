@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 
 export const metadata: Metadata = { title: "Settings | Cleared" }
 import { UserManagement } from "@/components/settings/user-management"
-import { ProfileForm, PasswordChangeForm, ComplianceSection } from "@/components/settings/settings-forms"
+import { ProfileForm, PasswordChangeForm, ComplianceSection, TimezoneForm } from "@/components/settings/settings-forms"
 
 export default async function SettingsPage() {
   const session = await requireAuth()
@@ -40,6 +40,11 @@ export default async function SettingsPage() {
             <Shield className="h-5 w-5" /> Security
           </h2>
           <PasswordChangeForm />
+        </div>
+
+        {/* Preferences Section */}
+        <div>
+          <TimezoneForm />
         </div>
 
         {/* System Health Section (admin only) */}

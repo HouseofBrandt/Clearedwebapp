@@ -130,17 +130,22 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
           </div>
 
           {/* Include resolved */}
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="includeResolved"
-              checked={includeResolved}
-              onChange={(e) => setIncludeResolved(e.target.checked)}
-              className="accent-primary"
-            />
-            <label htmlFor="includeResolved" className="text-sm">
-              Include implemented / resolved items
-            </label>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeResolved"
+                checked={includeResolved}
+                onChange={(e) => setIncludeResolved(e.target.checked)}
+                className="accent-primary"
+              />
+              <label htmlFor="includeResolved" className="text-sm">
+                Include resolved items
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground pl-6">
+              When unchecked, excludes Implemented, Won&apos;t Fix, Duplicate, and archived items
+            </p>
           </div>
         </div>
 

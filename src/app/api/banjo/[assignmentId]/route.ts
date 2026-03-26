@@ -2,6 +2,60 @@ import { NextRequest } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 
+/**
+ * DELETE /api/banjo/[assignmentId]
+ * Soft-delete (archive) a completed/failed/cancelled Banjo assignment.
+ * Sets status to CANCELLED and creates an audit log entry.
+ * Does NOT hard-delete — deliverables remain in the review queue.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { assignmentId: string } }
+) {
+  const auth = await requireApiAuth(PRACTITIONER_ROLES)
+  if (!auth.authorized) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } })
+  }
+
+  const assignment = await prisma.banjoAssignment.findUnique({
+    where: { id: params.assignmentId },
+    select: { id: true, status: true, caseId: true },
+  })
+
+  if (!assignment) {
+    return new Response(JSON.stringify({ error: "Assignment not found" }), { status: 404, headers: { "Content-Type": "application/json" } })
+  }
+
+  // Only allow archiving completed, failed, or already cancelled assignments
+  const archivableStatuses = ["COMPLETED", "FAILED", "CANCELLED"]
+  if (!archivableStatuses.includes(assignment.status)) {
+    return new Response(
+      JSON.stringify({ error: `Cannot archive: assignment is ${assignment.status}. Only completed, failed, or cancelled assignments can be archived.` }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    )
+  }
+
+  await prisma.$transaction([
+    prisma.banjoAssignment.update({
+      where: { id: params.assignmentId },
+      data: { status: "CANCELLED" },
+    }),
+    prisma.auditLog.create({
+      data: {
+        practitionerId: auth.authorized ? auth.userId : null,
+        caseId: assignment.caseId,
+        action: "BANJO_ASSIGNMENT_ARCHIVED",
+        metadata: {
+          assignmentId: params.assignmentId,
+          previousStatus: assignment.status,
+        },
+      },
+    }),
+  ])
+
+  return Response.json({ status: "archived", assignmentId: params.assignmentId })
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { assignmentId: string } }

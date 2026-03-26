@@ -7,14 +7,20 @@ import { prisma } from "@/lib/db"
 const EXPIRATION_WINDOWS: Record<string, number> = {
   BANK_STATEMENT: 90,
   PAY_STUB: 60,
+  PAYROLL: 60,
   INVESTMENT_STATEMENT: 90,
   RETIREMENT_ACCOUNT: 90,
   VEHICLE_VALUATION: 90,
   VEHICLE_LOAN: 90,
+  REAL_PROPERTY: 180,
   MORTGAGE_STATEMENT: 90,
   STUDENT_LOAN: 90,
-  INSURANCE: 90,
+  INSURANCE: 180,
   UTILITY_BILL: 90,
+  CREDIT_CARD: 90,
+  IRS_TRANSCRIPT: 120,
+  FORM_433: 180,
+  MEDICAL: 90,
 }
 
 /**
@@ -37,7 +43,7 @@ export function computeFreshness(
   let freshnessStatus: string
   if (daysUntilExpiry <= 0) {
     freshnessStatus = "expired"
-  } else if (daysUntilExpiry <= 30) {
+  } else if (daysUntilExpiry <= 14) {
     freshnessStatus = "expiring_soon"
   } else {
     freshnessStatus = "fresh"
