@@ -37,3 +37,41 @@ export const FORM_STATUS_STYLES: Record<FormInstanceUIStatus, string> = {
   complete: "bg-c-success-soft text-c-success",
   submitted: "bg-c-gray-100 text-c-gray-700",
 }
+
+// ---------------------------------------------------------------------------
+// Form Template types (used by sample-templates.ts)
+// ---------------------------------------------------------------------------
+
+export interface FormTemplateField {
+  id: string
+  label: string
+  type: string
+  required?: boolean
+  placeholder?: string
+  irsRef?: string
+  helpText?: string
+  colSpan?: number
+  options?: { label: string; value: string }[]
+  conditions?: { fieldId: string; operator: string; value: any }[]
+  validations?: { type: string; value?: any; message: string }[]
+  formula?: string
+}
+
+export interface FormTemplateSection {
+  id: string
+  title: string
+  description?: string
+  irsInstructions?: string
+  columns?: number
+  fields: FormTemplateField[]
+}
+
+export interface FormTemplate {
+  id: string
+  formNumber: string
+  title: string
+  description: string
+  estimatedMinutes: number
+  version: string
+  sections: FormTemplateSection[]
+}
