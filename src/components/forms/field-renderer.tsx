@@ -67,19 +67,36 @@ export function evaluateConditions(
 // ---------------------------------------------------------------------------
 
 export function evaluateFormula(formula: string, allValues: Record<string, any>): number {
-  // Replace field references with their numeric values
-  const expr = formula.replace(/[a-zA-Z_][a-zA-Z0-9_]*/g, (match) => {
-    const v = allValues[match]
-    const n = parseFloat(String(v || "0").replace(/[,$\s]/g, ""))
-    return isNaN(n) ? "0" : String(n)
-  })
-
-  try {
-    // Safe evaluation of simple arithmetic
-    if (/^[\d\s+\-*/().]+$/.test(expr)) {
-      return new Function(`return (${expr})`)() as number
+  // Handle SUM(repeatingGroup.field) expressions
+  const sumMatch = formula.match(/^SUM\((\w+)\.(\w+)\)$/)
+  if (sumMatch) {
+    const [, groupName, fieldName] = sumMatch
+    const group = allValues[groupName]
+    if (Array.isArray(group)) {
+      return group.reduce((sum: number, item: any) => sum + (Number(item?.[fieldName]) || 0), 0)
     }
     return 0
+  }
+
+  // Handle simple field references and arithmetic
+  let expr = formula
+
+  // Replace dot-path references first (e.g., business_net_monthly)
+  // Sort by length descending to avoid partial matches
+  const fieldNames = Object.keys(allValues).sort((a, b) => b.length - a.length)
+  for (const name of fieldNames) {
+    const val = Number(allValues[name]) || 0
+    // Use word boundary to avoid partial replacements
+    expr = expr.replace(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), String(val))
+  }
+
+  // Validate the expression only contains safe characters
+  const sanitized = expr.replace(/\s/g, '')
+  if (!/^[\d+\-*/().]+$/.test(sanitized)) return 0
+
+  try {
+    const result = new Function(`return (${expr})`)()
+    return typeof result === 'number' && isFinite(result) ? Math.round(result * 100) / 100 : 0
   } catch {
     return 0
   }
@@ -153,8 +170,8 @@ export function FieldRenderer({ field, value, onChange, error, allValues, onFiel
   // Auto-population border color
   const autoBorderClass = autoPopulated
     ? autoPopulated.confidence === "high"
-      ? "border-l-4 border-l-blue-400 pl-3"
-      : "border-l-4 border-l-amber-400 pl-3"
+      ? "border-l-4 border-l-c-teal pl-3"
+      : "border-l-4 border-l-c-warning pl-3"
     : ""
 
   return (
@@ -329,8 +346,8 @@ function FieldInput({
               type="radio"
               name={field.id}
               value="yes"
-              checked={value === "yes" || value === true}
-              onChange={() => onChange("yes")}
+              checked={value === true || value === "yes"}
+              onChange={() => onChange(true)}
               className="h-4 w-4 accent-[var(--c-teal)]"
             />
             <span className="text-sm">Yes</span>
@@ -340,8 +357,8 @@ function FieldInput({
               type="radio"
               name={field.id}
               value="no"
-              checked={value === "no" || value === false}
-              onChange={() => onChange("no")}
+              checked={value === false || value === "no"}
+              onChange={() => onChange(false)}
               className="h-4 w-4 accent-[var(--c-teal)]"
             />
             <span className="text-sm">No</span>
@@ -394,15 +411,19 @@ function FieldInput({
       return <RepeatingGroup field={field} value={value} onChange={onChange} allValues={allValues} />
 
     case "computed":
-      const computed = field.computeFormula ? evaluateFormula(field.computeFormula, allValues) : 0
+      const computedValue = field.computeFormula ? evaluateFormula(field.computeFormula, allValues) : 0
+      const isBoolean = typeof computedValue === 'boolean'
+      const isCurrency = !isBoolean && !field.label?.toLowerCase().includes('timely')
       return (
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-c-gray-300 font-mono">$</span>
+          {isCurrency && (
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-c-gray-300 font-mono">$</span>
+          )}
           <Input
             id={field.id}
-            value={formatCurrency(computed)}
+            value={isCurrency ? formatCurrency(computedValue) : String(computedValue)}
             readOnly
-            className="h-10 pl-7 font-mono tabular-nums text-right bg-c-gray-50 border-dashed cursor-default"
+            className={`h-10 font-mono tabular-nums bg-c-gray-50 border-dashed cursor-default ${isCurrency ? 'pl-7 text-right' : 'text-left'}`}
           />
         </div>
       )

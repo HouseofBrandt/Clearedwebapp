@@ -55,6 +55,8 @@ export interface FormTemplateField {
   conditions?: { fieldId: string; operator: string; value: any }[]
   validations?: { type: string; value?: any; message: string }[]
   formula?: string
+  acceptedFileTypes?: string[]
+  maxFileSize?: number
 }
 
 export interface FormTemplateSection {

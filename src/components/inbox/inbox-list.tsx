@@ -74,19 +74,19 @@ const TYPE_ICON_COLORS: Record<string, string> = {
   TASK_REJECTED: "text-c-danger",
   DEADLINE_REMINDER: "text-c-warning",
   BUG_REPORT: "text-c-danger",
-  FEATURE_REQUEST: "text-purple-400",
+  FEATURE_REQUEST: "text-c-gray-500",
 }
 
 const BORDER_COLORS: Record<string, string> = {
-  BUG_REPORT: "border-l-red-400",
-  FEATURE_REQUEST: "border-l-purple-400",
-  DIRECT_MESSAGE: "border-l-blue-400",
-  DEADLINE_REMINDER: "border-l-amber-400",
-  REVIEW_ASSIGNED: "border-l-blue-400",
-  TASK_APPROVED: "border-l-green-400",
-  TASK_REJECTED: "border-l-red-400",
-  SYSTEM_ANNOUNCEMENT: "border-l-gray-400",
-  CASE_NOTE: "border-l-gray-400",
+  BUG_REPORT: "border-l-c-danger",
+  FEATURE_REQUEST: "border-l-c-teal",
+  DIRECT_MESSAGE: "border-l-c-teal",
+  DEADLINE_REMINDER: "border-l-c-warning",
+  REVIEW_ASSIGNED: "border-l-c-teal",
+  TASK_APPROVED: "border-l-c-success",
+  TASK_REJECTED: "border-l-c-danger",
+  SYSTEM_ANNOUNCEMENT: "border-l-c-gray-300",
+  CASE_NOTE: "border-l-c-gray-300",
 }
 
 type FilterType = "ALL" | "UNREAD" | "BUGS_AND_FEATURES" | "NOTIFICATIONS"
@@ -476,7 +476,7 @@ export function InboxList({
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {(msg.priority === "HIGH" || msg.priority === "URGENT") && (
-                        <span className={`h-2 w-2 rounded-full ${msg.priority === "URGENT" ? "bg-c-danger" : "bg-orange-500"}`} />
+                        <span className={`h-2 w-2 rounded-full ${msg.priority === "URGENT" ? "bg-c-danger" : "bg-c-warning"}`} />
                       )}
                       <Icon className={`h-4 w-4 ${iconColor}`} />
                     </div>
@@ -624,7 +624,7 @@ function MessageDetail({
   const dateStr = formatDateTime(message.createdAt, { month: "long" })
 
   const typeColor = MESSAGE_TYPE_COLORS[message.type] || "bg-c-gray-100 text-c-gray-900"
-  const borderColor = BORDER_COLORS[message.type] || "border-l-gray-400"
+  const borderColor = BORDER_COLORS[message.type] || "border-l-c-gray-300"
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -648,7 +648,7 @@ function MessageDetail({
               {message.priority !== "NORMAL" && (
                 <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
                   message.priority === "URGENT" ? "bg-c-danger-soft text-c-danger" :
-                  message.priority === "HIGH" ? "bg-orange-100 text-orange-800" :
+                  message.priority === "HIGH" ? "bg-c-warning-soft text-c-warning" :
                   "bg-c-gray-100 text-c-gray-500"
                 }`}>
                   {MESSAGE_PRIORITY_LABELS[message.priority] || message.priority}

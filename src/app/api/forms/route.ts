@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
@@ -20,10 +22,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const caseId = searchParams.get("caseId")
 
-    // If no caseId, return available form schemas
+    // If no caseId, return available form schemas and recent instances
     if (!caseId) {
       const forms = getAvailableForms()
-      return NextResponse.json({ forms })
+      const instances = listFormInstances()
+      return NextResponse.json({ forms, instances: instances.slice(0, 10) })
     }
 
     // Return form instances for the case

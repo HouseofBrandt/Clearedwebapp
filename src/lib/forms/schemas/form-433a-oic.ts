@@ -2,7 +2,10 @@ import { FormSchema } from "../types"
 import { FORM_433A } from "./form-433a"
 
 // Reuse sections 1–6 from the base 433-A and add OIC-specific sections 7 & 8
-const baseSections = FORM_433A.sections.map((s) => ({ ...s }))
+const baseSections = FORM_433A.sections.map((s) => ({
+  ...s,
+  fields: s.fields.map(f => ({ ...f })),
+}))
 
 export const FORM_433A_OIC: FormSchema = {
   formNumber: "433-A-OIC",

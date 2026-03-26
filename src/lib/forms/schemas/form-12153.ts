@@ -281,21 +281,17 @@ export const FORM_12153: FormSchema = {
         {
           id: "filing_deadline",
           label: "Filing Deadline (30 days from notice)",
-          type: "computed",
-          computeFormula: "notice_date + 30 days",
-          dependsOn: ["notice_date"],
+          type: "date",
           helpText:
-            "CDP hearing requests must be filed within 30 days of the notice date. After 30 days, only an Equivalent Hearing is available.",
+            "30 days from the date on your levy/lien notice. Enter the computed deadline. CDP hearing requests must be filed within 30 days of the notice date. After 30 days, only an Equivalent Hearing is available.",
           irsReference: "Computed",
         },
         {
           id: "is_timely",
           label: "Is this filing timely for CDP?",
-          type: "computed",
-          computeFormula: "filing_deadline > today",
-          dependsOn: ["filing_deadline"],
+          type: "yes_no",
           helpText:
-            "Indicates whether the request is within the 30-day CDP window.",
+            "Is today's date before the 30-day filing deadline?",
         },
         {
           id: "hearing_type",

@@ -61,7 +61,7 @@ function SourceDrawer({ documents, onClose }: { documents: any[]; onClose: () =>
       <aside className="absolute right-0 top-0 h-full w-[420px] bg-background border-l shadow-lg overflow-y-auto">
         <div className="p-4 border-b flex items-center justify-between sticky top-0 bg-background z-10">
           <h3 className="font-medium text-sm">Source Documents ({documents.length})</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted">
+          <button onClick={onClose} className="text-c-gray-500 hover:text-foreground p-1 rounded hover:bg-muted">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -193,7 +193,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
       <header className="sticky top-0 z-10 bg-background border-b px-6 py-3 shrink-0">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-c-gray-500">
               <button
                 onClick={() => router.push("/review")}
                 className="hover:text-foreground flex items-center gap-1"
@@ -205,13 +205,13 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             <h1 className="text-lg font-medium mt-1">{taskLabel}</h1>
             <Link
               href={`/cases/${task.case?.id || task.caseId}`}
-              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+              className="text-sm text-c-gray-500 hover:text-foreground hover:underline"
             >
               {task.case?.tabsNumber} &middot; {task.case?.clientName}
             </Link>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground text-xs">{task.modelUsed}</span>
+            <span className="text-c-gray-500 text-xs">{task.modelUsed}</span>
             {verifyCount > 0 && (
               <span className="text-c-warning font-medium text-xs">{verifyCount} VERIFY</span>
             )}
@@ -220,7 +220,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             )}
             <button
               onClick={() => handleExport()}
-              className="text-muted-foreground hover:text-foreground p-1.5 rounded hover:bg-muted"
+              className="text-c-gray-500 hover:text-foreground p-1.5 rounded hover:bg-muted"
               title={`Export ${isSpreadsheet ? ".xlsx" : ".docx"}`}
             >
               <Download className="h-4 w-4" />
@@ -228,7 +228,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             {isSpreadsheet && (
               <button
                 onClick={() => handleExport("docx")}
-                className="text-muted-foreground hover:text-foreground p-1.5 rounded hover:bg-muted"
+                className="text-c-gray-500 hover:text-foreground p-1.5 rounded hover:bg-muted"
                 title="Export .docx"
               >
                 <FileText className="h-4 w-4" />
@@ -237,7 +237,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
             {documents.length > 0 && (
               <button
                 onClick={() => setShowSources(true)}
-                className="text-muted-foreground hover:text-foreground p-1.5 rounded hover:bg-muted"
+                className="text-c-gray-500 hover:text-foreground p-1.5 rounded hover:bg-muted"
                 title="View source documents"
               >
                 <FileText className="h-4 w-4" />
@@ -271,7 +271,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
           {/* Review history (below the document) */}
           {task.reviewActions?.length > 0 && (
             <div className="mt-12 border-t pt-6">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-c-gray-500 mb-3">
                 Review History
               </h3>
               <div className="space-y-2">
@@ -285,16 +285,16 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                       }`}>
                         {ra.action.replace(/_/g, " ")}
                       </span>
-                      <span className="text-muted-foreground">
+                      <span className="text-c-gray-500">
                         {ra.practitioner?.name}
                       </span>
                       {ra.reviewNotes && (
-                        <span className="text-muted-foreground italic">
+                        <span className="text-c-gray-500 italic">
                           &mdash; {ra.reviewNotes}
                         </span>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-c-gray-500">
                       {formatDateTime(ra.reviewCompletedAt || ra.reviewStartedAt)}
                     </span>
                   </div>
@@ -355,7 +355,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                       setRejectDialogOpen(false)
                       setCorrectionNotes("")
                     }}
-                    className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+                    className="rounded-md px-4 py-2 text-sm font-medium text-c-gray-500 hover:bg-muted"
                   >
                     Cancel
                   </button>
@@ -405,14 +405,14 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowReviewNotes(!showReviewNotes)}
-                  className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted"
+                  className="rounded-md px-3 py-2 text-sm text-c-gray-500 hover:bg-muted"
                   title="Add review notes"
                 >
                   Notes
                 </button>
                 <button
                   onClick={() => setRejectDialogOpen(true)}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted"
+                  className="rounded-md px-4 py-2 text-sm font-medium text-c-gray-500 hover:bg-muted"
                 >
                   Reject
                 </button>

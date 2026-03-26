@@ -477,7 +477,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
           <div className="rounded-lg border border-c-warning/30 bg-c-warning-soft p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-c-warning">A previous assignment is stuck</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-c-gray-500">
                 Another assignment has been processing for {stuckAssignment.stuckMinutes} minute{stuckAssignment.stuckMinutes !== 1 ? "s" : ""} without progress.
               </p>
             </div>
@@ -503,7 +503,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
         {phase === "planning" && (
           <div className="flex items-center gap-2 py-8 justify-center">
             <BanjoIcon className="h-5 w-5" animated />
-            <span className="text-sm text-muted-foreground">Banjo is reviewing your assignment...</span>
+            <span className="text-sm text-c-gray-500">Banjo is reviewing your assignment...</span>
           </div>
         )}
 
@@ -547,7 +547,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
               <>
                 <Separator />
                 <details open={false}>
-                  <summary className="text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground">
+                  <summary className="text-sm font-medium text-c-gray-500 cursor-pointer hover:text-foreground">
                     Previous assignment — {completedTasks.length} deliverable{completedTasks.length !== 1 ? "s" : ""}
                   </summary>
                   <div className="mt-3">
@@ -584,7 +584,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
         )}
 
         {documentCount === 0 && phase === "idle" && (
-          <p className="text-sm text-muted-foreground text-center py-4">
+          <p className="text-sm text-c-gray-500 text-center py-4">
             Upload documents first, then come back to Banjo.
           </p>
         )}

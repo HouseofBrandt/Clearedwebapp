@@ -128,6 +128,10 @@ function getFormTitle(formNumber: string): string {
 }
 
 function isFormAvailable(formNumber: string): boolean {
-  // Only forms with schemas built are available
-  return ["433-A"].includes(formNumber)
+  try {
+    const { getFormSchema } = require("./registry")
+    return getFormSchema(formNumber) !== null
+  } catch {
+    return ["433-A", "433-A-OIC", "12153", "911"].includes(formNumber)
+  }
 }

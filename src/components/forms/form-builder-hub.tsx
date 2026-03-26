@@ -123,7 +123,7 @@ export function FormBuilderHub({ currentUser }: FormBuilderHubProps) {
       })
       if (res.ok) {
         const data = await res.json()
-        router.push(`/forms/${data.id}`)
+        router.push(`/forms/${data.instance?.id || data.id}`)
       }
     } catch {
       // Show error via toast in production
