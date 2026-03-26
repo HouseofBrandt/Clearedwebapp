@@ -3,9 +3,9 @@ import { FormSchema } from "../types"
 export const FORM_433A: FormSchema = {
   formNumber: "433-A",
   formTitle: "Collection Information Statement for Wage Earners and Self-Employed Individuals",
-  revisionDate: "April 2023",
+  revisionDate: "July 2022",
   ombNumber: "1545-0074",
-  totalSections: 6,
+  totalSections: 8,
   estimatedMinutes: 45,
   resolutionMetadata: {
     resolutionPaths: ["ia", "cnc", "cdp", "penalty", "innocent_spouse"],
@@ -165,6 +165,12 @@ export const FORM_433A: FormSchema = {
           type: "phone",
           irsReference: "Line 3b",
         },
+        {
+          id: "work_phone",
+          label: "Work Phone",
+          type: "phone",
+          irsReference: "Line 1f",
+        },
         // Spouse info (conditional on married)
         {
           id: "spouse_name",
@@ -191,6 +197,20 @@ export const FORM_433A: FormSchema = {
           irsReference: "Line 5c",
           conditionals: [
             { field: "marital_status", operator: "equals", value: "married", action: "show" },
+          ],
+        },
+        {
+          id: "lived_outside_us",
+          label: "Have you lived outside the US for 6+ months in the past 10 years?",
+          type: "yes_no",
+          irsReference: "Line 8",
+        },
+        {
+          id: "outside_us_details",
+          label: "Countries and dates",
+          type: "textarea",
+          conditionals: [
+            { field: "lived_outside_us", operator: "equals", value: true, action: "show" },
           ],
         },
         // Dependents repeating group
@@ -325,6 +345,40 @@ export const FORM_433A: FormSchema = {
             { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
           ],
         },
+        // Other business interests
+        {
+          id: "outside_business_interests",
+          label: "Do you or your spouse have any other business interests?",
+          type: "yes_no",
+          irsReference: "Lines 3a-3c",
+        },
+        {
+          id: "other_business_interests",
+          label: "Other Business Interests",
+          type: "repeating_group",
+          minGroups: 0,
+          maxGroups: 10,
+          conditionals: [
+            { field: "outside_business_interests", operator: "equals", value: true, action: "show" },
+          ],
+          groupFields: [
+            { id: "obi_business_name", label: "Business Name", type: "text", required: true },
+            { id: "obi_ownership_percentage", label: "Ownership Percentage", type: "percentage", required: true },
+            { id: "obi_title", label: "Title/Position", type: "text" },
+            {
+              id: "obi_entity_type",
+              label: "Entity Type",
+              type: "single_select",
+              options: [
+                { value: "sole_prop", label: "Sole Proprietorship" },
+                { value: "partnership", label: "Partnership" },
+                { value: "llc", label: "LLC" },
+                { value: "corporation", label: "Corporation" },
+                { value: "other", label: "Other" },
+              ],
+            },
+          ],
+        },
       ],
     },
 
@@ -365,6 +419,71 @@ export const FORM_433A: FormSchema = {
           type: "computed",
           computeFormula: "SUM(bank_accounts.bank_balance)",
           irsReference: "Line 14 Total",
+        },
+        // Cash on hand
+        {
+          id: "cash_on_hand",
+          label: "Cash on hand (not in bank)",
+          type: "currency",
+          irsReference: "Line 12",
+          helpText: "Physical cash, money orders, cashier's checks not yet deposited",
+          defaultValue: 0,
+        },
+        // Digital assets
+        {
+          id: "digital_assets",
+          label: "Do you own any digital assets (cryptocurrency, NFTs)?",
+          type: "yes_no",
+          irsReference: "Lines 14c-14e",
+        },
+        {
+          id: "digital_assets_detail",
+          label: "Digital Assets",
+          type: "repeating_group",
+          minGroups: 0,
+          maxGroups: 10,
+          conditionals: [
+            { field: "digital_assets", operator: "equals", value: true, action: "show" },
+          ],
+          groupFields: [
+            { id: "da_wallet_exchange", label: "Wallet/Exchange Name", type: "text", required: true },
+            { id: "da_asset_type", label: "Asset Type", type: "text", required: true, placeholder: "e.g., Bitcoin, Ethereum, NFT" },
+            { id: "da_estimated_value", label: "Estimated Value", type: "currency", required: true },
+          ],
+        },
+        // Available credit lines
+        {
+          id: "available_credit",
+          label: "Available Credit Lines",
+          type: "repeating_group",
+          irsReference: "Lines 15a-15c",
+          minGroups: 0,
+          maxGroups: 10,
+          groupFields: [
+            { id: "cl_institution", label: "Institution", type: "text", required: true },
+            { id: "cl_credit_limit", label: "Credit Limit", type: "currency", required: true },
+            { id: "cl_amount_owed", label: "Amount Owed", type: "currency", required: true, defaultValue: 0 },
+            {
+              id: "cl_available_credit",
+              label: "Available Credit",
+              type: "computed",
+              computeFormula: "cl_credit_limit - cl_amount_owed",
+            },
+          ],
+        },
+        // Credit cards
+        {
+          id: "credit_cards",
+          label: "Credit Cards",
+          type: "repeating_group",
+          minGroups: 0,
+          maxGroups: 10,
+          groupFields: [
+            { id: "cc_institution", label: "Institution", type: "text", required: true },
+            { id: "cc_credit_limit", label: "Credit Limit", type: "currency", required: true },
+            { id: "cc_balance", label: "Balance", type: "currency", required: true, defaultValue: 0 },
+            { id: "cc_minimum_payment", label: "Minimum Payment", type: "currency", defaultValue: 0 },
+          ],
         },
         // Investments
         {
@@ -531,26 +650,78 @@ export const FORM_433A: FormSchema = {
       order: 4,
       fields: [
         {
-          id: "income_wages",
-          label: "Wages (from employment section)",
+          id: "income_wages_taxpayer",
+          label: "Wages (taxpayer)",
           type: "computed",
           computeFormula: "SUM(employers.emp_gross_monthly)",
           irsReference: "Line 45",
           helpText: "Computed from employment section",
         },
         {
-          id: "income_ss",
-          label: "Social Security",
+          id: "income_wages_spouse",
+          label: "Wages (spouse)",
+          type: "currency",
+          irsReference: "Line 45",
+          defaultValue: 0,
+          conditionals: [
+            { field: "marital_status", operator: "equals", value: "married", action: "show" },
+          ],
+        },
+        {
+          id: "income_wages",
+          label: "Total Wages",
+          type: "computed",
+          computeFormula: "income_wages_taxpayer + income_wages_spouse",
+          dependsOn: ["income_wages_taxpayer", "income_wages_spouse"],
+          helpText: "Sum of taxpayer and spouse wages",
+        },
+        {
+          id: "income_ss_taxpayer",
+          label: "Social Security (taxpayer)",
           type: "currency",
           irsReference: "Line 46",
           defaultValue: 0,
         },
         {
-          id: "income_pension",
-          label: "Pension/Annuity",
+          id: "income_ss_spouse",
+          label: "Social Security (spouse)",
+          type: "currency",
+          irsReference: "Line 46",
+          defaultValue: 0,
+          conditionals: [
+            { field: "marital_status", operator: "equals", value: "married", action: "show" },
+          ],
+        },
+        {
+          id: "income_ss",
+          label: "Total Social Security",
+          type: "computed",
+          computeFormula: "income_ss_taxpayer + income_ss_spouse",
+          dependsOn: ["income_ss_taxpayer", "income_ss_spouse"],
+        },
+        {
+          id: "income_pension_taxpayer",
+          label: "Pension (taxpayer)",
           type: "currency",
           irsReference: "Line 47",
           defaultValue: 0,
+        },
+        {
+          id: "income_pension_spouse",
+          label: "Pension (spouse)",
+          type: "currency",
+          irsReference: "Line 47",
+          defaultValue: 0,
+          conditionals: [
+            { field: "marital_status", operator: "equals", value: "married", action: "show" },
+          ],
+        },
+        {
+          id: "income_pension",
+          label: "Total Pension/Annuity",
+          type: "computed",
+          computeFormula: "income_pension_taxpayer + income_pension_spouse",
+          dependsOn: ["income_pension_taxpayer", "income_pension_spouse"],
         },
         {
           id: "income_self_employment",
@@ -581,10 +752,17 @@ export const FORM_433A: FormSchema = {
           defaultValue: 0,
         },
         {
-          id: "income_child_support_alimony",
-          label: "Child Support / Alimony Received",
+          id: "income_child_support",
+          label: "Child Support Received",
           type: "currency",
-          irsReference: "Line 52",
+          irsReference: "Line 52a",
+          defaultValue: 0,
+        },
+        {
+          id: "income_alimony",
+          label: "Alimony Received",
+          type: "currency",
+          irsReference: "Line 52b",
           defaultValue: 0,
         },
         {
@@ -606,7 +784,7 @@ export const FORM_433A: FormSchema = {
           id: "total_monthly_income",
           label: "Total Monthly Income",
           type: "computed",
-          computeFormula: "income_wages + income_ss + income_pension + income_self_employment + income_rental + income_interest_dividends + income_distributions + income_child_support_alimony + income_other",
+          computeFormula: "income_wages + income_ss + income_pension + income_self_employment + income_rental + income_interest_dividends + income_distributions + income_child_support + income_alimony + income_other",
           irsReference: "Line 54",
         },
       ],
@@ -710,6 +888,14 @@ export const FORM_433A: FormSchema = {
           defaultValue: 0,
         },
         {
+          id: "expense_delinquent_state_taxes",
+          label: "Delinquent state/local taxes",
+          type: "currency",
+          irsReference: "Line 47",
+          helpText: "Current payments on past-due state or local tax obligations",
+          defaultValue: 0,
+        },
+        {
           id: "expense_other",
           label: "Other Necessary Expenses",
           type: "currency",
@@ -728,7 +914,7 @@ export const FORM_433A: FormSchema = {
           id: "total_monthly_expenses",
           label: "Total Monthly Expenses",
           type: "computed",
-          computeFormula: "expense_food_clothing + expense_housing + expense_vehicle_ownership + expense_vehicle_operating + expense_public_transit + expense_health_insurance + expense_medical + expense_court_ordered + expense_child_care + expense_life_insurance + expense_taxes + expense_secured_debts + expense_other",
+          computeFormula: "expense_food_clothing + expense_housing + expense_vehicle_ownership + expense_vehicle_operating + expense_public_transit + expense_health_insurance + expense_medical + expense_court_ordered + expense_child_care + expense_life_insurance + expense_taxes + expense_secured_debts + expense_delinquent_state_taxes + expense_other",
           irsReference: "Line 68",
         },
         {
@@ -830,6 +1016,318 @@ export const FORM_433A: FormSchema = {
         },
       ],
     },
+
+    // ── Section 7: Business Information (Self-Employed) ─────────────────
+    {
+      id: "business_info",
+      title: "Business Information",
+      description: "Detailed business information for self-employed taxpayers",
+      order: 7,
+      fields: [
+        {
+          id: "business_name_formal",
+          label: "Business Name",
+          type: "text",
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_address",
+          label: "Business Address",
+          type: "text",
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_phone",
+          label: "Business Phone",
+          type: "phone",
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_ein_formal",
+          label: "Business EIN",
+          type: "ein",
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_type_formal",
+          label: "Type of Business Entity",
+          type: "single_select",
+          options: [
+            { value: "sole_proprietorship", label: "Sole Proprietorship" },
+            { value: "partnership", label: "Partnership" },
+            { value: "llc", label: "LLC" },
+            { value: "s_corp", label: "S Corporation" },
+            { value: "c_corp", label: "C Corporation" },
+          ],
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_start_date",
+          label: "Business Start Date",
+          type: "date",
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "number_employees",
+          label: "Number of Employees",
+          type: "text",
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_website",
+          label: "Business Website",
+          type: "text",
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_bank_accounts",
+          label: "Business Bank Accounts",
+          type: "repeating_group",
+          minGroups: 0,
+          maxGroups: 10,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+          groupFields: [
+            { id: "bba_bank_name", label: "Bank Name", type: "text", required: true },
+            {
+              id: "bba_account_type",
+              label: "Account Type",
+              type: "single_select",
+              options: [
+                { value: "checking", label: "Checking" },
+                { value: "savings", label: "Savings" },
+                { value: "other", label: "Other" },
+              ],
+            },
+            { id: "bba_balance", label: "Balance", type: "currency", required: true },
+          ],
+        },
+        {
+          id: "business_vehicles",
+          label: "Business Vehicles",
+          type: "repeating_group",
+          minGroups: 0,
+          maxGroups: 10,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+          groupFields: [
+            { id: "bv_year", label: "Year", type: "text", required: true },
+            { id: "bv_make", label: "Make", type: "text", required: true },
+            { id: "bv_model", label: "Model", type: "text", required: true },
+            { id: "bv_fmv", label: "Fair Market Value", type: "currency", required: true },
+            { id: "bv_loan_balance", label: "Loan Balance", type: "currency", defaultValue: 0 },
+          ],
+        },
+        {
+          id: "business_equipment",
+          label: "Business Equipment",
+          type: "repeating_group",
+          minGroups: 0,
+          maxGroups: 10,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+          groupFields: [
+            { id: "be_description", label: "Description", type: "text", required: true },
+            { id: "be_fmv", label: "Fair Market Value", type: "currency", required: true },
+            { id: "be_loan_balance", label: "Loan Balance", type: "currency", defaultValue: 0 },
+          ],
+        },
+        {
+          id: "business_accounts_receivable",
+          label: "Accounts Receivable",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_inventory",
+          label: "Inventory",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+      ],
+    },
+
+    // ── Section 8: Business Income & Expenses (Self-Employed P&L) ───────
+    {
+      id: "business_income_expenses",
+      title: "Business Income & Expenses",
+      description: "Sole Proprietorship Profit & Loss statement for self-employed taxpayers",
+      order: 8,
+      fields: [
+        {
+          id: "business_gross_receipts",
+          label: "Gross receipts/sales",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_returns_allowances",
+          label: "Returns and allowances",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_cost_of_goods",
+          label: "Cost of goods sold",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_gross_profit",
+          label: "Gross Profit",
+          type: "computed",
+          computeFormula: "business_gross_receipts - business_returns_allowances - business_cost_of_goods",
+          dependsOn: ["business_gross_receipts", "business_returns_allowances", "business_cost_of_goods"],
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        // Business expense line items
+        {
+          id: "biz_exp_advertising",
+          label: "Advertising",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "biz_exp_insurance",
+          label: "Insurance",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "biz_exp_rent",
+          label: "Rent",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "biz_exp_supplies",
+          label: "Supplies",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "biz_exp_utilities",
+          label: "Utilities",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "biz_exp_wages",
+          label: "Wages paid to employees",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "biz_exp_other",
+          label: "Other business expenses",
+          type: "currency",
+          defaultValue: 0,
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "biz_exp_total",
+          label: "Total Business Expenses",
+          type: "computed",
+          computeFormula: "biz_exp_advertising + biz_exp_insurance + biz_exp_rent + biz_exp_supplies + biz_exp_utilities + biz_exp_wages + biz_exp_other",
+          dependsOn: ["biz_exp_advertising", "biz_exp_insurance", "biz_exp_rent", "biz_exp_supplies", "biz_exp_utilities", "biz_exp_wages", "biz_exp_other"],
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+        {
+          id: "business_net_income",
+          label: "Net Business Income",
+          type: "computed",
+          computeFormula: "business_gross_profit - biz_exp_total",
+          dependsOn: ["business_gross_profit", "biz_exp_total"],
+          conditionals: [
+            { field: "employment_type", operator: "not_equals", value: "wage_earner", action: "show" },
+            { field: "employment_type", operator: "not_equals", value: "neither", action: "show" },
+          ],
+        },
+      ],
+    },
   ],
   crossFieldValidations: [
     {
@@ -844,19 +1342,52 @@ export const FORM_433A: FormSchema = {
         "income_rental",
         "income_interest_dividends",
         "income_distributions",
-        "income_child_support_alimony",
+        "income_child_support",
+        "income_alimony",
         "income_other",
       ],
-      rule: "total_monthly_income === income_wages + income_ss + income_pension + income_self_employment + income_rental + income_interest_dividends + income_distributions + income_child_support_alimony + income_other",
+      rule: "total_monthly_income === income_wages + income_ss + income_pension + income_self_employment + income_rental + income_interest_dividends + income_distributions + income_child_support + income_alimony + income_other",
       errorMessage: "Total monthly income does not match the sum of income line items",
       severity: "error",
     },
     {
       id: "expense_total_check",
       description: "Total monthly expenses must equal sum of all expense line items",
-      fields: ["total_monthly_expenses"],
-      rule: "total_monthly_expenses === sum_of_expenses",
+      fields: [
+        "total_monthly_expenses",
+        "expense_food_clothing",
+        "expense_housing",
+        "expense_vehicle_ownership",
+        "expense_vehicle_operating",
+        "expense_public_transit",
+        "expense_health_insurance",
+        "expense_medical",
+        "expense_court_ordered",
+        "expense_child_care",
+        "expense_life_insurance",
+        "expense_taxes",
+        "expense_secured_debts",
+        "expense_delinquent_state_taxes",
+        "expense_other",
+      ],
+      rule: "total_monthly_expenses === expense_food_clothing + expense_housing + expense_vehicle_ownership + expense_vehicle_operating + expense_public_transit + expense_health_insurance + expense_medical + expense_court_ordered + expense_child_care + expense_life_insurance + expense_taxes + expense_secured_debts + expense_delinquent_state_taxes + expense_other",
       errorMessage: "Total monthly expenses does not match the sum of expense line items",
+      severity: "error",
+    },
+    {
+      id: "business_profit_check",
+      description: "Business gross profit must equal gross receipts minus returns minus cost of goods",
+      fields: ["business_gross_profit", "business_gross_receipts", "business_returns_allowances", "business_cost_of_goods"],
+      rule: "business_gross_profit === business_gross_receipts - business_returns_allowances - business_cost_of_goods",
+      errorMessage: "Business gross profit does not match gross receipts minus returns and cost of goods",
+      severity: "error",
+    },
+    {
+      id: "business_net_income_check",
+      description: "Business net income must equal gross profit minus total expenses",
+      fields: ["business_net_income", "business_gross_profit", "biz_exp_total"],
+      rule: "business_net_income === business_gross_profit - biz_exp_total",
+      errorMessage: "Business net income does not match gross profit minus total expenses",
       severity: "error",
     },
   ],
