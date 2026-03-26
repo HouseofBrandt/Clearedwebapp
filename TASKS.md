@@ -21,7 +21,7 @@ Status values: `TODO`, `IN_PROGRESS`, `DONE`, `BLOCKED`
 
 ## ═══ P0 — Must Fix Now ═══
 
-## [TODO] A4.1 Junebug Live-Context Safety Guardrails
+## [DONE] A4.1 Junebug Live-Context Safety Guardrails
 Priority: P0
 Source: Part A — Junebug chat reliability
 Scope: src/components/assistant/chat-panel.tsx, src/app/api/assistant/chat/route.ts, src/lib/switchboard/context-packet.ts
@@ -33,7 +33,7 @@ Acceptance:
 - Missing-context events logged with userId, caseId, route, timestamp
 - Tests: context present → live data; context absent → refusal; partial → only available fields
 
-## [TODO] A4.2 Junebug Multiple Submissions Per Session
+## [DONE] A4.2 Junebug Multiple Submissions Per Session
 Priority: P0
 Source: Part A — Junebug submission reliability
 Scope: src/components/assistant/chat-panel.tsx
@@ -45,7 +45,7 @@ Acceptance:
 - Success state shown after each, with report ID
 - Conversation continues after submission (no forced reset)
 
-## [TODO] A4.3 Banjo Task Lifecycle — Unblock New Assignments
+## [DONE] A4.3 Banjo Task Lifecycle — Unblock New Assignments
 Priority: P0
 Source: Part A — Banjo stuck tasks
 Scope: src/app/api/banjo/*, src/components/cases/case-detail.tsx (Banjo tab)
@@ -57,7 +57,7 @@ Acceptance:
 - Locking is task-specific, not case-global
 - Clear reason codes when creation is blocked
 
-## [TODO] A4.4 Review Queue Reject Flow
+## [DONE] A4.4 Review Queue Reject Flow
 Priority: P0
 Source: Part A — Review Queue
 Scope: src/app/api/review/[taskId]/route.ts, src/components/review/task-review.tsx
@@ -68,7 +68,7 @@ Acceptance:
 - Audit trail entries recorded
 - Queue list and counts refresh immediately after mutation
 
-## [TODO] A4.5 Knowledge Base Search — Fix Category Filter
+## [DONE] A4.5 Knowledge Base Search — Fix Category Filter
 Priority: P0
 Source: Part A — KB search failure
 Scope: src/app/api/knowledge/search/route.ts
@@ -78,7 +78,7 @@ Acceptance:
 - Fix raw query enum/text mismatch
 - Parameterized queries replace unsafe string handling
 
-## [TODO] A4.6 Inbox Real-Time State Correctness
+## [DONE] A4.6 Inbox Real-Time State Correctness
 Priority: P0
 Source: Part A — Inbox refresh
 Scope: src/components/inbox/inbox-list.tsx, src/app/api/inbox/route.ts
@@ -329,3 +329,129 @@ Acceptance: Debounced 500ms auto-save, "All changes saved" indicator, session re
 Priority: P1
 Source: Part B Section 5.3
 Acceptance: Draft mode (watermark), final mode (clean), field overlay at mapped coordinates
+
+## ═══ Phase 2: Resolution Engine + In-Form Assistant ═══
+
+## [TODO] B15.1 Resolution Path Configuration
+Priority: P1 (after Phase 1)
+Source: Addendum B15.3
+Acceptance:
+- Resolution paths defined: OIC, IA, CNC, CDP, Penalty Abatement, Innocent Spouse, TAS, Lien Relief
+- Each path maps to base form set (per B15.3 table)
+- Resolution path stored on Case model
+- Case setup wizard allows path selection
+
+## [TODO] B15.2 Case Characteristic Detection + Modifiers
+Priority: P1
+Source: Addendum B15.4
+Acceptance:
+- Boolean characteristics auto-detected from case data (business liabilities, self-employed, married, identity theft, etc.)
+- Unknown characteristics presented as yes/no questions
+- Each modifier adds/removes forms from the package per B15.4 table
+
+## [TODO] B15.3 Form Dependency Engine
+Priority: P1
+Source: Addendum B15.5
+Acceptance:
+- 656 requires 433-A (OIC), 656-B requires 433-B (OIC)
+- Separate 656 per entity type enforced
+- 12153 recommends 433-A + collection alternative forms
+- 2848 always first, 4506-T always recommended
+- Warnings on removing required forms
+
+## [TODO] B15.4 Form Package UX — Resolution Dashboard
+Priority: P1
+Source: Addendum B15.6
+Acceptance:
+- Resolution dashboard on case detail showing path, status, form checklist
+- Per-form completion status (not started / in progress / complete / submitted)
+- Package readiness percentage
+- Submit Package action validates all required forms
+- Data flows between related forms (433-A → 656, etc.)
+
+## [TODO] B15.5 Resolution Path Recommendation (Phase 3)
+Priority: P2
+Source: Addendum B15.7
+Acceptance:
+- After 433-A completion, system recommends optimal path based on RCP analysis
+- Reasoning shown: "RCP is $X against balance of $Y, OIC viable"
+- Accept recommendation auto-generates form package
+
+## [TODO] B16.1 Junebug In-Form Context Injection
+Priority: P1 (after Phase 1)
+Source: Addendum B16.3
+Acceptance:
+- Every Junebug request from form builder includes: active form, field schema, current values, client context, case documents, form package status, IRS instructions, ALE standards
+- Context auto-updates as user navigates fields/sections
+- Missing context disclosed per A4.1 guardrails
+
+## [TODO] B16.2 Field-Level Help (Passive)
+Priority: P1
+Source: Addendum B16.4.1
+Acceptance:
+- Every form field has help icon (?)
+- Clicking opens Junebug pre-primed with field context
+- Response cites IRS instructions + includes client-specific data if available
+
+## [TODO] B16.3 Contextual Questions (Active)
+Priority: P1
+Source: Addendum B16.4.2
+Acceptance:
+- Freeform questions in Junebug panel with full form context
+- Can answer field-specific, documentation, IRS procedure, and cross-form questions
+- Citations to IRS instructions and IRM sections
+
+## [TODO] B16.4 Validation Explanation
+Priority: P1
+Source: Addendum B16.4.3
+Acceptance:
+- Clicking validation error opens Junebug with error context
+- Explains what's wrong, why it matters, and how to fix it
+- References specific field values and IRS computation rules
+
+## [TODO] B16.5 Proactive Suggestions
+Priority: P2
+Source: Addendum B16.4.5
+Acceptance:
+- Detects incomplete sections with available data and offers to populate
+- Flags values outside IRS norms with ALE comparison
+- Identifies missing supporting documentation
+- Deadline awareness for time-sensitive forms
+
+## [TODO] B16.6 IRS Instructions Knowledge Base
+Priority: P1
+Source: Addendum B16.5
+Acceptance:
+- Form instructions chunked per-field and indexed
+- IRM relevant sections indexed by topic
+- ALE standards loaded and queryable by geography
+- Retrieval < 500ms for field-level queries
+- Update schedule: instructions quarterly, ALE on IRS release, IRM monthly
+
+## [TODO] B16.7 Junebug Panel Integration in Form Builder
+Priority: P1
+Source: Addendum B16.6
+Acceptance:
+- FAB in bottom-right of center panel
+- Panel slides from right (300px), overlays PDF preview
+- Context breadcrumb at top: "Form 433-A > Section 3 > Line 14"
+- Scoped mode (default) vs General mode toggle
+- Cmd/Ctrl+J keyboard shortcut
+- Chat history persists for form session
+
+## ═══ Phase 3-4: Additional Forms (27 total) ═══
+
+## [TODO] B17.1 Phase 2 Forms — OIC + Installment Package
+Priority: P2
+Source: Addendum B17
+Acceptance: Schemas + wizard + PDF gen for: 656, 656-L, 433-B (OIC), 9465, 433-D, 433-B, 433-F
+
+## [TODO] B17.2 Phase 3 Forms — Representation + Appeals + Liens
+Priority: P2
+Source: Addendum B17
+Acceptance: Schemas + wizard + PDF gen for: 2848, 8821, 843, 8857, 12277, 14135, 9423, 13711
+
+## [TODO] B17.3 Phase 4 Forms — Compliance + Identity + Transcripts + State
+Priority: P3
+Source: Addendum B17
+Acceptance: Schemas + wizard + PDF gen for: 4506-T, 14039, 14134, 1040-X, W-7, SS-4, 12203, state forms
