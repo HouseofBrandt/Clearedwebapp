@@ -14,7 +14,7 @@ function RiskCell({ score, tabsNumber, id }: { score: number; tabsNumber: string
   const bg =
     score >= 76 ? "bg-c-danger hover:bg-c-danger" :
     score >= 51 ? "bg-orange-500 hover:bg-orange-600" :
-    score >= 26 ? "bg-c-warning hover:bg-c-warning-soft0" :
+    score >= 26 ? "bg-c-warning hover:bg-c-warning-soft" :
     "bg-emerald-500 hover:bg-emerald-600"
   return (
     <Link href={`/cases/${id}`}>

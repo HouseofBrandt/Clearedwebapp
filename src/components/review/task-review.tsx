@@ -9,6 +9,7 @@ import { DeadlineSuggestions } from "@/components/calendar/deadline-suggestions"
 import { ReviewJunebug } from "@/components/review/review-junebug"
 import { formatDateTime } from "@/lib/date-utils"
 import { marked } from "marked"
+import DOMPurify from "dompurify"
 import {
   Download,
   FileText,
@@ -43,7 +44,8 @@ function highlightFlags(text: string): string {
 function RenderedOutput({ content, taskType }: { content: string; taskType: string }) {
   if (SPREADSHEET_TASKS.includes(taskType)) return null
 
-  const html = highlightFlags(marked.parse(content, { breaks: true, gfm: true }) as string)
+  const rawHtml = highlightFlags(marked.parse(content, { breaks: true, gfm: true }) as string)
+  const html = typeof window !== "undefined" ? DOMPurify.sanitize(rawHtml) : rawHtml
 
   return (
     <div

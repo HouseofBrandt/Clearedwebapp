@@ -90,16 +90,66 @@ export function evaluateFormula(formula: string, allValues: Record<string, any>)
     expr = expr.replace(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), String(val))
   }
 
-  // Validate the expression only contains safe characters
-  const sanitized = expr.replace(/\s/g, '')
-  if (!/^[\d+\-*/().]+$/.test(sanitized)) return 0
+  // Validate the expression only contains numbers, operators, parentheses, spaces, and dots
+  if (!/^[\d\s+\-*/().]+$/.test(expr)) return 0
 
-  try {
-    const result = new Function(`return (${expr})`)()
-    return typeof result === 'number' && isFinite(result) ? Math.round(result * 100) / 100 : 0
-  } catch {
-    return 0
+  // Use a safe recursive descent parser instead of new Function()
+  return safeEval(expr)
+}
+
+// Simple recursive descent parser for arithmetic expressions — no eval/Function
+function safeEval(expr: string): number {
+  expr = expr.trim()
+  let pos = 0
+
+  function parseExpr(): number {
+    let result = parseTerm()
+    while (pos < expr.length) {
+      const ch = expr[pos]
+      if (ch === '+') { pos++; result += parseTerm() }
+      else if (ch === '-') { pos++; result -= parseTerm() }
+      else break
+    }
+    return result
   }
+
+  function parseTerm(): number {
+    let result = parseFactor()
+    while (pos < expr.length) {
+      const ch = expr[pos]
+      if (ch === '*') { pos++; result *= parseFactor() }
+      else if (ch === '/') { pos++; const d = parseFactor(); result = d !== 0 ? result / d : 0 }
+      else break
+    }
+    return result
+  }
+
+  function parseFactor(): number {
+    while (pos < expr.length && expr[pos] === ' ') pos++
+
+    if (expr[pos] === '(') {
+      pos++ // skip (
+      const result = parseExpr()
+      if (expr[pos] === ')') pos++ // skip )
+      return result
+    }
+
+    if (expr[pos] === '-') {
+      pos++
+      return -parseFactor()
+    }
+
+    // Parse number
+    let numStr = ''
+    while (pos < expr.length && /[\d.]/.test(expr[pos])) {
+      numStr += expr[pos]
+      pos++
+    }
+    return parseFloat(numStr) || 0
+  }
+
+  const result = parseExpr()
+  return Math.round(result * 100) / 100
 }
 
 // ---------------------------------------------------------------------------

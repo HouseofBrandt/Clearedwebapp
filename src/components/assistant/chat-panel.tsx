@@ -861,7 +861,7 @@ export function ChatPanel() {
           {/* Header */}
           <div className="flex items-center justify-between bg-c-gray-900 px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-c-warning-soft0/20 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-full bg-c-warning-soft/20 flex items-center justify-center">
                 <JunebugIcon className="h-5 w-5 text-c-warning" mood="happy" />
               </div>
               <div>

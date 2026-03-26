@@ -49,8 +49,8 @@ function formatCurrency(value: number | string | null | undefined): string {
 
 const statusColors: Record<string, string> = {
   INTAKE: "bg-c-info-soft text-c-teal",
-  ANALYSIS: "bg-yellow-100 text-yellow-800",
-  REVIEW: "bg-purple-100 text-purple-800",
+  ANALYSIS: "bg-c-warning-soft text-c-warning",
+  REVIEW: "bg-c-info-soft text-c-info",
   ACTIVE: "bg-c-success-soft text-c-success",
   RESOLVED: "bg-c-gray-100 text-c-gray-900",
   CLOSED: "bg-c-gray-200 text-c-gray-500",
@@ -262,7 +262,7 @@ export function CasesList({ initialCases, practitioners }: CasesListProps) {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateCase} disabled={creating || !newCase.clientName || !newCase.filingStatus}>
+              <Button onClick={handleCreateCase} disabled={creating || !newCase.clientName || !newCase.tabsNumber}>
                 {creating ? "Creating..." : "Create Case"}
               </Button>
             </DialogFooter>

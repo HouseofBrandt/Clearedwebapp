@@ -28,6 +28,27 @@ export async function POST(request: Request) {
   const { taskIds, action, reviewNotes } = parsed.data
   const newStatus = action === "APPROVE" ? "APPROVED" : "REJECTED"
 
+  // Before bulk approve, verify all tasks have flags acknowledged
+  if (action === "APPROVE") {
+    const tasksWithFlags = await prisma.aITask.findMany({
+      where: {
+        id: { in: taskIds },
+        OR: [{ verifyFlagCount: { gt: 0 } }, { judgmentFlagCount: { gt: 0 } }],
+      },
+      select: { id: true, verifyFlagCount: true, judgmentFlagCount: true },
+    })
+
+    if (tasksWithFlags.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Cannot bulk approve tasks with unacknowledged VERIFY or JUDGMENT flags. Review each task individually.",
+          tasksWithFlags: tasksWithFlags.map((t) => t.id),
+        },
+        { status: 422 }
+      )
+    }
+  }
+
   // Verify all tasks exist and are in READY_FOR_REVIEW status
   const tasks = await prisma.aITask.findMany({
     where: { id: { in: taskIds }, status: "READY_FOR_REVIEW" },

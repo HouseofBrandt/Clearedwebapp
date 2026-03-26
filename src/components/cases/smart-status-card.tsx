@@ -104,7 +104,7 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
         <div className="h-1.5 w-full rounded-full bg-muted">
           <div
             className={`h-1.5 rounded-full transition-all ${
-              docPercent >= 80 ? "bg-c-success" : docPercent >= 50 ? "bg-c-warning-soft0" : "bg-c-danger"
+              docPercent >= 80 ? "bg-c-success" : docPercent >= 50 ? "bg-c-warning-soft" : "bg-c-danger"
             }`}
             style={{ width: `${docPercent}%` }}
           />

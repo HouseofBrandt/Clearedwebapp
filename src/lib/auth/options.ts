@@ -43,9 +43,8 @@ export const authOptions: NextAuthOptions = {
             // Signal to the frontend that MFA is required
             throw new Error("MFA_REQUIRED")
           }
-          const otplib = await import("otplib")
-          const totp = new otplib.TOTP({ secret: user.mfaSecret })
-          const isValidCode = await totp.verify(credentials.mfaCode)
+          const { authenticator } = await import("otplib")
+          const isValidCode = authenticator.check(credentials.mfaCode, user.mfaSecret)
           if (!isValidCode) {
             logAudit({ userId: user.id, action: AUDIT_ACTIONS.LOGIN_FAILURE, metadata: { email: credentials.email, reason: "invalid_mfa" } })
             throw new Error("Invalid MFA code")

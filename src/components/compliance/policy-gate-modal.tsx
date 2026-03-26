@@ -139,7 +139,7 @@ export function PolicyGateModal({
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-zinc-700 px-6 py-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-c-warning-soft0/20">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-c-warning-soft/20">
             <Shield className="h-5 w-5 text-c-warning" />
           </div>
           <div className="flex-1">
@@ -270,7 +270,7 @@ export function PolicyGateModal({
           <Button
             onClick={handleAcknowledge}
             disabled={!hasScrolledToBottom || isAcknowledging}
-            className="gap-2 bg-c-warning text-white hover:bg-c-warning-soft0 disabled:opacity-50"
+            className="gap-2 bg-c-warning text-white hover:bg-c-warning-soft disabled:opacity-50"
           >
             {isAcknowledging ? (
               "Acknowledging..."

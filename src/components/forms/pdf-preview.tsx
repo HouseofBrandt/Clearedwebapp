@@ -4,8 +4,9 @@ import { useState, useEffect } from "react"
 
 interface PDFFormPreviewProps {
   formNumber: string
+  instanceId: string
+  values: Record<string, any>
   currentPage?: number
-  zoom?: number
 }
 
 const FORM_PDF_MAP: Record<string, string> = {
@@ -15,18 +16,20 @@ const FORM_PDF_MAP: Record<string, string> = {
   "911": "/forms/f911.pdf",
 }
 
-export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewProps) {
-  const localPath = FORM_PDF_MAP[formNumber]
+export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1 }: PDFFormPreviewProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const blankPdfUrl = FORM_PDF_MAP[formNumber] || ""
 
+  // Debounce: regenerate the filled PDF preview when values change
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    const timer = setTimeout(() => {
+      setRefreshKey((prev) => prev + 1)
+    }, 1500) // Wait 1.5s after last value change before regenerating
+    return () => clearTimeout(timer)
+  }, [values])
 
-  const origin = mounted ? window.location.origin : ""
-
-  if (!localPath) {
+  if (!blankPdfUrl) {
     return (
       <div style={{
         display: "flex", flexDirection: "column", height: "100%",
@@ -40,11 +43,14 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
     )
   }
 
-  // Use the full absolute URL for the PDF
-  const fullPdfUrl = origin ? `${origin}${localPath}` : localPath
+  // Use the filled preview endpoint if we have an instanceId, otherwise blank form
+  const displayUrl = instanceId
+    ? `/api/forms/${instanceId}/preview-pdf?t=${refreshKey}`
+    : blankPdfUrl
 
-  // Use Google Docs viewer as a reliable PDF renderer that works in any iframe
-  const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fullPdfUrl)}&embedded=true`
+  const headerLabel = instanceId
+    ? `IRS Form ${formNumber} (with your data)`
+    : `IRS Form ${formNumber} (blank)`
 
   if (isExpanded) {
     return (
@@ -58,11 +64,11 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
           <span style={{ color: "white", fontSize: 13, fontWeight: 500 }}>
-            IRS Form {formNumber}
+            {headerLabel}
           </span>
           <div style={{ display: "flex", gap: 8 }}>
             <a
-              href={localPath}
+              href={displayUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -71,7 +77,7 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
                 cursor: "pointer", fontSize: 12, textDecoration: "none",
               }}
             >
-              Download PDF ↓
+              Download ↓
             </a>
             <button
               onClick={() => setIsExpanded(false)}
@@ -86,10 +92,9 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
           </div>
         </div>
         <iframe
-          src={viewerUrl}
+          src={`${displayUrl}#page=${currentPage}`}
           style={{ flex: 1, width: "100%", border: "none" }}
           title={`IRS Form ${formNumber}`}
-          allow="autoplay"
         />
       </div>
     )
@@ -111,7 +116,7 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
         </span>
         <div style={{ display: "flex", gap: 4 }}>
           <a
-            href={localPath}
+            href={displayUrl}
             target="_blank"
             rel="noopener noreferrer"
             style={{
@@ -135,13 +140,13 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
         </div>
       </div>
 
-      {/* PDF via Google Docs Viewer — reliable cross-browser rendering */}
+      {/* PDF iframe — shows the filled PDF from our API */}
       <div style={{ flex: 1, overflow: "hidden" }}>
         <iframe
-          src={mounted ? viewerUrl : "about:blank"}
+          key={refreshKey}
+          src={`${displayUrl}#page=${currentPage}`}
           style={{ width: "100%", height: "100%", border: "none" }}
           title={`IRS Form ${formNumber} Preview`}
-          allow="autoplay"
         />
       </div>
 
@@ -157,7 +162,7 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
             border: "none", cursor: "pointer", fontWeight: 500,
           }}
         >
-          View Full Tax Form
+          View Tax Form
         </button>
       </div>
     </div>

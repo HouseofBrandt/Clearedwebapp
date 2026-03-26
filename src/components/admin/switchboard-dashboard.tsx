@@ -48,7 +48,7 @@ const ACTION_LABELS: Record<string, string> = {
 const ACTION_COLORS: Record<string, string> = {
   APPROVE: "bg-c-success",
   EDIT_APPROVE: "bg-c-teal",
-  REJECT_REPROMPT: "bg-c-warning-soft0",
+  REJECT_REPROMPT: "bg-c-warning-soft",
   REJECT_MANUAL: "bg-c-danger",
 }
 
@@ -341,7 +341,7 @@ export function SwitchboardDashboard() {
                                 : status === "REJECTED"
                                   ? "bg-c-danger"
                                   : status === "READY_FOR_REVIEW"
-                                    ? "bg-c-warning-soft0"
+                                    ? "bg-c-warning-soft"
                                     : status === "PROCESSING"
                                       ? "bg-c-teal"
                                       : "bg-c-gray-300"

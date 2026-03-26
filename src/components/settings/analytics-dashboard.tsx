@@ -128,7 +128,7 @@ export function AnalyticsDashboard() {
 
   function rateBarColor(rate: number) {
     if (rate >= 80) return "bg-c-success"
-    if (rate >= 50) return "bg-c-warning-soft0"
+    if (rate >= 50) return "bg-c-warning-soft"
     return "bg-c-danger"
   }
 

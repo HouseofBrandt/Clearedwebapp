@@ -762,8 +762,9 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
           <div className="flex-1 min-h-0">
             <PDFFormPreview
               formNumber={schema.formNumber}
+              instanceId={instance.id}
+              values={values}
               currentPage={activeSectionIndex + 1}
-              zoom={100}
             />
           </div>
         </div>
