@@ -5,7 +5,11 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
 import { readFile } from "fs/promises"
 import { join } from "path"
 import { getFormInstance } from "@/lib/forms/form-store"
-import { PDF_FIELD_MAP, PDF_TEXT_COORDINATES } from "@/lib/forms/pdf-field-map"
+import {
+  PDF_FIELD_MAP,
+  PDF_CHECKBOX_MAP,
+  MARITAL_STATUS_CHECKBOX_MAP,
+} from "@/lib/forms/pdf-field-map"
 
 const FORM_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
@@ -53,7 +57,24 @@ export async function GET(
     const pdfBytes = await readFile(pdfPath)
     const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
 
-    // Try to fill AcroForm fields first (if the PDF has fillable fields)
+    // Flatten repeating group values into dot-notation keys
+    const flatValues: Record<string, any> = {}
+    for (const [key, val] of Object.entries(values)) {
+      if (Array.isArray(val)) {
+        // Repeating group: flatten each entry
+        val.forEach((entry: Record<string, any>, idx: number) => {
+          if (entry && typeof entry === "object") {
+            for (const [subKey, subVal] of Object.entries(entry)) {
+              flatValues[`${key}.${idx}.${subKey}`] = subVal
+            }
+          }
+        })
+      } else {
+        flatValues[key] = val
+      }
+    }
+
+    // Try to fill AcroForm fields (if the PDF has fillable fields)
     let filledViaAcroForm = false
     try {
       const form = pdfDoc.getForm()
@@ -61,6 +82,7 @@ export async function GET(
 
       if (fields.length > 0) {
         const fieldMap = PDF_FIELD_MAP[formNumber] || {}
+        const checkboxMap = PDF_CHECKBOX_MAP[formNumber] || {}
 
         // Build a reverse map: PDF field name -> our field ID
         const reverseMap: Record<string, string> = {}
@@ -68,28 +90,73 @@ export async function GET(
           reverseMap[pdfFieldName] = ourFieldId
         }
 
+        // Build a reverse checkbox map: PDF field name -> { ourFieldId, checkedWhen }
+        const reverseCheckboxMap: Record<string, { ourFieldId: string; checkedWhen: any }> = {}
+        for (const [ourFieldId, config] of Object.entries(checkboxMap)) {
+          reverseCheckboxMap[config.pdfField] = {
+            ourFieldId,
+            checkedWhen: config.checkedWhen,
+          }
+        }
+
         for (const field of fields) {
-          const fieldName = field.getName()
-          try {
-            const textField = form.getTextField(fieldName)
+          const pdfFieldName = field.getName()
 
-            // First try reverse map (exact match from our field map)
-            let matchedValue: any = undefined
-            if (reverseMap[fieldName]) {
-              matchedValue = values[reverseMap[fieldName]]
+          // ── Try checkbox fields first ──
+          const checkboxConfig = reverseCheckboxMap[pdfFieldName]
+          if (checkboxConfig) {
+            try {
+              const checkbox = form.getCheckBox(pdfFieldName)
+              const ourFieldId = checkboxConfig.ourFieldId
+
+              // Special handling for marital status checkboxes
+              if (ourFieldId === "marital_status_married" || ourFieldId === "marital_status_unmarried") {
+                const maritalValue = flatValues["marital_status"]
+                if (maritalValue) {
+                  const expectedType = MARITAL_STATUS_CHECKBOX_MAP[maritalValue]
+                  if (
+                    (ourFieldId === "marital_status_married" && expectedType === "married") ||
+                    (ourFieldId === "marital_status_unmarried" && expectedType === "unmarried")
+                  ) {
+                    checkbox.check()
+                    filledViaAcroForm = true
+                  }
+                }
+              } else {
+                // Standard yes/no checkbox
+                const value = flatValues[ourFieldId]
+                if (
+                  value === true ||
+                  value === "yes" ||
+                  value === "Yes" ||
+                  value === checkboxConfig.checkedWhen
+                ) {
+                  checkbox.check()
+                  filledViaAcroForm = true
+                }
+              }
+              continue
+            } catch {
+              // Not actually a checkbox, fall through to text field handling
             }
+          }
 
-            // If no exact match, try keyword-based matching
-            if (matchedValue === undefined || matchedValue === null || matchedValue === "") {
-              matchedValue = findMatchingValue(fieldName, values)
-            }
-
+          // ── Try text fields ──
+          const ourFieldId = reverseMap[pdfFieldName]
+          if (ourFieldId) {
+            const matchedValue = flatValues[ourFieldId]
             if (matchedValue !== undefined && matchedValue !== null && matchedValue !== "") {
-              textField.setText(String(matchedValue))
-              filledViaAcroForm = true
+              try {
+                const textField = form.getTextField(pdfFieldName)
+                let displayValue = matchedValue
+                if (typeof displayValue === "boolean") displayValue = displayValue ? "Yes" : "No"
+                if (typeof displayValue === "number") displayValue = String(displayValue)
+                textField.setText(String(displayValue))
+                filledViaAcroForm = true
+              } catch {
+                // Not a text field (could be dropdown, radio, etc.) — skip
+              }
             }
-          } catch {
-            // Not a text field (could be checkbox, dropdown, etc.) — skip
           }
         }
 
@@ -97,43 +164,8 @@ export async function GET(
         form.flatten()
       }
     } catch {
-      // PDF may not have a valid AcroForm — fall through to coordinate-based approach
-    }
-
-    // If AcroForm filling didn't work (or partially worked), also use coordinate-based
-    // text placement as a fallback
-    if (!filledViaAcroForm) {
-      const coords = PDF_TEXT_COORDINATES[formNumber]
-      if (coords && coords.length > 0) {
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
-        const pages = pdfDoc.getPages()
-
-        for (const coord of coords) {
-          const value = values[coord.fieldId]
-          if (value === undefined || value === null || value === "") continue
-
-          const page = pages[coord.page]
-          if (!page) continue
-
-          let text = String(value)
-
-          // Truncate if maxWidth is specified (rough estimate: 6pts per char)
-          if (coord.maxWidth) {
-            const approxCharsPerWidth = Math.floor(coord.maxWidth / (coord.fontSize * 0.5))
-            if (text.length > approxCharsPerWidth) {
-              text = text.substring(0, approxCharsPerWidth)
-            }
-          }
-
-          page.drawText(text, {
-            x: coord.x,
-            y: coord.y,
-            size: coord.fontSize,
-            font,
-            color: rgb(0, 0, 0.6), // Dark blue to distinguish from printed form text
-          })
-        }
-      }
+      // PDF may not have a valid AcroForm — fall through to error response
+      // since coordinate-based fallback is less reliable
     }
 
     // Generate the filled PDF
@@ -153,51 +185,4 @@ export async function GET(
       { status: 500 }
     )
   }
-}
-
-/**
- * Try to match our schema field ID to a PDF form field name using keyword
- * heuristics. This is a best-effort fallback when we don't have an exact
- * mapping in PDF_FIELD_MAP.
- */
-function findMatchingValue(
-  pdfFieldName: string,
-  values: Record<string, any>
-): any {
-  const lower = pdfFieldName.toLowerCase()
-
-  // Common mappings between PDF field name keywords and our schema field IDs
-  const mappings: Record<string, string[]> = {
-    name: ["taxpayer_name", "spouse_name"],
-    ssn: ["ssn", "spouse_ssn"],
-    social: ["ssn", "spouse_ssn"],
-    address: ["address_street"],
-    street: ["address_street"],
-    city: ["address_city"],
-    state: ["address_state"],
-    zip: ["address_zip"],
-    phone: ["home_phone", "cell_phone", "daytime_phone"],
-    dob: ["dob"],
-    birth: ["dob", "spouse_dob"],
-    marital: ["marital_status"],
-    employer: ["employer_name"],
-    occupation: ["occupation"],
-    county: ["county"],
-  }
-
-  // Try exact match first
-  if (values[pdfFieldName] !== undefined) return values[pdfFieldName]
-
-  // Try keyword matching
-  for (const [keyword, fieldIds] of Object.entries(mappings)) {
-    if (lower.includes(keyword)) {
-      for (const fieldId of fieldIds) {
-        if (values[fieldId] !== undefined && values[fieldId] !== "") {
-          return values[fieldId]
-        }
-      }
-    }
-  }
-
-  return undefined
 }
