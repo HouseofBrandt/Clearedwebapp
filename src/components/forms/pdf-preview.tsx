@@ -18,16 +18,35 @@ const FORM_PDF_MAP: Record<string, string> = {
 
 export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1 }: PDFFormPreviewProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("")
   const blankPdfUrl = FORM_PDF_MAP[formNumber] || ""
 
-  // Debounce: regenerate the filled PDF preview when values change
+  // Debounce: POST values to generate filled PDF when values change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setRefreshKey((prev) => prev + 1)
-    }, 1500) // Wait 1.5s after last value change before regenerating
+    const hasValues = Object.keys(values).some(k => values[k] !== undefined && values[k] !== "" && values[k] !== null)
+    if (!hasValues) {
+      setPdfBlobUrl(blankPdfUrl)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/forms/${instanceId}/preview-pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ formNumber, values }),
+        })
+        if (res.ok) {
+          const blob = await res.blob()
+          const url = URL.createObjectURL(blob)
+          setPdfBlobUrl((prev) => { if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev); return url })
+        }
+      } catch {
+        // Fall back to blank form
+      }
+    }, 1500)
     return () => clearTimeout(timer)
-  }, [values])
+  }, [values, formNumber, instanceId, blankPdfUrl])
 
   if (!blankPdfUrl) {
     return (
@@ -43,14 +62,11 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
     )
   }
 
-  // Use the filled preview endpoint if we have an instanceId, otherwise blank form
-  const displayUrl = instanceId
-    ? `/api/forms/${instanceId}/preview-pdf?t=${refreshKey}`
-    : blankPdfUrl
+  const displayUrl = pdfBlobUrl || blankPdfUrl
 
-  const headerLabel = instanceId
+  const headerLabel = pdfBlobUrl && pdfBlobUrl.startsWith("blob:")
     ? `IRS Form ${formNumber} (with your data)`
-    : `IRS Form ${formNumber} (blank)`
+    : `IRS Form ${formNumber}`
 
   if (isExpanded) {
     return (

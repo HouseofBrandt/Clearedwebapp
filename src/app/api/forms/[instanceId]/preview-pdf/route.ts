@@ -21,12 +21,43 @@ const FORM_PDF_FILES: Record<string, string> = {
 const FILL_COLOR = rgb(0, 0, 0.6)
 
 /**
+ * POST /api/forms/[instanceId]/preview-pdf
+ *
+ * Generates a filled PDF from values passed in the request body.
+ * Uses coordinate-based text drawing to bypass XFA limitations.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { instanceId: string } }
+) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  let values: Record<string, any> = {}
+  let formNumber = "433-A"
+
+  try {
+    const body = await request.json()
+    values = body.values || {}
+    formNumber = body.formNumber || "433-A"
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
+  }
+
+  const pdfFileName = FORM_PDF_FILES[formNumber]
+  if (!pdfFileName) {
+    return NextResponse.json({ error: "PDF not available for this form" }, { status: 404 })
+  }
+
+  return generateFilledPDF(formNumber, values, pdfFileName)
+}
+
+/**
  * GET /api/forms/[instanceId]/preview-pdf
  *
- * Generates a filled PDF by loading the blank IRS form and drawing text
- * directly onto the pages at specific coordinates. This bypasses XFA
- * (which pdf-lib strips on load) by using page.drawText() instead of
- * AcroForm field filling.
+ * Fallback: reads values from the file store (if available).
  */
 export async function GET(
   request: NextRequest,
@@ -38,8 +69,6 @@ export async function GET(
   }
 
   const { instanceId } = params
-
-  // Load the form instance values
   let values: Record<string, any> = {}
   let formNumber = "433-A"
 
@@ -53,6 +82,11 @@ export async function GET(
   if (!pdfFileName) {
     return NextResponse.json({ error: "PDF not available for this form" }, { status: 404 })
   }
+
+  return generateFilledPDF(formNumber, values, pdfFileName)
+}
+
+async function generateFilledPDF(formNumber: string, values: Record<string, any>, pdfFileName: string) {
 
   try {
     // Load the blank IRS PDF
