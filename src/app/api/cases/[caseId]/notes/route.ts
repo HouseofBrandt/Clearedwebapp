@@ -242,8 +242,15 @@ export async function POST(
     })
 
     return NextResponse.json(note, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Create note error:", error)
-    return NextResponse.json({ error: "Failed to create note" }, { status: 500 })
+    const message = error?.message || "Unknown error"
+    const code = error?.code || "UNKNOWN"
+    return NextResponse.json({
+      error: "Failed to create note",
+      details: process.env.NODE_ENV === "development" ? message : undefined,
+      code,
+      hint: message.includes("does not exist") ? "Run the migration endpoint: POST /api/admin/migrate-notes-compliance" : undefined,
+    }, { status: 500 })
   }
 }
