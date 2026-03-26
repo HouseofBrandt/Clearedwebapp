@@ -5,6 +5,7 @@ export const metadata: Metadata = { title: "Review Queue | Cleared" }
 import { prisma } from "@/lib/db"
 import { caseAccessFilter } from "@/lib/auth/case-access"
 import { ReviewQueue } from "@/components/review/review-queue"
+import { decryptField } from "@/lib/encryption"
 
 export default async function ReviewPage() {
   const session = await requireAuth()
@@ -42,17 +43,21 @@ export default async function ReviewPage() {
     }),
   ])
 
-  // Serialize dates for client component
+  // Serialize dates and decrypt client names for client component
   const serializedTasks = pendingTasks.map((t) => ({
     ...t,
     createdAt: t.createdAt.toISOString(),
+    case: {
+      ...t.case,
+      clientName: decryptField(t.case.clientName),
+    },
   }))
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-display-md">Review Queue</h1>
-        <p className="text-muted-foreground">
+        <p className="text-c-gray-500">
           {serializedTasks.length === 0
             ? "No AI-generated outputs awaiting review"
             : `${serializedTasks.length} AI-generated output${serializedTasks.length === 1 ? "" : "s"} awaiting practitioner review`}
