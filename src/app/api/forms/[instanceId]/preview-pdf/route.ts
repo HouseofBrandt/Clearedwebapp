@@ -6,9 +6,8 @@ import { readFile } from "fs/promises"
 import { join } from "path"
 import { getFormInstance } from "@/lib/forms/form-store"
 import {
-  PDF_FIELD_MAP,
-  PDF_CHECKBOX_MAP,
-  MARITAL_STATUS_CHECKBOX_MAP,
+  PDF_COORDINATES,
+  MARITAL_STATUS_DISPLAY,
 } from "@/lib/forms/pdf-field-map"
 
 const FORM_PDF_FILES: Record<string, string> = {
@@ -18,12 +17,16 @@ const FORM_PDF_FILES: Record<string, string> = {
   "911": "f911.pdf",
 }
 
+// Dark blue color to distinguish filled values from printed form text
+const FILL_COLOR = rgb(0, 0, 0.6)
+
 /**
  * GET /api/forms/[instanceId]/preview-pdf
  *
- * Generates a filled PDF by loading the blank IRS form and overlaying the
- * user's current field values. Returns the PDF as binary with Content-Type
- * application/pdf for inline display in an iframe.
+ * Generates a filled PDF by loading the blank IRS form and drawing text
+ * directly onto the pages at specific coordinates. This bypasses XFA
+ * (which pdf-lib strips on load) by using page.drawText() instead of
+ * AcroForm field filling.
  */
 export async function GET(
   request: NextRequest,
@@ -57,6 +60,12 @@ export async function GET(
     const pdfBytes = await readFile(pdfPath)
     const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
 
+    // Embed Helvetica font (built into pdf-lib, no external files needed)
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+
+    // Get all pages
+    const pages = pdfDoc.getPages()
+
     // Flatten repeating group values into dot-notation keys
     const flatValues: Record<string, any> = {}
     for (const [key, val] of Object.entries(values)) {
@@ -74,105 +83,51 @@ export async function GET(
       }
     }
 
-    // Try to fill AcroForm fields (if the PDF has fillable fields)
-    let filledViaAcroForm = false
-    try {
-      const form = pdfDoc.getForm()
-      const fields = form.getFields()
+    // Get the coordinate map for this form
+    const fieldCoords = PDF_COORDINATES[formNumber] || {}
 
-      if (fields.length > 0) {
-        const fieldMap = PDF_FIELD_MAP[formNumber] || {}
-        const checkboxMap = PDF_CHECKBOX_MAP[formNumber] || {}
+    let filledCount = 0
 
-        // Build a reverse map: PDF field name -> our field ID
-        const reverseMap: Record<string, string> = {}
-        for (const [ourFieldId, pdfFieldName] of Object.entries(fieldMap)) {
-          reverseMap[pdfFieldName] = ourFieldId
-        }
+    // Draw each mapped field value at its coordinates
+    for (const [ourFieldId, coords] of Object.entries(fieldCoords)) {
+      let value = flatValues[ourFieldId]
 
-        // Build a reverse checkbox map: PDF field name -> { ourFieldId, checkedWhen }
-        const reverseCheckboxMap: Record<string, { ourFieldId: string; checkedWhen: any }> = {}
-        for (const [ourFieldId, config] of Object.entries(checkboxMap)) {
-          reverseCheckboxMap[config.pdfField] = {
-            ourFieldId,
-            checkedWhen: config.checkedWhen,
-          }
-        }
-
-        console.log(`[PDF FILL] Form ${formNumber}: ${fields.length} PDF fields, ${Object.keys(reverseMap).length} mapped, ${Object.keys(flatValues).length} values available`)
-        // Log which of our values have matching PDF fields
-        const mappedFields = Object.entries(fieldMap).filter(([ourId]) => flatValues[ourId] !== undefined && flatValues[ourId] !== "")
-        console.log(`[PDF FILL] Values with mappings: ${mappedFields.map(([id, pdf]) => `${id}`).join(", ")}`)
-
-        for (const field of fields) {
-          const pdfFieldName = field.getName()
-
-          // ── Try checkbox fields first ──
-          const checkboxConfig = reverseCheckboxMap[pdfFieldName]
-          if (checkboxConfig) {
-            try {
-              const checkbox = form.getCheckBox(pdfFieldName)
-              const ourFieldId = checkboxConfig.ourFieldId
-
-              // Special handling for marital status checkboxes
-              if (ourFieldId === "marital_status_married" || ourFieldId === "marital_status_unmarried") {
-                const maritalValue = flatValues["marital_status"]
-                if (maritalValue) {
-                  const expectedType = MARITAL_STATUS_CHECKBOX_MAP[maritalValue]
-                  if (
-                    (ourFieldId === "marital_status_married" && expectedType === "married") ||
-                    (ourFieldId === "marital_status_unmarried" && expectedType === "unmarried")
-                  ) {
-                    checkbox.check()
-                    filledViaAcroForm = true
-                  }
-                }
-              } else {
-                // Standard yes/no checkbox
-                const value = flatValues[ourFieldId]
-                if (
-                  value === true ||
-                  value === "yes" ||
-                  value === "Yes" ||
-                  value === checkboxConfig.checkedWhen
-                ) {
-                  checkbox.check()
-                  filledViaAcroForm = true
-                }
-              }
-              continue
-            } catch {
-              // Not actually a checkbox, fall through to text field handling
-            }
-          }
-
-          // ── Try text fields ──
-          const ourFieldId = reverseMap[pdfFieldName]
-          if (ourFieldId) {
-            const matchedValue = flatValues[ourFieldId]
-            if (matchedValue !== undefined && matchedValue !== null && matchedValue !== "") {
-              try {
-                const textField = form.getTextField(pdfFieldName)
-                let displayValue = matchedValue
-                if (typeof displayValue === "boolean") displayValue = displayValue ? "Yes" : "No"
-                if (typeof displayValue === "number") displayValue = String(displayValue)
-                textField.setText(String(displayValue))
-                filledViaAcroForm = true
-                console.log(`[PDF FILL] Filled ${ourFieldId} → ${pdfFieldName} = "${displayValue}"`)
-              } catch (fieldErr: any) {
-                console.log(`[PDF FILL ERROR] Failed to fill ${ourFieldId} → ${pdfFieldName}: ${fieldErr?.message}`)
-              }
-            }
-          }
-        }
-
-        // Flatten the form so values render as text, not editable fields
-        form.flatten()
+      // Special handling: marital_status displays a human-readable label
+      if (ourFieldId === "marital_status" && typeof value === "string") {
+        value = MARITAL_STATUS_DISPLAY[value] || value
       }
-    } catch {
-      // PDF may not have a valid AcroForm — fall through to error response
-      // since coordinate-based fallback is less reliable
+
+      if (value === undefined || value === null || value === "") continue
+
+      const page = pages[coords.page]
+      if (!page) continue
+
+      // Convert value to display string
+      let displayValue: string
+      if (typeof value === "boolean") {
+        displayValue = value ? "X" : ""
+      } else if (typeof value === "number") {
+        displayValue = String(value)
+      } else {
+        displayValue = String(value)
+      }
+
+      if (displayValue === "") continue
+
+      // Draw the text onto the page
+      page.drawText(displayValue, {
+        x: coords.x,
+        y: coords.y,
+        size: coords.fontSize || 9,
+        font,
+        color: FILL_COLOR,
+        maxWidth: coords.maxWidth,
+      })
+
+      filledCount++
     }
+
+    console.log(`[PDF FILL] Drew ${filledCount} values on ${formNumber} (coordinate-based, XFA bypassed)`)
 
     // Generate the filled PDF
     const filledPdfBytes = await pdfDoc.save()

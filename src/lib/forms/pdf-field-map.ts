@@ -1,377 +1,326 @@
-// Map Cleared form field IDs to the PDF form field names in the actual IRS PDF.
-// These field names are the XFA paths discovered via the /api/forms/pdf-fields endpoint.
+// Coordinate-based PDF field mapping for IRS forms.
 //
-// Form 433-A (Rev. 7-2022) has 6 pages with ~350+ fields using naming patterns like:
-//   topmostSubform[0].Page1[0].c1[0].Lines1a-b[0].p1-t4[0]
+// IRS Form 433-A (and similar XFA-based forms) cannot be filled via AcroForm APIs
+// because pdf-lib strips XFA data on load. Instead, we draw text directly onto
+// each page at measured coordinates using page.drawText().
 //
-// Naming convention clues:
-//   - Page1, Page2, etc. = page number
-//   - c1, c2 = column/section containers
-//   - Lines1a-b = IRS line reference
-//   - p1-t4 = page 1, text field 4
-//   - C1_01_2a = checkbox, section 1, question 2a
-//   - ClaimedAsDependents, Row1, Row2 = repeating table rows
-//   - Table_Part4-Line5 = Part/Section reference
+// Coordinate system: origin is bottom-left of the page.
+// IRS letter-size pages are 612 x 792 points.
 
-export const PDF_FIELD_MAP: Record<string, Record<string, string>> = {
+export interface PDFFieldCoordinate {
+  page: number       // 0-indexed page number
+  x: number          // X from left edge in points
+  y: number          // Y from bottom edge in points
+  fontSize?: number  // Default 9
+  maxWidth?: number  // Maximum text width before clipping
+  isCheckbox?: boolean // If true, draw "X" when value is truthy
+}
+
+export const PDF_COORDINATES: Record<string, Record<string, PDFFieldCoordinate>> = {
   "433-A": {
     // ═══════════════════════════════════════════════════════════════════
-    // PAGE 1 — Section 1: Personal Information
+    // PAGE 0 (PDF page 1) — Section 1: Personal Information
     // ═══════════════════════════════════════════════════════════════════
 
-    // Line 1a: Taxpayer name
-    "taxpayer_name": "topmostSubform[0].Page1[0].c1[0].Lines1a-b[0].p1-t4[0]",
+    // Line 1a: Full Name of Taxpayer
+    "taxpayer_name": { page: 0, x: 150, y: 667, fontSize: 9, maxWidth: 200 },
     // Line 1b: SSN
-    "ssn": "topmostSubform[0].Page1[0].c1[0].Lines1a-b[0].p1-t5[0]",
-    // Line 1c: Date of birth (taxpayer)
-    "dob": "topmostSubform[0].Page1[0].c1[0].Line1c[0].p1-t6c[0]",
-    // County
-    "county": "topmostSubform[0].Page1[0].c1[0].Line1c[0].p1-t7c[0]",
+    "ssn": { page: 0, x: 452, y: 667, fontSize: 9, maxWidth: 110 },
 
-    // Line 1d: Home phone
-    "home_phone": "topmostSubform[0].Page1[0].c1[0].Line1d[0].p1-t8d[0]",
-    // Line 1e: Cell phone
-    "cell_phone": "topmostSubform[0].Page1[0].c1[0].Line1d[0].p1-t9d[0]",
-    // Line 1f: Work phone
-    "work_phone": "topmostSubform[0].Page1[0].c1[0].Line1e[0].p1-t10e[0]",
+    // Line 1c: Spouse name (if joint)
+    "spouse_name": { page: 0, x: 150, y: 649, fontSize: 9, maxWidth: 200 },
+    // Line 1c: Spouse SSN
+    "spouse_ssn": { page: 0, x: 452, y: 649, fontSize: 9, maxWidth: 110 },
 
     // Line 2a: Address — street
-    "address_street": "topmostSubform[0].Page1[0].c1[0].Line2a[0].p1-t11[0]",
+    "address_street": { page: 0, x: 150, y: 620, fontSize: 9, maxWidth: 250 },
     // Line 2a: Address — city
-    "address_city": "topmostSubform[0].Page1[0].c1[0].Line2a[0].p1-t12[0]",
+    "address_city": { page: 0, x: 150, y: 605, fontSize: 9, maxWidth: 150 },
     // Line 2a: Address — state
-    "address_state": "topmostSubform[0].Page1[0].c1[0].Line2a[0].p1-t13[0]",
+    "address_state": { page: 0, x: 365, y: 605, fontSize: 9, maxWidth: 40 },
     // Line 2a: Address — zip
-    "address_zip": "topmostSubform[0].Page1[0].c1[0].Line2a[0].p1-t14[0]",
+    "address_zip": { page: 0, x: 452, y: 605, fontSize: 9, maxWidth: 80 },
 
-    // Line 4: Marital status checkboxes
-    // Checkbox 1 = Married
-    "marital_status_married": "topmostSubform[0].Page1[0].c1[0].C1_01_2a[0]",
-    // Checkbox 2 = Unmarried
-    "marital_status_unmarried": "topmostSubform[0].Page1[0].c1[0].C1_01_2a[1]",
+    // Line 3: County of Residence
+    "county": { page: 0, x: 150, y: 585, fontSize: 9, maxWidth: 160 },
 
-    // Line 5a: Spouse name
-    "spouse_name": "topmostSubform[0].Page1[0].c1[0].Lines1a-b[1].p1-t4[0]",
-    // Line 5b: Spouse SSN
-    "spouse_ssn": "topmostSubform[0].Page1[0].c1[0].Lines1a-b[1].p1-t5[0]",
-    // Line 5c: Spouse DOB
-    "spouse_dob": "topmostSubform[0].Page1[0].c1[0].Line1c[1].p1-t6c[0]",
+    // Line 3: Date of birth (taxpayer)
+    "dob": { page: 0, x: 452, y: 585, fontSize: 9, maxWidth: 80 },
+    // Line 3: Spouse DOB
+    "spouse_dob": { page: 0, x: 452, y: 570, fontSize: 9, maxWidth: 80 },
+
+    // Line 4: Home phone
+    "home_phone": { page: 0, x: 150, y: 555, fontSize: 9, maxWidth: 120 },
+    // Line 4: Cell phone
+    "cell_phone": { page: 0, x: 330, y: 555, fontSize: 9, maxWidth: 120 },
+    // Line 4: Work phone
+    "work_phone": { page: 0, x: 485, y: 555, fontSize: 9, maxWidth: 100 },
+
+    // Line 4: Marital status (draw the text value: "Married", "Single", etc.)
+    "marital_status": { page: 0, x: 150, y: 530, fontSize: 9, maxWidth: 100 },
 
     // ── Dependents (Line 6 table) ──
     // Row 1
-    "dependents.0.dep_name": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row1[0].Name[0]",
-    "dependents.0.dep_relationship": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row1[0].Relationship[0]",
-    "dependents.0.dep_dob": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row1[0].DateOfBirth[0]",
-    "dependents.0.dep_lives_with": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row1[0].LivesWithYou[0]",
-    "dependents.0.dep_contributes": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row1[0].Contributes[0]",
+    "dependents.0.dep_name": { page: 0, x: 62, y: 460, fontSize: 8, maxWidth: 140 },
+    "dependents.0.dep_relationship": { page: 0, x: 210, y: 460, fontSize: 8, maxWidth: 80 },
+    "dependents.0.dep_dob": { page: 0, x: 310, y: 460, fontSize: 8, maxWidth: 70 },
+    "dependents.0.dep_lives_with": { page: 0, x: 400, y: 460, fontSize: 8, maxWidth: 40 },
+    "dependents.0.dep_contributes": { page: 0, x: 470, y: 460, fontSize: 8, maxWidth: 40 },
     // Row 2
-    "dependents.1.dep_name": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row2[0].Name[0]",
-    "dependents.1.dep_relationship": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row2[0].Relationship[0]",
-    "dependents.1.dep_dob": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row2[0].DateOfBirth[0]",
-    "dependents.1.dep_lives_with": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row2[0].LivesWithYou[0]",
-    "dependents.1.dep_contributes": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row2[0].Contributes[0]",
+    "dependents.1.dep_name": { page: 0, x: 62, y: 446, fontSize: 8, maxWidth: 140 },
+    "dependents.1.dep_relationship": { page: 0, x: 210, y: 446, fontSize: 8, maxWidth: 80 },
+    "dependents.1.dep_dob": { page: 0, x: 310, y: 446, fontSize: 8, maxWidth: 70 },
+    "dependents.1.dep_lives_with": { page: 0, x: 400, y: 446, fontSize: 8, maxWidth: 40 },
+    "dependents.1.dep_contributes": { page: 0, x: 470, y: 446, fontSize: 8, maxWidth: 40 },
     // Row 3
-    "dependents.2.dep_name": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row3[0].Name[0]",
-    "dependents.2.dep_relationship": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row3[0].Relationship[0]",
-    "dependents.2.dep_dob": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row3[0].DateOfBirth[0]",
-    "dependents.2.dep_lives_with": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row3[0].LivesWithYou[0]",
-    "dependents.2.dep_contributes": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row3[0].Contributes[0]",
+    "dependents.2.dep_name": { page: 0, x: 62, y: 432, fontSize: 8, maxWidth: 140 },
+    "dependents.2.dep_relationship": { page: 0, x: 210, y: 432, fontSize: 8, maxWidth: 80 },
+    "dependents.2.dep_dob": { page: 0, x: 310, y: 432, fontSize: 8, maxWidth: 70 },
+    "dependents.2.dep_lives_with": { page: 0, x: 400, y: 432, fontSize: 8, maxWidth: 40 },
+    "dependents.2.dep_contributes": { page: 0, x: 470, y: 432, fontSize: 8, maxWidth: 40 },
     // Row 4
-    "dependents.3.dep_name": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row4[0].Name[0]",
-    "dependents.3.dep_relationship": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row4[0].Relationship[0]",
-    "dependents.3.dep_dob": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row4[0].DateOfBirth[0]",
-    "dependents.3.dep_lives_with": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row4[0].LivesWithYou[0]",
-    "dependents.3.dep_contributes": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row4[0].Contributes[0]",
-
-    // Line 7: Employment type (single_select — we use a text field on the PDF)
-    // Not directly mappable to a text field; the PDF likely uses checkboxes for employment type
+    "dependents.3.dep_name": { page: 0, x: 62, y: 418, fontSize: 8, maxWidth: 140 },
+    "dependents.3.dep_relationship": { page: 0, x: 210, y: 418, fontSize: 8, maxWidth: 80 },
+    "dependents.3.dep_dob": { page: 0, x: 310, y: 418, fontSize: 8, maxWidth: 70 },
+    "dependents.3.dep_lives_with": { page: 0, x: 400, y: 418, fontSize: 8, maxWidth: 40 },
+    "dependents.3.dep_contributes": { page: 0, x: 470, y: 418, fontSize: 8, maxWidth: 40 },
 
     // Line 8: Lived outside US
-    "lived_outside_us": "topmostSubform[0].Page1[0].c2[0].C1_01_8[0]",
-    "outside_us_details": "topmostSubform[0].Page1[0].c2[0].Line8[0].p1-t8[0]",
+    "outside_us_details": { page: 0, x: 150, y: 370, fontSize: 8, maxWidth: 400 },
 
     // ═══════════════════════════════════════════════════════════════════
-    // PAGE 2 — Section 2: Employment Information
+    // PAGE 1 (PDF page 2) — Section 2: Employment Information
     // ═══════════════════════════════════════════════════════════════════
 
-    // Employer 1 (Lines 8-12 on IRS form)
-    "employers.0.emp_name": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row1[0].Name[0]",
-    "employers.0.emp_address": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row1[0].Address[0]",
-    "employers.0.emp_phone": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row1[0].Phone[0]",
-    "employers.0.emp_hire_date": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row1[0].HireDate[0]",
-    "employers.0.emp_gross_monthly": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row1[0].GrossMonthly[0]",
-    "employers.0.emp_net_monthly": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row1[0].NetMonthly[0]",
+    // Employer 1
+    "employers.0.emp_name": { page: 1, x: 62, y: 680, fontSize: 8, maxWidth: 200 },
+    "employers.0.emp_address": { page: 1, x: 62, y: 665, fontSize: 8, maxWidth: 300 },
+    "employers.0.emp_phone": { page: 1, x: 400, y: 680, fontSize: 8, maxWidth: 150 },
+    "employers.0.emp_hire_date": { page: 1, x: 400, y: 665, fontSize: 8, maxWidth: 80 },
+    "employers.0.emp_gross_monthly": { page: 1, x: 400, y: 650, fontSize: 8, maxWidth: 80 },
+    "employers.0.emp_net_monthly": { page: 1, x: 500, y: 650, fontSize: 8, maxWidth: 80 },
 
-    // Spouse employer
-    "employers.1.emp_name": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row2[0].Name[0]",
-    "employers.1.emp_address": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row2[0].Address[0]",
-    "employers.1.emp_phone": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row2[0].Phone[0]",
-    "employers.1.emp_hire_date": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row2[0].HireDate[0]",
-    "employers.1.emp_gross_monthly": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row2[0].GrossMonthly[0]",
-    "employers.1.emp_net_monthly": "topmostSubform[0].Page2[0].c1[0].EmployerInfo[0].Row2[0].NetMonthly[0]",
+    // Employer 2 (Spouse)
+    "employers.1.emp_name": { page: 1, x: 62, y: 620, fontSize: 8, maxWidth: 200 },
+    "employers.1.emp_address": { page: 1, x: 62, y: 605, fontSize: 8, maxWidth: 300 },
+    "employers.1.emp_phone": { page: 1, x: 400, y: 620, fontSize: 8, maxWidth: 150 },
+    "employers.1.emp_hire_date": { page: 1, x: 400, y: 605, fontSize: 8, maxWidth: 80 },
+    "employers.1.emp_gross_monthly": { page: 1, x: 400, y: 590, fontSize: 8, maxWidth: 80 },
+    "employers.1.emp_net_monthly": { page: 1, x: 500, y: 590, fontSize: 8, maxWidth: 80 },
 
     // Self-employment / business info (Line 13)
-    "business_name": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t1[0]",
-    "business_ein": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t2[0]",
-    "business_type": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t3[0]",
-    "business_address": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t4[0]",
-    "business_phone": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t5[0]",
-    "business_gross_monthly": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t6[0]",
-    "business_expenses_monthly": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t7[0]",
-    "business_net_monthly": "topmostSubform[0].Page2[0].c1[0].Line13[0].p2-t8[0]",
+    "business_name": { page: 1, x: 62, y: 540, fontSize: 8, maxWidth: 200 },
+    "business_ein": { page: 1, x: 300, y: 540, fontSize: 8, maxWidth: 100 },
+    "business_type": { page: 1, x: 420, y: 540, fontSize: 8, maxWidth: 140 },
+    "business_address": { page: 1, x: 62, y: 525, fontSize: 8, maxWidth: 300 },
+    "business_phone": { page: 1, x: 400, y: 525, fontSize: 8, maxWidth: 150 },
+    "business_gross_monthly": { page: 1, x: 400, y: 510, fontSize: 8, maxWidth: 80 },
+    "business_expenses_monthly": { page: 1, x: 500, y: 510, fontSize: 8, maxWidth: 80 },
+    "business_net_monthly": { page: 1, x: 400, y: 495, fontSize: 8, maxWidth: 80 },
 
     // ═══════════════════════════════════════════════════════════════════
-    // PAGE 3 — Section 3: Personal Assets
+    // PAGE 2 (PDF page 3) — Section 3: Personal Assets
     // ═══════════════════════════════════════════════════════════════════
 
     // Line 12: Cash on hand
-    "cash_on_hand": "topmostSubform[0].Page3[0].c1[0].Line12[0].p3-t1[0]",
+    "cash_on_hand": { page: 2, x: 452, y: 700, fontSize: 9, maxWidth: 100 },
 
     // Line 14: Bank accounts
-    "bank_accounts.0.bank_name": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row1[0].Name[0]",
-    "bank_accounts.0.bank_account_type": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row1[0].Type[0]",
-    "bank_accounts.0.bank_balance": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row1[0].Balance[0]",
-    "bank_accounts.1.bank_name": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row2[0].Name[0]",
-    "bank_accounts.1.bank_account_type": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row2[0].Type[0]",
-    "bank_accounts.1.bank_balance": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row2[0].Balance[0]",
-    "bank_accounts.2.bank_name": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row3[0].Name[0]",
-    "bank_accounts.2.bank_account_type": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row3[0].Type[0]",
-    "bank_accounts.2.bank_balance": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Row3[0].Balance[0]",
-    "total_bank_balances": "topmostSubform[0].Page3[0].c1[0].BankAccounts[0].Total[0]",
+    "bank_accounts.0.bank_name": { page: 2, x: 62, y: 660, fontSize: 8, maxWidth: 160 },
+    "bank_accounts.0.bank_account_type": { page: 2, x: 240, y: 660, fontSize: 8, maxWidth: 80 },
+    "bank_accounts.0.bank_balance": { page: 2, x: 452, y: 660, fontSize: 8, maxWidth: 100 },
+    "bank_accounts.1.bank_name": { page: 2, x: 62, y: 646, fontSize: 8, maxWidth: 160 },
+    "bank_accounts.1.bank_account_type": { page: 2, x: 240, y: 646, fontSize: 8, maxWidth: 80 },
+    "bank_accounts.1.bank_balance": { page: 2, x: 452, y: 646, fontSize: 8, maxWidth: 100 },
+    "bank_accounts.2.bank_name": { page: 2, x: 62, y: 632, fontSize: 8, maxWidth: 160 },
+    "bank_accounts.2.bank_account_type": { page: 2, x: 240, y: 632, fontSize: 8, maxWidth: 80 },
+    "bank_accounts.2.bank_balance": { page: 2, x: 452, y: 632, fontSize: 8, maxWidth: 100 },
+    "total_bank_balances": { page: 2, x: 452, y: 618, fontSize: 9, maxWidth: 100 },
 
     // Line 15: Investments
-    "investments.0.inv_institution": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row1[0].Name[0]",
-    "investments.0.inv_type": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row1[0].Type[0]",
-    "investments.0.inv_balance": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row1[0].Value[0]",
-    "investments.0.inv_loan": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row1[0].Loan[0]",
-    "investments.0.inv_equity": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row1[0].Equity[0]",
-    "investments.1.inv_institution": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row2[0].Name[0]",
-    "investments.1.inv_type": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row2[0].Type[0]",
-    "investments.1.inv_balance": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row2[0].Value[0]",
-    "investments.1.inv_loan": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row2[0].Loan[0]",
-    "investments.1.inv_equity": "topmostSubform[0].Page3[0].c1[0].Investments[0].Row2[0].Equity[0]",
+    "investments.0.inv_institution": { page: 2, x: 62, y: 585, fontSize: 8, maxWidth: 140 },
+    "investments.0.inv_type": { page: 2, x: 210, y: 585, fontSize: 8, maxWidth: 80 },
+    "investments.0.inv_balance": { page: 2, x: 310, y: 585, fontSize: 8, maxWidth: 70 },
+    "investments.0.inv_loan": { page: 2, x: 400, y: 585, fontSize: 8, maxWidth: 70 },
+    "investments.0.inv_equity": { page: 2, x: 490, y: 585, fontSize: 8, maxWidth: 70 },
+    "investments.1.inv_institution": { page: 2, x: 62, y: 571, fontSize: 8, maxWidth: 140 },
+    "investments.1.inv_type": { page: 2, x: 210, y: 571, fontSize: 8, maxWidth: 80 },
+    "investments.1.inv_balance": { page: 2, x: 310, y: 571, fontSize: 8, maxWidth: 70 },
+    "investments.1.inv_loan": { page: 2, x: 400, y: 571, fontSize: 8, maxWidth: 70 },
+    "investments.1.inv_equity": { page: 2, x: 490, y: 571, fontSize: 8, maxWidth: 70 },
 
     // Line 16: Real property
-    "real_property.0.prop_description": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row1[0].Description[0]",
-    "real_property.0.prop_fmv": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row1[0].FMV[0]",
-    "real_property.0.prop_loan": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row1[0].Loan[0]",
-    "real_property.0.prop_equity": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row1[0].Equity[0]",
-    "real_property.0.prop_monthly_payment": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row1[0].Payment[0]",
-    "real_property.0.prop_lender": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row1[0].Lender[0]",
-    "real_property.1.prop_description": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row2[0].Description[0]",
-    "real_property.1.prop_fmv": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row2[0].FMV[0]",
-    "real_property.1.prop_loan": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row2[0].Loan[0]",
-    "real_property.1.prop_equity": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row2[0].Equity[0]",
-    "real_property.1.prop_monthly_payment": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row2[0].Payment[0]",
-    "real_property.1.prop_lender": "topmostSubform[0].Page3[0].c2[0].RealProperty[0].Row2[0].Lender[0]",
+    "real_property.0.prop_description": { page: 2, x: 62, y: 510, fontSize: 8, maxWidth: 140 },
+    "real_property.0.prop_fmv": { page: 2, x: 210, y: 510, fontSize: 8, maxWidth: 70 },
+    "real_property.0.prop_loan": { page: 2, x: 300, y: 510, fontSize: 8, maxWidth: 70 },
+    "real_property.0.prop_equity": { page: 2, x: 390, y: 510, fontSize: 8, maxWidth: 70 },
+    "real_property.0.prop_monthly_payment": { page: 2, x: 470, y: 510, fontSize: 8, maxWidth: 60 },
+    "real_property.0.prop_lender": { page: 2, x: 62, y: 496, fontSize: 8, maxWidth: 200 },
+    "real_property.1.prop_description": { page: 2, x: 62, y: 475, fontSize: 8, maxWidth: 140 },
+    "real_property.1.prop_fmv": { page: 2, x: 210, y: 475, fontSize: 8, maxWidth: 70 },
+    "real_property.1.prop_loan": { page: 2, x: 300, y: 475, fontSize: 8, maxWidth: 70 },
+    "real_property.1.prop_equity": { page: 2, x: 390, y: 475, fontSize: 8, maxWidth: 70 },
+    "real_property.1.prop_monthly_payment": { page: 2, x: 470, y: 475, fontSize: 8, maxWidth: 60 },
+    "real_property.1.prop_lender": { page: 2, x: 62, y: 461, fontSize: 8, maxWidth: 200 },
 
     // Line 17: Retirement accounts
-    "retirement_accounts.0.ret_institution": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row1[0].Name[0]",
-    "retirement_accounts.0.ret_type": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row1[0].Type[0]",
-    "retirement_accounts.0.ret_balance": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row1[0].Value[0]",
-    "retirement_accounts.0.ret_loan": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row1[0].Loan[0]",
-    "retirement_accounts.1.ret_institution": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row2[0].Name[0]",
-    "retirement_accounts.1.ret_type": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row2[0].Type[0]",
-    "retirement_accounts.1.ret_balance": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row2[0].Value[0]",
-    "retirement_accounts.1.ret_loan": "topmostSubform[0].Page3[0].c2[0].Retirement[0].Row2[0].Loan[0]",
+    "retirement_accounts.0.ret_institution": { page: 2, x: 62, y: 420, fontSize: 8, maxWidth: 140 },
+    "retirement_accounts.0.ret_type": { page: 2, x: 210, y: 420, fontSize: 8, maxWidth: 80 },
+    "retirement_accounts.0.ret_balance": { page: 2, x: 310, y: 420, fontSize: 8, maxWidth: 70 },
+    "retirement_accounts.0.ret_loan": { page: 2, x: 400, y: 420, fontSize: 8, maxWidth: 70 },
+    "retirement_accounts.1.ret_institution": { page: 2, x: 62, y: 406, fontSize: 8, maxWidth: 140 },
+    "retirement_accounts.1.ret_type": { page: 2, x: 210, y: 406, fontSize: 8, maxWidth: 80 },
+    "retirement_accounts.1.ret_balance": { page: 2, x: 310, y: 406, fontSize: 8, maxWidth: 70 },
+    "retirement_accounts.1.ret_loan": { page: 2, x: 400, y: 406, fontSize: 8, maxWidth: 70 },
 
     // Line 18: Vehicles
-    "vehicles.0.veh_year": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Year[0]",
-    "vehicles.0.veh_make": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Make[0]",
-    "vehicles.0.veh_model": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Model[0]",
-    "vehicles.0.veh_mileage": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Mileage[0]",
-    "vehicles.0.veh_fmv": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].FMV[0]",
-    "vehicles.0.veh_loan": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Loan[0]",
-    "vehicles.0.veh_equity": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Equity[0]",
-    "vehicles.0.veh_monthly_payment": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Payment[0]",
-    "vehicles.0.veh_lender": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row1[0].Lender[0]",
-    "vehicles.1.veh_year": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Year[0]",
-    "vehicles.1.veh_make": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Make[0]",
-    "vehicles.1.veh_model": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Model[0]",
-    "vehicles.1.veh_mileage": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Mileage[0]",
-    "vehicles.1.veh_fmv": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].FMV[0]",
-    "vehicles.1.veh_loan": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Loan[0]",
-    "vehicles.1.veh_equity": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Equity[0]",
-    "vehicles.1.veh_monthly_payment": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Payment[0]",
-    "vehicles.1.veh_lender": "topmostSubform[0].Page3[0].c2[0].Vehicles[0].Row2[0].Lender[0]",
+    "vehicles.0.veh_year": { page: 2, x: 62, y: 360, fontSize: 8, maxWidth: 40 },
+    "vehicles.0.veh_make": { page: 2, x: 110, y: 360, fontSize: 8, maxWidth: 60 },
+    "vehicles.0.veh_model": { page: 2, x: 175, y: 360, fontSize: 8, maxWidth: 60 },
+    "vehicles.0.veh_mileage": { page: 2, x: 245, y: 360, fontSize: 8, maxWidth: 50 },
+    "vehicles.0.veh_fmv": { page: 2, x: 310, y: 360, fontSize: 8, maxWidth: 60 },
+    "vehicles.0.veh_loan": { page: 2, x: 380, y: 360, fontSize: 8, maxWidth: 60 },
+    "vehicles.0.veh_equity": { page: 2, x: 445, y: 360, fontSize: 8, maxWidth: 50 },
+    "vehicles.0.veh_monthly_payment": { page: 2, x: 500, y: 360, fontSize: 8, maxWidth: 50 },
+    "vehicles.0.veh_lender": { page: 2, x: 62, y: 346, fontSize: 8, maxWidth: 200 },
+    "vehicles.1.veh_year": { page: 2, x: 62, y: 325, fontSize: 8, maxWidth: 40 },
+    "vehicles.1.veh_make": { page: 2, x: 110, y: 325, fontSize: 8, maxWidth: 60 },
+    "vehicles.1.veh_model": { page: 2, x: 175, y: 325, fontSize: 8, maxWidth: 60 },
+    "vehicles.1.veh_mileage": { page: 2, x: 245, y: 325, fontSize: 8, maxWidth: 50 },
+    "vehicles.1.veh_fmv": { page: 2, x: 310, y: 325, fontSize: 8, maxWidth: 60 },
+    "vehicles.1.veh_loan": { page: 2, x: 380, y: 325, fontSize: 8, maxWidth: 60 },
+    "vehicles.1.veh_equity": { page: 2, x: 445, y: 325, fontSize: 8, maxWidth: 50 },
+    "vehicles.1.veh_monthly_payment": { page: 2, x: 500, y: 325, fontSize: 8, maxWidth: 50 },
+    "vehicles.1.veh_lender": { page: 2, x: 62, y: 311, fontSize: 8, maxWidth: 200 },
 
     // Line 19: Life insurance cash surrender value
-    "life_insurance_csv": "topmostSubform[0].Page3[0].c2[0].Line19[0].p3-t19[0]",
+    "life_insurance_csv": { page: 2, x: 452, y: 280, fontSize: 9, maxWidth: 100 },
 
     // ═══════════════════════════════════════════════════════════════════
-    // PAGE 4 — Section 4: Credit cards / Other assets / Financial questions
+    // PAGE 3 (PDF page 4) — Section 4: Credit cards / Other assets / Financial questions
     // ═══════════════════════════════════════════════════════════════════
 
     // Available credit / credit cards
-    "available_credit.0.cl_institution": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row1[0].Name[0]",
-    "available_credit.0.cl_credit_limit": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row1[0].Limit[0]",
-    "available_credit.0.cl_amount_owed": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row1[0].Owed[0]",
-    "available_credit.0.cl_available_credit": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row1[0].Available[0]",
-    "available_credit.1.cl_institution": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row2[0].Name[0]",
-    "available_credit.1.cl_credit_limit": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row2[0].Limit[0]",
-    "available_credit.1.cl_amount_owed": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row2[0].Owed[0]",
-    "available_credit.1.cl_available_credit": "topmostSubform[0].Page4[0].c1[0].CreditLines[0].Row2[0].Available[0]",
+    "available_credit.0.cl_institution": { page: 3, x: 62, y: 700, fontSize: 8, maxWidth: 140 },
+    "available_credit.0.cl_credit_limit": { page: 3, x: 220, y: 700, fontSize: 8, maxWidth: 80 },
+    "available_credit.0.cl_amount_owed": { page: 3, x: 320, y: 700, fontSize: 8, maxWidth: 80 },
+    "available_credit.0.cl_available_credit": { page: 3, x: 420, y: 700, fontSize: 8, maxWidth: 80 },
+    "available_credit.1.cl_institution": { page: 3, x: 62, y: 686, fontSize: 8, maxWidth: 140 },
+    "available_credit.1.cl_credit_limit": { page: 3, x: 220, y: 686, fontSize: 8, maxWidth: 80 },
+    "available_credit.1.cl_amount_owed": { page: 3, x: 320, y: 686, fontSize: 8, maxWidth: 80 },
+    "available_credit.1.cl_available_credit": { page: 3, x: 420, y: 686, fontSize: 8, maxWidth: 80 },
 
     // Other assets (Line 20)
-    "other_assets.0.other_description": "topmostSubform[0].Page4[0].c1[0].OtherAssets[0].Row1[0].Description[0]",
-    "other_assets.0.other_fmv": "topmostSubform[0].Page4[0].c1[0].OtherAssets[0].Row1[0].Value[0]",
-    "other_assets.0.other_loan": "topmostSubform[0].Page4[0].c1[0].OtherAssets[0].Row1[0].Loan[0]",
+    "other_assets.0.other_description": { page: 3, x: 62, y: 650, fontSize: 8, maxWidth: 200 },
+    "other_assets.0.other_fmv": { page: 3, x: 310, y: 650, fontSize: 8, maxWidth: 80 },
+    "other_assets.0.other_loan": { page: 3, x: 420, y: 650, fontSize: 8, maxWidth: 80 },
 
     // Line 21: Safe deposit box
-    "has_safe_deposit": "topmostSubform[0].Page4[0].c1[0].C1_01_21[0]",
-    "safe_deposit_location": "topmostSubform[0].Page4[0].c1[0].Line21[0].p4-t1[0]",
-    "safe_deposit_contents": "topmostSubform[0].Page4[0].c1[0].Line21[0].p4-t2[0]",
+    "safe_deposit_location": { page: 3, x: 150, y: 615, fontSize: 8, maxWidth: 200 },
+    "safe_deposit_contents": { page: 3, x: 400, y: 615, fontSize: 8, maxWidth: 150 },
 
     // Section 6 — Other Financial Information (Lines 22-26)
-    "filed_bankruptcy": "topmostSubform[0].Page4[0].c2[0].C1_01_22[0]",
-    "bankruptcy_date": "topmostSubform[0].Page4[0].c2[0].Line22[0].p4-t22a[0]",
-    "bankruptcy_dismissed": "topmostSubform[0].Page4[0].c2[0].Line22[0].p4-t22b[0]",
-    "involved_lawsuit": "topmostSubform[0].Page4[0].c2[0].C1_01_23[0]",
-    "lawsuit_details": "topmostSubform[0].Page4[0].c2[0].Line23[0].p4-t23[0]",
-    "transferred_assets": "topmostSubform[0].Page4[0].c2[0].C1_01_24[0]",
-    "transfer_details": "topmostSubform[0].Page4[0].c2[0].Line24[0].p4-t24[0]",
-    "anticipated_income_change": "topmostSubform[0].Page4[0].c2[0].C1_01_25[0]",
-    "income_change_details": "topmostSubform[0].Page4[0].c2[0].Line25[0].p4-t25[0]",
-    "trust_interest": "topmostSubform[0].Page4[0].c2[0].C1_01_26[0]",
-    "trust_details": "topmostSubform[0].Page4[0].c2[0].Line26[0].p4-t26[0]",
+    "bankruptcy_date": { page: 3, x: 150, y: 530, fontSize: 8, maxWidth: 100 },
+    "bankruptcy_dismissed": { page: 3, x: 300, y: 530, fontSize: 8, maxWidth: 200 },
+    "lawsuit_details": { page: 3, x: 150, y: 500, fontSize: 8, maxWidth: 400 },
+    "transfer_details": { page: 3, x: 150, y: 470, fontSize: 8, maxWidth: 400 },
+    "income_change_details": { page: 3, x: 150, y: 440, fontSize: 8, maxWidth: 400 },
+    "trust_details": { page: 3, x: 150, y: 410, fontSize: 8, maxWidth: 400 },
 
     // ═══════════════════════════════════════════════════════════════════
-    // PAGE 5 — Section 4: Monthly Income (Lines 45-54)
+    // PAGE 4 (PDF page 5) — Section 4: Monthly Income (Lines 45-54)
     // ═══════════════════════════════════════════════════════════════════
 
-    // The IRS form has taxpayer column and spouse column for income
-    "income_wages_taxpayer": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line45[0].Taxpayer[0]",
-    "income_wages_spouse": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line45[0].Spouse[0]",
-    "income_ss_taxpayer": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line46[0].Taxpayer[0]",
-    "income_ss_spouse": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line46[0].Spouse[0]",
-    "income_pension_taxpayer": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line47[0].Taxpayer[0]",
-    "income_pension_spouse": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line47[0].Spouse[0]",
-    "income_self_employment": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line48[0].Taxpayer[0]",
-    "income_rental": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line49[0].Taxpayer[0]",
-    "income_interest_dividends": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line50[0].Taxpayer[0]",
-    "income_distributions": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line51[0].Taxpayer[0]",
-    "income_child_support": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line52a[0].Taxpayer[0]",
-    "income_alimony": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line52b[0].Taxpayer[0]",
-    "income_other": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line53[0].Taxpayer[0]",
-    "total_monthly_income": "topmostSubform[0].Page5[0].c1[0].Table_Part4-Line54[0].Taxpayer[0]",
+    "income_wages_taxpayer": { page: 4, x: 350, y: 680, fontSize: 9, maxWidth: 80 },
+    "income_wages_spouse": { page: 4, x: 470, y: 680, fontSize: 9, maxWidth: 80 },
+    "income_ss_taxpayer": { page: 4, x: 350, y: 662, fontSize: 9, maxWidth: 80 },
+    "income_ss_spouse": { page: 4, x: 470, y: 662, fontSize: 9, maxWidth: 80 },
+    "income_pension_taxpayer": { page: 4, x: 350, y: 644, fontSize: 9, maxWidth: 80 },
+    "income_pension_spouse": { page: 4, x: 470, y: 644, fontSize: 9, maxWidth: 80 },
+    "income_self_employment": { page: 4, x: 350, y: 626, fontSize: 9, maxWidth: 80 },
+    "income_rental": { page: 4, x: 350, y: 608, fontSize: 9, maxWidth: 80 },
+    "income_interest_dividends": { page: 4, x: 350, y: 590, fontSize: 9, maxWidth: 80 },
+    "income_distributions": { page: 4, x: 350, y: 572, fontSize: 9, maxWidth: 80 },
+    "income_child_support": { page: 4, x: 350, y: 554, fontSize: 9, maxWidth: 80 },
+    "income_alimony": { page: 4, x: 350, y: 536, fontSize: 9, maxWidth: 80 },
+    "income_other": { page: 4, x: 350, y: 518, fontSize: 9, maxWidth: 80 },
+    "total_monthly_income": { page: 4, x: 350, y: 500, fontSize: 9, maxWidth: 80 },
 
     // ═══════════════════════════════════════════════════════════════════
-    // PAGE 5/6 — Section 5: Monthly Expenses (Lines 55-69)
+    // PAGE 4/5 (PDF pages 5-6) — Section 5: Monthly Expenses (Lines 55-69)
     // ═══════════════════════════════════════════════════════════════════
 
-    "expense_food_clothing": "topmostSubform[0].Page5[0].c2[0].Table_Part5-Line55[0].Amount[0]",
-    "expense_housing": "topmostSubform[0].Page5[0].c2[0].Table_Part5-Line56[0].Amount[0]",
-    "expense_vehicle_ownership": "topmostSubform[0].Page5[0].c2[0].Table_Part5-Line57[0].Amount[0]",
-    "expense_vehicle_operating": "topmostSubform[0].Page5[0].c2[0].Table_Part5-Line58[0].Amount[0]",
-    "expense_public_transit": "topmostSubform[0].Page5[0].c2[0].Table_Part5-Line59[0].Amount[0]",
-    "expense_health_insurance": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line60[0].Amount[0]",
-    "expense_medical": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line61[0].Amount[0]",
-    "expense_court_ordered": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line62[0].Amount[0]",
-    "expense_child_care": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line63[0].Amount[0]",
-    "expense_life_insurance": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line64[0].Amount[0]",
-    "expense_taxes": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line65[0].Amount[0]",
-    "expense_secured_debts": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line66[0].Amount[0]",
-    "expense_delinquent_state_taxes": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line67[0].Amount[0]",
-    "expense_other": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line67[0].Amount[0]",
-    "total_monthly_expenses": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line68[0].Amount[0]",
-    "remaining_monthly_income": "topmostSubform[0].Page6[0].c1[0].Table_Part5-Line69[0].Amount[0]",
+    "expense_food_clothing": { page: 4, x: 350, y: 440, fontSize: 9, maxWidth: 80 },
+    "expense_housing": { page: 4, x: 350, y: 422, fontSize: 9, maxWidth: 80 },
+    "expense_vehicle_ownership": { page: 4, x: 350, y: 404, fontSize: 9, maxWidth: 80 },
+    "expense_vehicle_operating": { page: 4, x: 350, y: 386, fontSize: 9, maxWidth: 80 },
+    "expense_public_transit": { page: 4, x: 350, y: 368, fontSize: 9, maxWidth: 80 },
+    "expense_health_insurance": { page: 5, x: 350, y: 700, fontSize: 9, maxWidth: 80 },
+    "expense_medical": { page: 5, x: 350, y: 682, fontSize: 9, maxWidth: 80 },
+    "expense_court_ordered": { page: 5, x: 350, y: 664, fontSize: 9, maxWidth: 80 },
+    "expense_child_care": { page: 5, x: 350, y: 646, fontSize: 9, maxWidth: 80 },
+    "expense_life_insurance": { page: 5, x: 350, y: 628, fontSize: 9, maxWidth: 80 },
+    "expense_taxes": { page: 5, x: 350, y: 610, fontSize: 9, maxWidth: 80 },
+    "expense_secured_debts": { page: 5, x: 350, y: 592, fontSize: 9, maxWidth: 80 },
+    "expense_delinquent_state_taxes": { page: 5, x: 350, y: 574, fontSize: 9, maxWidth: 80 },
+    "expense_other": { page: 5, x: 350, y: 556, fontSize: 9, maxWidth: 80 },
+    "total_monthly_expenses": { page: 5, x: 350, y: 538, fontSize: 9, maxWidth: 80 },
+    "remaining_monthly_income": { page: 5, x: 350, y: 520, fontSize: 9, maxWidth: 80 },
 
     // ═══════════════════════════════════════════════════════════════════
-    // PAGE 6 — Section 7: Business Information (self-employed)
+    // PAGE 5 (PDF page 6) — Section 7: Business Information (self-employed)
     // ═══════════════════════════════════════════════════════════════════
 
-    "business_name_formal": "topmostSubform[0].Page6[0].c2[0].BusinessInfo[0].Name[0]",
-    "business_ein_formal": "topmostSubform[0].Page6[0].c2[0].BusinessInfo[0].EIN[0]",
-    "business_type_formal": "topmostSubform[0].Page6[0].c2[0].BusinessInfo[0].Type[0]",
-    "business_start_date": "topmostSubform[0].Page6[0].c2[0].BusinessInfo[0].StartDate[0]",
-    "number_employees": "topmostSubform[0].Page6[0].c2[0].BusinessInfo[0].Employees[0]",
-    "business_website": "topmostSubform[0].Page6[0].c2[0].BusinessInfo[0].Website[0]",
+    "business_name_formal": { page: 5, x: 62, y: 440, fontSize: 8, maxWidth: 200 },
+    "business_ein_formal": { page: 5, x: 300, y: 440, fontSize: 8, maxWidth: 100 },
+    "business_type_formal": { page: 5, x: 420, y: 440, fontSize: 8, maxWidth: 140 },
+    "business_start_date": { page: 5, x: 62, y: 425, fontSize: 8, maxWidth: 100 },
+    "number_employees": { page: 5, x: 200, y: 425, fontSize: 8, maxWidth: 60 },
+    "business_website": { page: 5, x: 300, y: 425, fontSize: 8, maxWidth: 250 },
 
     // Business bank accounts
-    "business_bank_accounts.0.bba_bank_name": "topmostSubform[0].Page6[0].c2[0].BusinessBanks[0].Row1[0].Name[0]",
-    "business_bank_accounts.0.bba_account_type": "topmostSubform[0].Page6[0].c2[0].BusinessBanks[0].Row1[0].Type[0]",
-    "business_bank_accounts.0.bba_balance": "topmostSubform[0].Page6[0].c2[0].BusinessBanks[0].Row1[0].Balance[0]",
-    "business_bank_accounts.1.bba_bank_name": "topmostSubform[0].Page6[0].c2[0].BusinessBanks[0].Row2[0].Name[0]",
-    "business_bank_accounts.1.bba_account_type": "topmostSubform[0].Page6[0].c2[0].BusinessBanks[0].Row2[0].Type[0]",
-    "business_bank_accounts.1.bba_balance": "topmostSubform[0].Page6[0].c2[0].BusinessBanks[0].Row2[0].Balance[0]",
+    "business_bank_accounts.0.bba_bank_name": { page: 5, x: 62, y: 390, fontSize: 8, maxWidth: 160 },
+    "business_bank_accounts.0.bba_account_type": { page: 5, x: 240, y: 390, fontSize: 8, maxWidth: 80 },
+    "business_bank_accounts.0.bba_balance": { page: 5, x: 400, y: 390, fontSize: 8, maxWidth: 80 },
+    "business_bank_accounts.1.bba_bank_name": { page: 5, x: 62, y: 376, fontSize: 8, maxWidth: 160 },
+    "business_bank_accounts.1.bba_account_type": { page: 5, x: 240, y: 376, fontSize: 8, maxWidth: 80 },
+    "business_bank_accounts.1.bba_balance": { page: 5, x: 400, y: 376, fontSize: 8, maxWidth: 80 },
   },
 
+  // ═══════════════════════════════════════════════════════════════════
+  // Other forms — minimal coordinate maps (just Page 1 header fields)
+  // ═══════════════════════════════════════════════════════════════════
+
   "433-A-OIC": {
-    // Section 1: Personal Information
-    "taxpayer_name": "topmostSubform[0].Page1[0].Table_Line1[0].Row1[0].TextField1[0]",
-    "ssn": "topmostSubform[0].Page1[0].Table_Line1[0].Row1[0].TextField2[0]",
+    "taxpayer_name": { page: 0, x: 150, y: 667, fontSize: 9, maxWidth: 200 },
+    "ssn": { page: 0, x: 452, y: 667, fontSize: 9, maxWidth: 110 },
   },
 
   "12153": {
-    // Section 1: Taxpayer Information
-    "taxpayer_name": "topmostSubform[0].Page1[0].TextField1[0]",
-    "ssn": "topmostSubform[0].Page1[0].TextField2[0]",
-    "address_street": "topmostSubform[0].Page1[0].TextField3[0]",
-    "address_city": "topmostSubform[0].Page1[0].TextField4[0]",
-    "address_state": "topmostSubform[0].Page1[0].TextField5[0]",
-    "address_zip": "topmostSubform[0].Page1[0].TextField6[0]",
-    "daytime_phone": "topmostSubform[0].Page1[0].TextField7[0]",
+    "taxpayer_name": { page: 0, x: 150, y: 700, fontSize: 9, maxWidth: 200 },
+    "ssn": { page: 0, x: 452, y: 700, fontSize: 9, maxWidth: 110 },
+    "address_street": { page: 0, x: 150, y: 680, fontSize: 9, maxWidth: 300 },
+    "address_city": { page: 0, x: 150, y: 665, fontSize: 9, maxWidth: 150 },
+    "address_state": { page: 0, x: 365, y: 665, fontSize: 9, maxWidth: 40 },
+    "address_zip": { page: 0, x: 452, y: 665, fontSize: 9, maxWidth: 80 },
+    "daytime_phone": { page: 0, x: 150, y: 645, fontSize: 9, maxWidth: 120 },
   },
 
   "911": {
-    // Section 1: Taxpayer Information
-    "taxpayer_name": "topmostSubform[0].Page1[0].TextField1[0]",
-    "ssn": "topmostSubform[0].Page1[0].TextField2[0]",
-    "address_street": "topmostSubform[0].Page1[0].TextField3[0]",
-    "address_city": "topmostSubform[0].Page1[0].TextField4[0]",
-    "address_state": "topmostSubform[0].Page1[0].TextField5[0]",
-    "address_zip": "topmostSubform[0].Page1[0].TextField6[0]",
+    "taxpayer_name": { page: 0, x: 150, y: 700, fontSize: 9, maxWidth: 200 },
+    "ssn": { page: 0, x: 452, y: 700, fontSize: 9, maxWidth: 110 },
+    "address_street": { page: 0, x: 150, y: 680, fontSize: 9, maxWidth: 300 },
+    "address_city": { page: 0, x: 150, y: 665, fontSize: 9, maxWidth: 150 },
+    "address_state": { page: 0, x: 365, y: 665, fontSize: 9, maxWidth: 40 },
+    "address_zip": { page: 0, x: 452, y: 665, fontSize: 9, maxWidth: 80 },
   },
 }
 
-// Checkbox field IDs — these need form.getCheckBox() instead of getTextField()
-// Maps our field ID to { pdfField, trueValue } where trueValue is what triggers check()
-export const PDF_CHECKBOX_MAP: Record<string, Record<string, { pdfField: string; checkedWhen: any }>> = {
-  "433-A": {
-    "marital_status_married": {
-      pdfField: "topmostSubform[0].Page1[0].c1[0].C1_01_2a[0]",
-      checkedWhen: "married",
-    },
-    "marital_status_unmarried": {
-      pdfField: "topmostSubform[0].Page1[0].c1[0].C1_01_2a[1]",
-      checkedWhen: "unmarried", // single, divorced, separated, widowed
-    },
-    "lived_outside_us": {
-      pdfField: "topmostSubform[0].Page1[0].c2[0].C1_01_8[0]",
-      checkedWhen: true,
-    },
-    "has_safe_deposit": {
-      pdfField: "topmostSubform[0].Page4[0].c1[0].C1_01_21[0]",
-      checkedWhen: true,
-    },
-    "filed_bankruptcy": {
-      pdfField: "topmostSubform[0].Page4[0].c2[0].C1_01_22[0]",
-      checkedWhen: true,
-    },
-    "involved_lawsuit": {
-      pdfField: "topmostSubform[0].Page4[0].c2[0].C1_01_23[0]",
-      checkedWhen: true,
-    },
-    "transferred_assets": {
-      pdfField: "topmostSubform[0].Page4[0].c2[0].C1_01_24[0]",
-      checkedWhen: true,
-    },
-    "anticipated_income_change": {
-      pdfField: "topmostSubform[0].Page4[0].c2[0].C1_01_25[0]",
-      checkedWhen: true,
-    },
-    "trust_interest": {
-      pdfField: "topmostSubform[0].Page4[0].c2[0].C1_01_26[0]",
-      checkedWhen: true,
-    },
-  },
-}
-
-// Map marital_status select values to which checkbox to check
-export const MARITAL_STATUS_CHECKBOX_MAP: Record<string, "married" | "unmarried"> = {
-  married: "married",
-  single: "unmarried",
-  separated: "unmarried",
-  divorced: "unmarried",
-  widowed: "unmarried",
+// Map marital_status select values to display text
+export const MARITAL_STATUS_DISPLAY: Record<string, string> = {
+  married: "Married",
+  single: "Single",
+  separated: "Separated",
+  divorced: "Divorced",
+  widowed: "Widowed",
 }
