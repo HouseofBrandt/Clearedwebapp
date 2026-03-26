@@ -13,6 +13,7 @@ import {
   Shield,
   Network,
   Mail,
+  FileText,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -40,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Transcript Decoder", href: "/rcc", icon: Calculator, description: "IRS transcript analysis & return estimator", section: "TOOLS" },
   { name: "OIC Modeler", href: "/oic-modeler", icon: Scale, description: "Offer in Compromise RCP modeling", section: "TOOLS" },
   { name: "Penalty Abatement", href: "/penalty-abatement", icon: ShieldAlert, description: "FTA & reasonable cause letters", section: "TOOLS" },
+  { name: "Form Builder", href: "/forms", icon: FileText, description: "IRS form completion wizard", section: "TOOLS" as NavSection },
 
   // Standalone items
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences", section: "MAIN" },
