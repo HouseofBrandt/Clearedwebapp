@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface PDFFormPreviewProps {
   formNumber: string
@@ -16,10 +16,15 @@ const FORM_PDF_MAP: Record<string, string> = {
 }
 
 export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewProps) {
-  const pdfUrl = FORM_PDF_MAP[formNumber]
+  const localPath = FORM_PDF_MAP[formNumber]
   const [isExpanded, setIsExpanded] = useState(false)
+  const [origin, setOrigin] = useState("")
 
-  if (!pdfUrl) {
+  useEffect(() => {
+    setOrigin(window.location.origin)
+  }, [])
+
+  if (!localPath) {
     return (
       <div style={{
         display: "flex", flexDirection: "column", height: "100%",
@@ -33,7 +38,11 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
     )
   }
 
-  const pdfSrc = `${pdfUrl}#page=${currentPage}`
+  // Use the full absolute URL for the PDF
+  const fullPdfUrl = origin ? `${origin}${localPath}` : localPath
+
+  // Use Google Docs viewer as a reliable PDF renderer that works in any iframe
+  const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(fullPdfUrl)}&embedded=true`
 
   if (isExpanded) {
     return (
@@ -51,7 +60,7 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
           </span>
           <div style={{ display: "flex", gap: 8 }}>
             <a
-              href={pdfUrl}
+              href={localPath}
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -60,7 +69,7 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
                 cursor: "pointer", fontSize: 12, textDecoration: "none",
               }}
             >
-              Open in new tab ↗
+              Download PDF ↓
             </a>
             <button
               onClick={() => setIsExpanded(false)}
@@ -74,10 +83,11 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
             </button>
           </div>
         </div>
-        <embed
-          src={pdfSrc}
-          type="application/pdf"
+        <iframe
+          src={viewerUrl}
           style={{ flex: 1, width: "100%", border: "none" }}
+          title={`IRS Form ${formNumber}`}
+          allow="autoplay"
         />
       </div>
     )
@@ -99,23 +109,23 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
         </span>
         <div style={{ display: "flex", gap: 4 }}>
           <a
-            href={pdfUrl}
+            href={localPath}
             target="_blank"
             rel="noopener noreferrer"
             style={{
               background: "none", border: "1px solid var(--c-gray-100)",
               padding: "2px 8px", borderRadius: 4, cursor: "pointer",
-              fontSize: 11, color: "var(--c-gray-500)", textDecoration: "none",
+              fontSize: 10, color: "var(--c-gray-500)", textDecoration: "none",
             }}
           >
-            New tab ↗
+            Open ↗
           </a>
           <button
             onClick={() => setIsExpanded(true)}
             style={{
               background: "none", border: "1px solid var(--c-gray-100)",
               padding: "2px 8px", borderRadius: 4, cursor: "pointer",
-              fontSize: 11, color: "var(--c-gray-500)",
+              fontSize: 10, color: "var(--c-gray-500)",
             }}
           >
             Expand
@@ -123,26 +133,32 @@ export function PDFFormPreview({ formNumber, currentPage = 1 }: PDFFormPreviewPr
         </div>
       </div>
 
-      {/* PDF embed - use embed tag which Chrome renders better for PDFs */}
-      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-        <embed
-          src={pdfSrc}
-          type="application/pdf"
-          style={{ width: "100%", height: "100%", border: "none" }}
-        />
+      {/* PDF via Google Docs Viewer — reliable cross-browser rendering */}
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        {origin ? (
+          <iframe
+            src={viewerUrl}
+            style={{ width: "100%", height: "100%", border: "none" }}
+            title={`IRS Form ${formNumber} Preview`}
+            allow="autoplay"
+          />
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--c-gray-300)", fontSize: 12 }}>
+            Loading preview...
+          </div>
+        )}
       </div>
 
       {/* Footer */}
       <div style={{
-        padding: "10px 12px", borderTop: "1px solid var(--c-gray-100)",
+        padding: "8px 12px", borderTop: "1px solid var(--c-gray-100)",
         textAlign: "center", background: "var(--c-white)",
       }}>
         <button
           onClick={() => setIsExpanded(true)}
           style={{
-            fontSize: 12, color: "var(--c-teal)", background: "none",
+            fontSize: 11, color: "var(--c-teal)", background: "none",
             border: "none", cursor: "pointer", fontWeight: 500,
-            padding: "4px 16px",
           }}
         >
           View Full Tax Form
