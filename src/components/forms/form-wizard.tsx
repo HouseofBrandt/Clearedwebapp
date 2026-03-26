@@ -609,7 +609,7 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
       {!junebugOpen && (
         <button
           onClick={() => setJunebugOpen(true)}
-          className="fixed bottom-16 right-[360px] z-40 flex items-center gap-2 rounded-full bg-[var(--c-teal)] px-3 py-2 text-white shadow-md hover:shadow-lg transition-shadow text-xs"
+          className="fixed bottom-28 right-[396px] z-40 flex items-center gap-2 rounded-full bg-[var(--c-teal)] px-3 py-2 text-white shadow-md hover:shadow-lg transition-shadow text-xs"
           title="Ask Junebug (Ctrl+J)"
         >
           <JunebugIcon className="h-4 w-4" />

@@ -124,31 +124,28 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
         {/* Overlay with fill status */}
         {filledCount > 0 && (
           <div style={{
-            position: "absolute", bottom: 12, left: 12, right: 12,
-            background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)",
-            borderRadius: 8, padding: "10px 14px",
-            display: "flex", justifyContent: "space-between", alignItems: "center",
+            position: "absolute", bottom: 8, left: 8, right: 8,
+            background: "rgba(0,0,0,0.8)", backdropFilter: "blur(4px)",
+            borderRadius: 8, padding: "8px 12px",
+            display: "flex", flexDirection: "column", gap: 6,
+            zIndex: 10,
           }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: "white" }}>
-                {generating ? "Generating preview..." : `${lastFilled} fields filled`}
-              </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
-                {generating ? "Drawing your data on the form..." : "Your data is ready to view on the form"}
-              </div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: "white" }}>
+              {generating ? "Generating preview..." : `${lastFilled} fields filled`}
             </div>
             <button
               onClick={viewFilledPDF}
               disabled={generating || !pdfBlobUrl}
               style={{
-                padding: "6px 14px", borderRadius: 6, border: "none",
+                padding: "6px 0", borderRadius: 6, border: "none",
                 background: pdfBlobUrl ? "var(--c-teal)" : "rgba(255,255,255,0.2)",
                 color: "white", fontSize: 11, fontWeight: 500,
                 cursor: pdfBlobUrl ? "pointer" : "wait",
                 opacity: generating ? 0.6 : 1,
+                width: "100%",
               }}
             >
-              View with data ↗
+              {generating ? "Generating..." : "View with your data ↗"}
             </button>
           </div>
         )}
