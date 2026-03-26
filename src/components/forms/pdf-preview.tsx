@@ -38,8 +38,14 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
         })
         if (res.ok) {
           const blob = await res.blob()
-          const url = URL.createObjectURL(blob)
-          setPdfBlobUrl((prev) => { if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev); return url })
+          // Convert to data URL — blob: URLs don't render in Chrome's PDF viewer
+          // inside embed/iframe, but data: URLs do
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            const dataUrl = reader.result as string
+            setPdfBlobUrl(dataUrl)
+          }
+          reader.readAsDataURL(blob)
         }
       } catch {
         // Fall back to blank form
@@ -70,7 +76,7 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
 
   // Open PDF in new tab for full-screen viewing
   const openInNewTab = () => {
-    if (pdfBlobUrl && pdfBlobUrl.startsWith("blob:")) {
+    if (pdfBlobUrl && (pdfBlobUrl.startsWith("blob:") || pdfBlobUrl.startsWith("data:"))) {
       window.open(pdfBlobUrl, "_blank")
     } else {
       window.open(blankPdfUrl, "_blank")
