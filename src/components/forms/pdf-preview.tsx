@@ -68,6 +68,15 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
     ? `IRS Form ${formNumber} (with your data)`
     : `IRS Form ${formNumber}`
 
+  // Open PDF in new tab for full-screen viewing
+  const openInNewTab = () => {
+    if (pdfBlobUrl && pdfBlobUrl.startsWith("blob:")) {
+      window.open(pdfBlobUrl, "_blank")
+    } else {
+      window.open(blankPdfUrl, "_blank")
+    }
+  }
+
   if (isExpanded) {
     return (
       <div style={{
@@ -83,18 +92,16 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
             {headerLabel}
           </span>
           <div style={{ display: "flex", gap: 8 }}>
-            <a
-              href={displayUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={openInNewTab}
               style={{
                 background: "none", border: "1px solid rgba(255,255,255,0.2)",
                 color: "white", padding: "4px 12px", borderRadius: 6,
-                cursor: "pointer", fontSize: 12, textDecoration: "none",
+                cursor: "pointer", fontSize: 12,
               }}
             >
-              Download ↓
-            </a>
+              Open in new tab ↗
+            </button>
             <button
               onClick={() => setIsExpanded(false)}
               style={{
@@ -107,10 +114,10 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
             </button>
           </div>
         </div>
-        <iframe
+        <embed
           src={`${displayUrl}#page=${currentPage}`}
+          type="application/pdf"
           style={{ flex: 1, width: "100%", border: "none" }}
-          title={`IRS Form ${formNumber}`}
         />
       </div>
     )
@@ -156,13 +163,13 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
         </div>
       </div>
 
-      {/* PDF iframe — shows the filled PDF from our API */}
+      {/* PDF embed — shows the filled PDF */}
       <div style={{ flex: 1, overflow: "hidden" }}>
-        <iframe
+        <embed
           key={displayUrl}
           src={`${displayUrl}#page=${currentPage}`}
+          type="application/pdf"
           style={{ width: "100%", height: "100%", border: "none" }}
-          title={`IRS Form ${formNumber} Preview`}
         />
       </div>
 
