@@ -152,9 +152,39 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
     }
   }
 
-  function handleExport(format?: string) {
+  async function handleExport(format?: string) {
     const fmt = format || (isSpreadsheet ? "xlsx" : "docx")
-    window.open(`/api/ai/tasks/${task.id}/export?format=${fmt}`, "_blank")
+    const url = `/api/ai/tasks/${task.id}/export?format=${fmt}`
+    try {
+      const res = await fetch(url)
+      if (res.status === 422) {
+        const data = await res.json()
+        const details = (data.details as string[])?.join("\n• ") || "Unknown validation error"
+        addToast({
+          title: "Export validation failed",
+          description: `• ${details}`,
+          variant: "destructive",
+          action: "Try re-generating the deliverable.",
+        })
+        return
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Export failed" }))
+        addToast({ title: "Export failed", description: data.error, variant: "destructive" })
+        return
+      }
+      const blob = await res.blob()
+      const disposition = res.headers.get("Content-Disposition") || ""
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      const filename = match?.[1] || "export"
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(blob)
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch {
+      addToast({ title: "Export failed", description: "Network error", variant: "destructive" })
+    }
   }
 
   return (

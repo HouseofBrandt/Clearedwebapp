@@ -43,7 +43,7 @@ export function FeedPage({
   const loaderRef = useRef<HTMLDivElement>(null)
 
   // Build query string for API calls
-  function buildQuery(extra: Record<string, string> = {}) {
+  const buildQuery = useCallback((extra: Record<string, string> = {}) => {
     const params = new URLSearchParams()
     if (caseFilter) params.set("caseId", caseFilter)
     if (filter === "post") params.set("postType", "post")
@@ -54,7 +54,7 @@ export function FeedPage({
       params.set(k, v)
     }
     return params.toString()
-  }
+  }, [filter, caseFilter])
 
   // Fetch posts (for refresh or filter change)
   const fetchPosts = useCallback(async () => {
@@ -67,15 +67,15 @@ export function FeedPage({
       setHasMore(!!data.nextCursor)
       setNewPostsAvailable(false)
     }
-  }, [filter, caseFilter])
+  }, [buildQuery])
 
   // Refetch when filter changes
   useEffect(() => {
     fetchPosts()
-  }, [filter, caseFilter])
+  }, [fetchPosts])
 
   // Load more (infinite scroll)
-  async function loadMore() {
+  const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || !cursor) return
     setLoadingMore(true)
     try {
@@ -90,7 +90,7 @@ export function FeedPage({
     } finally {
       setLoadingMore(false)
     }
-  }
+  }, [loadingMore, hasMore, cursor, buildQuery])
 
   // Intersection observer for infinite scroll
   useEffect(() => {
@@ -107,7 +107,7 @@ export function FeedPage({
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [cursor, hasMore, loadingMore])
+  }, [loadMore])
 
   // Poll for new posts every 30 seconds
   useEffect(() => {
@@ -131,7 +131,7 @@ export function FeedPage({
     }, 30000)
 
     return () => clearInterval(interval)
-  }, [posts, filter, caseFilter])
+  }, [posts, buildQuery])
 
   function handleShowNewPosts() {
     fetchPosts()

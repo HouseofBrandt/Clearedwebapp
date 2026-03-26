@@ -187,6 +187,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Create inbox notifications for mentioned users
+    if (mentions && mentions.length > 0) {
+      const mentionedUserIds = mentions
+        .filter((m) => m.type === "user" && m.id && m.id !== auth.userId)
+        .map((m) => m.id!)
+
+      if (mentionedUserIds.length > 0) {
+        try {
+          const authorName = post.author?.name || "Someone"
+          const caseLabel = post.case?.tabsNumber
+            ? ` on ${post.case.tabsNumber}`
+            : ""
+
+          await prisma.message.createMany({
+            data: mentionedUserIds.map((uid) => ({
+              type: "DIRECT_MESSAGE" as const,
+              priority: "NORMAL" as const,
+              subject: `${authorName} mentioned you in a feed post${caseLabel}`,
+              body: content.length > 200 ? content.slice(0, 200) + "..." : content,
+              senderId: auth.userId,
+              senderName: authorName,
+              recipientId: uid,
+              caseId: caseId || null,
+              metadata: {
+                source: "feed_mention",
+                feedPostId: post.id,
+              },
+            })),
+          })
+        } catch {
+          // Non-critical: notification delivery should not block post creation
+        }
+      }
+    }
+
     // If @Junebug is mentioned, trigger async reply
     const hasJunebugMention = mentions?.some((m) => m.type === "junebug")
     if (hasJunebugMention) {

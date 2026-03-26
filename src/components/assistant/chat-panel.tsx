@@ -539,14 +539,69 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
 }
 
 // -------------------------------------------------------------------
+// Session storage helpers for chat persistence
+// -------------------------------------------------------------------
+const STORAGE_KEY_MESSAGES = "junebug-chat"
+const STORAGE_KEY_CASE_CTX = "junebug-chat-case"
+
+function loadStoredMessages(): ChatMessage[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY_MESSAGES)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ChatMessage[]
+    // Rehydrate Date objects
+    return parsed.map((m) => ({ ...m, timestamp: new Date(m.timestamp) }))
+  } catch {
+    return []
+  }
+}
+
+function saveMessages(msgs: ChatMessage[]) {
+  if (typeof window === "undefined") return
+  try {
+    sessionStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(msgs))
+  } catch { /* storage full or unavailable */ }
+}
+
+function loadStoredCaseContext(): CaseContext | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY_CASE_CTX)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveCaseContext(ctx: CaseContext | null) {
+  if (typeof window === "undefined") return
+  try {
+    if (ctx) {
+      sessionStorage.setItem(STORAGE_KEY_CASE_CTX, JSON.stringify(ctx))
+    } else {
+      sessionStorage.removeItem(STORAGE_KEY_CASE_CTX)
+    }
+  } catch { /* storage full or unavailable */ }
+}
+
+function clearStoredChat() {
+  if (typeof window === "undefined") return
+  try {
+    sessionStorage.removeItem(STORAGE_KEY_MESSAGES)
+    sessionStorage.removeItem(STORAGE_KEY_CASE_CTX)
+  } catch { /* silent */ }
+}
+
+// -------------------------------------------------------------------
 // Main ChatPanel component
 // -------------------------------------------------------------------
 export function ChatPanel() {
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(loadStoredMessages)
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
-  const [caseContext, setCaseContext] = useState<CaseContext | null>(null)
+  const [caseContext, setCaseContext] = useState<CaseContext | null>(loadStoredCaseContext)
   const [contextAvailable, setContextAvailable] = useState<boolean | null>(null)
   const model = "claude-opus-4-6"
   const [loadingMessage, setLoadingMessage] = useState("")
@@ -571,6 +626,19 @@ export function ChatPanel() {
       inputRef.current.focus()
     }
   }, [isOpen])
+
+  // Persist messages to sessionStorage whenever they change
+  useEffect(() => {
+    // Only persist when not in the middle of streaming (avoid saving partial assistant messages)
+    if (!isStreaming) {
+      saveMessages(messages)
+    }
+  }, [messages, isStreaming])
+
+  // Persist case context to sessionStorage whenever it changes
+  useEffect(() => {
+    saveCaseContext(caseContext)
+  }, [caseContext])
 
   // Detect case context from route
   useEffect(() => {
@@ -758,6 +826,7 @@ export function ChatPanel() {
     setMessages([])
     setIsStreaming(false)
     setContextAvailable(null)
+    clearStoredChat()
   }
 
   const suggestions = getSuggestions(caseContext)

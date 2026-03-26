@@ -45,13 +45,44 @@ export async function GET(
     )
   }
 
-  if (!task.detokenizedOutput) {
+  // ── Pre-export validation ─────────────────────────────────────
+  const validationErrors: string[] = []
+
+  if (!task.detokenizedOutput && !task.tokenizedOutput) {
+    validationErrors.push("Missing output content")
+  }
+
+  if (task.detokenizedOutput) {
+    const decrypted = decryptField(task.detokenizedOutput)
+    if (!decrypted || decrypted.trim() === "") {
+      validationErrors.push("Output decryption produced empty content")
+    }
+  } else if (!task.detokenizedOutput) {
+    validationErrors.push("No detokenized output available — re-run analysis to generate exportable output")
+  }
+
+  // Validate structured output for spreadsheet tasks
+  if (validationErrors.length === 0 && SPREADSHEET_TASKS.includes(task.taskType)) {
+    try {
+      const testOutput = decryptField(task.detokenizedOutput!)
+      const parsed = JSON.parse(testOutput)
+      if (parsed._type === "oic_working_papers_v1") {
+        if (!parsed.merged) validationErrors.push("Output format invalid — missing merged data")
+        if (!parsed.extracted) validationErrors.push("Output format invalid — missing extracted data")
+      }
+    } catch {
+      // Not JSON — will use legacy fallback parser, which is acceptable
+    }
+  }
+
+  if (validationErrors.length > 0) {
     return NextResponse.json(
-      { error: "No detokenized output available. Re-run analysis to generate exportable output." },
-      { status: 400 }
+      { error: "Export validation failed", details: validationErrors },
+      { status: 422 }
     )
   }
-  const output = decryptField(task.detokenizedOutput)
+
+  const output = decryptField(task.detokenizedOutput!)
   const format = request.nextUrl.searchParams.get("format") || "xlsx"
 
   // Audit log for export (fire-and-forget)

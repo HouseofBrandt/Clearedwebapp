@@ -132,7 +132,7 @@ function scoreColor(score: number): string {
 
 function scoreProgressColor(score: number): string {
   if (score >= 70) return "[&>div]:bg-c-success"
-  if (score >= 40) return "[&>div]:bg-c-warning-soft0"
+  if (score >= 40) return "[&>div]:bg-c-warning"
   return "[&>div]:bg-c-danger"
 }
 
@@ -310,6 +310,15 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
         </div>
 
         {/* Liability Table */}
+        {liabilityTable.length === 0 && (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-8">
+              <DollarSign className="h-8 w-8 text-muted-foreground/40" />
+              <p className="mt-2 text-sm text-muted-foreground">No liability periods available</p>
+              <p className="text-xs text-muted-foreground mt-1">Upload IRS transcripts or notices to populate liability data.</p>
+            </CardContent>
+          </Card>
+        )}
         {liabilityTable.length > 0 && (
           <Card>
             <CardHeader className="pb-2 pt-3 px-4">

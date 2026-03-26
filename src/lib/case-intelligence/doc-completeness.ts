@@ -7,6 +7,14 @@ interface DocRequirement {
   matchCount?: number
 }
 
+// Baseline requirements for case types without a specific checklist.
+// Any uploaded & categorized document counts toward progress.
+const GENERAL_BASELINE: DocRequirement[] = [
+  { category: "IRS_NOTICE", label: "IRS notices or transcripts", critical: true },
+  { category: "TAX_RETURN", label: "Tax returns", critical: false },
+  { category: "MEETING_NOTES", label: "Client intake notes", critical: false },
+]
+
 const REQUIRED_DOCS_BY_TYPE: Record<string, DocRequirement[]> = {
   OIC: [
     { category: "IRS_NOTICE", label: "IRS Account Transcripts (all years)", critical: true },
@@ -67,8 +75,10 @@ export async function getCaseSpecificRequirements(caseId: string): Promise<DocRe
   if (!caseData) return []
 
   // Start with the base requirements for this case type
+  // Use GENERAL_BASELINE instead of OIC for unknown case types to avoid
+  // producing 0% completeness for cases with many uploaded documents
   const baseReqs = [
-    ...(REQUIRED_DOCS_BY_TYPE[caseData.caseType] || REQUIRED_DOCS_BY_TYPE["OIC"]),
+    ...(REQUIRED_DOCS_BY_TYPE[caseData.caseType] || GENERAL_BASELINE),
   ]
 
   // MFJ: add spouse-specific documents
@@ -119,12 +129,16 @@ export async function recalculateDocCompleteness(caseId: string) {
 
   const required = await getCaseSpecificRequirements(caseId)
   const uploadedCategories = caseData.documents.map(d => d.documentCategory)
+  const totalUploaded = uploadedCategories.length
 
   const categoryCount: Record<string, number> = {}
   for (const cat of uploadedCategories) {
     categoryCount[cat] = (categoryCount[cat] || 0) + 1
   }
 
+  // Deduplicate requirements by category to avoid double-counting.
+  // Multiple requirements with the same category (e.g. two IRS_NOTICE entries)
+  // should each be checked independently.
   const docsRequired = required.map(req => ({
     ...req,
     received: categoryCount[req.category]
@@ -133,7 +147,27 @@ export async function recalculateDocCompleteness(caseId: string) {
   }))
 
   const receivedCount = docsRequired.filter(d => d.received).length
-  const completeness = docsRequired.length > 0 ? receivedCount / docsRequired.length : 0
+  let completeness = docsRequired.length > 0 ? receivedCount / docsRequired.length : 0
+
+  // Guarantee: if documents have been uploaded and categorized (even as OTHER),
+  // completeness should never be 0%. Give a minimum baseline based on upload
+  // volume relative to requirements to prevent the "0% with 27 docs" scenario.
+  if (totalUploaded > 0 && completeness === 0) {
+    // Count distinct non-OTHER categories that were uploaded
+    const distinctCategories = new Set(
+      uploadedCategories.filter(c => c !== "OTHER")
+    )
+    if (distinctCategories.size > 0) {
+      // At least some categorized docs exist — give partial credit
+      completeness = Math.min(
+        0.5,
+        distinctCategories.size / Math.max(docsRequired.length, 1)
+      )
+    } else {
+      // All docs are OTHER — give a small baseline so it's not 0%
+      completeness = Math.min(0.1, totalUploaded / 20)
+    }
+  }
 
   await prisma.caseIntelligence.upsert({
     where: { caseId },

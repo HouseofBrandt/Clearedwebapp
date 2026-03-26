@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Download, Plus, Trash2, AlertTriangle, FileText } from "lucide-react"
+import { useToast } from "@/components/ui/toast"
 
 interface SpreadsheetTab {
   name: string
@@ -34,6 +35,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
   const [error, setError] = useState("")
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
   const [summary, setSummary] = useState<Record<string, number>>({})
+  const { addToast } = useToast()
 
   useEffect(() => {
     async function fetchData() {
@@ -91,8 +93,38 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
     onDataChange?.(newTabs)
   }
 
-  function handleExport() {
-    window.open(`/api/ai/tasks/${taskId}/export?format=xlsx`, "_blank")
+  async function handleExport() {
+    const url = `/api/ai/tasks/${taskId}/export?format=xlsx`
+    try {
+      const res = await fetch(url)
+      if (res.status === 422) {
+        const data = await res.json()
+        const details = (data.details as string[])?.join("\n• ") || "Unknown validation error"
+        addToast({
+          title: "Export validation failed",
+          description: `• ${details}`,
+          variant: "destructive",
+          action: "Try re-generating the deliverable.",
+        })
+        return
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Export failed" }))
+        addToast({ title: "Export failed", description: data.error, variant: "destructive" })
+        return
+      }
+      const blob = await res.blob()
+      const disposition = res.headers.get("Content-Disposition") || ""
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      const filename = match?.[1] || "export.xlsx"
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(blob)
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch {
+      addToast({ title: "Export failed", description: "Network error", variant: "destructive" })
+    }
   }
 
   if (loading) {

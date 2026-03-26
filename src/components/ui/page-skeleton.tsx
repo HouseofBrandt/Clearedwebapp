@@ -1,4 +1,4 @@
-function SkeletonPulse({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function SkeletonPulse({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={`rounded-md ${className || ""}`}

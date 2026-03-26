@@ -183,6 +183,40 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
     }
   }
 
+  async function handleValidatedExport(url: string) {
+    try {
+      const res = await fetch(url)
+      if (res.status === 422) {
+        const data = await res.json()
+        const details = (data.details as string[])?.join("\n• ") || "Unknown validation error"
+        addToast({
+          title: "Export validation failed",
+          description: `• ${details}`,
+          variant: "destructive",
+          action: "Try re-generating the deliverable.",
+        })
+        return
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Export failed" }))
+        addToast({ title: "Export failed", description: data.error, variant: "destructive" })
+        return
+      }
+      // Download the file
+      const blob = await res.blob()
+      const disposition = res.headers.get("Content-Disposition") || ""
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      const filename = match?.[1] || "export"
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(blob)
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch {
+      addToast({ title: "Export failed", description: "Network error", variant: "destructive" })
+    }
+  }
+
   async function handleSave() {
     if (form.status === "CLOSED" && caseData.status !== "CLOSED") {
       if (!window.confirm("Are you sure you want to close this case?")) return
@@ -396,7 +430,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                                     <BanjoIcon className="h-4 w-4" />
                                     <p className="font-medium text-sm">Banjo &mdash; {new Date(tasks[0].createdAt).toLocaleDateString()}</p>
                                   </div>
-                                  <Button variant="outline" size="sm" onClick={() => window.open(`/api/banjo/${assignmentId}/export-zip`, "_blank")}>
+                                  <Button variant="outline" size="sm" onClick={() => handleValidatedExport(`/api/banjo/${assignmentId}/export-zip`)}>
                                     <Download className="mr-1 h-3.5 w-3.5" /> ZIP
                                   </Button>
                                 </div>
@@ -408,7 +442,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                                         <Badge className="bg-c-success-soft text-c-success text-[10px]" variant="secondary">Approved</Badge>
                                         <p className="text-sm">{task.banjoStepLabel || formatTaskType(task.taskType)}</p>
                                       </div>
-                                      <Button variant="ghost" size="sm" onClick={() => window.open(`/api/ai/tasks/${task.id}/export?format=${isSS ? "xlsx" : "docx"}`, "_blank")}>
+                                      <Button variant="ghost" size="sm" onClick={() => handleValidatedExport(`/api/ai/tasks/${task.id}/export?format=${isSS ? "xlsx" : "docx"}`)}>
                                         <Download className="mr-1 h-3 w-3" /> {isSS ? ".xlsx" : ".docx"}
                                       </Button>
                                     </div>
@@ -426,7 +460,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                                     <p className="font-medium">{formatTaskType(task.taskType)}</p>
                                     <p className="text-xs text-muted-foreground">Approved {timeAgo(task.updatedAt || task.createdAt)}</p>
                                   </div>
-                                  <Button variant="outline" size="sm" onClick={() => window.open(`/api/ai/tasks/${task.id}/export?format=${isSS ? "xlsx" : "docx"}`, "_blank")}>
+                                  <Button variant="outline" size="sm" onClick={() => handleValidatedExport(`/api/ai/tasks/${task.id}/export?format=${isSS ? "xlsx" : "docx"}`)}>
                                     <Download className="mr-1 h-3.5 w-3.5" /> {isSS ? ".xlsx" : ".docx"}
                                   </Button>
                                 </CardContent>

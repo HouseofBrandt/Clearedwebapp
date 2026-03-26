@@ -259,7 +259,7 @@ export function InboxList({
     } finally {
       setBulkLoading(false)
     }
-  }, [selectedIds, router, addToast])
+  }, [selectedIds, messages, router, addToast])
 
   const bulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return

@@ -37,6 +37,45 @@ export async function GET(
     return NextResponse.json({ error: "No approved deliverables to export" }, { status: 400 })
   }
 
+  // ── Pre-export validation ─────────────────────────────────────
+  const validationErrors: string[] = []
+  for (const task of assignment.tasks) {
+    const rawOutput = task.detokenizedOutput || task.tokenizedOutput
+    if (!rawOutput || rawOutput.trim() === "") {
+      validationErrors.push(
+        `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Missing output content`
+      )
+      continue
+    }
+    const output = task.detokenizedOutput ? decryptField(task.detokenizedOutput) : rawOutput
+    if (!output || output.trim() === "") {
+      validationErrors.push(
+        `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Output decryption produced empty content`
+      )
+      continue
+    }
+    // Validate structured output can be parsed when expected
+    if (SPREADSHEET_TASKS.includes(task.taskType)) {
+      try {
+        const parsed = JSON.parse(output)
+        if (parsed._type === "oic_working_papers_v1" && (!parsed.merged || !parsed.extracted)) {
+          validationErrors.push(
+            `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Output format invalid — missing required fields (merged/extracted)`
+          )
+        }
+      } catch {
+        // Not JSON is acceptable — will fall through to docx generation
+      }
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    return NextResponse.json(
+      { error: "Export validation failed", details: validationErrors },
+      { status: 422 }
+    )
+  }
+
   const zip = new JSZip()
   const caseName = assignment.case.tabsNumber || "case"
   const clientName = assignment.case.clientName || ""
