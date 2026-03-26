@@ -58,9 +58,7 @@ export function TaskCard({ post, currentUserId, onComplete }: TaskCardProps) {
       className="rounded-xl p-3"
       style={{
         background: 'var(--c-gray-50)',
-        border: priority === "urgent" || priority === "high"
-          ? `1px solid ${pStyle.border}`
-          : '1px solid var(--c-gray-100)',
+        border: '1px solid var(--c-gray-100)',
       }}
     >
       <div className="flex items-start gap-2">
@@ -136,11 +134,9 @@ export function TaskCard({ post, currentUserId, onComplete }: TaskCardProps) {
           <button
             onClick={handleComplete}
             disabled={completing}
-            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors"
+            className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-colors hover:bg-[var(--c-gray-50)]"
             style={{
-              border: '1px solid var(--c-gray-100)',
-              color: 'var(--c-gray-500)',
-              background: 'var(--c-white)',
+              color: 'var(--c-gray-300)',
             }}
           >
             <CheckCircle className="h-3 w-3" />

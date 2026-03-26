@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { JunebugIcon, TreatBoneIcon } from "@/components/assistant/junebug-icon"
 import { JUNEBUG_LOADING_MESSAGES } from "@/lib/junebug/loading-messages"
 import { FormattedText } from "./formatted-text"
+import { TruncatedText } from "@/components/ui/truncated-text"
 import { Send } from "lucide-react"
 
 function getInitials(name: string): string {
@@ -191,9 +192,13 @@ function ReplyItem({ reply, postId }: { reply: any; postId: string }) {
             </span>
           </div>
         ) : isJunebug ? (
-          <FormattedText content={reply.content} className="mt-0.5" />
+          <TruncatedText lines={3} className="mt-0.5">
+            <FormattedText content={reply.content} />
+          </TruncatedText>
         ) : (
-          <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--c-gray-700)', lineHeight: '1.65' }}>{reply.content}</p>
+          <TruncatedText lines={3} className="mt-0.5">
+            <p className="whitespace-pre-wrap" style={{ color: 'var(--c-gray-700)', fontSize: '14px', lineHeight: '1.65' }}>{reply.content}</p>
+          </TruncatedText>
         )}
       </div>
     </div>

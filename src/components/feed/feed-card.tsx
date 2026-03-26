@@ -55,13 +55,12 @@ function renderContent(content: string, mentions?: any[], caseData?: any): React
 
     const token = match[0]
     if (token.startsWith("@")) {
-      const isJunebug = /^@junebug$/i.test(token)
       parts.push(
         <span
           key={key++}
           className="font-medium"
           style={{
-            color: isJunebug ? 'var(--c-warning)' : 'var(--c-teal)',
+            color: 'var(--c-teal)',
           }}
         >
           {token}
@@ -73,15 +72,15 @@ function renderContent(content: string, mentions?: any[], caseData?: any): React
           <Link
             key={key++}
             href={`/cases/${caseData.id}`}
-            className="font-mono text-xs font-medium hover:underline"
-            style={{ color: 'var(--c-teal)' }}
+            className="font-mono text-xs font-medium hover:underline px-1.5 py-0.5 rounded"
+            style={{ color: 'var(--c-teal)', background: 'var(--c-teal-soft)' }}
           >
             {token}
           </Link>
         )
       } else {
         parts.push(
-          <span key={key++} className="font-mono text-xs font-medium" style={{ color: 'var(--c-teal)' }}>
+          <span key={key++} className="font-mono text-xs font-medium px-1.5 py-0.5 rounded" style={{ color: 'var(--c-teal)', background: 'var(--c-teal-soft)' }}>
             {token}
           </span>
         )
@@ -221,7 +220,7 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
         )}
         <div className="flex-1 min-w-0">
           {/* Author line */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <span
               className="text-sm font-medium"
               style={{
@@ -315,10 +314,12 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
               ) : (
                 displayContent && (
                   isJunebug ? (
-                    <FormattedText content={displayContent} className="mt-1" />
+                    <TruncatedText lines={3} className="mt-1">
+                      <FormattedText content={displayContent} />
+                    </TruncatedText>
                   ) : (
                     <TruncatedText lines={3} className="mt-1">
-                      <div className="text-sm whitespace-pre-wrap" style={{ color: 'var(--c-gray-700)', lineHeight: '1.65' }}>
+                      <div className="whitespace-pre-wrap" style={{ fontSize: '14px', color: 'var(--c-gray-700)', lineHeight: '1.65' }}>
                         {renderContent(displayContent, post.mentions, post.case)}
                       </div>
                     </TruncatedText>
@@ -354,10 +355,10 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
           )}
 
           {/* Actions bar — tiny and quiet */}
-          <div className="flex items-center gap-3 mt-2.5">
+          <div className="flex items-center gap-1 mt-2.5">
             <button
               onClick={() => setShowReplyInput(!showReplyInput)}
-              className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-700)]"
+              className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-500)]"
               style={{ color: 'var(--c-gray-300)', fontSize: '12px' }}
             >
               <MessageCircle className="h-3.5 w-3.5" />
@@ -365,7 +366,7 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             </button>
             <button
               onClick={handleAcknowledge}
-              className="flex items-center gap-1 text-xs transition-colors"
+              className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-500)]"
               style={{
                 color: acknowledged ? 'var(--c-teal)' : 'var(--c-gray-300)',
                 fontSize: '12px',
@@ -376,7 +377,7 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center gap-1 text-xs transition-colors"
+              className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-500)]"
               style={{
                 color: saved ? 'var(--c-teal)' : 'var(--c-gray-300)',
                 fontSize: '12px',
@@ -387,7 +388,7 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             {displayContent && (
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-700)]"
+                className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-500)]"
                 style={{ color: 'var(--c-gray-300)', fontSize: '12px' }}
               >
                 <Copy className="h-3.5 w-3.5" />
@@ -397,7 +398,7 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
             {canEdit && !isEditing && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-700)]"
+                className="flex items-center gap-1 text-xs transition-colors hover:text-[var(--c-gray-500)]"
                 style={{ color: 'var(--c-gray-300)', fontSize: '12px' }}
               >
                 <Pencil className="h-3.5 w-3.5" />
