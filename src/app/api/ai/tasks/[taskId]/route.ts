@@ -28,10 +28,11 @@ export async function GET(
     return NextResponse.json({ error: "Task not found" }, { status: 404 })
   }
 
-  // Decrypt detokenizedOutput before returning to client
+  // Decrypt detokenizedOutput and clientName before returning to client
   const decryptedTask = {
     ...task,
     detokenizedOutput: task.detokenizedOutput ? decryptField(task.detokenizedOutput) : null,
+    case: task.case ? { ...task.case, clientName: decryptField(task.case.clientName) } : task.case,
   }
 
   return NextResponse.json(decryptedTask)
