@@ -38,7 +38,7 @@ import {
 } from "@/components/forms/field-renderer"
 import { JunebugFormAssistant } from "@/components/forms/junebug-form-assistant"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
-import { PDFPreview } from "@/components/forms/pdf-preview"
+import { PDFFormPreview } from "@/components/forms/pdf-preview"
 import type { AutoPopulationResult, AutoPopulatedField } from "@/lib/forms/auto-populate"
 
 // ---------------------------------------------------------------------------
@@ -760,11 +760,10 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
 
           {/* PDF Preview fills remaining space */}
           <div className="flex-1 min-h-0">
-            <PDFPreview
-              schema={schema}
-              values={values}
-              activeSection={activeSection}
-              activeSectionIndex={activeSectionIndex}
+            <PDFFormPreview
+              formNumber={schema.formNumber}
+              currentPage={activeSectionIndex + 1}
+              zoom={100}
             />
           </div>
         </div>
