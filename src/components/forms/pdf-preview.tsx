@@ -97,31 +97,35 @@ export function PDFFormPreview({ formNumber, currentPage = 1, zoom = 100 }: PDFF
       </div>
 
       {/* PDF embed */}
-      <div style={{ flex: 1, overflow: "hidden" }}>
-        <iframe
-          src={pdfSrc}
-          style={{
-            width: "100%", height: "100%", border: "none",
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: "top left",
-          }}
-          title={`IRS Form ${formNumber} Preview`}
-        />
+      <div style={{ flex: 1, overflow: "auto", background: "var(--c-gray-50)" }}>
+        <object
+          data={pdfSrc}
+          type="application/pdf"
+          style={{ width: "100%", height: "100%", border: "none", minHeight: 500 }}
+        >
+          {/* Fallback if object tag doesn't work */}
+          <iframe
+            src={pdfSrc}
+            style={{ width: "100%", height: "100%", border: "none", minHeight: 500 }}
+            title={`IRS Form ${formNumber} Preview`}
+          />
+        </object>
       </div>
 
       {/* Footer */}
       <div style={{
-        padding: "8px 12px", borderTop: "1px solid var(--c-gray-100)",
+        padding: "10px 12px", borderTop: "1px solid var(--c-gray-100)",
         textAlign: "center", background: "var(--c-white)",
       }}>
         <button
           onClick={() => setIsExpanded(true)}
           style={{
-            fontSize: 11, color: "var(--c-teal)", background: "none",
+            fontSize: 12, color: "var(--c-teal)", background: "none",
             border: "none", cursor: "pointer", fontWeight: 500,
+            padding: "4px 16px",
           }}
         >
-          View Tax Form
+          View Full Tax Form ↗
         </button>
       </div>
     </div>

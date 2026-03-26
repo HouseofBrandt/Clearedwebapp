@@ -605,15 +605,15 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
         </div>
       </div>
 
-      {/* Junebug FAB button */}
+      {/* Junebug FAB button — positioned above the PDF panel footer */}
       {!junebugOpen && (
         <button
           onClick={() => setJunebugOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-[var(--c-teal)] px-4 py-2.5 text-white shadow-lg hover:shadow-xl transition-shadow"
+          className="fixed bottom-16 right-[360px] z-40 flex items-center gap-2 rounded-full bg-[var(--c-teal)] px-3 py-2 text-white shadow-md hover:shadow-lg transition-shadow text-xs"
           title="Ask Junebug (Ctrl+J)"
         >
-          <JunebugIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">Ask Junebug</span>
+          <JunebugIcon className="h-4 w-4" />
+          <span className="font-medium">Ask Junebug</span>
         </button>
       )}
 
@@ -694,7 +694,7 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
           }}
         />
       ) : rightOpen ? (
-        <div className="w-[340px] shrink-0 flex flex-col" style={{ height: "calc(100vh - 80px)" }}>
+        <div className="w-[380px] shrink-0 flex flex-col" style={{ height: "calc(100vh - 80px)" }}>
           {/* Collapsible stats bar */}
           <div className="border-l border-[var(--c-gray-100)] bg-[var(--c-white)]">
             <div className="px-3 py-2 border-b border-[var(--c-gray-100)] flex items-center justify-between">
