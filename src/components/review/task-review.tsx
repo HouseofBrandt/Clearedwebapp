@@ -164,7 +164,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
           title: "Export validation failed",
           description: `• ${details}`,
           variant: "destructive",
-          action: "Try re-generating the deliverable.",
+
         })
         return
       }

@@ -193,7 +193,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
           title: "Export validation failed",
           description: `• ${details}`,
           variant: "destructive",
-          action: "Try re-generating the deliverable.",
+
         })
         return
       }

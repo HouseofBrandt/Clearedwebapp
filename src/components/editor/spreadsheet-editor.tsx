@@ -104,7 +104,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
           title: "Export validation failed",
           description: `• ${details}`,
           variant: "destructive",
-          action: "Try re-generating the deliverable.",
+
         })
         return
       }
