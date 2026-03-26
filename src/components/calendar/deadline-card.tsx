@@ -70,7 +70,7 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
   const isOverdue = computedStatus === "OVERDUE"
   const isDueSoon = computedStatus === "DUE_SOON"
   const isCompleted = deadline.status === "COMPLETED"
-  const priorityDot = DEADLINE_PRIORITY_DOTS[deadline.priority] || "bg-gray-400"
+  const priorityDot = DEADLINE_PRIORITY_DOTS[deadline.priority] || "bg-c-gray-300"
   const priorityBadge = DEADLINE_PRIORITY_COLORS[deadline.priority] || ""
 
   async function handleComplete() {
@@ -144,7 +144,7 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
         )}
         <div className="text-right shrink-0">
           <p className="text-xs text-muted-foreground">{formatDate(deadline.dueDate, { month: "short", day: "numeric", year: "numeric" })}</p>
-          <p className={`text-xs font-medium ${isOverdue ? "text-red-600" : isDueSoon ? "text-amber-600" : "text-muted-foreground"}`}>
+          <p className={`text-xs font-medium ${isOverdue ? "text-c-danger" : isDueSoon ? "text-c-warning" : "text-muted-foreground"}`}>
             {formatRelativeDate(deadline.dueDate)}
           </p>
         </div>
@@ -153,13 +153,13 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
   }
 
   return (
-    <div className={`rounded-lg border p-4 transition-colors ${isOverdue ? "border-red-200 bg-red-50/50" : isDueSoon ? "border-amber-200 bg-amber-50/30" : isCompleted ? "bg-muted/30 opacity-70" : ""}`}>
+    <div className={`rounded-lg border p-4 transition-colors ${isOverdue ? "border-c-danger/20 bg-c-danger-soft/50" : isDueSoon ? "border-c-warning/20 bg-c-warning-soft/30" : isCompleted ? "bg-muted/30 opacity-70" : ""}`}>
       <div className="flex items-start gap-3">
         {!isCompleted && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 shrink-0 mt-0.5 rounded-full border hover:bg-green-50 hover:border-green-400"
+            className="h-6 w-6 shrink-0 mt-0.5 rounded-full border hover:bg-c-success-soft hover:border-c-success/20"
             onClick={handleComplete}
             disabled={completing}
             title="Mark complete"
@@ -168,8 +168,8 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
           </Button>
         )}
         {isCompleted && (
-          <div className="h-6 w-6 shrink-0 mt-0.5 rounded-full bg-green-100 flex items-center justify-center">
-            <Check className="h-3 w-3 text-green-600" />
+          <div className="h-6 w-6 shrink-0 mt-0.5 rounded-full bg-c-success-soft flex items-center justify-center">
+            <Check className="h-3 w-3 text-c-success" />
           </div>
         )}
 
@@ -184,12 +184,12 @@ export function DeadlineCard({ deadline, users, compact }: DeadlineCardProps) {
             </div>
             <div className="text-right shrink-0">
               <p className="text-sm">{formatDate(deadline.dueDate, { month: "short", day: "numeric", year: "numeric" })}</p>
-              {isOverdue && <p className="text-xs font-medium text-red-600">OVERDUE</p>}
+              {isOverdue && <p className="text-xs font-medium text-c-danger">OVERDUE</p>}
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className={`text-xs font-medium ${isOverdue ? "text-red-600" : isDueSoon ? "text-amber-600" : "text-muted-foreground"}`}>
+            <span className={`text-xs font-medium ${isOverdue ? "text-c-danger" : isDueSoon ? "text-c-warning" : "text-muted-foreground"}`}>
               {isOverdue ? "!" : ""} {formatRelativeDate(deadline.dueDate)}
             </span>
             <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${priorityBadge}`}>

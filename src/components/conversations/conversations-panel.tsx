@@ -25,15 +25,15 @@ import {
 } from "lucide-react"
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  OPEN: { bg: "bg-green-100", text: "text-green-700", label: "Open" },
-  RESOLVED: { bg: "bg-blue-100", text: "text-blue-700", label: "Resolved" },
-  ARCHIVED: { bg: "bg-gray-100", text: "text-gray-500", label: "Archived" },
+  OPEN: { bg: "bg-c-success-soft", text: "text-c-success", label: "Open" },
+  RESOLVED: { bg: "bg-c-info-soft", text: "text-c-teal", label: "Resolved" },
+  ARCHIVED: { bg: "bg-c-gray-100", text: "text-c-gray-500", label: "Archived" },
 }
 
 const PRIORITY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  NORMAL: { bg: "bg-slate-100", text: "text-slate-600", label: "Normal" },
-  URGENT: { bg: "bg-red-100", text: "text-red-700", label: "Urgent" },
-  FYI: { bg: "bg-amber-100", text: "text-amber-700", label: "FYI" },
+  NORMAL: { bg: "bg-c-gray-100", text: "text-c-gray-500", label: "Normal" },
+  URGENT: { bg: "bg-c-danger-soft", text: "text-c-danger", label: "Urgent" },
+  FYI: { bg: "bg-c-warning-soft", text: "text-c-warning", label: "FYI" },
 }
 
 function timeAgo(date: string | Date): string {
@@ -277,7 +277,7 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
                 onClick={() => setPriorityFilter(f.value)}
                 className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
                   priorityFilter === f.value
-                    ? "bg-slate-700 text-white"
+                    ? "bg-c-gray-700 text-white"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 }`}
               >
@@ -497,7 +497,7 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
                         className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs"
                       >
                         {att.fileType === "AUDIO" ? (
-                          <FileAudio className="h-3 w-3 text-blue-500" />
+                          <FileAudio className="h-3 w-3 text-c-teal" />
                         ) : (
                           <Paperclip className="h-3 w-3 text-muted-foreground" />
                         )}
@@ -597,7 +597,7 @@ function MessageAttachment({ attachment }: { attachment: any }) {
     return (
       <div className="border rounded p-2 bg-muted/30 max-w-sm">
         <div className="flex items-center gap-1.5 mb-1">
-          <FileAudio className="h-3.5 w-3.5 text-blue-500" />
+          <FileAudio className="h-3.5 w-3.5 text-c-teal" />
           <span className="text-xs font-medium truncate">{attachment.fileName}</span>
         </div>
         {/* Audio player */}

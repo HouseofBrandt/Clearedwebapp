@@ -41,25 +41,25 @@ interface ControlData {
 }
 
 const TSC_CONFIG: Record<string, { label: string; icon: any; color: string }> = {
-  SECURITY: { label: "Security", icon: Shield, color: "text-blue-600" },
-  AVAILABILITY: { label: "Availability", icon: Server, color: "text-green-600" },
+  SECURITY: { label: "Security", icon: Shield, color: "text-c-teal" },
+  AVAILABILITY: { label: "Availability", icon: Server, color: "text-c-success" },
   PROCESSING_INTEGRITY: { label: "Processing Integrity", icon: Cpu, color: "text-purple-600" },
-  CONFIDENTIALITY: { label: "Confidentiality", icon: Lock, color: "text-amber-600" },
+  CONFIDENTIALITY: { label: "Confidentiality", icon: Lock, color: "text-c-warning" },
   PRIVACY: { label: "Privacy", icon: Eye, color: "text-rose-600" },
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  COMPLIANT: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  PARTIALLY_COMPLIANT: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  NON_COMPLIANT: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  NOT_ASSESSED: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+  COMPLIANT: "bg-c-success-soft text-c-success dark:bg-c-success dark:text-c-success",
+  PARTIALLY_COMPLIANT: "bg-c-warning-soft text-c-warning dark:bg-c-warning/10 dark:text-c-warning",
+  NON_COMPLIANT: "bg-c-danger-soft text-c-danger dark:bg-c-danger dark:text-c-danger",
+  NOT_ASSESSED: "bg-c-gray-100 text-c-gray-900 dark:bg-c-gray-900 dark:text-c-gray-200",
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  CRITICAL: "bg-red-100 text-red-800",
+  CRITICAL: "bg-c-danger-soft text-c-danger",
   HIGH: "bg-orange-100 text-orange-800",
-  MEDIUM: "bg-yellow-100 text-yellow-800",
-  LOW: "bg-blue-100 text-blue-800",
+  MEDIUM: "bg-c-warning-soft text-c-warning",
+  LOW: "bg-c-info-soft text-c-teal",
 }
 
 export function OverviewDashboard() {
@@ -233,19 +233,19 @@ export function OverviewDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-c-success" />
                 <span>{compliant} Compliant</span>
               </div>
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertTriangle className="h-4 w-4 text-c-warning" />
                 <span>{partial} Partial</span>
               </div>
               <div className="flex items-center gap-2">
-                <XCircle className="h-4 w-4 text-red-600" />
+                <XCircle className="h-4 w-4 text-c-danger" />
                 <span>{nonCompliant} Non-Compliant</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-4 w-4 rounded-full bg-gray-300 inline-block" />
+                <span className="h-4 w-4 rounded-full bg-c-gray-300 inline-block" />
                 <span>{notAssessed} Not Assessed</span>
               </div>
             </div>
@@ -358,23 +358,23 @@ export function OverviewDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-950">
-                <p className="text-2xl font-medium text-green-700 dark:text-green-300 font-mono tabular-nums">
+              <div className="text-center p-3 rounded-lg bg-c-success-soft dark:bg-c-success">
+                <p className="text-2xl font-medium text-c-success dark:text-c-success font-mono tabular-nums">
                   {withEvidence.length - staleEvidence.length}
                 </p>
-                <p className="text-xs text-green-600 dark:text-green-400">Current</p>
+                <p className="text-xs text-c-success dark:text-c-success">Current</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950">
-                <p className="text-2xl font-medium text-yellow-700 dark:text-yellow-300 font-mono tabular-nums">
+              <div className="text-center p-3 rounded-lg bg-c-warning-soft dark:bg-yellow-950">
+                <p className="text-2xl font-medium text-c-warning dark:text-c-warning font-mono tabular-nums">
                   {staleEvidence.length}
                 </p>
-                <p className="text-xs text-yellow-600 dark:text-yellow-400">Stale</p>
+                <p className="text-xs text-c-warning dark:text-c-warning">Stale</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-red-50 dark:bg-red-950">
-                <p className="text-2xl font-medium text-red-700 dark:text-red-300 font-mono tabular-nums">
+              <div className="text-center p-3 rounded-lg bg-c-danger-soft dark:bg-c-danger">
+                <p className="text-2xl font-medium text-c-danger dark:text-c-danger font-mono tabular-nums">
                   {totalControls - withEvidence.length}
                 </p>
-                <p className="text-xs text-red-600 dark:text-red-400">Missing</p>
+                <p className="text-xs text-c-danger dark:text-c-danger">Missing</p>
               </div>
             </div>
             <Progress

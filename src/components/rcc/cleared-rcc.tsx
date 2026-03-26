@@ -85,12 +85,12 @@ export function ClearedRCC() {
   return (
     <div className="flex min-h-[calc(100vh-4rem)]">
       {/* Sidebar */}
-      <div className="w-56 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col">
-        <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-800">
-          <h1 className="text-display-md text-slate-900 dark:text-slate-100">
+      <div className="w-56 border-r border-c-gray-100 dark:border-c-gray-900 bg-c-snow dark:bg-c-gray-900/50 flex flex-col">
+        <div className="px-4 py-4 border-b border-c-gray-100 dark:border-c-gray-900">
+          <h1 className="text-display-md text-c-gray-900 dark:text-c-gray-100">
             Transcript Decoder
           </h1>
-          <div className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">
+          <div className="text-[10px] text-c-gray-300 uppercase tracking-widest mt-0.5">
             Calculator
           </div>
         </div>
@@ -101,8 +101,8 @@ export function ClearedRCC() {
               onClick={() => setView(key)}
               className={`flex items-center gap-2.5 w-full px-3 py-2 mb-0.5 rounded-md text-sm transition-colors ${
                 view === key
-                  ? "bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
-                  : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+                  ? "bg-c-gray-200 dark:bg-c-gray-900 text-c-gray-900 dark:text-c-gray-100 font-medium"
+                  : "text-c-gray-500 hover:bg-c-gray-100 dark:hover:bg-c-gray-900/50"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -111,11 +111,11 @@ export function ClearedRCC() {
           ))}
         </div>
         {taxpayer && (
-          <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-400">
-            <div className="text-slate-600 dark:text-slate-300 font-medium mb-1">{taxpayer.name}</div>
+          <div className="px-4 py-3 border-t border-c-gray-100 dark:border-c-gray-900 text-xs text-c-gray-300">
+            <div className="text-c-gray-500 dark:text-c-gray-300 font-medium mb-1">{taxpayer.name}</div>
             <div>SSN: XXX-XX-{taxpayer.ssn_last4}</div>
             {taxpayer.representative_payee && (
-              <div className="text-amber-500 mt-1">Rep Payee: {taxpayer.representative_payee}</div>
+              <div className="text-c-warning mt-1">Rep Payee: {taxpayer.representative_payee}</div>
             )}
             {years.length > 0 && <div className="mt-1">{years.length} year(s) loaded</div>}
           </div>

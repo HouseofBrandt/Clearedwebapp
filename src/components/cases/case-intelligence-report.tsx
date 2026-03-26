@@ -109,43 +109,43 @@ function formatDate(date: string | null): string {
 
 function csedColorClass(days: number | null): string {
   if (days === null) return "text-muted-foreground"
-  if (days < 365) return "text-red-600 font-medium"
-  if (days < 730) return "text-amber-600 font-medium"
-  return "text-green-600"
+  if (days < 365) return "text-c-danger font-medium"
+  if (days < 730) return "text-c-warning font-medium"
+  return "text-c-success"
 }
 
 function deadlinePriorityColor(priority: string): string {
   switch (priority) {
-    case "CRITICAL": return "bg-red-100 text-red-800"
+    case "CRITICAL": return "bg-c-danger-soft text-c-danger"
     case "HIGH": return "bg-orange-100 text-orange-800"
     case "MEDIUM": return "bg-yellow-100 text-yellow-800"
-    case "LOW": return "bg-blue-100 text-blue-800"
-    default: return "bg-gray-100 text-gray-800"
+    case "LOW": return "bg-c-info-soft text-c-teal"
+    default: return "bg-c-gray-100 text-c-gray-900"
   }
 }
 
 function scoreColor(score: number): string {
-  if (score >= 70) return "text-green-600"
-  if (score >= 40) return "text-amber-600"
-  return "text-red-600"
+  if (score >= 70) return "text-c-success"
+  if (score >= 40) return "text-c-warning"
+  return "text-c-danger"
 }
 
 function scoreProgressColor(score: number): string {
-  if (score >= 70) return "[&>div]:bg-green-500"
-  if (score >= 40) return "[&>div]:bg-amber-500"
-  return "[&>div]:bg-red-500"
+  if (score >= 70) return "[&>div]:bg-c-success"
+  if (score >= 40) return "[&>div]:bg-c-warning-soft0"
+  return "[&>div]:bg-c-danger"
 }
 
 function statusBadgeColor(status: string | null): string {
   switch (status) {
     case "FILED":
     case "COMPLIANT":
-      return "bg-green-100 text-green-800"
+      return "bg-c-success-soft text-c-success"
     case "UNFILED":
     case "SFR":
-      return "bg-red-100 text-red-800"
+      return "bg-c-danger-soft text-c-danger"
     default:
-      return "bg-gray-100 text-gray-700"
+      return "bg-c-gray-100 text-c-gray-700"
   }
 }
 
@@ -429,7 +429,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 </p>
                 {roadmap.penaltyAbatement.eligible.length > 0 && (
                   <div className="mt-1">
-                    <p className="text-[10px] font-medium text-green-700">Eligible:</p>
+                    <p className="text-[10px] font-medium text-c-success">Eligible:</p>
                     <ul className="space-y-0.5">
                       {roadmap.penaltyAbatement.eligible.map((e, i) => (
                         <li key={i} className="text-[10px] text-muted-foreground">{e}</li>
@@ -439,7 +439,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 )}
                 {roadmap.penaltyAbatement.ineligible.length > 0 && (
                   <div className="mt-1">
-                    <p className="text-[10px] font-medium text-red-700">Not Eligible:</p>
+                    <p className="text-[10px] font-medium text-c-danger">Not Eligible:</p>
                     <ul className="space-y-0.5">
                       {roadmap.penaltyAbatement.ineligible.map((e, i) => (
                         <li key={i} className="text-[10px] text-muted-foreground">{e}</li>
@@ -482,7 +482,7 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <p className="text-xs font-medium">Installment Agreement</p>
                   {roadmap.iaProjection.streamlined && (
-                    <Badge variant="secondary" className="text-[9px] bg-green-100 text-green-800">Streamlined Eligible</Badge>
+                    <Badge variant="secondary" className="text-[9px] bg-c-success-soft text-c-success">Streamlined Eligible</Badge>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -519,10 +519,10 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                     <div className="text-right">
                       <span className="text-xs text-muted-foreground">{formatDate(d.dueDate)}</span>
                       <span className={`text-[10px] ml-2 ${
-                        d.daysRemaining < 0 ? "text-red-600 font-medium" :
-                        d.daysRemaining < 7 ? "text-red-600" :
-                        d.daysRemaining < 30 ? "text-amber-600" :
-                        "text-green-600"
+                        d.daysRemaining < 0 ? "text-c-danger font-medium" :
+                        d.daysRemaining < 7 ? "text-c-danger" :
+                        d.daysRemaining < 30 ? "text-c-warning" :
+                        "text-c-success"
                       }`}>
                         {d.daysRemaining < 0 ? `${Math.abs(d.daysRemaining)}d overdue` : `${d.daysRemaining}d`}
                       </span>
@@ -542,9 +542,9 @@ export function CaseIntelligenceReport({ caseId }: { caseId: string }) {
                 AI Case Digest
                 {intelligence.riskScore !== null && (
                   <Badge variant="secondary" className={`text-[10px] ${
-                    intelligence.riskScore >= 70 ? "bg-red-100 text-red-800" :
-                    intelligence.riskScore >= 40 ? "bg-amber-100 text-amber-800" :
-                    "bg-green-100 text-green-800"
+                    intelligence.riskScore >= 70 ? "bg-c-danger-soft text-c-danger" :
+                    intelligence.riskScore >= 40 ? "bg-c-warning-soft text-c-warning" :
+                    "bg-c-success-soft text-c-success"
                   }`}>
                     Risk: {intelligence.riskScore}
                   </Badge>

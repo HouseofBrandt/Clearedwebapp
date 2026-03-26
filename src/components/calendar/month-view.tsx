@@ -106,7 +106,7 @@ export function MonthView({ deadlines, users }: MonthViewProps) {
                     {dayDeadlines.slice(0, 3).map((d: any) => (
                       <div
                         key={d.id}
-                        className={`h-2 w-2 rounded-full ${DEADLINE_PRIORITY_DOTS[d.priority] || "bg-gray-400"}`}
+                        className={`h-2 w-2 rounded-full ${DEADLINE_PRIORITY_DOTS[d.priority] || "bg-c-gray-300"}`}
                         title={d.title}
                       />
                     ))}
@@ -133,7 +133,7 @@ export function MonthView({ deadlines, users }: MonthViewProps) {
               {selectedDeadlines.map((d: any) => (
                 <Link key={d.id} href={`/cases/${d.case?.id || d.caseId}`} className="block">
                   <div className="flex items-center gap-3 rounded-md p-2 hover:bg-muted transition-colors">
-                    <div className={`h-3 w-3 rounded-full shrink-0 ${DEADLINE_PRIORITY_DOTS[d.priority] || "bg-gray-400"}`} />
+                    <div className={`h-3 w-3 rounded-full shrink-0 ${DEADLINE_PRIORITY_DOTS[d.priority] || "bg-c-gray-300"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{d.title}</p>
                       <p className="text-xs text-muted-foreground">

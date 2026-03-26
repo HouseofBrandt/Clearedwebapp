@@ -125,7 +125,7 @@ export function MentionAutocomplete({
           onClick={() => onSelect(s)}
         >
           {s.type === "junebug" && (
-            <JunebugIcon className="h-4 w-4 text-amber-600" />
+            <JunebugIcon className="h-4 w-4 text-c-warning" />
           )}
           {s.type === "user" && (
             <span className="h-4 w-4 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-medium">

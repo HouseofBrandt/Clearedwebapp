@@ -93,10 +93,10 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="rounded p-1 text-gray-400 opacity-0 transition-opacity hover:text-gray-600 group-hover:opacity-100"
+      className="rounded p-1 text-c-gray-300 opacity-0 transition-opacity hover:text-c-gray-500 group-hover:opacity-100"
       title="Copy message"
     >
-      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+      {copied ? <Check className="h-4 w-4 text-c-success" /> : <Copy className="h-4 w-4" />}
     </button>
   )
 }
@@ -130,8 +130,8 @@ function ChatTreatButton({ messageId }: { messageId: string }) {
       className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium transition-all
         opacity-0 group-hover:opacity-100
         ${treated
-          ? "bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700 opacity-100"
-          : "bg-muted/50 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-muted-foreground hover:text-amber-600 border border-transparent hover:border-amber-200"
+          ? "bg-c-warning-soft text-c-warning border border-c-warning/20 dark:bg-c-warning/30 dark:text-c-warning dark:border-c-warning/30 opacity-100"
+          : "bg-muted/50 hover:bg-c-warning-soft dark:hover:bg-c-warning/20 text-muted-foreground hover:text-c-warning border border-transparent hover:border-c-warning/20"
         }`}
       title={treated ? "Treat given! Junebug will remember this." : "Give Junebug a treat for a helpful answer"}
     >
@@ -180,9 +180,9 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
   const [errorMsg, setErrorMsg] = useState("")
 
   const typeConfig: Record<string, { icon: React.ElementType; label: string; border: string }> = {
-    BUG_REPORT: { icon: Bug, label: "Bug Report", border: "border-l-red-400" },
+    BUG_REPORT: { icon: Bug, label: "Bug Report", border: "border-l-c-danger" },
     FEATURE_REQUEST: { icon: Lightbulb, label: "Feature Request", border: "border-l-purple-400" },
-    DIRECT_MESSAGE: { icon: MessageSquare, label: "Direct Message", border: "border-l-blue-400" },
+    DIRECT_MESSAGE: { icon: MessageSquare, label: "Direct Message", border: "border-l-c-teal" },
   }
   const config = typeConfig[draft.type] || typeConfig.DIRECT_MESSAGE
   const Icon = config.icon
@@ -213,7 +213,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
   if (status === "sent") {
     const target = draft.type === "DIRECT_MESSAGE" ? "recipient" : "administrators"
     return (
-      <div className="flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-2 text-sm text-green-700">
+      <div className="flex items-center gap-2 rounded-lg border bg-c-success-soft px-3 py-2 text-sm text-c-success">
         <CheckCircle2 className="h-4 w-4" />
         {config.label} sent to {target}
       </div>
@@ -225,13 +225,13 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
   if (status === "error") {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-lg border border-c-danger/20 bg-c-danger-soft px-3 py-2 text-sm text-c-danger">
           <X className="h-4 w-4 shrink-0" />
           {errorMsg}
         </div>
         <button
           onClick={() => { setStatus("draft"); setErrorMsg("") }}
-          className="text-xs text-muted-foreground hover:text-gray-700 underline"
+          className="text-xs text-muted-foreground hover:text-c-gray-700 underline"
         >
           Try again
         </button>
@@ -258,7 +258,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
         <button
           onClick={handleSend}
           disabled={status === "sending"}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+          className="rounded-md bg-c-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
         >
           {status === "sending" ? "Sending..." : "Send"}
         </button>
@@ -382,12 +382,12 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
   if (status === "done") {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2 rounded-lg border bg-green-50 px-3 py-2 text-sm text-green-700">
+        <div className="flex items-center gap-2 rounded-lg border bg-c-success-soft px-3 py-2 text-sm text-c-success">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {resultMsg || "Action completed"}
         </div>
         {action.type === "SEARCH_KNOWLEDGE_BASE" && resultData?.results?.length > 0 && (
-          <div className="rounded-lg border bg-gray-50 p-2 space-y-1.5">
+          <div className="rounded-lg border bg-c-gray-50 p-2 space-y-1.5">
             {resultData.results.map((r: any, i: number) => (
               <div key={i} className="text-xs">
                 <span className="font-medium">{r.title}</span>
@@ -403,13 +403,13 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
   if (status === "error") {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-lg border border-c-danger/20 bg-c-danger-soft px-3 py-2 text-sm text-c-danger">
           <X className="h-4 w-4 shrink-0" />
           {errorMsg}
         </div>
         <button
           onClick={() => { setStatus("pending"); setErrorMsg("") }}
-          className="text-xs text-muted-foreground hover:text-gray-700 underline"
+          className="text-xs text-muted-foreground hover:text-c-gray-700 underline"
         >
           Try again
         </button>
@@ -419,10 +419,10 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
   if (status === "cancelled") return null
 
   const configs: Record<string, { icon: string; label: string; border: string }> = {
-    GENERATE_DOCUMENT_REQUEST: { icon: "\uD83D\uDCCB", label: "Document Request", border: "border-l-blue-400" },
+    GENERATE_DOCUMENT_REQUEST: { icon: "\uD83D\uDCCB", label: "Document Request", border: "border-l-c-teal" },
     UPDATE_CASE_STATUS: { icon: "\uD83D\uDCCA", label: "Update Case Status", border: "border-l-purple-400" },
-    CREATE_DEADLINE: { icon: "\uD83D\uDCC5", label: "Create Deadline", border: "border-l-amber-400" },
-    UPDATE_IRS_STATUS: { icon: "\uD83C\uDFDB\uFE0F", label: "Update IRS Status", border: "border-l-red-400" },
+    CREATE_DEADLINE: { icon: "\uD83D\uDCC5", label: "Create Deadline", border: "border-l-c-warning" },
+    UPDATE_IRS_STATUS: { icon: "\uD83C\uDFDB\uFE0F", label: "Update IRS Status", border: "border-l-c-danger" },
     ADD_CASE_NOTE: { icon: "\uD83D\uDCDD", label: "Add Case Note", border: "border-l-gray-400" },
     CREATE_BANJO_ASSIGNMENT: { icon: "\uD83E\uDE95", label: "Banjo Assignment", border: "border-l-emerald-400" },
     ADD_TO_KNOWLEDGE_BASE: { icon: "\uD83D\uDCDA", label: "Add to Knowledge Base", border: "border-l-violet-400" },
@@ -514,7 +514,7 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
           <button
             onClick={handleExecute}
             disabled={status === "executing" || (needsCaseId && !caseId)}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
+            className="rounded-md bg-c-gray-900 px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:opacity-50"
           >
             {status === "executing" ? "Executing..." : buttonLabels[action.type] || "Execute"}
           </button>
@@ -756,7 +756,7 @@ export function ChatPanel() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 shadow-lg transition-all hover:scale-110 hover:bg-slate-800 hover:shadow-xl lg:h-14 lg:w-14"
+          className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-c-gray-900 shadow-lg transition-all hover:scale-110 hover:bg-c-gray-900 hover:shadow-xl lg:h-14 lg:w-14"
           title="Ask Junebug 🐕"
         >
           <span className="group-hover:hidden">
@@ -771,20 +771,20 @@ export function ChatPanel() {
       {/* Slide-out panel */}
       {isOpen && (
         <div
-          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl lg:w-[420px]"
+          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-c-gray-100 bg-white shadow-xl lg:w-[420px]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between bg-slate-900 px-4 py-3">
+          <div className="flex items-center justify-between bg-c-gray-900 px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center">
-                <JunebugIcon className="h-5 w-5 text-amber-400" mood="happy" />
+              <div className="h-8 w-8 rounded-full bg-c-warning-soft0/20 flex items-center justify-center">
+                <JunebugIcon className="h-5 w-5 text-c-warning" mood="happy" />
               </div>
               <div>
                 <h2 className="text-base font-medium text-white flex items-center gap-1.5">
                   Junebug
-                  <span className="text-xs font-normal text-amber-400/80">🐕</span>
+                  <span className="text-xs font-normal text-c-warning/80">🐕</span>
                 </h2>
-                <p className="text-[10px] text-slate-400 -mt-0.5">Your tax resolution assistant</p>
+                <p className="text-[10px] text-c-gray-300 -mt-0.5">Your tax resolution assistant</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -810,15 +810,15 @@ export function ChatPanel() {
 
           {/* Case context pill */}
           {caseContext && (
-            <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
+            <div className="flex items-center gap-2 border-b border-c-gray-100 bg-c-gray-50 px-4 py-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-c-info-soft px-3 py-1 text-xs font-medium text-c-teal">
                 {caseContext.tabsNumber} &middot; {caseContext.caseType}
                 {caseContext.totalLiability != null && (
                   <> &middot; ${Number(caseContext.totalLiability).toLocaleString()}</>
                 )}
                 <button
                   onClick={() => setCaseContext(null)}
-                  className="ml-1 rounded-full p-0.5 hover:bg-blue-200"
+                  className="ml-1 rounded-full p-0.5 hover:bg-c-info-soft"
                   title="Remove case context"
                 >
                   <X className="h-3 w-3" />
@@ -832,14 +832,14 @@ export function ChatPanel() {
             {messages.length === 0 ? (
               /* Empty state with suggestions */
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center px-6">
-                <div className="rounded-full bg-amber-50 dark:bg-amber-900/20 p-5 border border-amber-200/50 dark:border-amber-800/30">
-                  <JunebugIcon className="h-12 w-12 text-amber-600 dark:text-amber-400" mood="happy" />
+                <div className="rounded-full bg-c-warning-soft dark:bg-c-warning/20 p-5 border border-c-warning/20/50 dark:border-c-warning/30/30">
+                  <JunebugIcon className="h-12 w-12 text-c-warning dark:text-c-warning" mood="happy" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-700">
+                  <p className="text-sm font-medium text-c-gray-700">
                     Junebug is ready to help! 🐕
                   </p>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-slate-400">
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-c-gray-300">
                     Ask about the case, tax law, what to do next, or anything else.
                     I&apos;ll fetch the answer.
                   </p>
@@ -849,7 +849,7 @@ export function ChatPanel() {
                     <button
                       key={s}
                       onClick={() => sendMessage(s)}
-                      className="rounded-lg border border-gray-200 px-3 py-2 text-left text-sm text-gray-700 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                      className="rounded-lg border border-c-gray-100 px-3 py-2 text-left text-sm text-c-gray-700 hover:border-c-gray-200 hover:bg-c-gray-50 transition-colors"
                     >
                       {s}
                     </button>
@@ -872,14 +872,14 @@ export function ChatPanel() {
                   >
                     {msg.role === "assistant" && (
                       <div className="mt-1 flex-shrink-0">
-                        <JunebugIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" mood={isStreaming && msg === messages[messages.length - 1] ? "thinking" : "idle"} animated={isStreaming && msg === messages[messages.length - 1]} />
+                        <JunebugIcon className="h-5 w-5 text-c-warning dark:text-c-warning" mood={isStreaming && msg === messages[messages.length - 1] ? "thinking" : "idle"} animated={isStreaming && msg === messages[messages.length - 1]} />
                       </div>
                     )}
                     <div
                       className={`group relative max-w-[85%] rounded-lg px-3 py-2 text-sm ${
                         msg.role === "user"
                           ? "text-white"
-                          : "bg-gray-100 text-gray-900"
+                          : "bg-c-gray-100 text-c-gray-900"
                       }`}
                       style={msg.role === "user" ? { backgroundColor: "rgb(15 23 42)" } : undefined}
                     >
@@ -912,7 +912,7 @@ export function ChatPanel() {
                               )
                             })()
                           ) : isStreaming && msg === messages[messages.length - 1] ? (
-                            <div className="flex items-center gap-2 text-slate-400">
+                            <div className="flex items-center gap-2 text-c-gray-300">
                               <JunebugIcon className="h-4 w-4 flex-shrink-0" animated />
                               <span className="text-[13px]">{loadingMessage || "Thinking..."}</span>
                             </div>
@@ -936,7 +936,7 @@ export function ChatPanel() {
           </div>
 
           {/* Input area */}
-          <form onSubmit={handleSubmit} className="border-t border-gray-200 p-3">
+          <form onSubmit={handleSubmit} className="border-t border-c-gray-100 p-3">
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -946,7 +946,7 @@ export function ChatPanel() {
                 placeholder="Ask Junebug anything..."
                 disabled={isStreaming}
                 rows={1}
-                className="flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+                className="flex-1 resize-none rounded-lg border border-c-gray-200 px-3 py-2 text-sm placeholder:text-c-gray-300 focus:border-c-teal/30 focus:outline-none focus:ring-1 focus:ring-c-teal disabled:opacity-50"
                 style={{ maxHeight: "120px", minHeight: "38px" }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement
@@ -957,7 +957,7 @@ export function ChatPanel() {
               <button
                 type="submit"
                 disabled={!input.trim() || isStreaming}
-                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white transition-colors disabled:opacity-40"
+                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg bg-c-gray-900 text-white transition-colors disabled:opacity-40"
                 title="Send message"
               >
                 <Send className="h-4 w-4" />

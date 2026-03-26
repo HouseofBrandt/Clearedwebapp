@@ -337,7 +337,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
         </div>
 
         {taskType === "APPEALS_REBUTTAL" && (
-          <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+          <div className="space-y-4 rounded-lg border border-c-teal/20 bg-c-info-soft/50 p-4">
             <div className="space-y-2">
               <Label className="font-medium">IRS Rejection Letter</Label>
               <p className="text-xs text-muted-foreground">
@@ -429,7 +429,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
                               : p.deadlinesApproaching.filter((d) => d !== opt),
                           }))
                         }}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-c-gray-200"
                       />
                       {opt}
                     </label>
@@ -472,7 +472,7 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
                               : p.priorAttempts.filter((a) => a !== opt),
                           }))
                         }}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-c-gray-200"
                       />
                       {opt}
                     </label>
@@ -551,19 +551,19 @@ export function AIAnalysisPanel({ caseId, caseType, documentCount, documentsWith
         </div>
 
         {errorMessage && !loading && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-2">
+          <div className="rounded-lg border border-c-danger/20 bg-c-danger-soft p-4 space-y-2">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <span className="font-medium text-sm text-red-800">Analysis Failed</span>
+              <AlertTriangle className="h-4 w-4 text-c-danger" />
+              <span className="font-medium text-sm text-c-danger">Analysis Failed</span>
             </div>
-            <p className="text-sm text-red-700">{errorMessage}</p>
+            <p className="text-sm text-c-danger">{errorMessage}</p>
           </div>
         )}
 
         {result && (
           <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600" />
+              <CheckCircle className="h-4 w-4 text-c-success" />
               <span className="font-medium text-sm">Analysis Complete</span>
             </div>
             <div className="flex gap-3">

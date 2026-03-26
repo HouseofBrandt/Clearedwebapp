@@ -377,7 +377,7 @@ export function FeedComposer({
               {mode === "post" && (
                 <button
                   onClick={handleAskJunebug}
-                  className="flex items-center gap-1 text-xs transition-colors hover:text-amber-600"
+                  className="flex items-center gap-1 text-xs transition-colors hover:text-c-warning"
                   style={{ color: 'var(--c-gray-300)' }}
                 >
                   <JunebugIcon className="h-4 w-4" /> Ask Junebug

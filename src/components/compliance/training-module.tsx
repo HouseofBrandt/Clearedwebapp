@@ -258,8 +258,8 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
                   onClick={() => handleSelectAnswer(i)}
                   className={`w-full text-left p-3 rounded-md border text-sm transition-colors ${
                     quizAnswers[quizIndex] === i
-                      ? "border-[#1B3A5C] bg-blue-50 font-medium"
-                      : "border-gray-200 hover:bg-gray-50"
+                      ? "border-[#1B3A5C] bg-c-info-soft font-medium"
+                      : "border-c-gray-100 hover:bg-c-gray-50"
                   }`}
                 >
                   <span className="inline-flex items-center justify-center h-5 w-5 rounded-full border text-xs mr-2 flex-shrink-0">
@@ -271,9 +271,9 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 mt-4 p-3 rounded-md bg-red-50 border border-red-200">
-                <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="flex items-center gap-2 mt-4 p-3 rounded-md bg-c-danger-soft border border-c-danger/20">
+                <AlertTriangle className="h-4 w-4 text-c-danger flex-shrink-0" />
+                <p className="text-sm text-c-danger">{error}</p>
               </div>
             )}
 
@@ -309,7 +309,7 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
       {/* Results */}
       {phase === "results" && quizResult && (
         <>
-          <Card className={quizResult.passed ? "border-emerald-200" : "border-red-200"}>
+          <Card className={quizResult.passed ? "border-emerald-200" : "border-c-danger/20"}>
             <CardContent className="py-8 text-center">
               {quizResult.passed ? (
                 <>
@@ -322,8 +322,8 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
                 </>
               ) : (
                 <>
-                  <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
-                  <p className="text-lg font-medium text-red-700">Not Passed</p>
+                  <XCircle className="h-12 w-12 text-c-danger mx-auto mb-3" />
+                  <p className="text-lg font-medium text-c-danger">Not Passed</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     You scored {quizResult.score}% ({quizResult.correct}/{quizResult.total} correct).
                     You need {module.passingScore}% to pass.
@@ -350,20 +350,20 @@ export function TrainingModuleView({ module, onComplete }: TrainingModuleViewPro
                   <div
                     key={i}
                     className={`p-3 rounded-md border ${
-                      r.isCorrect ? "border-emerald-200 bg-emerald-50/50" : "border-red-200 bg-red-50/50"
+                      r.isCorrect ? "border-emerald-200 bg-emerald-50/50" : "border-c-danger/20 bg-c-danger-soft/50"
                     }`}
                   >
                     <div className="flex items-start gap-2">
                       {r.isCorrect ? (
                         <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                        <XCircle className="h-4 w-4 text-c-danger mt-0.5 flex-shrink-0" />
                       )}
                       <div className="flex-1">
                         <p className="text-sm font-medium">{r.question}</p>
                         {!r.isCorrect && (
                           <div className="mt-2 space-y-1">
-                            <p className="text-xs text-red-600">
+                            <p className="text-xs text-c-danger">
                               Your answer: {module.quiz[i].options[r.selectedIndex]}
                             </p>
                             <p className="text-xs text-emerald-700">

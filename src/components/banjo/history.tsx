@@ -18,11 +18,11 @@ interface BanjoHistoryProps {
 }
 
 const statusStyles: Record<string, string> = {
-  QUEUED: "bg-gray-100 text-gray-700",
-  PROCESSING: "bg-blue-100 text-blue-700",
-  READY_FOR_REVIEW: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-700",
+  QUEUED: "bg-c-gray-100 text-c-gray-700",
+  PROCESSING: "bg-c-info-soft text-c-teal",
+  READY_FOR_REVIEW: "bg-c-warning-soft text-c-warning",
+  APPROVED: "bg-c-success-soft text-c-success",
+  REJECTED: "bg-c-danger-soft text-c-danger",
 }
 
 function formatTaskType(taskType: string): string {

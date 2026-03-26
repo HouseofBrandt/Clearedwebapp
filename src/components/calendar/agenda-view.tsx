@@ -16,9 +16,9 @@ function groupDeadlines(deadlines: any[]) {
   const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
 
   const groups: { key: string; label: string; color: string; deadlines: any[]; defaultOpen: boolean }[] = [
-    { key: "overdue", label: "OVERDUE", color: "text-red-600", deadlines: [], defaultOpen: true },
-    { key: "this-week", label: "THIS WEEK", color: "text-amber-600", deadlines: [], defaultOpen: true },
-    { key: "next-30", label: "NEXT 30 DAYS", color: "text-green-600", deadlines: [], defaultOpen: true },
+    { key: "overdue", label: "OVERDUE", color: "text-c-danger", deadlines: [], defaultOpen: true },
+    { key: "this-week", label: "THIS WEEK", color: "text-c-warning", deadlines: [], defaultOpen: true },
+    { key: "next-30", label: "NEXT 30 DAYS", color: "text-c-success", deadlines: [], defaultOpen: true },
     { key: "later", label: "LATER", color: "text-muted-foreground", deadlines: [], defaultOpen: true },
     { key: "completed", label: "COMPLETED RECENTLY", color: "text-muted-foreground", deadlines: [], defaultOpen: false },
   ]
@@ -56,9 +56,9 @@ export function AgendaView({ deadlines, users }: AgendaViewProps) {
   if (deadlines.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <Calendar className="h-12 w-12 text-slate-300 mb-4" />
-        <h3 className="text-sm font-medium text-slate-900">No deadlines tracked</h3>
-        <p className="text-sm text-slate-500 mt-1 max-w-sm">
+        <Calendar className="h-12 w-12 text-c-gray-300 mb-4" />
+        <h3 className="text-sm font-medium text-c-gray-900">No deadlines tracked</h3>
+        <p className="text-sm text-c-gray-500 mt-1 max-w-sm">
           Add your first deadline to start tracking CSEDs, filing deadlines, appeal windows, and more.
         </p>
       </div>

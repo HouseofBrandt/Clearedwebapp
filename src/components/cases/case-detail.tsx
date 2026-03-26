@@ -70,11 +70,11 @@ function formatTaskType(taskType: string): string {
 const SPREADSHEET_TASK_TYPES = new Set(["WORKING_PAPERS"])
 
 const taskStatusStyles: Record<string, string> = {
-  QUEUED: "bg-gray-100 text-gray-700",
-  PROCESSING: "bg-blue-100 text-blue-700",
-  READY_FOR_REVIEW: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-700",
+  QUEUED: "bg-c-gray-100 text-c-gray-700",
+  PROCESSING: "bg-c-info-soft text-c-teal",
+  READY_FOR_REVIEW: "bg-c-warning-soft text-c-warning",
+  APPROVED: "bg-c-success-soft text-c-success",
+  REJECTED: "bg-c-danger-soft text-c-danger",
 }
 
 const reviewActionLabels: Record<string, string> = {
@@ -85,12 +85,12 @@ const reviewActionLabels: Record<string, string> = {
 }
 
 const statusColors: Record<string, string> = {
-  INTAKE: "bg-blue-100 text-blue-800",
+  INTAKE: "bg-c-info-soft text-c-teal",
   ANALYSIS: "bg-yellow-100 text-yellow-800",
   REVIEW: "bg-purple-100 text-purple-800",
-  ACTIVE: "bg-green-100 text-green-800",
-  RESOLVED: "bg-gray-100 text-gray-800",
-  CLOSED: "bg-gray-200 text-gray-600",
+  ACTIVE: "bg-c-success-soft text-c-success",
+  RESOLVED: "bg-c-gray-100 text-c-gray-900",
+  CLOSED: "bg-c-gray-200 text-c-gray-500",
 }
 
 interface CaseDetailProps {
@@ -405,7 +405,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                                   return (
                                     <div key={task.id} className="flex items-center justify-between pl-6">
                                       <div className="flex items-center gap-2">
-                                        <Badge className="bg-green-100 text-green-800 text-[10px]" variant="secondary">Approved</Badge>
+                                        <Badge className="bg-c-success-soft text-c-success text-[10px]" variant="secondary">Approved</Badge>
                                         <p className="text-sm">{task.banjoStepLabel || formatTaskType(task.taskType)}</p>
                                       </div>
                                       <Button variant="ghost" size="sm" onClick={() => window.open(`/api/ai/tasks/${task.id}/export?format=${isSS ? "xlsx" : "docx"}`, "_blank")}>

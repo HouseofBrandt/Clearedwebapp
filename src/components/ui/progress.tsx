@@ -25,8 +25,8 @@ const sizeClasses = {
 
 const variantClasses = {
   default: "bg-primary",
-  success: "bg-green-600",
-  warning: "bg-amber-500",
+  success: "bg-c-success",
+  warning: "bg-c-warning-soft0",
   destructive: "bg-destructive",
 }
 

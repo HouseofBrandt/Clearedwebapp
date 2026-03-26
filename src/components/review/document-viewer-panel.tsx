@@ -134,7 +134,7 @@ export function DocumentViewerPanel({ documents }: DocumentViewerPanelProps) {
                         {DOCUMENT_CATEGORY_LABELS[doc.documentCategory as keyof typeof DOCUMENT_CATEGORY_LABELS] || doc.documentCategory}
                       </Badge>
                       {hasText && (
-                        <span className="text-[10px] text-green-600">
+                        <span className="text-[10px] text-c-success">
                           {doc.extractedText!.trim().length.toLocaleString()} chars
                         </span>
                       )}

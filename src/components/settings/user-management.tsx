@@ -153,9 +153,9 @@ export function UserManagement() {
   }
 
   const roleBadgeColor: Record<string, string> = {
-    ADMIN: "bg-red-100 text-red-800",
-    SENIOR: "bg-blue-100 text-blue-800",
-    PRACTITIONER: "bg-green-100 text-green-800",
+    ADMIN: "bg-c-danger-soft text-c-danger",
+    SENIOR: "bg-c-info-soft text-c-teal",
+    PRACTITIONER: "bg-c-success-soft text-c-success",
   }
 
   return (
@@ -175,7 +175,7 @@ export function UserManagement() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">{error}</div>
+                <div className="text-sm text-c-danger bg-c-danger-soft p-3 rounded-md">{error}</div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -284,7 +284,7 @@ export function UserManagement() {
                     <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
                       Edit
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(user)}>
+                    <Button variant="ghost" size="sm" className="text-c-danger hover:text-c-danger" onClick={() => handleDelete(user)}>
                       Remove
                     </Button>
                   </TableCell>

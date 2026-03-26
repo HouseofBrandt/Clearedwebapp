@@ -21,9 +21,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function NextStepRow({ step, caseId }: { step: any; caseId: string }) {
   const dot =
-    step.priority === "critical" ? "bg-red-500" :
-    step.priority === "high" ? "bg-amber-400" :
-    "bg-gray-300"
+    step.priority === "critical" ? "bg-c-danger" :
+    step.priority === "high" ? "bg-c-warning" :
+    "bg-c-gray-300"
   const filled = step.priority === "critical" || step.priority === "high"
 
   const href =
@@ -34,7 +34,7 @@ function NextStepRow({ step, caseId }: { step: any; caseId: string }) {
 
   const content = (
     <div className="flex items-start gap-2 py-1 group">
-      <div className={`h-1.5 w-1.5 rounded-full shrink-0 mt-1.5 ${filled ? dot : "border border-gray-400"}`}
+      <div className={`h-1.5 w-1.5 rounded-full shrink-0 mt-1.5 ${filled ? dot : "border border-c-gray-300"}`}
         style={filled ? undefined : { backgroundColor: "transparent" }} />
       <div className="min-w-0">
         <p className="text-sm leading-snug text-foreground group-hover:text-foreground/80">{step.action}</p>
@@ -156,8 +156,8 @@ export function CasePosturePanel({ intelligence, caseData, deadlines }: CasePost
             <p>Returns filed: {intel?.allReturnsFiled ? "Yes" : "No"}</p>
             <p>Estimates current: {intel?.currentOnEstimates ? "Yes" : "No"}</p>
             <p>POA on file: {intel?.poaOnFile ? "Yes" : "No"}</p>
-            {intel?.levyThreatActive && <p className="text-red-600">Active levy threat</p>}
-            {intel?.liensFiledActive && <p className="text-amber-600">Federal tax lien filed</p>}
+            {intel?.levyThreatActive && <p className="text-c-danger">Active levy threat</p>}
+            {intel?.liensFiledActive && <p className="text-c-warning">Federal tax lien filed</p>}
             {(intel?.confidenceFlags as any[])?.length > 0 && (
               <>
                 <p className="font-medium mt-2">Confidence flags:</p>

@@ -40,19 +40,19 @@ interface ComplianceIssue {
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  CRITICAL: "bg-red-100 text-red-800 border-red-200",
+  CRITICAL: "bg-c-danger-soft text-c-danger border-c-danger/20",
   HIGH: "bg-orange-100 text-orange-800 border-orange-200",
   MEDIUM: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  LOW: "bg-blue-100 text-blue-800 border-blue-200",
+  LOW: "bg-c-info-soft text-c-teal border-c-teal/20",
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  OPEN: "bg-red-100 text-red-800",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  OPEN: "bg-c-danger-soft text-c-danger",
+  IN_PROGRESS: "bg-c-info-soft text-c-teal",
   IMPLEMENTED: "bg-purple-100 text-purple-800",
-  VERIFIED: "bg-green-100 text-green-800",
-  CLOSED: "bg-gray-100 text-gray-800",
-  ACCEPTED_RISK: "bg-amber-100 text-amber-800",
+  VERIFIED: "bg-c-success-soft text-c-success",
+  CLOSED: "bg-c-gray-100 text-c-gray-900",
+  ACCEPTED_RISK: "bg-c-warning-soft text-c-warning",
 }
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -191,7 +191,7 @@ export function IssueTracker() {
       {issues.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-3" />
+            <CheckCircle2 className="h-12 w-12 text-c-success mx-auto mb-3" />
             <p className="text-muted-foreground">
               No issues match the current filters
             </p>
@@ -256,7 +256,7 @@ export function IssueTracker() {
                             <span
                               className={`flex items-center gap-1 ${
                                 sla.isOverdue
-                                  ? "text-red-600 font-medium"
+                                  ? "text-c-danger font-medium"
                                   : ""
                               }`}
                             >

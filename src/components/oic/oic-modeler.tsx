@@ -144,7 +144,7 @@ function InfoTip({ text }: { text: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help inline ml-1" />
+        <Info className="h-3.5 w-3.5 text-c-gray-300 hover:text-c-gray-500 cursor-help inline ml-1" />
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs text-xs">
         {text}
@@ -195,12 +195,12 @@ function CurrencyInput({
 
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center">
+      <Label className="text-xs text-c-gray-500 dark:text-c-gray-300 flex items-center">
         {label}
         {tooltip && <InfoTip text={tooltip} />}
       </Label>
       <div className="relative">
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-c-gray-300 text-sm">$</span>
         <Input
           type="text"
           inputMode="decimal"
@@ -317,24 +317,24 @@ export function OICModeler() {
     <TooltipProvider>
       <div className="flex min-h-[calc(100vh-4rem)]">
         {/* ── Left Sidebar ──────────────────────────────────────────── */}
-        <div className="w-56 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex flex-col">
-          <div className="px-4 py-4 border-b border-slate-200 dark:border-slate-800">
-            <h1 className="text-display-md text-slate-900 dark:text-slate-100">
+        <div className="w-56 border-r border-c-gray-100 dark:border-c-gray-900 bg-c-snow dark:bg-c-gray-900/50 flex flex-col">
+          <div className="px-4 py-4 border-b border-c-gray-100 dark:border-c-gray-900">
+            <h1 className="text-display-md text-c-gray-900 dark:text-c-gray-100">
               OIC Modeler
             </h1>
-            <div className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">
+            <div className="text-[10px] text-c-gray-300 uppercase tracking-widest mt-0.5">
               Offer in Compromise
             </div>
           </div>
 
           {/* Household Config */}
-          <div className="p-4 space-y-3 border-b border-slate-200 dark:border-slate-800">
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+          <div className="p-4 space-y-3 border-b border-c-gray-100 dark:border-c-gray-900">
+            <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider">
               Household
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Size</Label>
+              <Label className="text-xs text-c-gray-500">Size</Label>
               <Select
                 value={household.householdSize.toString()}
                 onValueChange={(v) =>
@@ -355,7 +355,7 @@ export function OICModeler() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Members 65+</Label>
+              <Label className="text-xs text-c-gray-500">Members 65+</Label>
               <Select
                 value={household.membersOver65.toString()}
                 onValueChange={(v) =>
@@ -376,7 +376,7 @@ export function OICModeler() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Housing Tier</Label>
+              <Label className="text-xs text-c-gray-500">Housing Tier</Label>
               <Select
                 value={household.housingTier}
                 onValueChange={(v) =>
@@ -397,7 +397,7 @@ export function OICModeler() {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-slate-500">Vehicles</Label>
+              <Label className="text-xs text-c-gray-500">Vehicles</Label>
               <Select
                 value={household.numberOfCars.toString()}
                 onValueChange={(v) =>
@@ -419,8 +419,8 @@ export function OICModeler() {
           </div>
 
           {/* Total Liability */}
-          <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+          <div className="p-4 border-b border-c-gray-100 dark:border-c-gray-900">
+            <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider mb-2">
               Tax Liability
             </div>
             <CurrencyInput
@@ -433,12 +433,12 @@ export function OICModeler() {
 
           {/* Scenario Toggles */}
           <div className="p-4 space-y-3 flex-1">
-            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+            <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider">
               Modeling Options
             </div>
 
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center">
+              <Label className="text-xs text-c-gray-500 dark:text-c-gray-300 flex items-center">
                 Exclude Retirement
                 <InfoTip text="Remove retirement accounts from asset equity. Common when taxpayer is near retirement age." />
               </Label>
@@ -452,7 +452,7 @@ export function OICModeler() {
             </div>
 
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center">
+              <Label className="text-xs text-c-gray-500 dark:text-c-gray-300 flex items-center">
                 Challenge Vehicles
                 <InfoTip text="Use 60% instead of 80% FMV for vehicle quick-sale value per IRM 5.8.5.4.1" />
               </Label>
@@ -467,7 +467,7 @@ export function OICModeler() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-600 dark:text-slate-400 flex items-center">
+                <Label className="text-xs text-c-gray-500 dark:text-c-gray-300 flex items-center">
                   Income Reduction
                   <InfoTip text="Model a reduced disposable income (e.g., job loss, medical leave)" />
                 </Label>
@@ -562,12 +562,12 @@ export function OICModeler() {
                           tooltip="Alimony, interest, dividends, or other monthly income"
                         />
 
-                        <div className="col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="col-span-2 pt-2 border-t border-c-gray-100 dark:border-c-gray-900">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            <span className="text-sm font-medium text-c-gray-700 dark:text-c-gray-300">
                               Total Monthly Income
                             </span>
-                            <span className="text-lg font-medium text-slate-900 dark:text-slate-100 font-mono tabular-nums">
+                            <span className="text-lg font-medium text-c-gray-900 dark:text-c-gray-100 font-mono tabular-nums">
                               {currency(rcp.monthlyIncome)}
                             </span>
                           </div>
@@ -647,22 +647,22 @@ export function OICModeler() {
                           />
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="pt-2 border-t border-c-gray-100 dark:border-c-gray-900">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            <span className="text-sm font-medium text-c-gray-700 dark:text-c-gray-300">
                               Total Allowable Expenses
                             </span>
-                            <span className="text-lg font-medium text-slate-900 dark:text-slate-100 font-mono tabular-nums">
+                            <span className="text-lg font-medium text-c-gray-900 dark:text-c-gray-100 font-mono tabular-nums">
                               {currency(rcp.allowableExpenses)}
                             </span>
                           </div>
                         </div>
 
                         {/* IRS Standards Reference */}
-                        <div className="border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <div className="border border-c-gray-100 dark:border-c-gray-700 rounded-lg">
                           <button
                             onClick={() => setStandardsExpanded(!standardsExpanded)}
-                            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors"
+                            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-c-gray-500 dark:text-c-gray-300 hover:bg-c-snow dark:hover:bg-c-gray-900/50 rounded-lg transition-colors"
                           >
                             <span>IRS Collection Financial Standards Reference</span>
                             {standardsExpanded ? (
@@ -674,67 +674,67 @@ export function OICModeler() {
                           {standardsExpanded && (
                             <div className="px-4 pb-3 space-y-3">
                               <div className="grid grid-cols-2 gap-3">
-                                <div className="rounded-md bg-slate-50 dark:bg-slate-800/50 p-3">
-                                  <div className="text-[10px] uppercase text-slate-400 tracking-wider mb-1">
+                                <div className="rounded-md bg-c-snow dark:bg-c-gray-900/50 p-3">
+                                  <div className="text-[10px] uppercase text-c-gray-300 tracking-wider mb-1">
                                     Food, Clothing & Misc
                                   </div>
-                                  <div className="text-sm font-mono tabular-nums font-medium text-slate-700 dark:text-slate-300">
+                                  <div className="text-sm font-mono tabular-nums font-medium text-c-gray-700 dark:text-c-gray-300">
                                     {currency(standards.foodClothing)}/mo
                                   </div>
-                                  <div className="text-[10px] text-slate-400 mt-0.5">
+                                  <div className="text-[10px] text-c-gray-300 mt-0.5">
                                     National Standard, {household.householdSize} person(s)
                                   </div>
                                 </div>
-                                <div className="rounded-md bg-slate-50 dark:bg-slate-800/50 p-3">
-                                  <div className="text-[10px] uppercase text-slate-400 tracking-wider mb-1">
+                                <div className="rounded-md bg-c-snow dark:bg-c-gray-900/50 p-3">
+                                  <div className="text-[10px] uppercase text-c-gray-300 tracking-wider mb-1">
                                     Healthcare (OOP)
                                   </div>
-                                  <div className="text-sm font-mono tabular-nums font-medium text-slate-700 dark:text-slate-300">
+                                  <div className="text-sm font-mono tabular-nums font-medium text-c-gray-700 dark:text-c-gray-300">
                                     {currency(standards.healthcare)}/mo
                                   </div>
-                                  <div className="text-[10px] text-slate-400 mt-0.5">
+                                  <div className="text-[10px] text-c-gray-300 mt-0.5">
                                     {household.membersOver65 > 0
                                       ? `${household.membersOver65} member(s) 65+`
                                       : "All under 65"}
                                   </div>
                                 </div>
-                                <div className="rounded-md bg-slate-50 dark:bg-slate-800/50 p-3">
-                                  <div className="text-[10px] uppercase text-slate-400 tracking-wider mb-1">
+                                <div className="rounded-md bg-c-snow dark:bg-c-gray-900/50 p-3">
+                                  <div className="text-[10px] uppercase text-c-gray-300 tracking-wider mb-1">
                                     Housing & Utilities
                                   </div>
-                                  <div className="text-sm font-mono tabular-nums font-medium text-slate-700 dark:text-slate-300">
+                                  <div className="text-sm font-mono tabular-nums font-medium text-c-gray-700 dark:text-c-gray-300">
                                     {currency(standards.housing)}/mo
                                   </div>
-                                  <div className="text-[10px] text-slate-400 mt-0.5">
+                                  <div className="text-[10px] text-c-gray-300 mt-0.5">
                                     {HOUSING_TIERS.find((t) => t.value === household.housingTier)
                                       ?.label ?? ""}{" "}
                                     cost area
                                   </div>
                                 </div>
-                                <div className="rounded-md bg-slate-50 dark:bg-slate-800/50 p-3">
-                                  <div className="text-[10px] uppercase text-slate-400 tracking-wider mb-1">
+                                <div className="rounded-md bg-c-snow dark:bg-c-gray-900/50 p-3">
+                                  <div className="text-[10px] uppercase text-c-gray-300 tracking-wider mb-1">
                                     Transportation
                                   </div>
-                                  <div className="text-sm font-mono tabular-nums font-medium text-slate-700 dark:text-slate-300">
+                                  <div className="text-sm font-mono tabular-nums font-medium text-c-gray-700 dark:text-c-gray-300">
                                     {currency(
                                       standards.transportationOwnership +
                                         standards.transportationOperating
                                     )}
                                     /mo
                                   </div>
-                                  <div className="text-[10px] text-slate-400 mt-0.5">
+                                  <div className="text-[10px] text-c-gray-300 mt-0.5">
                                     {household.numberOfCars} car(s): own{" "}
                                     {currency(standards.transportationOwnership)} + op{" "}
                                     {currency(standards.transportationOperating)}
                                   </div>
                                 </div>
                               </div>
-                              <div className="rounded-md bg-navy-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+                              <div className="rounded-md bg-navy-50 dark:bg-c-gray-900 border border-c-gray-100 dark:border-c-gray-700 p-3">
                                 <div className="flex justify-between items-center">
-                                  <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                  <span className="text-xs font-medium text-c-gray-500 dark:text-c-gray-300">
                                     Total IRS Allowable
                                   </span>
-                                  <span className="text-sm font-medium font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                                  <span className="text-sm font-medium font-mono tabular-nums text-c-gray-900 dark:text-c-gray-100">
                                     {currency(standards.totalAllowable)}/mo
                                   </span>
                                 </div>
@@ -758,7 +758,7 @@ export function OICModeler() {
                       <CardContent className="space-y-6">
                         {/* Liquid Assets */}
                         <div>
-                          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">
+                          <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider mb-3">
                             Liquid Assets
                           </div>
                           <div className="grid grid-cols-2 gap-4">
@@ -780,12 +780,12 @@ export function OICModeler() {
                         {/* Retirement */}
                         <div>
                           <div className="flex items-center justify-between mb-3">
-                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider">
                               Retirement Accounts
                               <InfoTip text="401(k), IRA, etc. Toggle 'Exclude Retirement' in sidebar to remove from RCP." />
                             </div>
                             {options.excludeRetirement && (
-                              <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full font-medium">
+                              <span className="text-[10px] text-c-warning dark:text-c-warning bg-c-warning-soft dark:bg-c-warning/10 px-2 py-0.5 rounded-full font-medium">
                                 EXCLUDED FROM RCP
                               </span>
                             )}
@@ -803,7 +803,7 @@ export function OICModeler() {
                         {/* Real Estate */}
                         <div>
                           <div className="flex items-center justify-between mb-3">
-                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider">
                               Real Estate
                             </div>
                             <Button
@@ -822,7 +822,7 @@ export function OICModeler() {
                             </Button>
                           </div>
                           {data.realEstate.length === 0 && (
-                            <p className="text-xs text-slate-400 italic">
+                            <p className="text-xs text-c-gray-300 italic">
                               No real estate entered. Click &quot;Add Property&quot; above.
                             </p>
                           )}
@@ -832,7 +832,7 @@ export function OICModeler() {
                               className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end mb-3"
                             >
                               <div className="space-y-1">
-                                <Label className="text-xs text-slate-500">Description</Label>
+                                <Label className="text-xs text-c-gray-500">Description</Label>
                                 <Input
                                   className="h-9 text-sm"
                                   placeholder="Primary residence"
@@ -867,7 +867,7 @@ export function OICModeler() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-9 w-9 text-slate-400 hover:text-red-500"
+                                className="h-9 w-9 text-c-gray-300 hover:text-c-danger"
                                 onClick={() =>
                                   updateField(
                                     "realEstate",
@@ -884,10 +884,10 @@ export function OICModeler() {
                         {/* Vehicles */}
                         <div>
                           <div className="flex items-center justify-between mb-3">
-                            <div className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider">
                               Vehicles
                               {options.challengeVehicleEquity && (
-                                <span className="ml-2 text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full font-medium normal-case">
+                                <span className="ml-2 text-[10px] text-c-warning dark:text-c-warning bg-c-warning-soft dark:bg-c-warning/10 px-2 py-0.5 rounded-full font-medium normal-case">
                                   60% QSV APPLIED
                                 </span>
                               )}
@@ -908,7 +908,7 @@ export function OICModeler() {
                             </Button>
                           </div>
                           {data.vehicles.length === 0 && (
-                            <p className="text-xs text-slate-400 italic">
+                            <p className="text-xs text-c-gray-300 italic">
                               No vehicles entered. Click &quot;Add Vehicle&quot; above.
                             </p>
                           )}
@@ -918,7 +918,7 @@ export function OICModeler() {
                               className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 items-end mb-3"
                             >
                               <div className="space-y-1">
-                                <Label className="text-xs text-slate-500">Description</Label>
+                                <Label className="text-xs text-c-gray-500">Description</Label>
                                 <Input
                                   className="h-9 text-sm"
                                   placeholder="2020 Honda Civic"
@@ -953,7 +953,7 @@ export function OICModeler() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-9 w-9 text-slate-400 hover:text-red-500"
+                                className="h-9 w-9 text-c-gray-300 hover:text-c-danger"
                                 onClick={() =>
                                   updateField(
                                     "vehicles",
@@ -969,7 +969,7 @@ export function OICModeler() {
 
                         {/* Other Assets */}
                         <div>
-                          <div className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">
+                          <div className="text-xs font-medium text-c-gray-500 uppercase tracking-wider mb-3">
                             Other Assets
                           </div>
                           <div className="grid grid-cols-2 gap-4">
@@ -988,12 +988,12 @@ export function OICModeler() {
                           </div>
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="pt-2 border-t border-c-gray-100 dark:border-c-gray-900">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            <span className="text-sm font-medium text-c-gray-700 dark:text-c-gray-300">
                               Total Net Asset Equity
                             </span>
-                            <span className="text-lg font-medium text-slate-900 dark:text-slate-100 font-mono tabular-nums">
+                            <span className="text-lg font-medium text-c-gray-900 dark:text-c-gray-100 font-mono tabular-nums">
                               {currency(rcp.assetEquity)}
                             </span>
                           </div>
@@ -1030,7 +1030,7 @@ export function OICModeler() {
                             </Button>
                           </div>
                           {savedScenarios.length >= 3 && (
-                            <p className="text-[10px] text-slate-400 mt-1">
+                            <p className="text-[10px] text-c-gray-300 mt-1">
                               Maximum 3 scenarios. Oldest will be removed.
                             </p>
                           )}
@@ -1049,7 +1049,7 @@ export function OICModeler() {
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead className="text-xs w-[180px]">Metric</TableHead>
-                                    <TableHead className="text-xs text-center bg-blue-50/50 dark:bg-blue-900/10">
+                                    <TableHead className="text-xs text-center bg-c-info-soft/50 dark:bg-c-info/10">
                                       Current
                                     </TableHead>
                                     {savedScenarios.map((s, i) => (
@@ -1058,7 +1058,7 @@ export function OICModeler() {
                                           {s.name}
                                           <button
                                             onClick={() => removeScenario(i)}
-                                            className="text-slate-400 hover:text-red-500 transition-colors"
+                                            className="text-c-gray-300 hover:text-c-danger transition-colors"
                                           >
                                             <Trash2 className="h-3 w-3" />
                                           </button>
@@ -1114,7 +1114,7 @@ export function OICModeler() {
                                       <TableCell className="text-xs font-medium">
                                         {row.label}
                                       </TableCell>
-                                      <TableCell className="text-xs text-center font-mono tabular-nums bg-blue-50/50 dark:bg-blue-900/10">
+                                      <TableCell className="text-xs text-center font-mono tabular-nums bg-c-info-soft/50 dark:bg-c-info/10">
                                         {currency(row.current)}
                                       </TableCell>
                                       {savedScenarios.map((s, i) => {
@@ -1127,8 +1127,8 @@ export function OICModeler() {
                                               <div
                                                 className={`text-[10px] ${
                                                   delta < 0
-                                                    ? "text-green-600 dark:text-green-400"
-                                                    : "text-red-500"
+                                                    ? "text-c-success dark:text-c-success"
+                                                    : "text-c-danger"
                                                 }`}
                                               >
                                                 {delta > 0 ? "+" : ""}
@@ -1148,7 +1148,7 @@ export function OICModeler() {
                       )}
 
                       {savedScenarios.length === 0 && (
-                        <div className="text-center py-12 text-slate-400">
+                        <div className="text-center py-12 text-c-gray-300">
                           <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-40" />
                           <p className="text-sm">No scenarios saved yet.</p>
                           <p className="text-xs mt-1">
@@ -1168,15 +1168,15 @@ export function OICModeler() {
                   <Card
                     className={`border-2 ${
                       isOfferViable
-                        ? "border-green-300 dark:border-green-700"
+                        ? "border-c-success/30 dark:border-c-success/70"
                         : household.totalLiability > 0
-                          ? "border-red-300 dark:border-red-700"
-                          : "border-slate-200 dark:border-slate-700"
+                          ? "border-c-danger/30 dark:border-c-danger/70"
+                          : "border-c-gray-100 dark:border-c-gray-700"
                     }`}
                   >
                     <CardHeader className="pb-2">
                       <div className="flex items-center gap-2">
-                        <Scale className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                        <Scale className="h-4 w-4 text-c-gray-500 dark:text-c-gray-300" />
                         <CardTitle className="text-sm">
                           Reasonable Collection Potential
                         </CardTitle>
@@ -1185,8 +1185,8 @@ export function OICModeler() {
                         <div
                           className={`text-xs font-medium mt-1 ${
                             isOfferViable
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-500"
+                              ? "text-c-success dark:text-c-success"
+                              : "text-c-danger"
                           }`}
                         >
                           {isOfferViable
@@ -1198,25 +1198,25 @@ export function OICModeler() {
                     <CardContent className="space-y-4">
                       {/* Two-column: Lump Sum vs Periodic */}
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3 text-center">
-                          <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                        <div className="rounded-lg bg-c-snow dark:bg-c-gray-900/50 p-3 text-center">
+                          <div className="text-[10px] uppercase tracking-wider text-c-gray-300 mb-1">
                             Lump Sum
                           </div>
-                          <div className="text-[10px] text-slate-400 mb-2">
+                          <div className="text-[10px] text-c-gray-300 mb-2">
                             (5 months to pay)
                           </div>
-                          <div className="text-xl font-medium font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                          <div className="text-xl font-medium font-mono tabular-nums text-c-gray-900 dark:text-c-gray-100">
                             {currency(rcp.rcpLumpSum)}
                           </div>
                         </div>
-                        <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3 text-center">
-                          <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">
+                        <div className="rounded-lg bg-c-snow dark:bg-c-gray-900/50 p-3 text-center">
+                          <div className="text-[10px] uppercase tracking-wider text-c-gray-300 mb-1">
                             Periodic
                           </div>
-                          <div className="text-[10px] text-slate-400 mb-2">
+                          <div className="text-[10px] text-c-gray-300 mb-2">
                             (24 months to pay)
                           </div>
-                          <div className="text-xl font-medium font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                          <div className="text-xl font-medium font-mono tabular-nums text-c-gray-900 dark:text-c-gray-100">
                             {currency(rcp.rcpPeriodic)}
                           </div>
                         </div>
@@ -1224,26 +1224,26 @@ export function OICModeler() {
 
                       {/* Liability comparison */}
                       {household.totalLiability > 0 && (
-                        <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-3">
+                        <div className="rounded-lg bg-c-snow dark:bg-c-gray-900/50 p-3">
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-500">Total Liability</span>
-                            <span className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                            <span className="text-c-gray-500">Total Liability</span>
+                            <span className="font-mono tabular-nums text-c-gray-700 dark:text-c-gray-300">
                               {currency(household.totalLiability)}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="text-slate-500">Min. Offer (Lump Sum)</span>
-                            <span className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                            <span className="text-c-gray-500">Min. Offer (Lump Sum)</span>
+                            <span className="font-mono tabular-nums text-c-gray-700 dark:text-c-gray-300">
                               {currency(rcp.rcpLumpSum)}
                             </span>
                           </div>
-                          <div className="flex justify-between text-xs pt-1 border-t border-slate-200 dark:border-slate-700">
-                            <span className="text-slate-500 font-medium">Potential Savings</span>
+                          <div className="flex justify-between text-xs pt-1 border-t border-c-gray-100 dark:border-c-gray-700">
+                            <span className="text-c-gray-500 font-medium">Potential Savings</span>
                             <span
                               className={`font-mono tabular-nums font-medium ${
                                 household.totalLiability - rcp.rcpLumpSum > 0
-                                  ? "text-green-600 dark:text-green-400"
-                                  : "text-red-500"
+                                  ? "text-c-success dark:text-c-success"
+                                  : "text-c-danger"
                               }`}
                             >
                               {currency(household.totalLiability - rcp.rcpLumpSum)}
@@ -1254,28 +1254,28 @@ export function OICModeler() {
 
                       {/* Breakdown */}
                       <div className="space-y-2">
-                        <div className="text-[10px] uppercase tracking-wider text-slate-400">
+                        <div className="text-[10px] uppercase tracking-wider text-c-gray-300">
                           Line Items
                         </div>
 
                         <div className="space-y-1.5">
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">Monthly Income</span>
-                            <span className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                            <span className="text-c-gray-500">Monthly Income</span>
+                            <span className="font-mono tabular-nums text-c-gray-700 dark:text-c-gray-300">
                               {currency(rcp.monthlyIncome)}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">Allowable Expenses</span>
-                            <span className="font-mono tabular-nums text-red-500">
+                            <span className="text-c-gray-500">Allowable Expenses</span>
+                            <span className="font-mono tabular-nums text-c-danger">
                               ({currency(rcp.allowableExpenses)})
                             </span>
                           </div>
-                          <div className="flex justify-between text-xs border-t border-dashed border-slate-200 dark:border-slate-700 pt-1">
-                            <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          <div className="flex justify-between text-xs border-t border-dashed border-c-gray-100 dark:border-c-gray-700 pt-1">
+                            <span className="text-c-gray-500 dark:text-c-gray-300 font-medium">
                               Monthly Disposable
                             </span>
-                            <span className="font-mono tabular-nums font-medium text-slate-800 dark:text-slate-200">
+                            <span className="font-mono tabular-nums font-medium text-c-gray-900 dark:text-c-gray-200">
                               {currency(rcp.monthlyDisposable)}
                             </span>
                           </div>
@@ -1283,43 +1283,43 @@ export function OICModeler() {
 
                         <div className="space-y-1.5 pt-2">
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">
+                            <span className="text-c-gray-500">
                               Future Income ({FUTURE_INCOME_LUMP_SUM_MONTHS}mo)
                             </span>
-                            <span className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                            <span className="font-mono tabular-nums text-c-gray-700 dark:text-c-gray-300">
                               {currency(rcp.futureIncomeLumpSum)}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">
+                            <span className="text-c-gray-500">
                               Future Income ({FUTURE_INCOME_PERIODIC_MONTHS}mo)
                             </span>
-                            <span className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                            <span className="font-mono tabular-nums text-c-gray-700 dark:text-c-gray-300">
                               {currency(rcp.futureIncomePeriodic)}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-500">Asset Equity</span>
-                            <span className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                            <span className="text-c-gray-500">Asset Equity</span>
+                            <span className="font-mono tabular-nums text-c-gray-700 dark:text-c-gray-300">
                               {currency(rcp.assetEquity)}
                             </span>
                           </div>
                         </div>
 
-                        <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <div className="space-y-1.5 pt-2 border-t border-c-gray-100 dark:border-c-gray-700">
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-700 dark:text-slate-300 font-medium">
+                            <span className="text-c-gray-700 dark:text-c-gray-300 font-medium">
                               RCP (Lump Sum)
                             </span>
-                            <span className="font-mono tabular-nums font-medium text-slate-900 dark:text-slate-100">
+                            <span className="font-mono tabular-nums font-medium text-c-gray-900 dark:text-c-gray-100">
                               {currency(rcp.rcpLumpSum)}
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
-                            <span className="text-slate-700 dark:text-slate-300 font-medium">
+                            <span className="text-c-gray-700 dark:text-c-gray-300 font-medium">
                               RCP (Periodic)
                             </span>
-                            <span className="font-mono tabular-nums font-medium text-slate-900 dark:text-slate-100">
+                            <span className="font-mono tabular-nums font-medium text-c-gray-900 dark:text-c-gray-100">
                               {currency(rcp.rcpPeriodic)}
                             </span>
                           </div>
@@ -1332,23 +1332,23 @@ export function OICModeler() {
                   {(options.excludeRetirement ||
                     options.challengeVehicleEquity ||
                     incomeReductionEnabled) && (
-                    <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
+                    <Card className="border-c-warning/20 dark:border-c-warning/80 bg-c-warning-soft/50 dark:bg-c-warning/10">
                       <CardContent className="py-3 space-y-1">
-                        <div className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-medium">
+                        <div className="text-[10px] uppercase tracking-wider text-c-warning dark:text-c-warning font-medium">
                           Active Adjustments
                         </div>
                         {options.excludeRetirement && (
-                          <div className="text-xs text-amber-700 dark:text-amber-300">
+                          <div className="text-xs text-c-warning dark:text-c-warning">
                             Retirement accounts excluded
                           </div>
                         )}
                         {options.challengeVehicleEquity && (
-                          <div className="text-xs text-amber-700 dark:text-amber-300">
+                          <div className="text-xs text-c-warning dark:text-c-warning">
                             Vehicle equity challenged (60% QSV)
                           </div>
                         )}
                         {incomeReductionEnabled && (
-                          <div className="text-xs text-amber-700 dark:text-amber-300">
+                          <div className="text-xs text-c-warning dark:text-c-warning">
                             Income reduced to {currency(incomeReductionAmount)}/mo
                           </div>
                         )}

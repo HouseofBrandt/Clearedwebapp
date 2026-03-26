@@ -45,22 +45,22 @@ const STATUS_CONFIG: Record<
   COMPLIANT: {
     label: "Compliant",
     icon: CheckCircle2,
-    badgeClass: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    badgeClass: "bg-c-success-soft text-c-success dark:bg-c-success dark:text-c-success",
   },
   PARTIALLY_COMPLIANT: {
     label: "Partial",
     icon: AlertTriangle,
-    badgeClass: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+    badgeClass: "bg-c-warning-soft text-c-warning dark:bg-c-warning/10 dark:text-c-warning",
   },
   NON_COMPLIANT: {
     label: "Non-Compliant",
     icon: XCircle,
-    badgeClass: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    badgeClass: "bg-c-danger-soft text-c-danger dark:bg-c-danger dark:text-c-danger",
   },
   NOT_ASSESSED: {
     label: "Not Assessed",
     icon: HelpCircle,
-    badgeClass: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+    badgeClass: "bg-c-gray-100 text-c-gray-900 dark:bg-c-gray-900 dark:text-c-gray-200",
   },
 }
 
@@ -71,9 +71,9 @@ const MONITORING_LABELS: Record<string, string> = {
 }
 
 const HEALTH_ICONS: Record<string, { icon: any; color: string }> = {
-  pass: { icon: CheckCircle2, color: "text-green-600" },
-  fail: { icon: XCircle, color: "text-red-600" },
-  warning: { icon: AlertTriangle, color: "text-yellow-600" },
+  pass: { icon: CheckCircle2, color: "text-c-success" },
+  fail: { icon: XCircle, color: "text-c-danger" },
+  warning: { icon: AlertTriangle, color: "text-c-warning" },
 }
 
 export function ControlDetail({
@@ -110,7 +110,7 @@ export function ControlDetail({
 
         <div className="flex items-center gap-2 shrink-0">
           {control.openIssueCount > 0 && (
-            <Badge variant="outline" className="text-xs bg-red-50 text-red-700">
+            <Badge variant="outline" className="text-xs bg-c-danger-soft text-c-danger">
               <AlertOctagon className="h-3 w-3 mr-1" />
               {control.openIssueCount}
             </Badge>
@@ -143,13 +143,13 @@ export function ControlDetail({
               <p className="text-sm">{control.whatSoc2Requires}</p>
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-medium uppercase tracking-wide text-blue-600">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-c-teal">
                 How Cleared Meets It
               </h4>
               <p className="text-sm">{control.howClearedMeetsIt}</p>
             </div>
             <div className="space-y-1">
-              <h4 className="text-xs font-medium uppercase tracking-wide text-amber-600">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-c-warning">
                 Why It Matters
               </h4>
               <p className="text-sm">{control.whyItMatters}</p>
@@ -180,10 +180,10 @@ export function ControlDetail({
                   <span
                     className={
                       control.latestHealthResult.status === "pass"
-                        ? "text-green-600"
+                        ? "text-c-success"
                         : control.latestHealthResult.status === "fail"
-                          ? "text-red-600"
-                          : "text-yellow-600"
+                          ? "text-c-danger"
+                          : "text-c-warning"
                     }
                   >
                     {control.latestHealthResult.status.toUpperCase()}
@@ -202,11 +202,11 @@ export function ControlDetail({
           {/* Gap Analysis */}
           {(control.status === "NON_COMPLIANT" ||
             control.status === "NOT_ASSESSED") && (
-            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
-              <h4 className="text-xs font-medium uppercase tracking-wide text-red-600 mb-1">
+            <div className="p-3 rounded-lg bg-c-danger-soft dark:bg-c-danger border border-c-danger/20 dark:border-c-danger/30">
+              <h4 className="text-xs font-medium uppercase tracking-wide text-c-danger mb-1">
                 Gap Analysis
               </h4>
-              <p className="text-sm text-red-700 dark:text-red-300">
+              <p className="text-sm text-c-danger dark:text-c-danger">
                 {control.status === "NOT_ASSESSED"
                   ? "This control has not been assessed. Evidence collection and testing are needed to determine compliance status."
                   : `This control is non-compliant. ${control.openIssueCount} open issue${control.openIssueCount !== 1 ? "s" : ""} must be resolved. Review the remediation plan and collect evidence to demonstrate compliance.`}

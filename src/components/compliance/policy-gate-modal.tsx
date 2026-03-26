@@ -139,8 +139,8 @@ export function PolicyGateModal({
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl">
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-zinc-700 px-6 py-4">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20">
-            <Shield className="h-5 w-5 text-amber-400" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-c-warning-soft0/20">
+            <Shield className="h-5 w-5 text-c-warning" />
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-medium text-white">
@@ -236,7 +236,7 @@ export function PolicyGateModal({
         {/* Scroll indicator */}
         {!hasScrolledToBottom && (
           <div className="border-t border-zinc-800 px-6 py-2 text-center">
-            <p className="text-xs text-amber-400">
+            <p className="text-xs text-c-warning">
               Please scroll to the bottom to read the full policy before
               acknowledging.
             </p>
@@ -245,8 +245,8 @@ export function PolicyGateModal({
 
         {/* Error */}
         {error && (
-          <div className="border-t border-red-900/30 bg-red-950/30 px-6 py-2">
-            <p className="text-sm text-red-400">{error}</p>
+          <div className="border-t border-c-danger/30 bg-c-danger/30 px-6 py-2">
+            <p className="text-sm text-c-danger">{error}</p>
           </div>
         )}
 
@@ -260,7 +260,7 @@ export function PolicyGateModal({
                   idx < currentIndex
                     ? "bg-emerald-500"
                     : idx === currentIndex
-                      ? "bg-amber-400"
+                      ? "bg-c-warning"
                       : "bg-zinc-600"
                 }`}
               />
@@ -270,7 +270,7 @@ export function PolicyGateModal({
           <Button
             onClick={handleAcknowledge}
             disabled={!hasScrolledToBottom || isAcknowledging}
-            className="gap-2 bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50"
+            className="gap-2 bg-c-warning text-white hover:bg-c-warning-soft0 disabled:opacity-50"
           >
             {isAcknowledging ? (
               "Acknowledging..."

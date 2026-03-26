@@ -333,17 +333,17 @@ export function ComplianceSection() {
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <CheckCircle className="h-3 w-3 text-green-600" /> Approved
+                <CheckCircle className="h-3 w-3 text-c-success" /> Approved
               </p>
-              <p className="text-lg font-medium text-green-700">{data.reviewStats.approvedCount}</p>
+              <p className="text-lg font-medium text-c-success">{data.reviewStats.approvedCount}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Edit + Approved</p>
-              <p className="text-lg font-medium text-blue-700">{data.reviewStats.editApprovedCount}</p>
+              <p className="text-lg font-medium text-c-teal">{data.reviewStats.editApprovedCount}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Rejected</p>
-              <p className="text-lg font-medium text-red-700">{data.reviewStats.rejectedCount}</p>
+              <p className="text-lg font-medium text-c-danger">{data.reviewStats.rejectedCount}</p>
             </div>
           </div>
         </CardContent>
@@ -370,7 +370,7 @@ export function ComplianceSection() {
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Acknowledged</p>
-              <p className="text-lg font-medium text-green-700">{data.flagStats.flagsAcknowledgedCount}</p>
+              <p className="text-lg font-medium text-c-success">{data.flagStats.flagsAcknowledgedCount}</p>
             </div>
             <div className="rounded-lg border p-3">
               <p className="text-xs text-muted-foreground">Resolution Rate</p>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/toast"
+import { TruncatedText } from "@/components/ui/truncated-text"
 import {
   Pin,
   PenLine,
@@ -21,13 +22,13 @@ import {
 } from "lucide-react"
 
 const NOTE_TYPE_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  STRATEGY_NOTE: { bg: "bg-slate-900", text: "text-white", label: "Strategy" },
-  IRS_CONTACT: { bg: "bg-red-100", text: "text-red-700", label: "IRS Contact" },
-  CALL_LOG: { bg: "bg-blue-100", text: "text-blue-700", label: "Call Log" },
+  STRATEGY_NOTE: { bg: "bg-c-gray-900", text: "text-white", label: "Strategy" },
+  IRS_CONTACT: { bg: "bg-c-danger-soft", text: "text-c-danger", label: "IRS Contact" },
+  CALL_LOG: { bg: "bg-c-info-soft", text: "text-c-teal", label: "Call Log" },
   CLIENT_INTERACTION: { bg: "bg-purple-100", text: "text-purple-700", label: "Client" },
-  RESEARCH: { bg: "bg-amber-100", text: "text-amber-700", label: "Research" },
-  JOURNAL_ENTRY: { bg: "bg-slate-100", text: "text-slate-600", label: "Journal" },
-  GENERAL: { bg: "bg-slate-100", text: "text-slate-500", label: "General" },
+  RESEARCH: { bg: "bg-c-warning-soft", text: "text-c-warning", label: "Research" },
+  JOURNAL_ENTRY: { bg: "bg-c-gray-100", text: "text-c-gray-500", label: "Journal" },
+  GENERAL: { bg: "bg-c-gray-100", text: "text-c-gray-500", label: "General" },
 }
 
 const FEATURE_AREA_LABELS: Record<string, string> = {
@@ -62,7 +63,6 @@ function timeAgo(date: string | Date): string {
 }
 
 export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardProps) {
-  const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState(note.content)
   const [editTitle, setEditTitle] = useState(note.title || "")
@@ -72,8 +72,6 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
 
   const isAuthor = note.authorId === currentUserId
   const style = NOTE_TYPE_STYLES[note.noteType] || NOTE_TYPE_STYLES.GENERAL
-  const contentPreview = note.content.length > 200 ? note.content.slice(0, 200) + "..." : note.content
-  const showExpandToggle = note.content.length > 200
 
   async function handlePin() {
     setPinning(true)
@@ -124,7 +122,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
   }
 
   return (
-    <Card className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${note.pinned ? "border-amber-300 bg-amber-50/30" : ""}`}>
+    <Card className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${note.pinned ? "border-c-warning/20 bg-c-warning-soft/30" : ""}`}>
       <CardContent className="p-4 space-y-2">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
@@ -133,7 +131,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
               {style.label}
             </Badge>
             {note.isPrivileged && (
-              <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700 shrink-0">
+              <Badge variant="outline" className="text-[10px] border-c-warning/30 text-c-warning shrink-0">
                 <ShieldAlert className="h-3 w-3 mr-0.5" /> Privileged
               </Badge>
             )}
@@ -143,7 +141,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
             <button
               onClick={handlePin}
               disabled={pinning}
-              className={`p-1 rounded hover:bg-muted transition-colors ${note.pinned ? "text-amber-500" : "text-muted-foreground"}`}
+              className={`p-1 rounded hover:bg-muted transition-colors ${note.pinned ? "text-c-warning" : "text-muted-foreground"}`}
               title={note.pinned ? "Unpin" : "Pin"}
             >
               <Pin className="h-3.5 w-3.5" fill={note.pinned ? "currentColor" : "none"} />
@@ -178,7 +176,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
 
         {/* Call log metadata */}
         {note.noteType === "CALL_LOG" && (note.callDate || note.callDuration || note.callParticipants) && (
-          <div className="flex items-center gap-3 text-xs text-muted-foreground bg-blue-50 rounded px-2 py-1.5">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground bg-c-info-soft rounded px-2 py-1.5">
             <Phone className="h-3 w-3 shrink-0" />
             {note.callDate && <span>{new Date(note.callDate).toLocaleDateString()}</span>}
             {note.callDuration && <span>{note.callDuration} min</span>}
@@ -189,7 +187,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
 
         {/* IRS contact metadata */}
         {note.noteType === "IRS_CONTACT" && (note.irsEmployeeName || note.irsDepartment) && (
-          <div className="flex items-center gap-3 text-xs text-muted-foreground bg-red-50 rounded px-2 py-1.5">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground bg-c-danger-soft rounded px-2 py-1.5">
             <Building2 className="h-3 w-3 shrink-0" />
             {note.irsEmployeeName && <span>Agent: {note.irsEmployeeName}</span>}
             {note.irsEmployeeId && <span>ID: {note.irsEmployeeId}</span>}
@@ -221,17 +219,9 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
             </div>
           </div>
         ) : (
-          <div>
-            <p className="text-sm whitespace-pre-wrap">{expanded ? note.content : contentPreview}</p>
-            {showExpandToggle && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="text-xs text-primary hover:underline flex items-center gap-0.5 mt-1"
-              >
-                {expanded ? <><ChevronUp className="h-3 w-3" /> Show less</> : <><ChevronDown className="h-3 w-3" /> Show more</>}
-              </button>
-            )}
-          </div>
+          <TruncatedText lines={3}>
+            <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+          </TruncatedText>
         )}
 
         {/* Tags row */}
@@ -240,7 +230,7 @@ export function NoteCard({ note, caseId, currentUserId, onUpdated }: NoteCardPro
             <Badge key={y} variant="outline" className="text-[10px] py-0">{y}</Badge>
           ))}
           {note.relatedFeature && note.relatedFeature !== "GENERAL" && (
-            <Badge variant="outline" className="text-[10px] py-0 bg-slate-50">
+            <Badge variant="outline" className="text-[10px] py-0 bg-c-snow">
               {FEATURE_AREA_LABELS[note.relatedFeature] || note.relatedFeature}
             </Badge>
           )}
@@ -293,7 +283,7 @@ function NoteAttachmentDisplay({ attachment }: { attachment: any }) {
     return (
       <div className="border rounded p-2 bg-muted/30">
         <div className="flex items-center gap-1.5 mb-1">
-          <FileAudio className="h-3.5 w-3.5 text-blue-500" />
+          <FileAudio className="h-3.5 w-3.5 text-c-teal" />
           <span className="text-xs font-medium truncate">{attachment.fileName}</span>
         </div>
         <audio

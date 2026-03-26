@@ -50,7 +50,7 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
         </div>
         <div className="flex items-center gap-1.5">
           {intel?.levyThreatActive && (
-            <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+            <span className="flex items-center gap-1 rounded-full bg-c-danger-soft px-2 py-0.5 text-xs font-medium text-c-danger">
               <AlertTriangle className="h-3 w-3" />
               Levy threat
             </span>
@@ -104,7 +104,7 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
         <div className="h-1.5 w-full rounded-full bg-muted">
           <div
             className={`h-1.5 rounded-full transition-all ${
-              docPercent >= 80 ? "bg-green-500" : docPercent >= 50 ? "bg-amber-500" : "bg-red-400"
+              docPercent >= 80 ? "bg-c-success" : docPercent >= 50 ? "bg-c-warning-soft0" : "bg-c-danger"
             }`}
             style={{ width: `${docPercent}%` }}
           />
@@ -126,9 +126,9 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
               {(intel.docsRequired as any[]).map((doc: any, i: number) => (
                 <div key={i} className="flex items-center gap-2 text-xs">
                   {doc.received ? (
-                    <Check className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    <Check className="h-3 w-3 text-c-success flex-shrink-0" />
                   ) : doc.critical ? (
-                    <AlertCircle className="h-3 w-3 text-red-400 flex-shrink-0" />
+                    <AlertCircle className="h-3 w-3 text-c-danger flex-shrink-0" />
                   ) : (
                     <X className="h-3 w-3 text-muted-foreground/50 flex-shrink-0" />
                   )}
@@ -140,7 +140,7 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
                   }>
                     {doc.label}
                     {doc.critical && !doc.received && (
-                      <span className="text-red-400 ml-1">(required)</span>
+                      <span className="text-c-danger ml-1">(required)</span>
                     )}
                   </span>
                 </div>
@@ -152,15 +152,15 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
 
       {/* Document freshness warnings */}
       {(expiredCount > 0 || expiringCount > 0) && (
-        <div className="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-2">
+        <div className="space-y-1 rounded-md border border-c-warning/20 bg-c-warning-soft p-2">
           {expiredCount > 0 && (
-            <p className="flex items-center gap-1.5 text-xs font-medium text-red-700">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-c-danger">
               <AlertTriangle className="h-3 w-3" />
               {expiredCount} expired document{expiredCount !== 1 ? "s" : ""} need{expiredCount === 1 ? "s" : ""} replacement
             </p>
           )}
           {expiringCount > 0 && (
-            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-c-warning">
               <AlertTriangle className="h-3 w-3" />
               {expiringCount} document{expiringCount !== 1 ? "s" : ""} expiring within 30 days
             </p>
@@ -188,25 +188,25 @@ export function SmartStatusCard({ caseData, intelligence, documents = [] }: Smar
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span className="flex items-center gap-1">
           {intel?.allReturnsFiled ? (
-            <CheckCircle className="h-3 w-3 text-green-500" />
+            <CheckCircle className="h-3 w-3 text-c-success" />
           ) : (
-            <XCircle className="h-3 w-3 text-red-500" />
+            <XCircle className="h-3 w-3 text-c-danger" />
           )}
           Returns filed
         </span>
         <span className="flex items-center gap-1">
           {intel?.currentOnEstimates ? (
-            <CheckCircle className="h-3 w-3 text-green-500" />
+            <CheckCircle className="h-3 w-3 text-c-success" />
           ) : (
-            <XCircle className="h-3 w-3 text-red-500" />
+            <XCircle className="h-3 w-3 text-c-danger" />
           )}
           Estimates current
         </span>
         <span className="flex items-center gap-1">
           {intel?.poaOnFile ? (
-            <CheckCircle className="h-3 w-3 text-green-500" />
+            <CheckCircle className="h-3 w-3 text-c-success" />
           ) : (
-            <XCircle className="h-3 w-3 text-red-500" />
+            <XCircle className="h-3 w-3 text-c-danger" />
           )}
           POA on file
         </span>

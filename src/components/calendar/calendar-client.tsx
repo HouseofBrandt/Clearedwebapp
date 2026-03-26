@@ -48,11 +48,11 @@ export function CalendarClient({ deadlines, users, cases, currentUserId, summary
       <div className="grid grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Overdue</div>
-          <div className="text-2xl font-medium text-red-600 font-mono tabular-nums">{summaryStats.overdueCount}</div>
+          <div className="text-2xl font-medium text-c-danger font-mono tabular-nums">{summaryStats.overdueCount}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">This Week</div>
-          <div className="text-2xl font-medium text-amber-600 font-mono tabular-nums">{summaryStats.thisWeekCount}</div>
+          <div className="text-2xl font-medium text-c-warning font-mono tabular-nums">{summaryStats.thisWeekCount}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">This Month</div>

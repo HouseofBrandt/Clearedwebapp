@@ -26,11 +26,11 @@ const OUTCOME_TYPES = [
 ]
 
 const OUTCOME_COLORS: Record<string, string> = {
-  ACCEPTED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-700",
-  SETTLED: "bg-amber-100 text-amber-800",
-  WITHDRAWN: "bg-gray-100 text-gray-700",
-  EXPIRED: "bg-gray-100 text-gray-600",
+  ACCEPTED: "bg-c-success-soft text-c-success",
+  REJECTED: "bg-c-danger-soft text-c-danger",
+  SETTLED: "bg-c-warning-soft text-c-warning",
+  WITHDRAWN: "bg-c-gray-100 text-c-gray-700",
+  EXPIRED: "bg-c-gray-100 text-c-gray-500",
 }
 
 interface CaseOutcomePanelProps {
@@ -182,12 +182,12 @@ export function CaseOutcomePanel({ caseId }: CaseOutcomePanelProps) {
         </Button>
 
         {saved && existingOutcome && (
-          <div className="rounded-md bg-green-50 border border-green-200 p-3">
+          <div className="rounded-md bg-c-success-soft border border-c-success/20 p-3">
             <div className="flex items-start gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-              <div className="text-sm text-green-800">
+              <CheckCircle className="h-4 w-4 text-c-success mt-0.5 shrink-0" />
+              <div className="text-sm text-c-success">
                 <p className="font-medium">Outcome recorded</p>
-                <p className="text-green-700 mt-0.5">
+                <p className="text-c-success mt-0.5">
                   This outcome has been applied to all associated knowledge base documents for future case matching.
                 </p>
               </div>

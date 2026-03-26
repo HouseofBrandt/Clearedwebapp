@@ -234,7 +234,7 @@ export function DocumentList({ documents }: DocumentListProps) {
                     type="checkbox"
                     checked={selectedDocs.size === documents.length}
                     onChange={toggleAll}
-                    className="h-4 w-4 rounded border-gray-300"
+                    className="h-4 w-4 rounded border-c-gray-200"
                   />
                 </TableHead>
               )}
@@ -258,7 +258,7 @@ export function DocumentList({ documents }: DocumentListProps) {
                         type="checkbox"
                         checked={selectedDocs.has(doc.id)}
                         onChange={() => toggleDoc(doc.id)}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-c-gray-200"
                       />
                     </TableCell>
                   )}
@@ -272,9 +272,9 @@ export function DocumentList({ documents }: DocumentListProps) {
                             const { label, color } = getFreshnessLabel(doc.freshnessStatus)
                             if (!label) return null
                             const colorClasses =
-                              color === "green" ? "bg-green-100 text-green-800" :
+                              color === "green" ? "bg-c-success-soft text-c-success" :
                               color === "yellow" ? "bg-yellow-100 text-yellow-800" :
-                              color === "red" ? "bg-red-100 text-red-800" : ""
+                              color === "red" ? "bg-c-danger-soft text-c-danger" : ""
                             return (
                               <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${colorClasses}`}>
                                 <Clock className="h-2.5 w-2.5" />
@@ -306,24 +306,24 @@ export function DocumentList({ documents }: DocumentListProps) {
                   </TableCell>
                   <TableCell>
                     {doc.extractedText && doc.extractedText.trim().length > 0 ? (
-                      <div className="flex items-center gap-1.5 text-green-600">
+                      <div className="flex items-center gap-1.5 text-c-success">
                         <CheckCircle className="h-3.5 w-3.5" />
                         <span className="text-xs">
                           {doc.extractedText.trim().length.toLocaleString()} chars
                         </span>
                       </div>
                     ) : doc.fileType === "IMAGE" ? (
-                      <div className="flex items-center gap-1.5 text-amber-600" title="OCR did not find readable text in this image">
+                      <div className="flex items-center gap-1.5 text-c-warning" title="OCR did not find readable text in this image">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         <span className="text-xs">No text found (OCR)</span>
                       </div>
                     ) : doc.fileType === "PDF" ? (
-                      <div className="flex items-center gap-1.5 text-amber-600" title="This PDF appears to be scanned (image-only). Searchable PDFs extract text automatically.">
+                      <div className="flex items-center gap-1.5 text-c-warning" title="This PDF appears to be scanned (image-only). Searchable PDFs extract text automatically.">
                         <AlertTriangle className="h-3.5 w-3.5" />
                         <span className="text-xs">Scanned PDF — no text</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-red-500">
+                      <div className="flex items-center gap-1.5 text-c-danger">
                         <XCircle className="h-3.5 w-3.5" />
                         <span className="text-xs">No text extracted</span>
                       </div>

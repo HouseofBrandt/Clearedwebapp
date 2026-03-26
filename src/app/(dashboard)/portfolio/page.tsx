@@ -12,9 +12,9 @@ export const metadata: Metadata = { title: "Portfolio | Cleared" }
 
 function RiskCell({ score, tabsNumber, id }: { score: number; tabsNumber: string; id: string }) {
   const bg =
-    score >= 76 ? "bg-red-500 hover:bg-red-600" :
+    score >= 76 ? "bg-c-danger hover:bg-c-danger" :
     score >= 51 ? "bg-orange-500 hover:bg-orange-600" :
-    score >= 26 ? "bg-amber-400 hover:bg-amber-500" :
+    score >= 26 ? "bg-c-warning hover:bg-c-warning-soft0" :
     "bg-emerald-500 hover:bg-emerald-600"
   return (
     <Link href={`/cases/${id}`}>
@@ -133,7 +133,7 @@ export default async function PortfolioPage() {
                 return (
                   <div key={phase} className="flex items-center gap-3">
                     <span className="text-xs w-16 text-muted-foreground">{phaseLabels[phase]}</span>
-                    <div className="flex-1 h-2.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="flex-1 h-2.5 rounded-full bg-c-gray-100 overflow-hidden">
                       <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-xs font-medium font-mono tabular-nums w-8 text-right">{count}</span>
@@ -163,7 +163,7 @@ export default async function PortfolioPage() {
                         <span className="text-sm font-medium font-mono tabular-nums">{c.tabsNumber}</span>
                         <span className="text-xs text-muted-foreground ml-2">{c.clientName}</span>
                       </div>
-                      <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                      <Badge variant="outline" className="text-[10px] text-c-warning border-c-warning/20">
                         {c.intelligence?.daysSinceActivity || "?"}d inactive
                       </Badge>
                     </div>

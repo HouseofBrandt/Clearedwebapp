@@ -73,10 +73,10 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-xl font-medium text-slate-900 dark:text-slate-100 mb-1">
+      <h2 className="text-xl font-medium text-c-gray-900 dark:text-c-gray-100 mb-1">
         Upload IRS Transcripts
       </h2>
-      <p className="text-sm text-slate-500 mb-6">
+      <p className="text-sm text-c-gray-500 mb-6">
         Upload Wage & Income, Account, and Tax Return transcripts. The system will parse all
         documents and build a complete compliance profile.
       </p>
@@ -86,13 +86,13 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
         onClick={() => fileInputRef.current?.click()}
-        className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-12 text-center cursor-pointer hover:border-slate-400 dark:hover:border-slate-500 transition-colors mb-5"
+        className="border-2 border-dashed border-c-gray-200 dark:border-c-gray-500 rounded-xl p-12 text-center cursor-pointer hover:border-c-gray-300 dark:hover:border-c-gray-500 transition-colors mb-5"
       >
-        <Upload className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-        <div className="text-sm font-medium text-slate-600 dark:text-slate-300">
+        <Upload className="h-10 w-10 text-c-gray-300 mx-auto mb-3" />
+        <div className="text-sm font-medium text-c-gray-500 dark:text-c-gray-300">
           Drop PDF transcripts here or click to browse
         </div>
-        <div className="text-xs text-slate-400 mt-1">Supports all IRS transcript types</div>
+        <div className="text-xs text-c-gray-300 mt-1">Supports all IRS transcript types</div>
         <input
           ref={fileInputRef}
           type="file"
@@ -106,17 +106,17 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
       {/* File list */}
       {files.length > 0 && (
         <div className="mb-5">
-          <div className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">
+          <div className="text-xs font-medium text-c-gray-500 dark:text-c-gray-300 mb-2">
             {files.length} file(s) selected:
           </div>
-          <div className="max-h-48 overflow-auto border border-slate-200 dark:border-slate-700 rounded-lg">
+          <div className="max-h-48 overflow-auto border border-c-gray-100 dark:border-c-gray-700 rounded-lg">
             {files.map((f, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between px-3 py-2 text-xs border-b border-slate-100 dark:border-slate-800 last:border-0"
+                className="flex items-center justify-between px-3 py-2 text-xs border-b border-c-gray-100 dark:border-c-gray-700 last:border-0"
               >
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                  <FileText className="h-3.5 w-3.5 text-slate-400" />
+                <div className="flex items-center gap-2 text-c-gray-500 dark:text-c-gray-300">
+                  <FileText className="h-3.5 w-3.5 text-c-gray-300" />
                   <span className="font-mono">{f.name}</span>
                 </div>
                 <button
@@ -124,7 +124,7 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
                     e.stopPropagation()
                     setFiles((prev) => prev.filter((_, j) => j !== i))
                   }}
-                  className="text-red-400 hover:text-red-600"
+                  className="text-c-danger hover:text-c-danger"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -139,7 +139,7 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
         <Button
           onClick={handleParse}
           disabled={!files.length || parsing}
-          className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
+          className="bg-c-gray-900 text-white hover:bg-c-gray-900 dark:bg-c-gray-100 dark:text-c-gray-900"
         >
           {parsing ? (
             <>
@@ -153,7 +153,7 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
         {parseStatus && (
           <span
             className={`text-sm ${
-              parseStatus.startsWith("Error") ? "text-red-500" : "text-slate-500"
+              parseStatus.startsWith("Error") ? "text-c-danger" : "text-c-gray-500"
             }`}
           >
             {parseStatus}
@@ -162,11 +162,11 @@ export function RCCUpload({ onParseComplete }: RCCUploadProps) {
       </div>
 
       {/* Help */}
-      <div className="mt-8 p-5 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800/50">
-        <div className="text-sm font-medium text-amber-800 dark:text-amber-300 mb-2">
+      <div className="mt-8 p-5 bg-c-warning-soft dark:bg-c-warning/20 rounded-lg border border-c-warning/20 dark:border-c-warning/30/50">
+        <div className="text-sm font-medium text-c-warning dark:text-c-warning mb-2">
           Supported Transcript Types
         </div>
-        <div className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed space-y-1">
+        <div className="text-xs text-c-warning dark:text-c-warning leading-relaxed space-y-1">
           <p>
             <strong>Wage & Income Transcript</strong> — W-2, 1099-R, SSA-1099, 1099-INT, 1099-MISC,
             1099-NEC, 1098, etc.

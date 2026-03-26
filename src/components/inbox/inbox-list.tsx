@@ -70,10 +70,10 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 }
 
 const TYPE_ICON_COLORS: Record<string, string> = {
-  TASK_APPROVED: "text-green-500",
-  TASK_REJECTED: "text-red-500",
-  DEADLINE_REMINDER: "text-amber-500",
-  BUG_REPORT: "text-red-400",
+  TASK_APPROVED: "text-c-success",
+  TASK_REJECTED: "text-c-danger",
+  DEADLINE_REMINDER: "text-c-warning",
+  BUG_REPORT: "text-c-danger",
   FEATURE_REQUEST: "text-purple-400",
 }
 
@@ -318,7 +318,7 @@ export function InboxList({
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-c-gray-100 focus:outline-none focus:ring-2 focus:ring-c-gray-900/10"
             />
           </div>
         </div>
@@ -347,7 +347,7 @@ export function InboxList({
               type="checkbox"
               checked={selectedIds.size === filteredMessages.length && filteredMessages.length > 0}
               onChange={toggleSelectAll}
-              className="h-4 w-4 rounded border-gray-300 accent-primary"
+              className="h-4 w-4 rounded border-c-gray-200 accent-primary"
             />
             <span className="text-xs font-medium text-muted-foreground">
               {selectedIds.size} selected
@@ -436,7 +436,7 @@ export function InboxList({
                     type="checkbox"
                     checked={isChecked}
                     onChange={() => toggleSelect(msg.id)}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-primary cursor-pointer"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-c-gray-200 accent-primary cursor-pointer"
                     onClick={(e) => e.stopPropagation()}
                   />
                   <button
@@ -455,7 +455,7 @@ export function InboxList({
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {(msg.priority === "HIGH" || msg.priority === "URGENT") && (
-                        <span className={`h-2 w-2 rounded-full ${msg.priority === "URGENT" ? "bg-red-500" : "bg-orange-500"}`} />
+                        <span className={`h-2 w-2 rounded-full ${msg.priority === "URGENT" ? "bg-c-danger" : "bg-orange-500"}`} />
                       )}
                       <Icon className={`h-4 w-4 ${iconColor}`} />
                     </div>
@@ -468,11 +468,11 @@ export function InboxList({
 
         {/* Keyboard shortcuts hint */}
         <div className="px-4 py-2 border-t text-xs text-muted-foreground">
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono">&#8593;&#8595;</kbd> Navigate
+          <kbd className="px-1.5 py-0.5 rounded bg-c-gray-100 text-[10px] font-mono">&#8593;&#8595;</kbd> Navigate
           <span className="mx-2">&middot;</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono">Enter</kbd> Open
+          <kbd className="px-1.5 py-0.5 rounded bg-c-gray-100 text-[10px] font-mono">Enter</kbd> Open
           <span className="mx-2">&middot;</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] font-mono">e</kbd> Archive
+          <kbd className="px-1.5 py-0.5 rounded bg-c-gray-100 text-[10px] font-mono">e</kbd> Archive
         </div>
 
         {/* Bottom buttons */}
@@ -532,11 +532,11 @@ export function InboxList({
 // Message Detail (inline)
 // -------------------------------------------------------------------
 const IMPL_STATUS_COLORS: Record<string, string> = {
-  open: "bg-amber-100 text-amber-800",
-  in_progress: "bg-blue-100 text-blue-800",
-  implemented: "bg-green-100 text-green-800",
-  wont_fix: "bg-gray-100 text-gray-700",
-  duplicate: "bg-gray-100 text-gray-700",
+  open: "bg-c-warning-soft text-c-warning",
+  in_progress: "bg-c-info-soft text-c-teal",
+  implemented: "bg-c-success-soft text-c-success",
+  wont_fix: "bg-c-gray-100 text-c-gray-700",
+  duplicate: "bg-c-gray-100 text-c-gray-700",
 }
 
 const IMPL_STATUS_LABELS: Record<string, string> = {
@@ -564,7 +564,7 @@ function MessageDetail({
 }) {
   const dateStr = formatDateTime(message.createdAt, { month: "long" })
 
-  const typeColor = MESSAGE_TYPE_COLORS[message.type] || "bg-gray-100 text-gray-800"
+  const typeColor = MESSAGE_TYPE_COLORS[message.type] || "bg-c-gray-100 text-c-gray-900"
   const borderColor = BORDER_COLORS[message.type] || "border-l-gray-400"
 
   return (
@@ -588,9 +588,9 @@ function MessageDetail({
               </span>
               {message.priority !== "NORMAL" && (
                 <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  message.priority === "URGENT" ? "bg-red-100 text-red-800" :
+                  message.priority === "URGENT" ? "bg-c-danger-soft text-c-danger" :
                   message.priority === "HIGH" ? "bg-orange-100 text-orange-800" :
-                  "bg-gray-100 text-gray-600"
+                  "bg-c-gray-100 text-c-gray-500"
                 }`}>
                   {MESSAGE_PRIORITY_LABELS[message.priority] || message.priority}
                 </span>

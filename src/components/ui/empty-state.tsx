@@ -12,21 +12,21 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon: Icon, title, description, actionLabel, actionHref, actionOnClick }: EmptyStateProps) {
   return (
-    <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-        <Icon className="h-6 w-6 text-slate-400" />
+    <div className="flex min-h-[300px] flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-c-gray-100 bg-c-snow/50 p-8 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-c-gray-100">
+        <Icon className="h-6 w-6 text-c-gray-300" />
       </div>
       <div>
-        <h3 className="text-sm font-medium text-slate-900">{title}</h3>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
+        <h3 className="text-sm font-medium text-c-gray-900">{title}</h3>
+        <p className="mt-1 text-sm text-c-gray-500">{description}</p>
       </div>
       {actionLabel && actionHref && (
-        <Link href={actionHref} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors">
+        <Link href={actionHref} className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-900 transition-colors">
           {actionLabel}
         </Link>
       )}
       {actionLabel && actionOnClick && !actionHref && (
-        <button onClick={actionOnClick} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors">
+        <button onClick={actionOnClick} className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-900 transition-colors">
           {actionLabel}
         </button>
       )}

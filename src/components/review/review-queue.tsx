@@ -136,7 +136,7 @@ function BanjoBundleCard({
   }
 
   return (
-    <Card className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${isOlderThan48Hours(bundle.earliestDate) ? "border-l-4 border-l-yellow-400" : ""}`}>
+    <Card className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${isOlderThan48Hours(bundle.earliestDate) ? "border-l-4 border-l-c-warning" : ""}`}>
       <CardContent className="p-4 space-y-2">
         <div className="flex items-center gap-3">
           {canBulkOperate && (
@@ -160,13 +160,13 @@ function BanjoBundleCard({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {totalVerify > 0 && (
-              <Badge variant="outline" className="gap-1 text-yellow-600">
+              <Badge variant="outline" className="gap-1 text-c-warning">
                 <AlertTriangle className="h-3 w-3" />
                 {totalVerify} VERIFY
               </Badge>
             )}
             {totalJudgment > 0 && (
-              <Badge variant="outline" className="gap-1 text-blue-600">
+              <Badge variant="outline" className="gap-1 text-c-teal">
                 <FileText className="h-3 w-3" />
                 {totalJudgment} JUDGMENT
               </Badge>
@@ -201,7 +201,7 @@ function BanjoBundleCard({
                     </div>
                     <div className="flex items-center gap-2">
                       {task.verifyFlagCount > 0 && (
-                        <span className="text-xs text-yellow-600">{task.verifyFlagCount} verify</span>
+                        <span className="text-xs text-c-warning">{task.verifyFlagCount} verify</span>
                       )}
                       <Button size="sm" variant="outline">Review</Button>
                     </div>
@@ -403,7 +403,7 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
-          <CheckCircle2 className="h-12 w-12 text-green-500" />
+          <CheckCircle2 className="h-12 w-12 text-c-success" />
           <h3 className="mt-4 text-lg font-medium">All caught up &mdash; no pending reviews</h3>
         </CardContent>
       </Card>
@@ -489,7 +489,7 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
 
       {/* Bulk error banner */}
       {bulkError && (
-        <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <div className="flex items-center gap-2 rounded-md border border-c-danger/20 bg-c-danger-soft px-4 py-2 text-sm text-c-danger">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="flex-1">{bulkError}</span>
           <button type="button" onClick={() => setBulkError(null)}>
@@ -526,7 +526,7 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
               key={task.id}
               className={`transition-all duration-200 hover:border-[var(--c-gray-200)] hover:shadow-[0_1px_3px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03)] ${
                 isOlderThan48Hours(task.createdAt)
-                  ? "border-l-4 border-l-yellow-400"
+                  ? "border-l-4 border-l-c-warning"
                   : ""
               }`}
             >
@@ -549,13 +549,13 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
                 </div>
                 <div className="flex items-center gap-3">
                   {task.verifyFlagCount > 0 && (
-                    <Badge variant="outline" className="gap-1 text-yellow-600">
+                    <Badge variant="outline" className="gap-1 text-c-warning">
                       <AlertTriangle className="h-3 w-3" />
                       {task.verifyFlagCount} VERIFY
                     </Badge>
                   )}
                   {task.judgmentFlagCount > 0 && (
-                    <Badge variant="outline" className="gap-1 text-blue-600">
+                    <Badge variant="outline" className="gap-1 text-c-teal">
                       <FileText className="h-3 w-3" />
                       {task.judgmentFlagCount} JUDGMENT
                     </Badge>
@@ -587,7 +587,7 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
               <Button
                 size="sm"
                 variant="default"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-c-success hover:bg-c-success"
                 disabled={bulkLoading}
                 onClick={() => handleBulkAction("APPROVE")}
               >
@@ -604,7 +604,7 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
               <Button
                 size="sm"
                 variant="default"
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-c-teal hover:bg-c-teal"
                 disabled={bulkLoading}
                 onClick={openReassignDialog}
               >

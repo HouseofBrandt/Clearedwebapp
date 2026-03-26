@@ -40,14 +40,14 @@ const NOTE_TYPES = [
 ]
 
 const NOTE_TYPE_CHIP_STYLES: Record<string, string> = {
-  ALL: "bg-slate-100 text-slate-600",
-  JOURNAL_ENTRY: "bg-slate-100 text-slate-600",
-  CALL_LOG: "bg-blue-100 text-blue-700",
-  IRS_CONTACT: "bg-red-100 text-red-700",
-  STRATEGY_NOTE: "bg-slate-800 text-white",
+  ALL: "bg-c-gray-100 text-c-gray-500",
+  JOURNAL_ENTRY: "bg-c-gray-100 text-c-gray-500",
+  CALL_LOG: "bg-c-info-soft text-c-teal",
+  IRS_CONTACT: "bg-c-danger-soft text-c-danger",
+  STRATEGY_NOTE: "bg-c-gray-900 text-white",
   CLIENT_INTERACTION: "bg-purple-100 text-purple-700",
-  RESEARCH: "bg-amber-100 text-amber-700",
-  GENERAL: "bg-slate-100 text-slate-500",
+  RESEARCH: "bg-c-warning-soft text-c-warning",
+  GENERAL: "bg-c-gray-100 text-c-gray-500",
 }
 
 const FEATURE_AREAS = [
@@ -248,7 +248,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
               onClick={() => setFilterType(t.value)}
               className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-colors ${
                 filterType === t.value
-                  ? NOTE_TYPE_CHIP_STYLES[t.value] || "bg-slate-200 text-slate-700"
+                  ? NOTE_TYPE_CHIP_STYLES[t.value] || "bg-c-gray-200 text-c-gray-700"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
@@ -301,15 +301,15 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
           <Card>
             <CardHeader className="py-2 px-3">
               <CardTitle className="text-xs font-medium flex items-center gap-1.5">
-                <Pin className="h-3 w-3 text-amber-500" fill="currentColor" />
+                <Pin className="h-3 w-3 text-c-warning" fill="currentColor" />
                 Pinned Notes ({pinnedNotes.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="px-3 pb-3 space-y-1.5">
               {pinnedNotes.map((note) => (
-                <div key={note.id} className="text-xs p-1.5 rounded bg-amber-50/50 border border-amber-200/50">
+                <div key={note.id} className="text-xs p-1.5 rounded bg-c-warning-soft/50 border border-c-warning/20/50">
                   <div className="flex items-center gap-1.5">
-                    <Badge className={`${(NOTE_TYPE_CHIP_STYLES[note.noteType] || "bg-slate-100 text-slate-500")} text-[9px] py-0`} variant="secondary">
+                    <Badge className={`${(NOTE_TYPE_CHIP_STYLES[note.noteType] || "bg-c-gray-100 text-c-gray-500")} text-[9px] py-0`} variant="secondary">
                       {NOTE_TYPES.find((t) => t.value === note.noteType)?.label || note.noteType}
                     </Badge>
                     {note.title && <span className="font-medium truncate">{note.title}</span>}
@@ -370,8 +370,8 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
 
             {/* Call log fields */}
             {formType === "CALL_LOG" && (
-              <div className="space-y-2 border rounded p-2 bg-blue-50/30">
-                <p className="text-[10px] font-medium text-blue-700">Call Details</p>
+              <div className="space-y-2 border rounded p-2 bg-c-info-soft/30">
+                <p className="text-[10px] font-medium text-c-teal">Call Details</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-[10px]">Date</Label>
@@ -401,8 +401,8 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
 
             {/* IRS contact fields */}
             {formType === "IRS_CONTACT" && (
-              <div className="space-y-2 border rounded p-2 bg-red-50/30">
-                <p className="text-[10px] font-medium text-red-700">IRS Contact Details</p>
+              <div className="space-y-2 border rounded p-2 bg-c-danger-soft/30">
+                <p className="text-[10px] font-medium text-c-danger">IRS Contact Details</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-[10px]">Employee Name</Label>
@@ -546,7 +546,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
                       className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs"
                     >
                       {att.fileType === "AUDIO" ? (
-                        <FileAudio className="h-3 w-3 text-blue-500 shrink-0" />
+                        <FileAudio className="h-3 w-3 text-c-teal shrink-0" />
                       ) : (
                         <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
                       )}

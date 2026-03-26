@@ -316,13 +316,13 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
               {formatCurrency(totalPenaltiesSelected)}
             </div>
           </Card>
-          <Card className="p-4 border-green-200">
+          <Card className="p-4 border-c-success/20">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">FTA Eligible</div>
-            <div className="text-xl font-medium text-green-600 mt-1 font-mono tabular-nums">{formatCurrency(ftaEligibleAmount)}</div>
+            <div className="text-xl font-medium text-c-success mt-1 font-mono tabular-nums">{formatCurrency(ftaEligibleAmount)}</div>
           </Card>
-          <Card className="p-4 border-amber-200">
+          <Card className="p-4 border-c-warning/20">
             <div className="text-xs text-muted-foreground uppercase tracking-wide">Reasonable Cause</div>
-            <div className="text-xl font-medium text-amber-600 mt-1 font-mono tabular-nums">{formatCurrency(reasonableCauseAmount)}</div>
+            <div className="text-xl font-medium text-c-warning mt-1 font-mono tabular-nums">{formatCurrency(reasonableCauseAmount)}</div>
           </Card>
         </div>
       )}
@@ -336,14 +336,14 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
             return (
               <div key={label} className="flex items-center gap-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                  i <= currentStepIndex ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-400"
+                  i <= currentStepIndex ? "bg-c-gray-900 text-white" : "bg-c-gray-100 text-c-gray-300"
                 }`}>
                   {i + 1}
                 </div>
-                <span className={i <= currentStepIndex ? "text-slate-900 font-medium" : "text-slate-400"}>
+                <span className={i <= currentStepIndex ? "text-c-gray-900 font-medium" : "text-c-gray-300"}>
                   {label}
                 </span>
-                {i < 3 && <ChevronRight className="h-4 w-4 text-slate-300" />}
+                {i < 3 && <ChevronRight className="h-4 w-4 text-c-gray-300" />}
               </div>
             )
           })}
@@ -395,7 +395,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                       type="checkbox"
                       checked={selectedPeriodIds.size === periodsWithPenalties.length && periodsWithPenalties.length > 0}
                       onChange={toggleAllPeriods}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-c-gray-200"
                       aria-label="Select all penalties"
                     />
                   </TableHead>
@@ -419,7 +419,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                           type="checkbox"
                           checked={selectedPeriodIds.has(lp.id)}
                           onChange={() => togglePeriod(lp.id)}
-                          className="h-4 w-4 rounded border-gray-300"
+                          className="h-4 w-4 rounded border-c-gray-200"
                           aria-label={`Select penalty for tax year ${lp.taxYear}`}
                         />
                       </TableCell>
@@ -504,7 +504,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                           next[idx] = e.target.checked
                           setPriorYearsFiled(next)
                         }}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-c-gray-200"
                         aria-label={`Return filed for tax year ${year}`}
                       />
                       Return filed
@@ -518,7 +518,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                           next[idx] = e.target.checked
                           setPriorYearsPenalties(next)
                         }}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-c-gray-200"
                         aria-label={`Penalty assessed for tax year ${year}`}
                       />
                       Penalty assessed
@@ -534,7 +534,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                   className={
                     selectedCase.allReturnsFiled
                       ? "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                      : "bg-red-100 text-red-800 border-red-200 hover:bg-red-100"
+                      : "bg-c-danger-soft text-c-danger border-c-danger/20 hover:bg-c-danger-soft"
                   }
                 >
                   {selectedCase.allReturnsFiled ? "Yes" : "No"}
@@ -561,7 +561,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                 className={
                   ftaResult.eligible
                     ? "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100 text-base px-4 py-1"
-                    : "bg-red-100 text-red-800 border-red-200 hover:bg-red-100 text-base px-4 py-1"
+                    : "bg-c-danger-soft text-c-danger border-c-danger/20 hover:bg-c-danger-soft text-base px-4 py-1"
                 }
               >
                 {ftaResult.eligible ? "ELIGIBLE" : "NOT ELIGIBLE"}
@@ -582,11 +582,11 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                   className={`rounded-lg border p-4 ${
                     factor.met
                       ? "border-emerald-200 bg-emerald-50/50"
-                      : "border-red-200 bg-red-50/50"
+                      : "border-c-danger/20 bg-c-danger-soft/50"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-lg ${factor.met ? "text-emerald-600" : "text-red-600"}`}>
+                    <span className={`text-lg ${factor.met ? "text-emerald-600" : "text-c-danger"}`}>
                       {factor.met ? "\u2713" : "\u2717"}
                     </span>
                     <span className="font-medium text-sm">{factor.factor}</span>
@@ -637,7 +637,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                     key={cat.id}
                     className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
                       reasonableCauseId === cat.id
-                        ? "border-blue-300 bg-blue-50/50"
+                        ? "border-c-teal/20 bg-c-info-soft/50"
                         : "hover:bg-muted/50"
                     }`}
                   >
@@ -685,8 +685,8 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
                       factualNarrative.length >= 200
                         ? "text-emerald-600"
                         : factualNarrative.length >= 50
-                        ? "text-amber-600"
-                        : "text-red-600"
+                        ? "text-c-warning"
+                        : "text-c-danger"
                     }`}
                   >
                     {factualNarrative.length} characters
@@ -762,7 +762,7 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
           <CardContent>
             {/* Letter content rendered as formatted text */}
             <div className="rounded-lg border bg-white p-8 max-h-[700px] overflow-y-auto">
-              <pre className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-gray-800">
+              <pre className="whitespace-pre-wrap font-serif text-sm leading-relaxed text-c-gray-900">
                 {generatedLetter}
               </pre>
             </div>
@@ -770,11 +770,11 @@ export function PenaltyAbatementClient({ cases }: PenaltyAbatementClientProps) {
             {/* Legend */}
             <div className="flex gap-6 mt-4 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded bg-blue-100 border border-blue-200" />
+                <span className="inline-block w-3 h-3 rounded bg-c-info-soft border border-c-teal/20" />
                 [AUTO-GENERATED] = Template text (review for accuracy)
               </div>
               <div className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded bg-amber-100 border border-amber-200" />
+                <span className="inline-block w-3 h-3 rounded bg-c-warning-soft border border-c-warning/20" />
                 [PRACTITIONER INPUT] = Your factual narrative
               </div>
             </div>

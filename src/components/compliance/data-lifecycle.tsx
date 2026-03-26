@@ -104,13 +104,13 @@ function formatDateTime(iso: string | null): string {
 function requestTypeColor(type: string): string {
   switch (type) {
     case "ACCESS":
-      return "bg-blue-100 text-blue-800"
+      return "bg-c-info-soft text-c-teal"
     case "CORRECTION":
       return "bg-yellow-100 text-yellow-800"
     case "DELETION":
-      return "bg-red-100 text-red-800"
+      return "bg-c-danger-soft text-c-danger"
     default:
-      return "bg-gray-100 text-gray-800"
+      return "bg-c-gray-100 text-c-gray-900"
   }
 }
 
@@ -119,13 +119,13 @@ function disposalStatusColor(status: string): string {
     case "QUEUED":
       return "bg-yellow-100 text-yellow-800"
     case "CONFIRMED":
-      return "bg-blue-100 text-blue-800"
+      return "bg-c-info-soft text-c-teal"
     case "EXECUTED":
       return "bg-emerald-100 text-emerald-800"
     case "CERTIFIED":
-      return "bg-green-100 text-green-800"
+      return "bg-c-success-soft text-c-success"
     default:
-      return "bg-gray-100 text-gray-800"
+      return "bg-c-gray-100 text-c-gray-900"
   }
 }
 
@@ -134,13 +134,13 @@ function dsrStatusColor(status: string): string {
     case "RECEIVED":
       return "bg-yellow-100 text-yellow-800"
     case "IN_PROGRESS":
-      return "bg-blue-100 text-blue-800"
+      return "bg-c-info-soft text-c-teal"
     case "COMPLETED":
       return "bg-emerald-100 text-emerald-800"
     case "DENIED":
-      return "bg-red-100 text-red-800"
+      return "bg-c-danger-soft text-c-danger"
     default:
-      return "bg-gray-100 text-gray-800"
+      return "bg-c-gray-100 text-c-gray-900"
   }
 }
 
@@ -297,8 +297,8 @@ export function DataLifecycleDashboard() {
             <Card>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-amber-600" />
-                  <p className="text-xs font-medium text-amber-600 uppercase tracking-wider">
+                  <Clock className="h-4 w-4 text-c-warning" />
+                  <p className="text-xs font-medium text-c-warning uppercase tracking-wider">
                     Approaching Expiry
                   </p>
                 </div>
@@ -311,8 +311,8 @@ export function DataLifecycleDashboard() {
             <Card>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center gap-2">
-                  <Trash2 className="h-4 w-4 text-red-600" />
-                  <p className="text-xs font-medium text-red-600 uppercase tracking-wider">
+                  <Trash2 className="h-4 w-4 text-c-danger" />
+                  <p className="text-xs font-medium text-c-danger uppercase tracking-wider">
                     Pending Disposal
                   </p>
                 </div>
@@ -345,8 +345,8 @@ export function DataLifecycleDashboard() {
             <Card>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-blue-600" />
-                  <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">
+                  <FileCheck className="h-4 w-4 text-c-teal" />
+                  <p className="text-xs font-medium text-c-teal uppercase tracking-wider">
                     Retention Policy
                   </p>
                 </div>
@@ -416,7 +416,7 @@ export function DataLifecycleDashboard() {
                         <TableCell className="text-xs">
                           <Badge
                             variant="outline"
-                            className="text-xs bg-red-50 text-red-700"
+                            className="text-xs bg-c-danger-soft text-c-danger"
                           >
                             {formatDate(item.retentionExpiry)}
                           </Badge>
@@ -450,9 +450,9 @@ export function DataLifecycleDashboard() {
           {disposalRecords.filter(
             (r) => r.status === "QUEUED" || r.status === "CONFIRMED"
           ).length > 0 && (
-            <Card className="border-red-200">
+            <Card className="border-c-danger/20">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium uppercase tracking-wider text-red-700">
+                <CardTitle className="text-sm font-medium uppercase tracking-wider text-c-danger">
                   Pending Disposal Batches
                 </CardTitle>
               </CardHeader>
@@ -543,12 +543,12 @@ export function DataLifecycleDashboard() {
                 </p>
               </CardContent>
             </Card>
-            <Card className={breachedDsrs > 0 ? "border-red-200" : ""}>
+            <Card className={breachedDsrs > 0 ? "border-c-danger/20" : ""}>
               <CardContent className="pt-5 pb-4">
-                <p className="text-xs font-medium text-red-600 uppercase tracking-wider">
+                <p className="text-xs font-medium text-c-danger uppercase tracking-wider">
                   SLA Breached
                 </p>
-                <p className="text-2xl font-medium mt-1 text-red-700">
+                <p className="text-2xl font-medium mt-1 text-c-danger">
                   {breachedDsrs}
                 </p>
               </CardContent>
@@ -767,7 +767,7 @@ export function DataLifecycleDashboard() {
                       SLA Deadline
                     </p>
                     <p
-                      className={`font-medium ${selectedDsr.slaBreached ? "text-red-600" : ""}`}
+                      className={`font-medium ${selectedDsr.slaBreached ? "text-c-danger" : ""}`}
                     >
                       {formatDate(selectedDsr.slaDeadline)}
                     </p>
@@ -932,18 +932,18 @@ export function DataLifecycleDashboard() {
       >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-700">
+            <DialogTitle className="flex items-center gap-2 text-c-danger">
               <AlertTriangle className="h-5 w-5" />
               Confirm Data Disposal
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 mt-2">
-            <div className="bg-red-50 border border-red-200 rounded-md p-4">
-              <p className="text-sm text-red-800 font-medium">
+            <div className="bg-c-danger-soft border border-c-danger/20 rounded-md p-4">
+              <p className="text-sm text-c-danger font-medium">
                 This action is irreversible.
               </p>
-              <p className="text-xs text-red-700 mt-1">
+              <p className="text-xs text-c-danger mt-1">
                 All data in this disposal batch will be permanently destroyed
                 via cryptographic shredding. Encryption keys will be deleted,
                 making all encrypted data irrecoverable.

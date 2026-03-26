@@ -68,7 +68,7 @@ export function BanjoComplete({ tasks, totalTimeSeconds, model, failedSteps = []
                   </Badge>
                 )}
                 {t.judgmentFlagCount > 0 && (
-                  <Badge variant="outline" className="text-xs text-blue-600 gap-1">
+                  <Badge variant="outline" className="text-xs text-c-teal gap-1">
                     <FileText className="h-3 w-3" />
                     {t.judgmentFlagCount} JUDGMENT
                   </Badge>
@@ -81,15 +81,15 @@ export function BanjoComplete({ tasks, totalTimeSeconds, model, failedSteps = []
 
       {/* Revision pass result */}
       {revisionStatus === "complete" && revisedCount > 0 && (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm">
-          <p className="font-medium text-blue-800">
+        <div className="rounded-lg border border-c-teal/20 bg-c-info-soft p-3 text-sm">
+          <p className="font-medium text-c-teal">
             Banjo made consistency corrections to {revisedCount} deliverable{revisedCount !== 1 ? "s" : ""}
           </p>
-          {revisionSummary && <p className="text-blue-700 mt-1 text-xs">{revisionSummary}</p>}
+          {revisionSummary && <p className="text-c-teal mt-1 text-xs">{revisionSummary}</p>}
         </div>
       )}
       {revisionStatus === "complete" && revisedCount === 0 && (
-        <p className="text-xs text-green-700">
+        <p className="text-xs text-c-success">
           {"\u2705"} Cross-checked all deliverables &mdash; no inconsistencies found
         </p>
       )}

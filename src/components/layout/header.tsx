@@ -45,7 +45,7 @@ export function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
+      <header className="sticky top-0 z-30 border-b border-c-gray-100 bg-white dark:border-c-gray-900 dark:bg-c-gray-900">
         <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
           {/* Mobile menu trigger */}
           <Button
@@ -59,18 +59,18 @@ export function Header({
           </Button>
 
           {/* Page title */}
-          <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium text-slate-900 dark:text-slate-100">
+          <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium text-c-gray-900 dark:text-c-gray-100">
             {page.name}
           </h1>
 
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+              <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-c-snow dark:hover:bg-c-gray-900/50">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-c-gray-100 text-[11px] font-medium text-c-gray-500 dark:bg-c-gray-900 dark:text-c-gray-300">
                   {getInitials(user.name)}
                 </div>
-                <span className="hidden text-[13px] font-medium text-slate-700 sm:inline dark:text-slate-300">
+                <span className="hidden text-[13px] font-medium text-c-gray-700 sm:inline dark:text-c-gray-300">
                   {user.name}
                 </span>
               </button>
@@ -101,10 +101,10 @@ export function Header({
             className="fixed inset-0 bg-black/30 backdrop-blur-[2px]"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 flex w-[min(85vw,18rem)] flex-col border-r border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+          <div className="fixed inset-y-0 left-0 flex w-[min(85vw,18rem)] flex-col border-r border-c-gray-100 bg-white shadow-xl dark:border-c-gray-900 dark:bg-c-gray-900">
+            <div className="flex items-center justify-between border-b border-c-gray-100 px-4 py-3 dark:border-c-gray-900">
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-white">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-c-gray-900 text-white">
                   <span className="text-xs font-medium">C</span>
                 </div>
                 <span className="text-sm font-medium">Cleared</span>

@@ -17,17 +17,17 @@ interface ActivityFeedProps {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  DOCUMENT_UPLOADED: "bg-blue-500",
-  ANALYSIS_RUN: "bg-blue-500",
-  REVIEW_COMPLETED: "bg-blue-500",
-  DELIVERABLE_EXPORTED: "bg-blue-500",
-  IRS_LETTER_DETECTED: "bg-amber-500",
-  DEADLINE_CREATED: "bg-amber-500",
-  DOCUMENT_REQUESTED: "bg-green-500",
-  CHAT_ACTION: "bg-green-500",
+  DOCUMENT_UPLOADED: "bg-c-teal",
+  ANALYSIS_RUN: "bg-c-teal",
+  REVIEW_COMPLETED: "bg-c-teal",
+  DELIVERABLE_EXPORTED: "bg-c-teal",
+  IRS_LETTER_DETECTED: "bg-c-warning-soft0",
+  DEADLINE_CREATED: "bg-c-warning-soft0",
+  DOCUMENT_REQUESTED: "bg-c-success",
+  CHAT_ACTION: "bg-c-success",
   STATUS_CHANGED: "bg-purple-500",
-  NOTE_ADDED: "bg-gray-400",
-  FORM_GENERATED: "bg-green-500",
+  NOTE_ADDED: "bg-c-gray-300",
+  FORM_GENERATED: "bg-c-success",
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -59,7 +59,7 @@ export function ActivityFeed({ activities }: ActivityFeedProps) {
   return (
     <div className="space-y-0">
       {activities.map((activity, i) => {
-        const color = ACTION_COLORS[activity.action] || "bg-gray-400"
+        const color = ACTION_COLORS[activity.action] || "bg-c-gray-300"
         const label = ACTION_LABELS[activity.action] || activity.action
         const userName = activity.user?.name || "System"
         const isSystem = !activity.userId || activity.action === "IRS_LETTER_DETECTED"

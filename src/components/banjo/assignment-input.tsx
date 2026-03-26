@@ -254,7 +254,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
                           ? [...p.deadlinesApproaching, opt]
                           : p.deadlinesApproaching.filter((d) => d !== opt),
                       }))}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-c-gray-200"
                     />
                     {opt}
                   </label>
@@ -286,7 +286,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
                           ? [...p.priorAttempts, opt]
                           : p.priorAttempts.filter((a) => a !== opt),
                       }))}
-                      className="h-4 w-4 rounded border-gray-300"
+                      className="h-4 w-4 rounded border-c-gray-200"
                     />
                     {opt}
                   </label>
@@ -310,7 +310,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
                   type="checkbox"
                   checked={skipRevision}
                   onChange={(e) => setSkipRevision(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-c-gray-200"
                 />
                 Skip quality review
                 <span className="text-xs text-muted-foreground">(not recommended)</span>

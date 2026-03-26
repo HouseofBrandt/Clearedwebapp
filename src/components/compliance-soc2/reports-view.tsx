@@ -50,9 +50,9 @@ interface ReportData {
 }
 
 const READINESS_COLORS: Record<string, string> = {
-  AUDIT_READY: "text-green-600",
-  NEEDS_ATTENTION: "text-yellow-600",
-  NOT_READY: "text-red-600",
+  AUDIT_READY: "text-c-success",
+  NEEDS_ATTENTION: "text-c-warning",
+  NOT_READY: "text-c-danger",
 }
 
 const READINESS_LABELS: Record<string, string> = {
@@ -147,7 +147,7 @@ export function ReportsView() {
               <p className="text-sm text-muted-foreground">Total Controls</p>
             </div>
             <div className="text-center">
-              <p className="text-4xl font-medium text-red-600">{executiveSummary.criticalIssueCount}</p>
+              <p className="text-4xl font-medium text-c-danger">{executiveSummary.criticalIssueCount}</p>
               <p className="text-sm text-muted-foreground">Critical Issues</p>
             </div>
             <div className="text-center">
@@ -156,21 +156,21 @@ export function ReportsView() {
             </div>
           </div>
           <div className="grid grid-cols-4 gap-4 mt-6">
-            <div className="p-3 rounded bg-green-50 dark:bg-green-950 text-center">
-              <p className="text-lg font-medium text-green-700 dark:text-green-300">{executiveSummary.controlsByStatus.compliant}</p>
-              <p className="text-xs text-green-600">Compliant</p>
+            <div className="p-3 rounded bg-c-success-soft dark:bg-c-success text-center">
+              <p className="text-lg font-medium text-c-success dark:text-c-success">{executiveSummary.controlsByStatus.compliant}</p>
+              <p className="text-xs text-c-success">Compliant</p>
             </div>
-            <div className="p-3 rounded bg-yellow-50 dark:bg-yellow-950 text-center">
-              <p className="text-lg font-medium text-yellow-700 dark:text-yellow-300">{executiveSummary.controlsByStatus.partiallyCompliant}</p>
-              <p className="text-xs text-yellow-600">Partial</p>
+            <div className="p-3 rounded bg-c-warning-soft dark:bg-yellow-950 text-center">
+              <p className="text-lg font-medium text-c-warning dark:text-c-warning">{executiveSummary.controlsByStatus.partiallyCompliant}</p>
+              <p className="text-xs text-c-warning">Partial</p>
             </div>
-            <div className="p-3 rounded bg-red-50 dark:bg-red-950 text-center">
-              <p className="text-lg font-medium text-red-700 dark:text-red-300">{executiveSummary.controlsByStatus.nonCompliant}</p>
-              <p className="text-xs text-red-600">Non-Compliant</p>
+            <div className="p-3 rounded bg-c-danger-soft dark:bg-c-danger text-center">
+              <p className="text-lg font-medium text-c-danger dark:text-c-danger">{executiveSummary.controlsByStatus.nonCompliant}</p>
+              <p className="text-xs text-c-danger">Non-Compliant</p>
             </div>
-            <div className="p-3 rounded bg-gray-50 dark:bg-gray-900 text-center">
-              <p className="text-lg font-medium text-gray-700 dark:text-gray-300">{executiveSummary.controlsByStatus.notAssessed}</p>
-              <p className="text-xs text-gray-600">Not Assessed</p>
+            <div className="p-3 rounded bg-c-gray-50 dark:bg-c-gray-900 text-center">
+              <p className="text-lg font-medium text-c-gray-700 dark:text-c-gray-300">{executiveSummary.controlsByStatus.notAssessed}</p>
+              <p className="text-xs text-c-gray-500">Not Assessed</p>
             </div>
           </div>
         </CardContent>
@@ -200,21 +200,21 @@ export function ReportsView() {
         <CardHeader><CardTitle>Evidence Collection Status</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
-            <div className="p-3 rounded bg-green-50 dark:bg-green-950 text-center">
-              <p className="text-2xl font-medium text-green-700 dark:text-green-300">{evidenceIndex.summary.current}</p>
-              <p className="text-xs text-green-600">Current</p>
+            <div className="p-3 rounded bg-c-success-soft dark:bg-c-success text-center">
+              <p className="text-2xl font-medium text-c-success dark:text-c-success">{evidenceIndex.summary.current}</p>
+              <p className="text-xs text-c-success">Current</p>
             </div>
-            <div className="p-3 rounded bg-yellow-50 dark:bg-yellow-950 text-center">
-              <p className="text-2xl font-medium text-yellow-700 dark:text-yellow-300">{evidenceIndex.summary.stale}</p>
-              <p className="text-xs text-yellow-600">Stale</p>
+            <div className="p-3 rounded bg-c-warning-soft dark:bg-yellow-950 text-center">
+              <p className="text-2xl font-medium text-c-warning dark:text-c-warning">{evidenceIndex.summary.stale}</p>
+              <p className="text-xs text-c-warning">Stale</p>
             </div>
             <div className="p-3 rounded bg-orange-50 dark:bg-orange-950 text-center">
               <p className="text-2xl font-medium text-orange-700 dark:text-orange-300">{evidenceIndex.summary.expired}</p>
               <p className="text-xs text-orange-600">Expired</p>
             </div>
-            <div className="p-3 rounded bg-red-50 dark:bg-red-950 text-center">
-              <p className="text-2xl font-medium text-red-700 dark:text-red-300">{evidenceIndex.summary.missing}</p>
-              <p className="text-xs text-red-600">Missing</p>
+            <div className="p-3 rounded bg-c-danger-soft dark:bg-c-danger text-center">
+              <p className="text-2xl font-medium text-c-danger dark:text-c-danger">{evidenceIndex.summary.missing}</p>
+              <p className="text-xs text-c-danger">Missing</p>
             </div>
           </div>
         </CardContent>
@@ -233,7 +233,7 @@ export function ReportsView() {
           <div className="space-y-3">
             {readinessAssessment.factors.map((factor) => {
               const Icon = FACTOR_STATUS_ICONS[factor.status] || AlertTriangle
-              const colorClass = factor.status === "ready" ? "text-green-600" : factor.status === "needs_attention" ? "text-yellow-600" : "text-red-600"
+              const colorClass = factor.status === "ready" ? "text-c-success" : factor.status === "needs_attention" ? "text-c-warning" : "text-c-danger"
               return (
                 <div key={factor.factor} className="flex items-center gap-4 p-3 border rounded-lg">
                   <Icon className={`h-5 w-5 shrink-0 ${colorClass}`} />

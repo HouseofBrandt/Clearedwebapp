@@ -80,16 +80,18 @@ export function SidebarContent({
           if (items.length === 0) return null
           return (
             <div key={section} className={cn(section !== "MAIN" ? "mt-5" : "")}>
-              <p
-                className="mb-1.5 px-5 text-[10px] tracking-[0.12em] uppercase"
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontWeight: 500,
-                  color: "rgba(255,255,255,0.3)",
-                }}
-              >
-                {SECTION_LABELS[section]}
-              </p>
+              {section !== "MAIN" && (
+                <p
+                  className="mb-1.5 px-5 text-[10px] tracking-[0.12em] uppercase"
+                  style={{
+                    fontFamily: "var(--font-body)",
+                    fontWeight: 500,
+                    color: "rgba(255,255,255,0.3)",
+                  }}
+                >
+                  {SECTION_LABELS[section]}
+                </p>
+              )}
               <div className="space-y-px">
                 {items.map((item) => (
                   <NavLink

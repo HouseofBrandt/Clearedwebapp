@@ -22,11 +22,11 @@ const AI_ACTIONS = new Set(["AI_REQUEST", "AI_COMPLETED", "AI_FAILED"])
 const SECURITY_ACTIONS = new Set(["LOGIN_FAILURE", "LOGIN_SUCCESS", "LOGOUT", "PASSWORD_CHANGED", "PASSWORD_RESET", "USER_DEACTIVATED", "USER_ROLE_CHANGED"])
 
 function getActionBadgeColor(action: string): string {
-  if (action.includes("LOGIN_FAILURE") || action.includes("DELETE") || action.includes("REJECT")) return "bg-red-100 text-red-700"
-  if (action.includes("CREATED") || action.includes("APPROVE") || action.includes("LOGIN_SUCCESS")) return "bg-green-100 text-green-700"
-  if (action.includes("EXPORT") || action.includes("DOWNLOAD")) return "bg-blue-100 text-blue-700"
-  if (action.includes("VIEW")) return "bg-gray-100 text-gray-600"
-  return "bg-amber-100 text-amber-700"
+  if (action.includes("LOGIN_FAILURE") || action.includes("DELETE") || action.includes("REJECT")) return "bg-c-danger-soft text-c-danger"
+  if (action.includes("CREATED") || action.includes("APPROVE") || action.includes("LOGIN_SUCCESS")) return "bg-c-success-soft text-c-success"
+  if (action.includes("EXPORT") || action.includes("DOWNLOAD")) return "bg-c-info-soft text-c-teal"
+  if (action.includes("VIEW")) return "bg-c-gray-100 text-c-gray-500"
+  return "bg-c-warning-soft text-c-warning"
 }
 
 export default async function AuditLogPage({
@@ -135,11 +135,11 @@ export default async function AuditLogPage({
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">AI Requests</div>
-          <div className="text-2xl font-medium text-blue-600">{aiCount.toLocaleString()}</div>
+          <div className="text-2xl font-medium text-c-teal">{aiCount.toLocaleString()}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Security Events</div>
-          <div className="text-2xl font-medium text-amber-600">{securityCount.toLocaleString()}</div>
+          <div className="text-2xl font-medium text-c-warning">{securityCount.toLocaleString()}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Users Active</div>
@@ -244,9 +244,9 @@ export default async function AuditLogPage({
               <tr>
                 <td colSpan={5} className="px-3 py-8">
                   <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <ScrollText className="h-12 w-12 text-slate-300 mb-4" />
-                    <h3 className="text-sm font-medium text-slate-900">No matching audit entries</h3>
-                    <p className="text-sm text-slate-500 mt-1">Try adjusting your filters or selecting a different time range.</p>
+                    <ScrollText className="h-12 w-12 text-c-gray-300 mb-4" />
+                    <h3 className="text-sm font-medium text-c-gray-900">No matching audit entries</h3>
+                    <p className="text-sm text-c-gray-500 mt-1">Try adjusting your filters or selecting a different time range.</p>
                   </div>
                 </td>
               </tr>

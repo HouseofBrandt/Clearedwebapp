@@ -216,7 +216,7 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
                   <div key={i} className="border rounded-md px-3 py-2 space-y-1.5">
                     <div className="flex items-center gap-2">
                       {state.status === "done" ? (
-                        <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                        <CheckCircle className="h-4 w-4 text-c-success shrink-0" />
                       ) : state.status === "error" ? (
                         <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                       ) : state.status === "uploading" ? (

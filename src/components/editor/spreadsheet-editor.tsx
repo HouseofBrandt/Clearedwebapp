@@ -108,7 +108,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
   if (error) {
     return (
       <Card>
-        <CardContent className="p-8 text-center text-red-600">
+        <CardContent className="p-8 text-center text-c-danger">
           {error}
         </CardContent>
       </Card>
@@ -139,7 +139,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
             </p>
             {validationIssues.map((issue, i) => (
               <div key={i} className={`flex items-start gap-2 text-xs ${
-                issue.severity === "error" ? "text-red-600" :
+                issue.severity === "error" ? "text-c-danger" :
                 issue.severity === "warning" ? "text-yellow-700" :
                 "text-muted-foreground"
               }`}>
@@ -183,7 +183,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
             <TableHeader>
               <TableRow>
                 {currentTab.columns.map((col) => (
-                  <TableHead key={col} className="font-medium bg-slate-50 whitespace-nowrap">
+                  <TableHead key={col} className="font-medium bg-c-snow whitespace-nowrap">
                     {col}
                   </TableHead>
                 ))}
@@ -213,7 +213,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
                         hasVerify
                           ? "bg-yellow-50"
                           : hasJudgment
-                          ? "bg-blue-50"
+                          ? "bg-c-info-soft"
                           : ""
                       }
                     >
@@ -236,7 +236,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
                                 </span>
                               ) : hasJudgment && cell.includes("[PRACTITIONER JUDGMENT]") ? (
                                 <span className="inline-flex items-center gap-1">
-                                  <FileText className="h-3 w-3 text-blue-600" />
+                                  <FileText className="h-3 w-3 text-c-teal" />
                                   {cell}
                                 </span>
                               ) : (
@@ -251,7 +251,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                            className="h-8 w-8 text-muted-foreground hover:text-c-danger"
                             onClick={() => removeRow(activeTab, rowIndex)}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -282,7 +282,7 @@ export function SpreadsheetEditor({ taskId, editable, onDataChange }: Spreadshee
             [VERIFY] — Needs verification
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="w-3 h-3 bg-blue-100 border rounded" />
+            <span className="w-3 h-3 bg-c-info-soft border rounded" />
             [PRACTITIONER JUDGMENT] — Professional judgment required
           </span>
         </div>

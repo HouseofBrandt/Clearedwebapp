@@ -177,10 +177,10 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground text-xs">{task.modelUsed}</span>
             {verifyCount > 0 && (
-              <span className="text-amber-600 font-medium text-xs">{verifyCount} VERIFY</span>
+              <span className="text-c-warning font-medium text-xs">{verifyCount} VERIFY</span>
             )}
             {judgmentCount > 0 && (
-              <span className="text-blue-600 font-medium text-xs">{judgmentCount} JUDGMENT</span>
+              <span className="text-c-teal font-medium text-xs">{judgmentCount} JUDGMENT</span>
             )}
             <button
               onClick={() => handleExport()}
@@ -244,8 +244,8 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${
                         ra.action.includes("APPROVE")
-                          ? "bg-green-50 text-green-700"
-                          : "bg-red-50 text-red-700"
+                          ? "bg-c-success-soft text-c-success"
+                          : "bg-c-danger-soft text-c-danger"
                       }`}>
                         {ra.action.replace(/_/g, " ")}
                       </span>
@@ -376,7 +376,7 @@ export function TaskReview({ task, documents = [] }: TaskReviewProps) {
                 <button
                   onClick={() => handleReviewAction(hasJunebugEdits ? "EDIT_APPROVE" : "APPROVE")}
                   disabled={submitting || (totalFlags > 0 && !allFlagsAcknowledged)}
-                  className="rounded-md px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-40"
+                  className="rounded-md px-4 py-2 text-sm font-medium text-white bg-c-success hover:bg-c-success disabled:opacity-40"
                 >
                   {submitting ? "Submitting..." : hasJunebugEdits ? "Approve with Edits" : "Approve"}
                 </button>

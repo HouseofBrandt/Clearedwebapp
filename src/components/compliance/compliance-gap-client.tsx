@@ -226,21 +226,21 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
               </CardContent>
             </Card>
 
-            <Card className="border-red-200">
+            <Card className="border-c-danger/20">
               <CardContent className="pt-5 pb-4">
-                <p className="text-xs font-medium text-red-600 uppercase tracking-wider">
+                <p className="text-xs font-medium text-c-danger uppercase tracking-wider">
                   Unfiled
                 </p>
-                <p className="text-2xl font-medium mt-1 text-red-700 font-mono tabular-nums">{analysis.unfiled.length}</p>
+                <p className="text-2xl font-medium mt-1 text-c-danger font-mono tabular-nums">{analysis.unfiled.length}</p>
               </CardContent>
             </Card>
 
-            <Card className="border-amber-200">
+            <Card className="border-c-warning/20">
               <CardContent className="pt-5 pb-4">
-                <p className="text-xs font-medium text-amber-600 uppercase tracking-wider">
+                <p className="text-xs font-medium text-c-warning uppercase tracking-wider">
                   IRS-Filed Years
                 </p>
-                <p className="text-2xl font-medium mt-1 text-amber-700 font-mono tabular-nums">{analysis.sfr.length}</p>
+                <p className="text-2xl font-medium mt-1 text-c-warning font-mono tabular-nums">{analysis.sfr.length}</p>
               </CardContent>
             </Card>
 
@@ -258,7 +258,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Est. Reduction
                 </p>
-                <p className="text-2xl font-medium mt-1 text-blue-600 font-mono tabular-nums">
+                <p className="text-2xl font-medium mt-1 text-c-teal font-mono tabular-nums">
                   {analysis.totalReduction > 0 ? formatCurrency(analysis.totalReduction) : "--"}
                 </p>
               </CardContent>
@@ -288,7 +288,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                     setReportCopied(true)
                     setTimeout(() => setReportCopied(false), 2000)
                   }}
-                  className="text-xs px-3 py-1.5 rounded border hover:bg-slate-50 flex items-center gap-1"
+                  className="text-xs px-3 py-1.5 rounded border hover:bg-c-snow flex items-center gap-1"
                 >
                   <ClipboardCopy className="h-3.5 w-3.5" />
                   {reportCopied ? "Copied!" : "Copy Report"}
@@ -335,7 +335,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                           </TableCell>
                           <TableCell>
                             {p.filingStatus === "sfr" ? (
-                              <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 text-xs">
+                              <Badge variant="outline" className="text-c-warning border-c-warning/20 bg-c-warning-soft text-xs">
                                 IRS Filed
                               </Badge>
                             ) : (
@@ -370,7 +370,7 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                         {/* SFR Analysis Panel (expanded) */}
                         {expandedYear === p.taxYear && p.filingStatus === "sfr" && (
                           <TableRow key={`${p.id}-sfr`}>
-                            <TableCell colSpan={8} className="bg-amber-50/50 border-l-4 border-l-amber-400 p-0">
+                            <TableCell colSpan={8} className="bg-c-warning-soft/50 border-l-4 border-l-c-warning p-0">
                               <SfrAnalysisPanel period={p} />
                             </TableCell>
                           </TableRow>
@@ -402,9 +402,9 @@ export function ComplianceGapClient({ cases }: ComplianceGapClientProps) {
                         {idx + 1}
                       </span>
                       {action.type === "unfiled" ? (
-                        <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        <XCircle className="h-4 w-4 text-c-danger flex-shrink-0" />
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        <AlertTriangle className="h-4 w-4 text-c-warning flex-shrink-0" />
                       )}
                       <Badge
                         variant={action.type === "unfiled" ? "destructive" : "default"}
@@ -452,14 +452,14 @@ function FilingStatusBadge({ status }: { status: FilingStatusType }) {
       )
     case "unfiled":
       return (
-        <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs">
+        <Badge className="bg-c-danger-soft text-c-danger hover:bg-c-danger-soft text-xs">
           <XCircle className="h-3 w-3 mr-1" />
           Unfiled
         </Badge>
       )
     case "sfr":
       return (
-        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100 text-xs">
+        <Badge className="bg-c-warning-soft text-c-warning hover:bg-c-warning-soft text-xs">
           <AlertTriangle className="h-3 w-3 mr-1" />
           IRS Filed
         </Badge>
@@ -477,8 +477,8 @@ function SfrAnalysisPanel({ period }: { period: LiabilityPeriod & { filingStatus
   return (
     <div className="px-6 py-5 space-y-4">
       <div className="flex items-center gap-2 mb-1">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <h4 className="text-sm font-medium text-amber-800">
+        <AlertTriangle className="h-4 w-4 text-c-warning" />
+        <h4 className="text-sm font-medium text-c-warning">
           IRS Filing Analysis — Tax Year {period.taxYear}
         </h4>
       </div>
@@ -486,7 +486,7 @@ function SfrAnalysisPanel({ period }: { period: LiabilityPeriod & { filingStatus
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">IRS-Filed Assessment</p>
-          <p className="text-lg font-medium text-red-700 mt-0.5 font-mono tabular-nums">{formatCurrency(sfrAssessment)}</p>
+          <p className="text-lg font-medium text-c-danger mt-0.5 font-mono tabular-nums">{formatCurrency(sfrAssessment)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Est. Original Liability</p>
@@ -504,13 +504,13 @@ function SfrAnalysisPanel({ period }: { period: LiabilityPeriod & { filingStatus
       </div>
 
       {delta > 0 && (
-        <div className="flex items-start gap-2 p-3 rounded-md bg-blue-50 border border-blue-200">
-          <Clock className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start gap-2 p-3 rounded-md bg-c-info-soft border border-c-teal/20">
+          <Clock className="h-4 w-4 text-c-teal mt-0.5 flex-shrink-0" />
           <div>
-            <p className="text-sm font-medium text-blue-900">
+            <p className="text-sm font-medium text-c-teal">
               Filing an original return could reduce liability by {formatCurrency(delta)}
             </p>
-            <p className="text-xs text-blue-700 mt-1">
+            <p className="text-xs text-c-teal mt-1">
               The IRS-filed return does not include deductions, credits, or proper filing status.
               Filing an original return for TY {period.taxYear} will replace the IRS filing and likely
               result in a significantly lower assessed liability.

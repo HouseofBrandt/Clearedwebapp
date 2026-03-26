@@ -76,7 +76,7 @@ export function DeadlineSuggestions({ suggestions, caseId, taskId }: DeadlineSug
   }
 
   return (
-    <Card className="border-blue-200 bg-blue-50/30">
+    <Card className="border-c-teal/20 bg-c-info-soft/30">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-sm">
           <CalendarPlus className="h-4 w-4" />
@@ -101,7 +101,7 @@ export function DeadlineSuggestions({ suggestions, caseId, taskId }: DeadlineSug
                   </span>
                 )}
                 {!s.dueDate && (
-                  <span className="text-xs text-amber-600">(date TBD)</span>
+                  <span className="text-xs text-c-warning">(date TBD)</span>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-1">

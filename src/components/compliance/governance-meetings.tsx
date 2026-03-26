@@ -298,7 +298,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
                       className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                         selected
                           ? "bg-[#1B3A5C] text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                          : "bg-c-gray-100 text-c-gray-500 hover:bg-c-gray-200"
                       }`}
                     >
                       {user.name || user.email}
@@ -346,7 +346,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
               </div>
 
               {actionItems.map((item, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-start p-3 rounded-md border bg-gray-50">
+                <div key={i} className="grid grid-cols-12 gap-2 items-start p-3 rounded-md border bg-c-gray-50">
                   <div className="col-span-5">
                     <Label className="text-xs text-muted-foreground mb-1 block">Description</Label>
                     <Input
@@ -386,7 +386,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
                   <div className="col-span-1 flex items-end justify-center pb-1">
                     <button
                       onClick={() => removeActionItem(i)}
-                      className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                      className="p-1.5 rounded hover:bg-c-danger-soft text-c-gray-300 hover:text-c-danger transition-colors"
                       disabled={actionItems.length <= 1}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -398,8 +398,8 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
 
             {/* Error */}
             {error && (
-              <div className="p-3 rounded-md bg-red-50 border border-red-200">
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="p-3 rounded-md bg-c-danger-soft border border-c-danger/20">
+                <p className="text-sm text-c-danger">{error}</p>
               </div>
             )}
 
@@ -472,7 +472,7 @@ export function GovernanceMeetings({ users }: GovernanceMeetingsProps) {
                             {meeting.attendees.map((a: any) => (
                               <span
                                 key={a.id}
-                                className="px-2 py-0.5 rounded-full bg-gray-100 text-xs text-gray-700"
+                                className="px-2 py-0.5 rounded-full bg-c-gray-100 text-xs text-c-gray-700"
                               >
                                 {a.name || a.email}
                               </span>

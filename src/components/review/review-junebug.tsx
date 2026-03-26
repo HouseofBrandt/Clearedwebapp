@@ -60,7 +60,7 @@ export function ReviewJunebug({ currentOutput, taskType, taskId, onOutputUpdated
               <div className="mb-2 text-xs text-muted-foreground">
                 {editHistory.map((edit, i) => (
                   <p key={i} className="flex items-center gap-1.5 py-0.5">
-                    <span className="text-green-600">&#10003;</span>
+                    <span className="text-c-success">&#10003;</span>
                     {i + 1}. {edit}
                   </p>
                 ))}

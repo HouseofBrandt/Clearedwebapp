@@ -34,7 +34,7 @@ export function RCCExport({ taxpayer, years, rawYears, getYearResults, getYearOv
   }
 
   if (years.length === 0) {
-    return <div className="text-center py-16 text-slate-400"><p className="text-sm">No data loaded. Upload transcripts first.</p></div>
+    return <div className="text-center py-16 text-c-gray-300"><p className="text-sm">No data loaded. Upload transcripts first.</p></div>
   }
 
   const flags = getReviewFlags(years, rawYears)
@@ -70,12 +70,12 @@ IRC filing triggers. Not a substitute for professional return preparation.`
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-medium text-slate-900 dark:text-slate-100 mb-1">Exportable Summary</h2>
-          <p className="text-sm text-slate-500">Copy this working paper summary to your clipboard for case files.</p>
+          <h2 className="text-xl font-medium text-c-gray-900 dark:text-c-gray-100 mb-1">Exportable Summary</h2>
+          <p className="text-sm text-c-gray-500">Copy this working paper summary to your clipboard for case files.</p>
         </div>
         <button
           onClick={handleCopy}
-          className="px-4 py-2 rounded-md border border-slate-300 dark:border-slate-600 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+          className="px-4 py-2 rounded-md border border-c-gray-200 dark:border-c-gray-500 text-sm font-medium text-c-gray-700 dark:text-c-gray-300 bg-white dark:bg-c-gray-900 hover:bg-c-snow dark:hover:bg-c-gray-900 transition-colors"
         >
           Copy to Clipboard
         </button>
@@ -83,7 +83,7 @@ IRC filing triggers. Not a substitute for professional return preparation.`
 
       <div
         ref={ref}
-        className="border border-slate-200 dark:border-slate-700 rounded-lg p-5 bg-white dark:bg-slate-900 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-700 dark:text-slate-300"
+        className="border border-c-gray-100 dark:border-c-gray-700 rounded-lg p-5 bg-white dark:bg-c-gray-900 font-mono text-xs leading-relaxed whitespace-pre-wrap text-c-gray-700 dark:text-c-gray-300"
       >
         {summaryText}
       </div>

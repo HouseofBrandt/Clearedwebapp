@@ -38,10 +38,10 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  APPROVE: "bg-green-100 text-green-800",
-  EDIT_APPROVE: "bg-amber-100 text-amber-800",
-  REJECT_REPROMPT: "bg-red-100 text-red-700",
-  REJECT_MANUAL: "bg-red-100 text-red-700",
+  APPROVE: "bg-c-success-soft text-c-success",
+  EDIT_APPROVE: "bg-c-warning-soft text-c-warning",
+  REJECT_REPROMPT: "bg-c-danger-soft text-c-danger",
+  REJECT_MANUAL: "bg-c-danger-soft text-c-danger",
 }
 
 const PERIOD_OPTIONS = [
@@ -121,15 +121,15 @@ export function AnalyticsDashboard() {
   const maxThemeCount = data?.rejectionThemes?.[0]?.[1] || 1
 
   function rateColor(rate: number) {
-    if (rate >= 80) return "text-green-700"
-    if (rate >= 50) return "text-amber-700"
-    return "text-red-700"
+    if (rate >= 80) return "text-c-success"
+    if (rate >= 50) return "text-c-warning"
+    return "text-c-danger"
   }
 
   function rateBarColor(rate: number) {
-    if (rate >= 80) return "bg-green-500"
-    if (rate >= 50) return "bg-amber-500"
-    return "bg-red-500"
+    if (rate >= 80) return "bg-c-success"
+    if (rate >= 50) return "bg-c-warning-soft0"
+    return "bg-c-danger"
   }
 
   return (
@@ -177,8 +177,8 @@ export function AnalyticsDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-100">
-                    <BarChart3 className="h-5 w-5 text-blue-700" />
+                  <div className="p-2 rounded-lg bg-c-info-soft">
+                    <BarChart3 className="h-5 w-5 text-c-teal" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total AI Tasks</p>
@@ -190,8 +190,8 @@ export function AnalyticsDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-100">
-                    <CheckCircle className="h-5 w-5 text-green-700" />
+                  <div className="p-2 rounded-lg bg-c-success-soft">
+                    <CheckCircle className="h-5 w-5 text-c-success" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Approval Rate</p>
@@ -205,8 +205,8 @@ export function AnalyticsDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-100">
-                    <Clock className="h-5 w-5 text-amber-700" />
+                  <div className="p-2 rounded-lg bg-c-warning-soft">
+                    <Clock className="h-5 w-5 text-c-warning" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Avg Review Time</p>
@@ -317,7 +317,7 @@ export function AnalyticsDashboard() {
                       <span className="text-sm w-24 capitalize">{theme}</span>
                       <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-red-400 rounded-full transition-all flex items-center justify-end pr-2"
+                          className="h-full bg-c-danger rounded-full transition-all flex items-center justify-end pr-2"
                           style={{ width: `${Math.max((count / maxThemeCount) * 100, 8)}%` }}
                         >
                           <span className="text-[10px] font-medium text-white">{count}</span>
@@ -388,10 +388,10 @@ export function AnalyticsDashboard() {
                           freshness == null
                             ? ""
                             : freshness >= 0.7
-                              ? "text-green-700"
+                              ? "text-c-success"
                               : freshness >= 0.4
-                                ? "text-amber-700"
-                                : "text-red-700"
+                                ? "text-c-warning"
+                                : "text-c-danger"
                         return (
                           <TableRow key={kb.category}>
                             <TableCell className="capitalize">

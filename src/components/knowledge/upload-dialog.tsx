@@ -521,7 +521,7 @@ export function UploadDialog() {
                     </Button>
                   )}
                   {item.status === "done" && (
-                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
+                    <CheckCircle className="h-5 w-5 text-c-success shrink-0" />
                   )}
                   {item.status === "error" && (
                     <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
@@ -545,7 +545,7 @@ export function UploadDialog() {
 
                 {/* Result info */}
                 {item.status === "done" && item.chunksCreated != null && (
-                  <p className="text-xs text-green-700">
+                  <p className="text-xs text-c-success">
                     {item.chunksCreated} chunks created
                     {item.error && ` — ${item.error}`}
                   </p>
@@ -562,7 +562,7 @@ export function UploadDialog() {
 
         {/* Large file warning */}
         {files.some((f) => f.file.size > 10 * 1024 * 1024 && f.status === "pending") && (
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          <p className="text-xs text-c-warning bg-c-warning-soft border border-c-warning/20 rounded-md px-3 py-2">
             Large files may take several minutes to process. If embedding fails due to rate limits, you can backfill embeddings later from the document&apos;s menu.
           </p>
         )}

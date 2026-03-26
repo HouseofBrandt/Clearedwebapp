@@ -9,6 +9,7 @@ import { SystemEventCard } from "./system-event-card"
 import { FormattedText } from "./formatted-text"
 import { TaskCard } from "./task-card"
 import { FeedReplyList, ReplyInput } from "./feed-reply"
+import { TruncatedText } from "@/components/ui/truncated-text"
 import { MessageCircle, Copy, Paperclip, Download, Pencil, X, Check, Eye, Bookmark } from "lucide-react"
 
 function getInitials(name: string): string {
@@ -316,9 +317,11 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
                   isJunebug ? (
                     <FormattedText content={displayContent} className="mt-1" />
                   ) : (
-                    <div className="mt-1 text-sm whitespace-pre-wrap" style={{ color: 'var(--c-gray-700)', lineHeight: '1.65' }}>
-                      {renderContent(displayContent, post.mentions, post.case)}
-                    </div>
+                    <TruncatedText lines={3} className="mt-1">
+                      <div className="text-sm whitespace-pre-wrap" style={{ color: 'var(--c-gray-700)', lineHeight: '1.65' }}>
+                        {renderContent(displayContent, post.mentions, post.case)}
+                      </div>
+                    </TruncatedText>
                   )
                 )
               )}

@@ -95,22 +95,22 @@ function formatTimeRemaining(hours: number | null): string {
 function severityColor(severity: string): string {
   switch (severity) {
     case "CRITICAL":
-      return "bg-red-100 text-red-800 border-red-300"
+      return "bg-c-danger-soft text-c-danger border-c-danger/30"
     case "HIGH":
       return "bg-orange-100 text-orange-800 border-orange-300"
     case "MEDIUM":
       return "bg-yellow-100 text-yellow-800 border-yellow-300"
     case "LOW":
-      return "bg-blue-100 text-blue-800 border-blue-300"
+      return "bg-c-info-soft text-c-teal border-c-teal/20"
     default:
-      return "bg-gray-100 text-gray-800 border-gray-300"
+      return "bg-c-gray-100 text-c-gray-900 border-c-gray-200"
   }
 }
 
 function statusColor(status: string): string {
   switch (status) {
     case "DETECTED":
-      return "bg-red-100 text-red-800"
+      return "bg-c-danger-soft text-c-danger"
     case "CLASSIFIED":
       return "bg-orange-100 text-orange-800"
     case "RESPONDING":
@@ -118,24 +118,24 @@ function statusColor(status: string): string {
     case "RESOLVED":
       return "bg-emerald-100 text-emerald-800"
     case "POST_MORTEM":
-      return "bg-blue-100 text-blue-800"
+      return "bg-c-info-soft text-c-teal"
     default:
-      return "bg-gray-100 text-gray-800"
+      return "bg-c-gray-100 text-c-gray-900"
   }
 }
 
 function SeverityIcon({ severity }: { severity: string }) {
   switch (severity) {
     case "CRITICAL":
-      return <ShieldAlert className="h-5 w-5 text-red-600" />
+      return <ShieldAlert className="h-5 w-5 text-c-danger" />
     case "HIGH":
       return <AlertTriangle className="h-5 w-5 text-orange-600" />
     case "MEDIUM":
       return <Shield className="h-5 w-5 text-yellow-600" />
     case "LOW":
-      return <ShieldCheck className="h-5 w-5 text-blue-600" />
+      return <ShieldCheck className="h-5 w-5 text-c-teal" />
     default:
-      return <Shield className="h-5 w-5 text-gray-600" />
+      return <Shield className="h-5 w-5 text-c-gray-500" />
   }
 }
 
@@ -278,15 +278,15 @@ export function IncidentDashboard() {
     <div className="space-y-6">
       {/* Severity Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-red-200">
+        <Card className="border-c-danger/20">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-red-600" />
-              <p className="text-xs font-medium text-red-600 uppercase tracking-wider">
+              <ShieldAlert className="h-4 w-4 text-c-danger" />
+              <p className="text-xs font-medium text-c-danger uppercase tracking-wider">
                 Critical
               </p>
             </div>
-            <p className="text-2xl font-medium mt-1 text-red-700">
+            <p className="text-2xl font-medium mt-1 text-c-danger">
               {severityCounts.CRITICAL}
             </p>
           </CardContent>
@@ -320,15 +320,15 @@ export function IncidentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-blue-200">
+        <Card className="border-c-teal/20">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-blue-600" />
-              <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">
+              <ShieldCheck className="h-4 w-4 text-c-teal" />
+              <p className="text-xs font-medium text-c-teal uppercase tracking-wider">
                 Low
               </p>
             </div>
-            <p className="text-2xl font-medium mt-1 text-blue-700">
+            <p className="text-2xl font-medium mt-1 text-c-teal">
               {severityCounts.LOW}
             </p>
           </CardContent>
@@ -476,7 +476,7 @@ export function IncidentDashboard() {
                       <span
                         className={`text-xs font-mono ${
                           incident.slaBreached
-                            ? "text-red-600 font-medium"
+                            ? "text-c-danger font-medium"
                             : "text-muted-foreground"
                         }`}
                       >
@@ -546,7 +546,7 @@ export function IncidentDashboard() {
                       SLA Deadline
                     </p>
                     <p
-                      className={`font-medium ${selectedIncident.slaBreached ? "text-red-600" : ""}`}
+                      className={`font-medium ${selectedIncident.slaBreached ? "text-c-danger" : ""}`}
                     >
                       {formatDateTime(selectedIncident.slaDeadline)}
                     </p>
@@ -613,7 +613,7 @@ export function IncidentDashboard() {
                                 ) : step.status === "in_progress" ? (
                                   <Clock className="h-4 w-4 text-yellow-500" />
                                 ) : (
-                                  <XCircle className="h-4 w-4 text-gray-300" />
+                                  <XCircle className="h-4 w-4 text-c-gray-300" />
                                 )}
                               </button>
                               <div className="flex-1">

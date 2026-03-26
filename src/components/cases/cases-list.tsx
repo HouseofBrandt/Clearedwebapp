@@ -48,12 +48,12 @@ function formatCurrency(value: number | string | null | undefined): string {
 }
 
 const statusColors: Record<string, string> = {
-  INTAKE: "bg-blue-100 text-blue-800",
+  INTAKE: "bg-c-info-soft text-c-teal",
   ANALYSIS: "bg-yellow-100 text-yellow-800",
   REVIEW: "bg-purple-100 text-purple-800",
-  ACTIVE: "bg-green-100 text-green-800",
-  RESOLVED: "bg-gray-100 text-gray-800",
-  CLOSED: "bg-gray-200 text-gray-600",
+  ACTIVE: "bg-c-success-soft text-c-success",
+  RESOLVED: "bg-c-gray-100 text-c-gray-900",
+  CLOSED: "bg-c-gray-200 text-c-gray-500",
 }
 
 interface CasesListProps {

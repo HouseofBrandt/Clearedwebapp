@@ -124,13 +124,13 @@ export function AutomationDashboard() {
     switch (result.toUpperCase()) {
       case "PASS":
         return (
-          <Badge className="bg-green-100 text-green-800 border-green-200">
+          <Badge className="bg-c-success-soft text-c-success border-c-success/20">
             Pass
           </Badge>
         )
       case "FAIL":
         return (
-          <Badge className="bg-red-100 text-red-800 border-red-200">
+          <Badge className="bg-c-danger-soft text-c-danger border-c-danger/20">
             Fail
           </Badge>
         )
@@ -187,8 +187,8 @@ export function AutomationDashboard() {
     return (
       <Card>
         <CardContent className="py-8 text-center">
-          <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-          <p className="text-red-600">{error}</p>
+          <AlertTriangle className="h-8 w-8 text-c-danger mx-auto mb-2" />
+          <p className="text-c-danger">{error}</p>
           <Button variant="outline" className="mt-4" onClick={fetchStatus}>
             Retry
           </Button>
@@ -248,11 +248,11 @@ export function AutomationDashboard() {
 
       {/* Last run result toast */}
       {lastRunResult && (
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-c-success/20 bg-c-success-soft">
           <CardContent className="py-4">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <span className="font-medium text-green-800">
+              <CheckCircle2 className="h-5 w-5 text-c-success" />
+              <span className="font-medium text-c-success">
                 {lastRunResult.action === "seed"
                   ? `Seeded ${lastRunResult.seededCount} health checks`
                   : `Automation complete: ${lastRunResult.checksRun} checks run, ${lastRunResult.issuesCreated} issues created, ${lastRunResult.evidenceCollected} evidence collected, ${lastRunResult.controlsUpdated} controls updated`}
@@ -284,8 +284,8 @@ export function AutomationDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span className="text-lg font-medium text-green-700">
+              <CheckCircle2 className="h-4 w-4 text-c-success" />
+              <span className="text-lg font-medium text-c-success">
                 {passCount}/{totalChecks}
               </span>
             </div>
@@ -298,8 +298,8 @@ export function AutomationDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-600" />
-              <span className="text-lg font-medium text-red-700">
+              <XCircle className="h-4 w-4 text-c-danger" />
+              <span className="text-lg font-medium text-c-danger">
                 {failCount}
               </span>
             </div>
@@ -327,15 +327,15 @@ export function AutomationDashboard() {
           <CardContent>
             <div className="flex items-center gap-2">
               {(status?.slaBreaches || 0) > 0 ? (
-                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertTriangle className="h-4 w-4 text-c-danger" />
               ) : (
-                <Shield className="h-4 w-4 text-green-600" />
+                <Shield className="h-4 w-4 text-c-success" />
               )}
               <span
                 className={`text-lg font-medium ${
                   (status?.slaBreaches || 0) > 0
-                    ? "text-red-700"
-                    : "text-green-700"
+                    ? "text-c-danger"
+                    : "text-c-success"
                 }`}
               >
                 {status?.slaBreaches || 0}
@@ -347,11 +347,11 @@ export function AutomationDashboard() {
 
       {/* SLA breach alert */}
       {(status?.slaBreaches || 0) > 0 && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-c-danger/20 bg-c-danger-soft">
           <CardContent className="py-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <span className="font-medium text-red-800">
+              <AlertTriangle className="h-5 w-5 text-c-danger" />
+              <span className="font-medium text-c-danger">
                 {status?.slaBreaches} compliance issue(s) have breached their
                 SLA deadline. Immediate attention required.
               </span>
@@ -439,7 +439,7 @@ export function AutomationDashboard() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
-            <Activity className="h-8 w-8 text-blue-600" />
+            <Activity className="h-8 w-8 text-c-teal" />
             <div>
               <div className="text-2xl font-medium">
                 {status?.evidenceCount || 0}

@@ -524,9 +524,9 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
 
         {phase === "failed" && (
           <div className="space-y-3">
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <p className="text-sm font-medium text-red-800">Previous assignment failed</p>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
+            <div className="rounded-lg border border-c-danger/20 bg-c-danger-soft p-4">
+              <p className="text-sm font-medium text-c-danger">Previous assignment failed</p>
+              <p className="text-sm text-c-danger mt-1">{error}</p>
             </div>
             <AssignmentInput
               caseType={caseType}

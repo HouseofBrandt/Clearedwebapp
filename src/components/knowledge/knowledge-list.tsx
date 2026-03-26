@@ -39,20 +39,20 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  IRC_STATUTE: "bg-blue-100 text-blue-800",
-  IRM_SECTION: "bg-green-100 text-green-800",
+  IRC_STATUTE: "bg-c-info-soft text-c-teal",
+  IRM_SECTION: "bg-c-success-soft text-c-success",
   TREATISE: "bg-purple-100 text-purple-800",
-  APPROVED_OUTPUT: "bg-amber-100 text-amber-800",
+  APPROVED_OUTPUT: "bg-c-warning-soft text-c-warning",
   FIRM_TEMPLATE: "bg-indigo-100 text-indigo-800",
   TRAINING_MATERIAL: "bg-pink-100 text-pink-800",
 }
 
 const SOURCE_TYPE_BADGES: Record<string, { label: string; icon: string; className: string }> = {
-  MANUAL_UPLOAD: { label: "Manual Upload", icon: "\uD83D\uDCE4", className: "bg-blue-50 text-blue-700" },
-  APPROVED_OUTPUT: { label: "Approved Output", icon: "\u2705", className: "bg-green-50 text-green-700" },
+  MANUAL_UPLOAD: { label: "Manual Upload", icon: "\uD83D\uDCE4", className: "bg-c-info-soft text-c-teal" },
+  APPROVED_OUTPUT: { label: "Approved Output", icon: "\u2705", className: "bg-c-success-soft text-c-success" },
   JUNEBUG_CURATED: { label: "Junebug Curated", icon: "\uD83D\uDCAC", className: "bg-purple-50 text-purple-700" },
-  WEB_RESEARCH: { label: "Web Research", icon: "\uD83C\uDF10", className: "bg-amber-50 text-amber-700" },
-  AUTO_ENRICHMENT: { label: "Auto-Enriched", icon: "\uD83E\uDD16", className: "bg-gray-50 text-gray-600" },
+  WEB_RESEARCH: { label: "Web Research", icon: "\uD83C\uDF10", className: "bg-c-warning-soft text-c-warning" },
+  AUTO_ENRICHMENT: { label: "Auto-Enriched", icon: "\uD83E\uDD16", className: "bg-c-gray-50 text-c-gray-500" },
 }
 
 interface KnowledgeListProps {
@@ -282,10 +282,10 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
                                 </Badge>
                               )}
                               {doc.processingStatus === "uploading" && (
-                                <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700">Uploading</Badge>
+                                <Badge variant="secondary" className="text-[10px] bg-c-info-soft text-c-teal">Uploading</Badge>
                               )}
                               {doc.processingStatus === "processing" && (
-                                <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700">Processing</Badge>
+                                <Badge variant="secondary" className="text-[10px] bg-c-warning-soft text-c-warning">Processing</Badge>
                               )}
                               {doc.processingStatus === "failed" && (
                                 <Badge variant="destructive" className="text-[10px]" title={doc.processingError || ""}>Failed</Badge>
@@ -293,7 +293,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
                               <span className="text-xs text-muted-foreground">
                                 {doc.chunkCount} chunks
                                 {doc.chunkCount > 0 && embeddingCounts[doc.id] != null && embeddingCounts[doc.id] < doc.chunkCount && (
-                                  <span className="text-amber-600"> ({embeddingCounts[doc.id]}/{doc.chunkCount} embedded)</span>
+                                  <span className="text-c-warning"> ({embeddingCounts[doc.id]}/{doc.chunkCount} embedded)</span>
                                 )}
                               </span>
                               <span className="text-xs text-muted-foreground">· {doc.hitCount} refs</span>
@@ -302,7 +302,7 @@ export function KnowledgeList({ documents, stats, embeddingCounts = {} }: Knowle
                                 <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0">{tag}</Badge>
                               ))}
                               {doc.sourceCaseId && (
-                                <Link href={`/cases/${doc.sourceCaseId}`} className="text-xs text-blue-600 hover:underline">
+                                <Link href={`/cases/${doc.sourceCaseId}`} className="text-xs text-c-teal hover:underline">
                                   Source case
                                 </Link>
                               )}

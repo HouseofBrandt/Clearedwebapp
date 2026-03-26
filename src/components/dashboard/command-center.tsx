@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { TruncatedText } from "@/components/ui/truncated-text"
 import type { CommandCenterData, ActionItem } from "@/lib/dashboard/command-center"
 
 // ═══════════════════════════════════════════════════
@@ -9,13 +10,13 @@ import type { CommandCenterData, ActionItem } from "@/lib/dashboard/command-cent
 
 function FocusRow({ item }: { item: ActionItem }) {
   const borderColor =
-    item.priority === "critical" ? "border-l-red-500" :
-    item.priority === "high" ? "border-l-amber-400" :
+    item.priority === "critical" ? "border-l-c-danger" :
+    item.priority === "high" ? "border-l-c-warning" :
     "border-l-transparent"
 
   const dot =
-    item.priority === "critical" ? <div className="h-2 w-2 rounded-full bg-red-500 shrink-0 mt-1.5" /> :
-    item.priority === "high" ? <div className="h-2 w-2 rounded-full bg-amber-400 shrink-0 mt-1.5" /> :
+    item.priority === "critical" ? <div className="h-2 w-2 rounded-full bg-c-danger shrink-0 mt-1.5" /> :
+    item.priority === "high" ? <div className="h-2 w-2 rounded-full bg-c-warning shrink-0 mt-1.5" /> :
     <div className="h-2 w-2 shrink-0" />
 
   const actionLabel =
@@ -70,13 +71,15 @@ export function DailyBrief({ data, userName }: { data: CommandCenterData; userNa
             <p className="text-display-md text-foreground leading-relaxed">
               {greeting}, {userName.split(" ")[0]}.
             </p>
-            <div className="mt-2 space-y-1">
-              {data.briefing.split("\n").map((line, i) => (
-                <p key={i} className={`${i === 0 ? "text-[15px] text-foreground" : "text-sm text-muted-foreground"} leading-relaxed`}>
-                  {line}
-                </p>
-              ))}
-            </div>
+            <TruncatedText lines={3} className="mt-2">
+              <div className="space-y-1">
+                {data.briefing.split("\n").map((line, i) => (
+                  <p key={i} className={`${i === 0 ? "text-[15px] text-foreground" : "text-sm text-muted-foreground"} leading-relaxed`}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+            </TruncatedText>
           </section>
 
           {/* Layer 2: Focus Queue */}
@@ -114,8 +117,8 @@ export function DailyBrief({ data, userName }: { data: CommandCenterData; userNa
                     diffDays === 1 ? "tomorrow" :
                     `in ${diffDays} days`
                   const timeColor =
-                    isOverdue ? "text-red-600" :
-                    diffDays <= 1 ? "text-amber-600" :
+                    isOverdue ? "text-c-danger" :
+                    diffDays <= 1 ? "text-c-warning" :
                     "text-muted-foreground"
 
                   return (

@@ -51,15 +51,15 @@ export default async function SettingsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card className="p-4">
                 <div className="text-xs text-muted-foreground">Encryption Status</div>
-                <div className="text-sm font-medium text-green-600 mt-1">Active (AES-256-GCM)</div>
+                <div className="text-sm font-medium text-c-success mt-1">Active (AES-256-GCM)</div>
               </Card>
               <Card className="p-4">
                 <div className="text-xs text-muted-foreground">API Keys</div>
-                <div className="text-sm font-medium text-green-600 mt-1">Configured</div>
+                <div className="text-sm font-medium text-c-success mt-1">Configured</div>
               </Card>
               <Card className="p-4">
                 <div className="text-xs text-muted-foreground">PII Tokenization</div>
-                <div className="text-sm font-medium text-green-600 mt-1">Enforced</div>
+                <div className="text-sm font-medium text-c-success mt-1">Enforced</div>
               </Card>
             </div>
           </div>

@@ -31,11 +31,11 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  QUEUED: "bg-gray-200 text-gray-800",
-  PROCESSING: "bg-blue-100 text-blue-800",
-  READY_FOR_REVIEW: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-green-100 text-green-800",
-  REJECTED: "bg-red-100 text-red-700",
+  QUEUED: "bg-c-gray-200 text-c-gray-900",
+  PROCESSING: "bg-c-info-soft text-c-teal",
+  READY_FOR_REVIEW: "bg-c-warning-soft text-c-warning",
+  APPROVED: "bg-c-success-soft text-c-success",
+  REJECTED: "bg-c-danger-soft text-c-danger",
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -46,10 +46,10 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  APPROVE: "bg-green-500",
-  EDIT_APPROVE: "bg-blue-500",
-  REJECT_REPROMPT: "bg-amber-500",
-  REJECT_MANUAL: "bg-red-500",
+  APPROVE: "bg-c-success",
+  EDIT_APPROVE: "bg-c-teal",
+  REJECT_REPROMPT: "bg-c-warning-soft0",
+  REJECT_MANUAL: "bg-c-danger",
 }
 
 const CASE_TYPE_LABELS: Record<string, string> = {
@@ -204,9 +204,9 @@ export function SwitchboardDashboard() {
     : []
 
   function rateColor(rate: number) {
-    if (rate >= 80) return "text-green-700"
-    if (rate >= 50) return "text-amber-700"
-    return "text-red-700"
+    if (rate >= 80) return "text-c-success"
+    if (rate >= 50) return "text-c-warning"
+    return "text-c-danger"
   }
 
   return (
@@ -254,8 +254,8 @@ export function SwitchboardDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-100">
-                    <Network className="h-5 w-5 text-blue-700" />
+                  <div className="p-2 rounded-lg bg-c-info-soft">
+                    <Network className="h-5 w-5 text-c-teal" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total AI Tasks</p>
@@ -267,8 +267,8 @@ export function SwitchboardDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-100">
-                    <CheckCircle className="h-5 w-5 text-green-700" />
+                  <div className="p-2 rounded-lg bg-c-success-soft">
+                    <CheckCircle className="h-5 w-5 text-c-success" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Approval Rate</p>
@@ -282,8 +282,8 @@ export function SwitchboardDashboard() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-100">
-                    <Clock className="h-5 w-5 text-amber-700" />
+                  <div className="p-2 rounded-lg bg-c-warning-soft">
+                    <Clock className="h-5 w-5 text-c-warning" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Avg Review Time</p>
@@ -337,14 +337,14 @@ export function SwitchboardDashboard() {
                           <div
                             className={`h-full rounded-full transition-all ${
                               status === "APPROVED"
-                                ? "bg-green-500"
+                                ? "bg-c-success"
                                 : status === "REJECTED"
-                                  ? "bg-red-500"
+                                  ? "bg-c-danger"
                                   : status === "READY_FOR_REVIEW"
-                                    ? "bg-amber-500"
+                                    ? "bg-c-warning-soft0"
                                     : status === "PROCESSING"
-                                      ? "bg-blue-500"
-                                      : "bg-gray-400"
+                                      ? "bg-c-teal"
+                                      : "bg-c-gray-300"
                             }`}
                             style={{ width: `${Math.max(pct, 1)}%` }}
                           />
@@ -365,7 +365,7 @@ export function SwitchboardDashboard() {
                           const pct = Math.round((ra._count / reviewTotal) * 100)
                           return (
                             <div key={ra.action} className="flex items-center gap-2 text-sm">
-                              <div className={`w-3 h-3 rounded-full ${ACTION_COLORS[ra.action] || "bg-gray-400"}`} />
+                              <div className={`w-3 h-3 rounded-full ${ACTION_COLORS[ra.action] || "bg-c-gray-300"}`} />
                               <span>{ACTION_LABELS[ra.action] || ra.action}</span>
                               <span className="font-medium">{ra._count}</span>
                               <span className="text-muted-foreground">({pct}%)</span>

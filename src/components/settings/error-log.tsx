@@ -58,7 +58,7 @@ export function ErrorLog({ errors }: { errors: ErrorData[] }) {
               <div className="truncate text-xs text-muted-foreground">{err.user?.name || "—"}</div>
               <div className="text-xs">
                 {err.statusCode ? (
-                  <span className={`rounded px-1.5 py-0.5 ${err.statusCode >= 500 ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
+                  <span className={`rounded px-1.5 py-0.5 ${err.statusCode >= 500 ? "bg-c-danger-soft text-c-danger" : "bg-yellow-100 text-yellow-700"}`}>
                     {err.statusCode}
                   </span>
                 ) : (
@@ -71,7 +71,7 @@ export function ErrorLog({ errors }: { errors: ErrorData[] }) {
                 {err.errorStack && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">Stack Trace</p>
-                    <pre className="mt-1 max-h-40 overflow-auto rounded bg-gray-900 p-2 text-xs text-gray-100">
+                    <pre className="mt-1 max-h-40 overflow-auto rounded bg-c-gray-900 p-2 text-xs text-c-gray-100">
                       {err.errorStack}
                     </pre>
                   </div>
@@ -79,7 +79,7 @@ export function ErrorLog({ errors }: { errors: ErrorData[] }) {
                 {err.metadata && (
                   <div>
                     <p className="text-xs font-medium text-muted-foreground">Metadata</p>
-                    <pre className="mt-1 rounded bg-gray-100 p-2 text-xs">
+                    <pre className="mt-1 rounded bg-c-gray-100 p-2 text-xs">
                       {JSON.stringify(err.metadata, null, 2)}
                     </pre>
                   </div>

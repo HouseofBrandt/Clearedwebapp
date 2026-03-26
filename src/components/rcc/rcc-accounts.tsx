@@ -24,7 +24,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
 
   if (years.length === 0) {
     return (
-      <div className="text-center py-16 text-slate-400">
+      <div className="text-center py-16 text-c-gray-300">
         <p className="text-sm">No data loaded.</p>
       </div>
     )
@@ -34,10 +34,10 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-medium text-slate-900 dark:text-slate-100 mb-1">
+          <h2 className="text-xl font-medium text-c-gray-900 dark:text-c-gray-100 mb-1">
             Account Transcript Activity
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-c-gray-500">
             All IRS transaction codes across all years. Hover codes for descriptions.
           </p>
         </div>
@@ -46,14 +46,14 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
             value={codeFilter}
             onChange={(e) => setCodeFilter(e.target.value)}
             placeholder="Filter by TC code\u2026"
-            className="px-2.5 py-1.5 rounded-md border border-slate-300 dark:border-slate-600 text-xs font-mono bg-white dark:bg-slate-900 w-40"
+            className="px-2.5 py-1.5 rounded-md border border-c-gray-200 dark:border-c-gray-500 text-xs font-mono bg-white dark:bg-c-gray-900 w-40"
           />
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer whitespace-nowrap">
+          <label className="flex items-center gap-1.5 text-xs text-c-gray-500 cursor-pointer whitespace-nowrap">
             <input
               type="checkbox"
               checked={critOnly}
               onChange={(e) => setCritOnly(e.target.checked)}
-              className="rounded border-slate-300"
+              className="rounded border-c-gray-200"
             />
             Critical only
           </label>
@@ -70,41 +70,41 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
           return (
             <div
               key={yr}
-              className="mb-4 p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-slate-200 dark:border-slate-700"
+              className="mb-4 p-3 bg-c-snow dark:bg-c-gray-900/30 rounded-lg border border-c-gray-100 dark:border-c-gray-700"
             >
               <span className="font-mono font-medium mr-2">TY {yr}</span>
-              <span className="text-slate-400 text-sm">No account data / Requested data not found</span>
+              <span className="text-c-gray-300 text-sm">No account data / Requested data not found</span>
             </div>
           )
         }
 
         return (
-          <details key={yr} className="mb-4 border border-slate-200 dark:border-slate-700 rounded-lg" open={txns.some((t: any) => CRITICAL_TC.has(t.code))}>
-            <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 rounded-lg">
-              <span className="font-mono font-medium text-sm text-slate-900 dark:text-slate-100">TY {yr}</span>
-              <span className="text-xs text-slate-400">
-                Balance: <strong className="text-slate-700 dark:text-slate-300">{fmt(acct.balance || 0)}</strong>
+          <details key={yr} className="mb-4 border border-c-gray-100 dark:border-c-gray-700 rounded-lg" open={txns.some((t: any) => CRITICAL_TC.has(t.code))}>
+            <summary className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-c-snow dark:hover:bg-c-gray-900/30 rounded-lg">
+              <span className="font-mono font-medium text-sm text-c-gray-900 dark:text-c-gray-100">TY {yr}</span>
+              <span className="text-xs text-c-gray-300">
+                Balance: <strong className="text-c-gray-700 dark:text-c-gray-300">{fmt(acct.balance || 0)}</strong>
               </span>
               {(acct.accrued_interest || 0) > 0 && (
-                <span className="text-xs text-red-500">Int: {fmt(acct.accrued_interest)}</span>
+                <span className="text-xs text-c-danger">Int: {fmt(acct.accrued_interest)}</span>
               )}
               {(acct.accrued_penalty || 0) > 0 && (
-                <span className="text-xs text-red-500">Pen: {fmt(acct.accrued_penalty)}</span>
+                <span className="text-xs text-c-danger">Pen: {fmt(acct.accrued_penalty)}</span>
               )}
               {(acct.flags || []).map((fl: string, fi: number) => (
-                <span key={fi} className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">{fl}</span>
+                <span key={fi} className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-c-danger-soft dark:bg-c-danger/10 text-c-danger dark:text-c-danger">{fl}</span>
               ))}
             </summary>
-            <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="px-4 pb-4 border-t border-c-gray-100 dark:border-c-gray-900">
               {txns.length > 0 ? (
                 <table className="w-full text-xs mt-2">
                   <thead>
-                    <tr className="border-b-2 border-slate-200 dark:border-slate-700">
-                      <th className="py-1.5 px-2 text-left font-medium text-slate-400 w-14">Code</th>
-                      <th className="py-1.5 px-2 text-left font-medium text-slate-400">Description</th>
-                      <th className="py-1.5 px-2 text-left font-medium text-slate-400 w-20">Cycle</th>
-                      <th className="py-1.5 px-2 text-left font-medium text-slate-400 w-24">Date</th>
-                      <th className="py-1.5 px-2 text-right font-medium text-slate-400 w-28">Amount</th>
+                    <tr className="border-b-2 border-c-gray-100 dark:border-c-gray-700">
+                      <th className="py-1.5 px-2 text-left font-medium text-c-gray-300 w-14">Code</th>
+                      <th className="py-1.5 px-2 text-left font-medium text-c-gray-300">Description</th>
+                      <th className="py-1.5 px-2 text-left font-medium text-c-gray-300 w-20">Cycle</th>
+                      <th className="py-1.5 px-2 text-left font-medium text-c-gray-300 w-24">Date</th>
+                      <th className="py-1.5 px-2 text-right font-medium text-c-gray-300 w-28">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -113,24 +113,24 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
                       return (
                         <tr
                           key={j}
-                          className={`border-b border-slate-100 dark:border-slate-800 ${
-                            isCritical ? "bg-red-50 dark:bg-red-950/20" : ""
+                          className={`border-b border-c-gray-100 dark:border-c-gray-900 ${
+                            isCritical ? "bg-c-danger-soft dark:bg-c-danger/20" : ""
                           }`}
                         >
                           <td
                             className={`py-1.5 px-2 font-mono font-medium ${
-                              isCritical ? "text-red-600" : "text-slate-700 dark:text-slate-300"
+                              isCritical ? "text-c-danger" : "text-c-gray-700 dark:text-c-gray-300"
                             }`}
                             title={TC_CODES[t.code] || ""}
                           >
                             {t.code || "\u2014"}
                           </td>
-                          <td className="py-1.5 px-2 text-slate-500">{t.description || TC_CODES[t.code] || "\u2014"}</td>
-                          <td className="py-1.5 px-2 font-mono text-slate-400">{t.cycle || "\u2014"}</td>
-                          <td className="py-1.5 px-2 font-mono text-slate-400">{t.date || "\u2014"}</td>
+                          <td className="py-1.5 px-2 text-c-gray-500">{t.description || TC_CODES[t.code] || "\u2014"}</td>
+                          <td className="py-1.5 px-2 font-mono text-c-gray-300">{t.cycle || "\u2014"}</td>
+                          <td className="py-1.5 px-2 font-mono text-c-gray-300">{t.date || "\u2014"}</td>
                           <td
                             className={`py-1.5 px-2 text-right font-mono font-medium ${
-                              t.amount < 0 ? "text-green-600" : t.amount > 0 ? "text-slate-700 dark:text-slate-300" : "text-slate-400"
+                              t.amount < 0 ? "text-c-success" : t.amount > 0 ? "text-c-gray-700 dark:text-c-gray-300" : "text-c-gray-300"
                             }`}
                           >
                             {t.amount != null ? fmtD(t.amount) : "\u2014"}
@@ -141,7 +141,7 @@ export function RCCAccounts({ years, rawYears }: RCCAccountsProps) {
                   </tbody>
                 </table>
               ) : (
-                <div className="text-xs text-slate-400 italic py-3">No matching transactions</div>
+                <div className="text-xs text-c-gray-300 italic py-3">No matching transactions</div>
               )}
             </div>
           </details>
