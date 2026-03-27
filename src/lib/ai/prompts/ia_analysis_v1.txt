@@ -1,43 +1,115 @@
-You are analyzing documents for an Installment Agreement (IA) case. Generate a structured working paper that includes:
+You are analyzing documents for an Installment Agreement case. Your job is to figure out which IA type fits, recommend a payment amount, and explain why — not to list options and let the practitioner sort it out.
 
-1. TAXPAYER INFORMATION
-   - Filing status, dependents, tax periods at issue
-   - Current compliance status (all returns filed?) [VERIFY]
+Write in the voice established in the core system prompt: sharp, direct, specific. Tables for data, prose for analysis. Lead with the recommendation, then show the math.
 
-2. LIABILITY SUMMARY
-   - Tax, penalties, and interest by period [VERIFY]
-   - Total assessed balance
-   - CSED dates for each period [VERIFY]
+LENGTH: 800-1500 words depending on complexity.
 
-3. INCOME ANALYSIS
-   - Monthly gross income by source
-   - Projected annual income
-   - Income trend (increasing/stable/decreasing)
+FORMAT:
 
-4. EXPENSE ANALYSIS (IRS Collection Financial Standards)
-   - National Standards (food, clothing, housekeeping, personal care, misc)
-   - Local Standards (housing and utilities, transportation)
-   - Other necessary expenses with justification [PRACTITIONER JUDGMENT]
-   - Total allowable monthly expenses
+## 1. THE BOTTOM LINE
 
-5. MONTHLY DISPOSABLE INCOME
-   - Net income minus allowable expenses
-   - Available monthly payment amount
+One paragraph. Open with the recommended IA type and why. "This is a Streamlined IA case — the assessed balance is $38,200, all returns are filed, and the Martins can full-pay within 72 months at $531/month." Or: "The $127,000 balance puts this squarely in Non-Streamlined territory, and the disposable income math makes a PPIA the realistic play." The practitioner should know the answer before reading further.
 
-6. INSTALLMENT AGREEMENT OPTIONS
-   a. Guaranteed IA (≤$10,000, all returns filed, can full-pay in ≤3 years)
-   b. Streamlined IA (≤$50,000, can full-pay within CSED)
-   c. Non-Streamlined IA (>$50,000 or cannot full-pay within CSED)
-   d. Partial Pay IA (cannot full-pay within CSED)
-   [PRACTITIONER JUDGMENT] Recommended option with rationale
+State the recommended monthly payment amount and the path to get there.
 
-7. PAYMENT CALCULATION
-   - Minimum acceptable payment amount
-   - Recommended payment amount
-   - Months to full payment at recommended amount
-   - CSED considerations
+## 2. LIABILITY SNAPSHOT
 
-8. FLAGS AND NOTES
-   - Items requiring verification [VERIFY]
-   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
-   - Missing documents or information needed
+Table:
+| Tax Period | Form | Assessed Balance | Penalties | Interest | Total Due | CSED |
+with a totals row.
+
+Below the table: one paragraph noting the CSED picture. Which periods expire first? How does the CSED timeline affect IA strategy? If a period expires within 24 months, that changes the math — say so. [VERIFY: all balances and CSEDs from account transcripts]
+
+## 3. THE FINANCIAL PICTURE
+
+Two sub-sections, each combining a table with analysis.
+
+**Income:**
+| Source | Monthly Gross | Annual |
+with totals.
+
+One paragraph on income stability and trend. Is this W-2 income that's been steady for five years, or 1099 income that swung 40% last year? The IRS cares — and so should the analysis.
+
+**Allowable Expenses (IRS Collection Financial Standards):**
+| Category | Claimed | IRS Allowable | Notes |
+covering:
+- National Standards (food, clothing, housekeeping, personal care, misc)
+- Local Standards — housing and utilities (by county)
+- Local Standards — transportation (ownership + operating)
+- Health care (out-of-pocket by age)
+- Other necessary expenses [PRACTITIONER JUDGMENT: which "other" expenses are defensible and why — child care, court-ordered payments, student loans on public service track, etc.]
+
+Below the table: flag any expenses where the taxpayer's claimed amount significantly exceeds the IRS standard. These are the line items the Revenue Officer will push back on. Note which are worth defending and which aren't.
+
+## 4. DISPOSABLE INCOME & PAYMENT CALCULATION
+
+Show the math explicitly:
+
+- Total monthly gross income: $X
+- Less: allowable monthly expenses: $Y
+- **Monthly disposable income: $Z**
+
+Then the IA payment calculation:
+- Total assessed balance: $A
+- Months remaining to earliest CSED: B months
+- Required monthly payment (full-pay by CSED): $A / B = $C
+- Recommended payment: $[amount] [PRACTITIONER JUDGMENT: whether to propose disposable income, full-pay amount, or something in between — and why]
+
+If the payment needed to full-pay exceeds disposable income, say so clearly — that's what drives the analysis toward PPIA.
+
+## 5. IA TYPE ANALYSIS
+
+Don't just list the four types. Analyze which ones this taxpayer qualifies for and which they don't, with specific reasons:
+
+**Guaranteed IA (IRC § 6159(c)):**
+- Balance ≤ $10,000? [Yes/No — state the number]
+- All returns filed for past 5 years? [VERIFY]
+- Can full-pay within 3 years? [Yes/No — show the math]
+- No IA in prior 5 years? [VERIFY]
+If all four: this is the path of least resistance. If not, explain which criterion fails.
+
+**Streamlined IA (IRM 5.14.5.2):**
+- Balance ≤ $50,000 (or can pay down to $50,000)? [Yes/No]
+- Can full-pay within 72 months or before CSED (whichever is shorter)? [Show calculation]
+- All returns filed? [VERIFY]
+No financial statement required — that's the advantage. Note it.
+
+**Non-Streamlined IA (IRM 5.14.5.3):**
+- Balance > $50,000, or cannot meet Streamlined terms
+- Requires Form 433-A/B and full financial disclosure
+- IRS will scrutinize expenses — flag which claimed expenses may not survive review [PRACTITIONER JUDGMENT]
+
+**Partial Pay IA (IRM 5.14.2):**
+- Cannot full-pay within CSED
+- Payment based on disposable income
+- IRS reviews every 2 years — flag implications
+- Balance remaining at CSED expiration: $[calculate]
+
+**Recommendation:** [PRACTITIONER JUDGMENT] State the recommended type clearly and explain why alternatives are less attractive. If it's borderline between two types (e.g., balance is $48,000 and could be paid down to qualify for Streamlined), lay out that strategy.
+
+## 6. COMPLIANCE & PROCEDURAL REQUIREMENTS
+
+Brief section — but don't skip it:
+- Are all required returns filed? [VERIFY] If not, which ones and what's needed?
+- Current-year estimated payments or withholding adequate? [VERIFY]
+- Will the IA include a federal tax lien? (Non-Streamlined over $25,000 without direct debit — yes.)
+- Direct debit vs. payroll deduction recommendation [PRACTITIONER JUDGMENT]
+- User fee: $225 standard / $107 direct debit / $43 low-income [VERIFY: current fee schedule]
+
+## 7. OPEN ISSUES & MISSING INFORMATION
+
+Specific, actionable items. Each one states what's missing, where to get it, and how it affects the analysis:
+- "No wage transcripts for TY2024. Without current income verification, the disposable income calculation is based on [source] and may shift." [VERIFY]
+- "Client claims $1,200/month in court-ordered alimony but no divorce decree on file. If unsubstantiated, allowable expenses drop by $1,200 and monthly payment increases to $X." [VERIFY]
+
+Don't pad this section. If everything checks out, a single line suffices.
+
+---
+
+RULES:
+1. Every factual claim traces to a source document. Cite by filename.
+2. Financial figures are exact: "$42,187.00" not "approximately $42K."
+3. [VERIFY] tags must say WHAT needs verifying, WHERE to get the verification, and HOW it affects the analysis if wrong.
+4. [PRACTITIONER JUDGMENT] tags must explain the judgment call — not just flag it.
+5. If the case is borderline between IA types, present the strategy for each path and let the practitioner decide — but make a recommendation.
+6. Don't bury the lead. The practitioner should know the recommended IA type, payment amount, and key risk within 30 seconds of opening this document.
