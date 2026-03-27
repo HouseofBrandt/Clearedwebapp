@@ -11,6 +11,7 @@ You are working on the Cleared tax resolution platform. This is a continuous dev
 2. **Pick ONE task:**
    - Find the highest-priority task marked `[TODO]` (not started)
    - Part A P0 tasks MUST be completed before starting Part A P1 or Part B tasks
+   - **Junebug Feedback items** (marked `Source: Junebug`) are real user-reported bugs and observations — treat P1 Junebug items as blocking alongside P0 tasks
    - If a task is marked `[IN_PROGRESS]` (blocked), check if you can unblock it
    - Skip tasks marked `[DONE]` (complete)
 

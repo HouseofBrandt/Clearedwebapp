@@ -54,6 +54,11 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
   echo "  Iteration $ITERATION/$MAX_ITERATIONS | Elapsed: $((ELAPSED/60))m | Remaining: ${REMAINING}m"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+  # Sync Junebug feedback to TASKS.md before each iteration
+  if [ -f "scripts/sync-feedback.sh" ]; then
+    bash scripts/sync-feedback.sh --max-items 5 || echo "Feedback sync failed — continuing"
+  fi
+
   # Run Claude Code with the prompt file
   LOG_FILE="$LOG_DIR/iteration-${ITERATION}-$(date +%Y%m%d-%H%M%S).log"
 

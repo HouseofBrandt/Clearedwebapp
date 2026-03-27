@@ -15,6 +15,7 @@ import {
   Mail,
   FileText,
   BookOpen,
+  GitBranch,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -52,6 +53,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "SOC 2", href: "/admin/compliance", icon: Shield, description: "SOC 2 Type II compliance tracker", adminOnly: true, section: "ADMIN" },
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true, section: "ADMIN" },
   { name: "Switchboard", href: "/admin/switchboard", icon: Network, description: "AI pipeline visibility", adminOnly: true, section: "ADMIN" },
+  { name: "Feedback Pipeline", href: "/admin/feedback-pipeline", icon: GitBranch, description: "Junebug feedback sync to Claude Code", adminOnly: true, section: "ADMIN" },
   { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true, section: "ADMIN" },
 ]
 

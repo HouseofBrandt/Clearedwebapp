@@ -7,6 +7,7 @@ import { searchKnowledge } from "@/lib/knowledge/search"
 import { detectDataNeeds, fetchPlatformData } from "@/lib/ai/platform-data"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
 import { createAuditLog } from "@/lib/ai/audit"
+import { logObservations } from "@/lib/dev/junebug-observer"
 import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
@@ -236,6 +237,18 @@ When the user asks about a bug or error:
     if (Object.keys(sessionTokenMap).length > 0) {
       textContent = detokenizeText(textContent, sessionTokenMap)
     }
+
+    // Fire-and-forget: log observations for the feedback pipeline
+    logObservations({
+      userMessage: lastUserContent,
+      assistantResponse: textContent,
+      caseId: caseContext?.caseId,
+      userId,
+      route: currentRoute,
+      contextAvailable,
+      contextFailureReason: contextFailureReason || undefined,
+      pageContext,
+    }).catch(() => {})
 
     const readable = new ReadableStream({
       start(controller) {

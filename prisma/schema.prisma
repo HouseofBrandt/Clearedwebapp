@@ -1429,3 +1429,25 @@ model FormInstance {
   @@index([createdById])
   @@map("form_instances")
 }
+
+// ─── Junebug Feedback Pipeline ───
+
+model JunebugObservation {
+  id            String   @id @default(cuid())
+  type          String
+  severity      String   @default("LOW")
+  title         String
+  description   String   @db.Text
+  route         String?
+  caseId        String?
+  userId        String?
+  metadata      Json?
+  syncedToTasks Boolean  @default(false)
+  syncedAt      DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([type])
+  @@index([syncedToTasks, createdAt])
+  @@index([severity])
+  @@map("junebug_observations")
+}
