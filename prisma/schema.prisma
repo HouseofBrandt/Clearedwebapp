@@ -348,6 +348,7 @@ model User {
   incidentsAssigned     IncidentRecord[]       @relation("IncidentAssignee")
   disposalsConfirmed    DataDisposalRecord[]   @relation("DisposalConfirmer")
   dsrAssigned           DataSubjectRequest[]   @relation("DSRAssignee")
+  formInstances         FormInstance[]         @relation("FormInstances")
 
   @@map("users")
 }
@@ -384,6 +385,7 @@ model Case {
   tasks              Task[]
   clientNotes        ClientNote[]
   conversations      Conversation[]
+  formInstances      FormInstance[]
 
   @@index([tabsNumber])
   @@map("cases")
@@ -1404,4 +1406,26 @@ model DataSubjectRequest {
 
   @@index([status])
   @@map("data_subject_requests")
+}
+
+// ─── Form Builder Instances ───
+
+model FormInstance {
+  id                String   @id @default(cuid())
+  formNumber        String
+  caseId            String
+  status            String   @default("draft")
+  values            Json     @default("{}")
+  completedSections String[] @default([])
+  version           Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdById       String
+
+  case              Case     @relation(fields: [caseId], references: [id])
+  createdBy         User     @relation("FormInstances", fields: [createdById], references: [id])
+
+  @@index([caseId])
+  @@index([createdById])
+  @@map("form_instances")
 }

@@ -39,41 +39,6 @@ export const FORM_STATUS_STYLES: Record<FormInstanceUIStatus, string> = {
 }
 
 // ---------------------------------------------------------------------------
-// Form Template types (used by sample-templates.ts)
+// Form Template types removed — use FormSchema from src/lib/forms/types.ts
+// and getAvailableForms() from the schema registry instead.
 // ---------------------------------------------------------------------------
-
-export interface FormTemplateField {
-  id: string
-  label: string
-  type: string
-  required?: boolean
-  placeholder?: string
-  irsRef?: string
-  helpText?: string
-  colSpan?: number
-  options?: { label: string; value: string }[]
-  conditions?: { fieldId: string; operator: string; value: any }[]
-  validations?: { type: string; value?: any; message: string }[]
-  formula?: string
-  acceptedFileTypes?: string[]
-  maxFileSize?: number
-}
-
-export interface FormTemplateSection {
-  id: string
-  title: string
-  description?: string
-  irsInstructions?: string
-  columns?: number
-  fields: FormTemplateField[]
-}
-
-export interface FormTemplate {
-  id: string
-  formNumber: string
-  title: string
-  description: string
-  estimatedMinutes: number
-  version: string
-  sections: FormTemplateSection[]
-}

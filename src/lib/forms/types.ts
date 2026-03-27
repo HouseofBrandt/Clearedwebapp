@@ -45,6 +45,7 @@ export interface SectionDef {
   irsInstructions?: string
   fields: FieldDef[]
   order: number
+  conditionals?: ConditionalRule[]
 }
 
 export interface FormSchema {

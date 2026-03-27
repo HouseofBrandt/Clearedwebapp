@@ -6,6 +6,48 @@
 // should never manually re-enter data that exists in uploaded documents.
 // ---------------------------------------------------------------------------
 
+import type { FormSchema } from "./types"
+import { getFormSchema } from "./registry"
+
+/**
+ * Build an extraction prompt dynamically from any FormSchema.
+ * This replaces hardcoded prompts and supports any form in the registry.
+ */
+export function buildExtractionPrompt(schema: FormSchema): string {
+  const fieldList = schema.sections.flatMap(s =>
+    s.fields
+      .filter(f => f.type !== "computed")
+      .map(f => {
+        let line = `- ${f.label} (field ID: ${f.id}, type: ${f.type})`
+        if (f.irsReference) line += ` [${f.irsReference}]`
+        if (f.type === "repeating_group" && f.groupFields) {
+          const subFields = f.groupFields.map(gf => `    - ${gf.label} (${gf.id}, ${gf.type})`).join("\n")
+          line += `\n${subFields}`
+        }
+        return line
+      })
+  ).join("\n")
+
+  return `You are extracting data from IRS case documents to auto-populate Form ${schema.formNumber} — ${schema.formTitle} (Rev. ${schema.revisionDate}).
+
+Analyze ALL the document text provided and extract EVERY piece of information that maps to a field in this form. Be thorough.
+
+FORM FIELDS TO EXTRACT:
+${fieldList}
+
+RULES:
+- Extract from ALL documents, not just the first one
+- Convert annual income to monthly (divide by 12)
+- For W-2 wages, use gross wages / 12 for monthly
+- For bank accounts, use the most recent balance
+- Include EVERY account, property, and vehicle found
+- If a document is a tax return, extract filing status, dependents, and all income
+- If a document is an IRS transcript, extract balances, TC codes, and filing info
+- For repeating groups (employers, bank_accounts, etc.), return arrays of objects
+- Use null for fields you cannot find
+- Return ONLY a JSON object mapping field IDs to extracted values, no markdown, no backticks, no explanation`
+}
+
 export interface AutoPopulatedField {
   fieldId: string
   value: any
@@ -160,7 +202,7 @@ IMPORTANT:
  */
 export async function autoPopulateForm(
   caseId: string,
-  _formNumber: string
+  formNumber: string
 ): Promise<AutoPopulationResult> {
   try {
     const { prisma } = await import("@/lib/db")
@@ -234,6 +276,10 @@ export async function autoPopulateForm(
     // 5. Call Claude to extract data from all documents
     const fullPrompt = `${caseContext ? `CASE CONTEXT:\n${caseContext}\n` : ""}DOCUMENTS TO ANALYZE (${docTexts.length} total):\n\n${docTexts.join("\n")}`
 
+    // Use schema-driven prompt if form schema is available, otherwise fall back to hardcoded prompt
+    const schema = getFormSchema(formNumber)
+    const systemPrompt = schema ? buildExtractionPrompt(schema) : EXTRACTION_PROMPT
+
     let extractedData: Record<string, any> = {}
     try {
       const Anthropic = (await import("@anthropic-ai/sdk")).default
@@ -243,7 +289,7 @@ export async function autoPopulateForm(
         model: "claude-sonnet-4-20250514",
         max_tokens: 4096,
         temperature: 0,
-        system: EXTRACTION_PROMPT,
+        system: systemPrompt,
         messages: [{ role: "user", content: fullPrompt }],
       })
 

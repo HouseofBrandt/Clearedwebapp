@@ -29,6 +29,7 @@ import type {
   SectionDef,
   FieldDef,
   ValidationRule,
+  ConditionalRule,
 } from "@/lib/forms/types"
 import type { SectionCompletionState } from "@/types/forms"
 import {
@@ -151,6 +152,12 @@ function computeCompletion(
   return total === 0 ? 100 : Math.round((filled / total) * 100)
 }
 
+/** Check if a section should be visible based on its conditionals */
+function isSectionVisible(section: SectionDef, values: Record<string, any>): boolean {
+  if (!section.conditionals || section.conditionals.length === 0) return true
+  return evaluateConditions(section.conditionals, values)
+}
+
 /** Count all errors */
 function countIssues(errors: Record<string, string[]>): { errorCount: number } {
   let errorCount = 0
@@ -197,8 +204,8 @@ interface FormWizardProps {
 
 export function FormWizard({ schema, instance }: FormWizardProps) {
   const router = useRouter()
-  const sections = schema.sections
-  const [activeSection, setActiveSection] = useState<string>(sections[0]?.id || "")
+  const allSections = schema.sections
+  const [activeSection, setActiveSection] = useState<string>(allSections[0]?.id || "")
   const [values, setValues] = useState<Record<string, any>>(instance.values || {})
   const [errors, setErrors] = useState<Record<string, string[]>>(instance.validationErrors || {})
   const [saving, setSaving] = useState(false)
@@ -220,12 +227,25 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Filter sections based on section-level conditionals
+  const sections = useMemo(
+    () => allSections.filter((s) => isSectionVisible(s, values)),
+    [allSections, values]
+  )
+
   const activeSectionIndex = sections.findIndex((s) => s.id === activeSection)
   const currentSection = sections[activeSectionIndex]
 
   const completion = useMemo(() => computeCompletion(sections, values), [sections, values])
   const { errorCount } = useMemo(() => countIssues(errors), [errors])
   const summaryValues = useMemo(() => getKeySummaryValues(sections, values), [sections, values])
+
+  // If the active section becomes hidden due to conditionals, switch to first visible
+  useEffect(() => {
+    if (sections.length > 0 && !sections.find((s) => s.id === activeSection)) {
+      setActiveSection(sections[0].id)
+    }
+  }, [sections, activeSection])
 
   // ---------------------------------------------------------------------------
   // Auto-save

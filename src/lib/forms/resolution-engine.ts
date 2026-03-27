@@ -1,3 +1,5 @@
+import { getFormSchema } from "./registry"
+
 export interface ResolutionPath {
   id: string
   name: string
@@ -105,10 +107,13 @@ export function generateFormPackage(pathId: string, characteristics: CaseCharact
 }
 
 function getFormTitle(formNumber: string): string {
-  const titles: Record<string, string> = {
+  // Try the schema registry first — single source of truth
+  const schema = getFormSchema(formNumber)
+  if (schema) return schema.formTitle
+
+  // Fallback titles for forms not yet in the registry
+  const FALLBACK_TITLES: Record<string, string> = {
     "2848": "Power of Attorney and Declaration of Representative",
-    "433-A": "Collection Information Statement (Individual)",
-    "433-A-OIC": "Collection Information Statement (OIC)",
     "433-B": "Collection Information Statement (Business)",
     "433-B-OIC": "Collection Information Statement — Business (OIC)",
     "433-D": "Installment Agreement",
@@ -116,22 +121,15 @@ function getFormTitle(formNumber: string): string {
     "656": "Offer in Compromise",
     "4506-T": "Request for Transcript of Tax Return",
     "9465": "Installment Agreement Request",
-    "12153": "Request for CDP or Equivalent Hearing",
-    "911": "Request for Taxpayer Advocate Service Assistance",
     "843": "Claim for Refund and Request for Abatement",
     "8857": "Request for Innocent Spouse Relief",
     "12277": "Application for Withdrawal of Filed NFTL",
     "14039": "Identity Theft Affidavit",
     "1040-X": "Amended Individual Income Tax Return",
   }
-  return titles[formNumber] || formNumber
+  return FALLBACK_TITLES[formNumber] || formNumber
 }
 
 function isFormAvailable(formNumber: string): boolean {
-  try {
-    const { getFormSchema } = require("./registry")
-    return getFormSchema(formNumber) !== null
-  } catch {
-    return ["433-A", "433-A-OIC", "12153", "911"].includes(formNumber)
-  }
+  return getFormSchema(formNumber) !== null
 }

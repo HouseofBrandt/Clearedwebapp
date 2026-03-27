@@ -5,6 +5,7 @@ import { PDFDocument } from "pdf-lib"
 import { readFile } from "fs/promises"
 import { join } from "path"
 import { getFormInstance } from "@/lib/forms/form-store"
+import { getAcroFieldMap } from "@/lib/forms/pdf-maps/registry"
 
 const FORM_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
@@ -617,6 +618,13 @@ const FORM_911_FIELD_MAP: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getFieldMap(formNumber: string): Record<string, string> {
+  // Try the centralized PDF map registry first
+  const registryMap = getAcroFieldMap(formNumber)
+  if (registryMap && Object.keys(registryMap).length > 0) {
+    return registryMap
+  }
+
+  // Fall back to inline maps for forms not yet migrated to the registry
   switch (formNumber) {
     case "433-A":
     case "433-A-OIC":
