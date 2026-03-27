@@ -39,7 +39,7 @@ export const TASK_TYPE_CONFIGS: Record<TaskType, TaskTypeConfig> = {
     formattingStandard: "prose",
     criticalCriteria: ["task_fit", "materiality", "source_grounding"],
     description:
-      "A concise summary of the case posture for a practitioner. Must include ONLY what materially matters: current liability, resolution status, key dates, and recommended next steps. Must NOT include exhaustive filing history, redundant details, or information the practitioner would not act on.",
+      "A case summary combining a structured overview table with an executive narrative. The table provides at-a-glance reference (taxpayers, case type, liability, collection stage). The narrative tells the case story in 3-4 paragraphs: who these people are, what happened, where things stand, and the path forward. Must read like a briefing from a sharp colleague, not a form. Specific dollar amounts, dates, and document citations required. No filler.",
   },
   form_narrative: {
     taskType: "form_narrative",
@@ -51,7 +51,7 @@ export const TASK_TYPE_CONFIGS: Record<TaskType, TaskTypeConfig> = {
     formattingStandard: "form_field",
     criticalCriteria: ["source_grounding", "formatting_cleanliness", "task_fit"],
     description:
-      "Narrative text for an IRS form field. Must be factual, cite specific figures from source documents, use plain professional language appropriate for IRS submission, and contain zero formatting artifacts. Every dollar amount and date must trace to source material.",
+      "Narrative text for an IRS form field (e.g., Form 656 Section 9). Must tell the taxpayer's story as flowing prose — no headers, no bullets, no formatting. Professional and factual but human. Every dollar amount and date must trace to source material. Should convince the IRS examiner through specific facts connected to legal standards, not through rhetoric or pleading.",
   },
   client_letter: {
     taskType: "client_letter",
@@ -63,7 +63,7 @@ export const TASK_TYPE_CONFIGS: Record<TaskType, TaskTypeConfig> = {
     formattingStandard: "prose",
     criticalCriteria: ["task_fit", "formatting_cleanliness"],
     description:
-      "A letter to a client explaining their tax situation, options, or required actions. Must be clear, avoid jargon where possible, and maintain a professional but accessible tone. Should explain what the practitioner is doing and why, and what the client needs to do.",
+      "A professional letter — either to a client or the IRS. Client letters should be clear and accessible, explaining what's happening and what they need to do. IRS letters (penalty abatement, CDP requests) should be factual, authoritative, and well-cited. Both must have a clear ask, specific supporting facts, and zero formatting artifacts. Should sound like it came from a tax professional, not a template engine.",
   },
   internal_memo: {
     taskType: "internal_memo",
@@ -75,7 +75,7 @@ export const TASK_TYPE_CONFIGS: Record<TaskType, TaskTypeConfig> = {
     formattingStandard: "prose",
     criticalCriteria: ["source_grounding", "materiality"],
     description:
-      "An internal analysis memo for the practitioner or team. Can include analysis and reasoned conclusions, but must clearly distinguish between facts from source material and analytical conclusions. Should be thorough but not redundant.",
+      "An internal analysis memo for the practitioner or team. Must lead with the key finding, not procedure. Analysis should use narrative prose with tables for data. Must clearly distinguish facts from conclusions. Should be thorough but not redundant — skip empty sections rather than writing 'no issues identified.' Risks stated directly, not hedged.",
   },
   case_memo: {
     taskType: "case_memo",
@@ -87,7 +87,7 @@ export const TASK_TYPE_CONFIGS: Record<TaskType, TaskTypeConfig> = {
     formattingStandard: "structured",
     criticalCriteria: ["source_grounding", "task_fit", "materiality"],
     description:
-      "A detailed case memorandum covering facts, analysis, and recommendations. Must be well-organized with clear sections. Every factual claim must trace to source material. Analytical conclusions must be clearly labeled as such and must follow logically from stated facts.",
+      "An internal case memorandum for the case file. Must open with a punchy executive overview, tell the case story in narrative prose, present financial data in tables with analytical commentary, argue a resolution recommendation with specific legal authority, and close with prioritized action items. Should read like it was written by a senior associate who actually understands the case, not a form generator. Every claim sourced. No bullet-point dumps where prose is expected.",
   },
   transcript_analysis: {
     taskType: "transcript_analysis",

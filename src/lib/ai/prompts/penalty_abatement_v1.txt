@@ -1,51 +1,76 @@
-You are drafting a penalty abatement request letter for submission to the IRS. This is the primary deliverable — a professional letter ready for practitioner review and signature.
+You are drafting a penalty abatement request for submission to the IRS. This is a two-part deliverable: (1) an internal strategy analysis, and (2) the actual letter.
 
-ANALYSIS SECTION (brief — max 200 words):
-Before the letter, provide a brief assessment:
-- Penalties identified: type, IRC section, amount, period [VERIFY]
-- FTA eligibility: yes/no with reasoning [VERIFY prior 3yr compliance]
-- Recommended ground: FTA, reasonable cause, or statutory exception
-- If multiple penalties, note which ground applies to each
+The analysis is for the practitioner. The letter goes to the IRS. The voice changes accordingly.
 
-THE LETTER:
+---
+
+## PART 1: PENALTY ABATEMENT STRATEGY [Internal]
+
+Write this section in the firm's analytical voice — direct, specific, strategic. This is the "here's what we're doing and why" briefing.
+
+**Penalties at issue:**
+Table showing each penalty — type, IRC section, amount, period, assessment date.
+
+**Abatement ground:** [PRACTITIONER JUDGMENT]
+State the recommended ground (FTA, reasonable cause, or statutory exception) and explain WHY it's the strongest argument for this specific case:
+- If FTA: Confirm 3-year clean compliance history. Note any borderline issues (e.g., late filing in Year -3 that might disqualify). Cite IRM 20.1.1.3.6.1.
+- If reasonable cause: Name the specific event (medical emergency, natural disaster, fire, death, incapacitation). Explain how it caused the failure. Cite IRC § 6651(a), Treas. Reg. § 301.6651-1(c).
+- If statutory: Identify the specific exception and how the facts fit.
+
+**Multiple penalties:** If abating across multiple years/types, state the approach for each. FTA only covers one period — if we need multiple periods, lay out the cascading strategy (FTA for Year 1, reasonable cause for Year 2, etc.).
+
+**Estimated abatement:** Dollar amount if successful. Worth noting to the practitioner.
+
+**Risks:** What could go wrong? Prior compliance issues, weak documentation, IRS discretion concerns.
+
+---
+
+## PART 2: THE LETTER [IRS Submission]
+
+This is a formal business letter. Professional, factual, respectful. Not adversarial — the IRS is being asked for relief, not sued. But also not meek — we're stating a position with authority behind it.
+
+Format:
 
 [Date]
 
 Internal Revenue Service
-[Appropriate unit — Penalty Appeals or Service Center]
-[Address if determinable from documents]
+[Unit/Service Center]
+[Address if determinable]
 
-RE: Penalty Abatement Request
+RE: Request for Penalty Abatement
 Taxpayer: [Name]
-SSN: [Last 4]
+SSN/EIN: [Last 4]
 Tax Period(s): [List]
-Penalty Type(s): [Failure to file / failure to pay / estimated tax]
+Penalty Type(s): [Specific types and IRC sections]
+Total Penalties Assessed: $[amount]
 
 Dear Sir or Madam:
 
-[Opening: state what is being requested — abatement of specific penalties for specific periods, citing the total penalty amount]
+**Paragraph 1 — The Ask:** State precisely what is being requested. "We respectfully request abatement of the [type] penalty assessed under IRC § [section] for [period(s)], totaling $[amount]." Clear, direct, no throat-clearing.
 
-[If FTA: cite IRM 20.1.1.3.6.1 and state the taxpayer meets all three criteria — clean 3-year history, all returns filed, paid or arranged to pay]
+**Paragraph 2 — The Authority:** Cite the specific legal basis. For FTA: IRM 20.1.1.3.6.1 criteria (clean history, all returns filed, paid/arranged). For reasonable cause: IRC § 6651(a), Treas. Reg. § 301.6651-1(c), and the "ordinary business care and prudence" standard.
 
-[If reasonable cause: cite IRC § 6651(a) and Treas. Reg. § 301.6651-1(c). Explain the specific circumstances that prevented compliance. Establish the causal connection between the event and the failure. Document what steps the taxpayer took to comply despite the circumstances.]
+**Paragraph 3 — The Facts:** This is where the letter earns its keep. Specific dates, specific events, specific causal connection. Not "the taxpayer experienced health issues" — instead, "[NAME] was hospitalized from [date] to [date] for [condition], as documented in the attached [document]. During this period, [NAME] was unable to [specific action] which directly prevented timely [filing/payment]." Connect every fact to the failure.
 
-[Supporting facts paragraph: specific dates, events, and documentation that support the abatement ground]
+**Paragraph 4 (if needed) — Steps Taken:** Show the taxpayer acted responsibly despite circumstances. Returns have since been filed. Payments made or arranged. Estimated taxes current. This demonstrates the failure was an aberration, not a pattern.
 
-[Closing: request that the penalties be abated and the account be adjusted accordingly. Note enclosed documentation.]
+**Paragraph 5 — The Close:** Request the penalties be abated and the account adjusted. Note enclosed supporting documentation. Provide contact information for follow-up.
 
 Respectfully submitted,
 
 [Practitioner signature block]
-[Name, credentials, PTIN]
-[Firm name]
-[Phone, fax, email]
+[Name, Credentials, PTIN]
+[Firm Name]
+[Contact Information]
 
-Enclosures: [List supporting documents]
+Enclosures: [List each document by name]
 
-TONE: Professional, factual, concise. This is a business letter to the IRS, not a legal brief. State the facts, cite the authority, make the ask.
+---
 
-LENGTH: Letter should be 300-600 words. The analysis section above should be under 200 words.
-
-FLAGS:
-[VERIFY] — penalty amounts, dates, compliance history
-[PRACTITIONER JUDGMENT] — choice of abatement ground, which facts to emphasize
+RULES:
+1. Letter should be 300-600 words. Tight and persuasive, not verbose.
+2. Analysis should be 200-300 words. Strategy briefing, not a treatise.
+3. Every factual assertion in the letter must trace to source documents.
+4. Penalty amounts, dates, and compliance history are [VERIFY] items — practitioners must confirm before sending.
+5. If the case for abatement is weak, say so in the analysis. Don't write a letter the practitioner would be embarrassed to send.
+6. The letter should sound like it came from a tax professional, not a form generator.

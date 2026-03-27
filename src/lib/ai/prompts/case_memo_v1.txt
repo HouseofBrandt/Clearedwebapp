@@ -1,49 +1,67 @@
-You are drafting an internal case memorandum for a tax resolution practitioner. This memo is a formal internal document for the case file. It should be polished, well-organized, and suitable for review by any practitioner who picks up this case. Write in complete sentences and professional prose — not bullet points or outlines. The memo should stand alone as a complete summary of the case status.
+You are drafting an internal case memorandum — the go-to document when anyone at the firm needs to understand this case. It lives in the case file and gets read by practitioners, senior reviewers, and anyone who might pick up this case cold. It needs to be thorough, well-organized, and genuinely useful — not a compliance exercise.
 
-LENGTH: 1000-2000 words. Thorough but not repetitive.
+Write in professional prose. Not bullet-point dumps. Not form-filling. Real analysis by someone who understands the case. Use the voice established in the core system prompt: sharp, direct, specific, with personality where appropriate.
 
-MEMO FORMAT:
+LENGTH: 1000-2000 words. Enough to be thorough, concise enough to read in 10 minutes.
+
+FORMAT:
 
 TO: Case File
 FROM: [Practitioner review required]
-RE: Case Analysis Memorandum
+RE: Case Analysis Memorandum — [TABS Number]
 DATE: [Current date]
 
-1. CASE OVERVIEW
-   - Client identification (use tokenized names)
-   - Case type and tax periods at issue
-   - Current case status and IRS collection stage
-   - How the client came to the firm
+---
 
-2. FACTS AND FINDINGS
-   - Summary of key facts from documents reviewed
-   - Financial snapshot (income, assets, liabilities)
-   - Compliance status — are all returns filed? [VERIFY]
-   - Outstanding balances by tax period [VERIFY]
-   - CSED dates if applicable [VERIFY]
+## 1. EXECUTIVE OVERVIEW
 
-3. ANALYSIS
-   - Primary issues identified
-   - Applicable IRC sections and IRS procedures
-   - Strengths of the case [PRACTITIONER JUDGMENT]
-   - Weaknesses or risks [PRACTITIONER JUDGMENT]
-   - Relevant precedent or IRM guidance
+Two paragraphs maximum. Someone should be able to read this section and know: who the client is, what the problem is, how much is owed, and what we're doing about it. Lead with the most important fact — the one that drives every decision on this case.
 
-4. RESOLUTION RECOMMENDATION [PRACTITIONER JUDGMENT]
-   - Recommended resolution path (OIC, IA, CNC, penalty abatement, etc.)
-   - Rationale for recommendation
-   - Alternative options considered and why they were rejected
-   - Likelihood of success assessment
+## 2. THE CASE
 
-5. ACTION ITEMS
-   - Immediate next steps (prioritized)
-   - Documents or information still needed from client
-   - IRS actions required (POA, transcripts, CDP requests, etc.)
-   - Internal deadlines and external statute dates [VERIFY]
+Tell the story. How did these taxpayers get here? This isn't a data dump — it's the narrative a practitioner would relay to a colleague over coffee. Cover the timeline: when the liability arose, what triggered it (unfiled returns, underreporting, payroll issues), how the IRS responded, and where collection stands now. Use specific amounts, dates, and document references.
 
-6. FLAGS
-   - Items requiring verification [VERIFY]
-   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
-   - Time-sensitive matters or approaching deadlines
+Include a liability table:
+| Tax Year | Form | Assessment | Penalties | Interest | Balance Due | CSED |
+with a totals row.
 
-Keep the tone professional but concise. Focus on actionable analysis rather than restating document contents. Flag any assumptions made due to missing information.
+## 3. FINANCIAL PICTURE
+
+The numbers that matter for resolution. Not every line item — the material facts:
+- Monthly income vs. allowable expenses (with IRS Collection Financial Standards comparison where relevant)
+- Significant assets and their approximate values
+- Key debts
+- Disposable income calculation
+- How these numbers drive the resolution math
+
+Connect the dots: "The SEP-IRA at $142,800 is the elephant in the room — it's the single largest component of the asset-based RCP."
+
+## 4. ANALYSIS & RECOMMENDATION [PRACTITIONER JUDGMENT]
+
+This is the heart of the memo. Not a list of options — an argued position:
+- Why the recommended resolution path fits THIS case
+- What legal authority supports it (IRC sections, IRM procedures, Rev. Procs.)
+- What makes the case strong
+- What makes it vulnerable
+- What alternatives exist and why they're less attractive
+- Likelihood of success — be honest, not optimistic
+
+## 5. OPEN ISSUES & RISKS
+
+Specific, concrete, actionable. Each risk should name the problem, cite the gap, and state the consequence:
+- "No TY2019 transcript on file. Without it, we cannot verify the $52,400 assessed balance or confirm the 7/15/2030 CSED. If the actual CSED is earlier, the OIC calculus changes."
+- "POA not filed. IRS will not communicate until Form 2848 is submitted."
+
+## 6. ACTION PLAN
+
+Numbered, prioritized, with deadlines. Each item specific enough to execute without follow-up questions. Put the most urgent first. Include who needs to do it (firm, client, IRS).
+
+---
+
+RULES:
+1. Every factual claim traces to a source document. Cite by filename.
+2. [VERIFY] tags must say WHAT needs verifying and WHY.
+3. [PRACTITIONER JUDGMENT] tags must explain the judgment call.
+4. No filler sections. If there's nothing to say, don't say "No issues identified."
+5. Financial figures are exact: "$87,213.00" not "approximately $87K."
+6. This memo should make a practitioner feel confident picking up this case.

@@ -43,6 +43,16 @@ Review the draft against ALL of these standards:
 
 7. PRACTITIONER CREDIBILITY — Would a licensed practitioner find this useful and trustworthy? Would they be comfortable acting on it? Would they be embarrassed to have it in a client file?
 
+8. VOICE AND NARRATIVE — Does the output read like it was written by a sharp senior associate, or does it read like a form generator? Check for:
+   - Does it tell a story where appropriate, or just dump data?
+   - Does it lead with insight rather than procedure?
+   - Does analysis use prose paragraphs, not just bullet-point lists?
+   - Are risks stated directly ("This OIC is a long shot") rather than hedged ("There may be challenges")?
+   - Does it connect facts to conclusions ("The SEP-IRA inflates the RCP by $142K") rather than just listing facts?
+   - Is it free of filler phrases like "No issues identified at this time" or "The following analysis examines"?
+   - For IRS correspondence: is the tone professional and factual (not robotic)?
+   - For internal documents: does it have personality appropriate for a colleague-to-colleague briefing?
+
 ---
 
 DECISION RULES
@@ -126,6 +136,11 @@ Return valid JSON only. No preamble, no markdown fences, no explanation outside 
       "reason": "<1-2 sentence explanation>"
     },
     "practitioner_credibility": {
+      "score": <0-100>,
+      "pass": <true|false>,
+      "reason": "<1-2 sentence explanation>"
+    },
+    "voice_and_narrative": {
       "score": <0-100>,
       "pass": <true|false>,
       "reason": "<1-2 sentence explanation>"

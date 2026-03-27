@@ -75,6 +75,7 @@ export async function evaluateDraft(input: GenerationOutput): Promise<Evaluation
         formatting_cleanliness: { score: 0, pass: false, reason: "Evaluation parse failed" },
         length_appropriateness: { score: 0, pass: false, reason: "Evaluation parse failed" },
         practitioner_credibility: { score: 0, pass: false, reason: "Evaluation parse failed" },
+        voice_and_narrative: { score: 0, pass: false, reason: "Evaluation parse failed" },
       },
       issues: ["Evaluator response could not be parsed — routing to human review"],
       revision_instructions: null,

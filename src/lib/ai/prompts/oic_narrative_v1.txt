@@ -1,39 +1,33 @@
-You are drafting the Section 9 narrative for Form 656 (Offer in Compromise). This is a persuasive document that explains why the IRS should accept the taxpayer's offer. It is the single most important written component of the OIC submission.
+You are drafting the Section 9 narrative for Form 656 (Offer in Compromise). This is the single most important written component of the OIC submission — the document the IRS examiner will read to decide whether your client's offer is worth accepting.
 
-PURPOSE: Convince the IRS examiner that the offered amount represents the maximum the government can expect to collect, and that acceptance serves the government's interest.
+PURPOSE: Convince the examiner that the offered amount represents the maximum the government can expect to collect, and that acceptance is in the government's interest. This isn't a legal brief — it's a story about a real person told through the lens of IRC § 7122.
 
-WRITE THIS AS FLOWING PROSE, NOT AN OUTLINE. The narrative should read like a well-crafted brief — paragraphs, not bullet points. It should tell the taxpayer's story.
+WRITE THIS AS FLOWING PROSE. No headers. No bullet points. No section numbers. It gets pasted directly into Section 9 of Form 656. Begin with the first sentence of the narrative.
 
-STRUCTURE (use these as paragraph themes, not section headers):
+PARAGRAPH THEMES (these guide the content, not the structure — the narrative should flow naturally):
 
-PARAGRAPH 1 — INTRODUCTION AND CIRCUMSTANCES
-How the tax liability arose. What happened in the taxpayer's life — job loss, medical crisis, business failure, divorce, natural disaster, pandemic impact. Be specific with dates and facts from the documents. This sets the human context.
+1. THE CIRCUMSTANCES: How did this happen? Open with the human story. A dental practice that couldn't weather the pandemic. A divorce that left one spouse with all the liability and none of the assets. A medical crisis that derailed a career. Be specific — dates, events, amounts. The examiner reads dozens of these; the ones with real detail are the ones that land.
 
-PARAGRAPH 2 — CURRENT FINANCIAL SITUATION
-Summarize the taxpayer's current financial reality. Income sources, employment situation, monthly budget constraints. Don't repeat Form 433 line items — synthesize them into a narrative that conveys the financial picture. Reference the financial data from documents without just listing numbers.
+2. THE FINANCIAL REALITY: Paint the current picture. Not a Form 433 recitation — a synthesis. "The Whitfields' combined monthly income of $X barely covers their IRS-allowable living expenses of $Y, leaving $Z in monthly disposable income." Explain why this situation is stable, not temporary — the examiner needs to believe this IS the financial reality, not a snapshot that will improve.
 
-PARAGRAPH 3 — ASSETS AND EQUITY
-Explain the asset situation in context. If the home has minimal equity, explain why. If retirement savings exist, explain why liquidation would cause hardship. Address each significant asset the IRS will scrutinize and preemptively explain the equity position.
+3. ASSETS IN CONTEXT: The examiner will scrutinize assets. Get ahead of it. If there's a retirement account, explain why liquidation would cause hardship (10% penalty, tax consequences, retirement insecurity). If there's real property, explain the equity position. If there's a business, explain why it can't be liquidated without destroying the taxpayer's earning capacity. Each significant asset should have a "yes, we know about this, and here's why it doesn't change the RCP."
 
-PARAGRAPH 4 — ABILITY TO PAY (RCP CONTEXT)
-Without doing a formal RCP calculation (that's what Working Papers are for), explain in plain language why the offered amount represents the maximum collectible. Connect the financial data to the conclusion that full payment is not feasible within the CSED window.
+4. WHY THE OFFER IS RIGHT: Connect the dots without doing a formal RCP calculation (that's the working papers' job). "Given the limited disposable income, modest asset equity, and the approaching CSEDs, the offered amount of $X represents the maximum collectible within the statutory period." Plain language. Factual basis. Logical conclusion.
 
-PARAGRAPH 5 — COMPLIANCE AND GOOD FAITH
-Demonstrate the taxpayer's commitment to future compliance. Are returns filed? Are estimated taxes current? Is the taxpayer working with a practitioner? This shows the IRS that acceptance leads to a compliant taxpayer going forward.
+5. COMPLIANCE & GOOD FAITH: All returns are filed. Estimated payments are current. The taxpayer is represented by a licensed practitioner. Future compliance is assured. This paragraph turns a debtor into a future compliant taxpayer — which is what the IRS actually wants.
 
-PARAGRAPH 6 — MITIGATING CIRCUMSTANCES
-Any additional factors that support acceptance: age, health conditions, dependents, limited earning potential, approaching retirement, sole caregiver responsibilities, disability, or other hardships. [PRACTITIONER JUDGMENT]
+6. MITIGATING FACTORS: Age, health, dependents, limited earning potential, caregiving responsibilities. Don't editorialize or plead — state the facts and let the examiner draw the conclusion. [PRACTITIONER JUDGMENT: which factors to emphasize]
 
-PARAGRAPH 7 — CONCLUSION
-Why acceptance serves the government's interest. The offer reflects the Reasonable Collection Potential. Rejection would result in protracted collection activity with minimal additional recovery. The taxpayer is committed to compliance.
+7. THE CLOSE: Acceptance serves the government's interest. The alternative — years of ACS collection activity, possible installment default, eventual CSED expiration — produces less revenue than the offered amount accepted now. One clear sentence on why the math favors acceptance.
 
-TONE:
-Professional and respectful. This is addressed to an IRS examiner, not a judge. Factual, not emotional. Let the facts speak — don't editorialize or plead. The strength comes from connecting specific facts to the legal standard.
+TONE: Professional and respectful. This is a request, not an argument. Factual, not emotional — but human. The strength comes from specific facts connected to the legal standard, not from rhetoric. Let the story do the work.
 
-LENGTH: 500-1000 words. Concise but complete.
+LENGTH: 500-1000 words. Every sentence should earn its place.
 
-FLAG USAGE:
-[VERIFY] — facts extracted from documents that need practitioner confirmation (account balances, dates, employment details)
-[PRACTITIONER JUDGMENT] — strategic framing decisions (which hardship factors to emphasize, how to characterize the circumstances)
-
-IMPORTANT: Do NOT include headers like "SECTION 9 NARRATIVE" or "I. INTRODUCTION" in the output. The document should begin directly with the narrative prose. It will be pasted into Section 9 of Form 656.
+CRITICAL RULES:
+1. No headers, section numbers, or formatting — pure prose paragraphs.
+2. Every factual claim must trace to source documents. Don't invent circumstances.
+3. [VERIFY] facts from documents that need practitioner confirmation.
+4. [PRACTITIONER JUDGMENT] for strategic framing decisions.
+5. If the case for the OIC is weak, the narrative should still be the best version of the available facts — but flag the weakness in a separate [PRACTITIONER JUDGMENT] note, not in the narrative itself.
+6. Do NOT include "SECTION 9 NARRATIVE" or any title. Start with the first word of the story.

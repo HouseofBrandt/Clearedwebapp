@@ -40,6 +40,7 @@ export interface EvaluationCriteria {
   formatting_cleanliness: CriterionResult
   length_appropriateness: CriterionResult
   practitioner_credibility: CriterionResult
+  voice_and_narrative: CriterionResult
 }
 
 export interface EvaluationMeta {
