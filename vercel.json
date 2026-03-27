@@ -1,4 +1,10 @@
 {
+  "functions": {
+    "src/app/api/knowledge/upload/route.ts": {
+      "maxDuration": 300,
+      "memory": 1024
+    }
+  },
   "crons": [
     { "path": "/api/cron/refresh-intelligence", "schedule": "0 */6 * * *" }
   ]

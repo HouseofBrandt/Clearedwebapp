@@ -136,44 +136,6 @@ export function UploadDialog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globalCategory])
 
-  /**
-   * Upload via FormData directly to the server (fallback when S3 isn't available).
-   * Works for files within the serverless body size limit (~10MB).
-   */
-  async function uploadViaFormData(item: FileUploadItem, index: number) {
-    updateFile(index, { status: "uploading", progress: 50 })
-
-    const formData = new FormData()
-    formData.append("file", item.file)
-    formData.append("title", item.title)
-    formData.append("category", item.category)
-    if (item.description) formData.append("description", item.description)
-    if (item.tags) {
-      const tags = item.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
-      formData.append("tags", JSON.stringify(tags))
-    }
-
-    const res = await fetch("/api/knowledge", {
-      method: "POST",
-      body: formData,
-    })
-
-    updateFile(index, { progress: 100 })
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error || "Upload failed")
-    }
-
-    const result = await res.json()
-    updateFile(index, {
-      status: "done",
-      documentId: result.id,
-      chunksCreated: result.chunksCreated,
-      error: result.warning,
-    })
-  }
-
   async function uploadSingleFile(item: FileUploadItem, index: number) {
     if (!item.category) {
       updateFile(index, { status: "error", error: "Category is required" })
@@ -181,158 +143,64 @@ export function UploadDialog() {
     }
 
     try {
-      // Step 1: Get presigned URL
       updateFile(index, { status: "uploading", progress: 0 })
 
-      const presignRes = await fetch("/api/knowledge/presign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileName: item.file.name,
-          fileType: item.file.type || "application/octet-stream",
-          fileSize: item.file.size,
-          title: item.title,
-          category: item.category,
-          description: item.description || undefined,
-          tags: item.tags
-            ? item.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
-            : [],
-        }),
+      // Build FormData with file + metadata
+      const formData = new FormData()
+      formData.append("file", item.file)
+      formData.append("title", item.title)
+      formData.append("category", item.category)
+      if (item.description) formData.append("description", item.description)
+      if (item.tags) {
+        const tags = item.tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean)
+        formData.append("tags", JSON.stringify(tags))
+      }
+
+      // Upload via XHR to get progress tracking
+      const result = await new Promise<{ id: string; chunksCreated?: number; warning?: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", "/api/knowledge/upload")
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            // Upload phase is 0-80%, processing is 80-100%
+            const pct = Math.round((e.loaded / e.total) * 80)
+            updateFile(index, { progress: pct })
+          }
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolve(JSON.parse(xhr.responseText))
+            } catch {
+              reject(new Error("Invalid response from server"))
+            }
+          } else {
+            let errMsg = "Upload failed"
+            try {
+              const errBody = JSON.parse(xhr.responseText)
+              errMsg = errBody.error || errMsg
+            } catch { /* ignore parse error */ }
+            reject(new Error(errMsg))
+          }
+        }
+
+        xhr.onerror = () => reject(new Error("Network error during upload"))
+        xhr.ontimeout = () => reject(new Error("Upload timed out"))
+        xhr.timeout = 5 * 60 * 1000 // 5 minute timeout
+
+        xhr.send(formData)
       })
 
-      if (!presignRes.ok) {
-        // S3 presign failed — fall back to direct FormData upload for small files
-        const presignErr = await presignRes.json().catch(() => ({}))
-        const s3NotConfigured = presignRes.status === 503
-        console.warn("[KB Upload] Presign failed:", presignErr.error || presignRes.status)
-
-        // Direct upload only works for files under ~4.5MB (Vercel serverless limit)
-        const DIRECT_UPLOAD_LIMIT = 4.5 * 1024 * 1024
-        if (item.file.size > DIRECT_UPLOAD_LIMIT) {
-          throw new Error(
-            s3NotConfigured
-              ? `File is too large for direct upload (${formatFileSize(item.file.size)}). S3 storage must be configured for files over 4.5MB. Contact your administrator.`
-              : presignErr.error || "Failed to get upload URL"
-          )
-        }
-
-        await uploadViaFormData(item, index)
-        return
-      }
-
-      const { documentId, uploadUrl } = await presignRes.json()
-      updateFile(index, { documentId })
-
-      // Step 2: Upload directly to S3 with progress
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest()
-          xhr.open("PUT", uploadUrl)
-          xhr.setRequestHeader("Content-Type", item.file.type || "application/octet-stream")
-
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const pct = Math.round((e.loaded / e.total) * 100)
-              updateFile(index, { progress: pct })
-            }
-          }
-
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve()
-            } else if (xhr.status === 403) {
-              reject(new Error("S3 upload rejected (403 Forbidden). Check S3 bucket policy and IAM credentials."))
-            } else if (xhr.status === 0) {
-              reject(new Error("S3 upload blocked by browser (CORS). The S3 bucket needs a CORS policy allowing PUT requests from this domain."))
-            } else {
-              reject(new Error(`S3 upload failed (HTTP ${xhr.status}). ${xhr.responseText?.slice(0, 200) || ""}`))
-            }
-          }
-
-          xhr.onerror = () => reject(new Error("S3 upload blocked by browser (likely CORS). The S3 bucket needs a CORS configuration allowing PUT from this domain."))
-          xhr.send(item.file)
-        })
-      } catch (s3Error: any) {
-        // S3 upload failed (CORS, credentials, etc.) — fall back to direct upload for small files
-        console.warn("[KB Upload] S3 upload failed, falling back to direct upload:", s3Error)
-        const DIRECT_UPLOAD_LIMIT = 4.5 * 1024 * 1024
-        if (item.file.size > DIRECT_UPLOAD_LIMIT) {
-          // For large files, surface the S3 error directly — FormData fallback won't work
-          throw s3Error
-        }
-        await uploadViaFormData(item, index)
-        return
-      }
-
-      // Step 3: Trigger server-side processing (streamed progress)
-      updateFile(index, { status: "processing", progress: 0, progressPhase: "Starting processing..." })
-
-      const processRes = await fetch("/api/knowledge/process", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId }),
+      // Server handles S3 upload + text extraction + ingestion in one step
+      updateFile(index, {
+        status: "done",
+        progress: 100,
+        documentId: result.id,
+        chunksCreated: result.chunksCreated,
+        error: result.warning,
       })
-
-      if (!processRes.ok) {
-        const err = await processRes.json().catch(() => ({}))
-        throw new Error(err.error || "Processing failed")
-      }
-
-      // Read streamed progress events
-      const reader = processRes.body!.getReader()
-      const decoder = new TextDecoder()
-      let lineBuffer = ""
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        lineBuffer += decoder.decode(value, { stream: true })
-        const lines = lineBuffer.split("\n")
-        lineBuffer = lines.pop() || ""
-
-        for (const line of lines) {
-          if (!line.trim()) continue
-          try {
-            const data = JSON.parse(line)
-            if (data.status === "processing") {
-              updateFile(index, {
-                progress: data.percent ?? 0,
-                progressPhase: data.phase || "Processing...",
-              })
-            } else if (data.status === "complete") {
-              updateFile(index, {
-                status: "done",
-                progress: 100,
-                chunksCreated: data.chunksCreated,
-                error: data.warning,
-              })
-            } else if (data.status === "error") {
-              throw new Error(data.error || "Processing failed")
-            }
-          } catch (e: any) {
-            if (e instanceof SyntaxError) continue
-            throw e
-          }
-        }
-      }
-      // Process remaining buffer
-      if (lineBuffer.trim()) {
-        try {
-          const data = JSON.parse(lineBuffer)
-          if (data.status === "complete") {
-            updateFile(index, {
-              status: "done",
-              progress: 100,
-              chunksCreated: data.chunksCreated,
-              error: data.warning,
-            })
-          } else if (data.status === "error") {
-            throw new Error(data.error || "Processing failed")
-          }
-        } catch (e: any) {
-          if (!(e instanceof SyntaxError)) throw e
-        }
-      }
     } catch (err: any) {
       updateFile(index, { status: "error", error: err.message })
     }
@@ -537,7 +405,9 @@ export function UploadDialog() {
                     showPercent
                     label={
                       item.status === "uploading"
-                        ? "Uploading to storage..."
+                        ? item.progress < 80
+                          ? "Uploading..."
+                          : "Processing on server..."
                         : item.progressPhase || "Processing..."
                     }
                   />
