@@ -177,13 +177,22 @@ When the user asks about a bug or error:
         if (fullFetchData) {
           systemPrompt += fullFetchData
           contextAvailable = true
+          console.log(`[Full Fetch] Successfully loaded case data (${fullFetchData.length} chars)`)
+        } else {
+          console.warn("[Full Fetch] loadFullFetchCaseData returned null")
         }
       } catch (e: any) {
-        console.warn("[Full Fetch] Case data loading failed:", e.message)
+        console.error("[Full Fetch] Case data loading FAILED:", e.message, e.stack?.slice(0, 300))
       }
+    } else if (fullFetch) {
+      console.log("[Full Fetch] No case ID detected from message")
     }
 
-    systemPrompt += `\n\nFULL FETCH MODE ACTIVE: You have access to ALL platform data loaded above. Be proactive — surface relevant information even if the user didn't explicitly ask. When you have case data above, answer questions DIRECTLY from that data. Do NOT say "I don't have live platform data" — if case data is loaded above, you DO have it. Search through the documents, notes, and case intelligence to find the answer. If the specific information isn't in the data above, say "I checked the case file and didn't find that specific information — you may need to upload the relevant document or add a note." Also mention any upcoming deadlines, pending review items, or potential issues you notice.`
+    if (contextAvailable) {
+      systemPrompt += `\n\nFULL FETCH MODE ACTIVE: You have LIVE CASE DATA loaded above between the === FULL FETCH === markers. USE IT. When the user asks about documents, transcripts, balances, notes, deadlines, or anything else — look in the data above FIRST. List specific document filenames, quote from extracted text, cite liability amounts. Do NOT say "I don't have" or "filenames aren't included" — the data IS above. If the specific detail isn't in the loaded data, say "I searched the case file and this specific information isn't in the uploaded documents — you may need to upload [specific document type]."`
+    } else {
+      systemPrompt += `\n\nFULL FETCH MODE ACTIVE but no case data was loaded. The user may need to select a case from the dropdown or mention a client name. You can still help with general tax resolution questions.`
+    }
   }
 
   // Use non-streaming for web search to avoid tool execution issues in SSE stream.
@@ -394,50 +403,10 @@ async function findCaseByName(
  * Returns a formatted string to inject into the system prompt.
  */
 async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
+  // Load case base data first (minimal query)
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
     include: {
-      documents: {
-        select: {
-          id: true,
-          fileName: true,
-          documentCategory: true,
-          extractedText: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-        take: 30,
-      },
-      liabilityPeriods: { orderBy: { taxYear: "asc" } },
-      deadlines: {
-        where: { status: { not: "COMPLETED" } },
-        orderBy: { dueDate: "asc" },
-        take: 10,
-      },
-      intelligence: true,
-      aiTasks: {
-        where: { status: { in: ["READY_FOR_REVIEW", "APPROVED"] } },
-        select: {
-          taskType: true,
-          status: true,
-          detokenizedOutput: true,
-          createdAt: true,
-          banjoStepLabel: true,
-        },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-      },
-      clientNotes: {
-        where: { isDeleted: false },
-        select: {
-          content: true,
-          noteType: true,
-          title: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      },
       assignedPractitioner: { select: { name: true } },
     },
   })
@@ -457,70 +426,128 @@ async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
   if (caseData.totalLiability) ctx += ` | Total Liability: $${Number(caseData.totalLiability).toLocaleString()}`
   ctx += ` | Assigned: ${caseData.assignedPractitioner?.name || "Unassigned"}\n`
 
-  // Documents
-  ctx += `\nDOCUMENTS ON FILE (${caseData.documents.length}):\n`
-  for (const doc of caseData.documents) {
-    ctx += `- ${doc.fileName} [${doc.documentCategory}] (${doc.createdAt.toLocaleDateString()})\n`
-    if (doc.extractedText) {
-      ctx += `  Content preview: ${doc.extractedText.slice(0, 500)}...\n`
+  // Documents — separate query to isolate errors
+  try {
+    const documents = await prisma.document.findMany({
+      where: { caseId },
+      select: { id: true, fileName: true, documentCategory: true, extractedText: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    })
+    ctx += `\nDOCUMENTS ON FILE (${documents.length}):\n`
+    for (const doc of documents) {
+      ctx += `- ${doc.fileName} [${doc.documentCategory}] (${doc.createdAt.toLocaleDateString()})\n`
+      if (doc.extractedText) {
+        // Include up to 3000 chars of extracted text for meaningful content search
+        const preview = doc.extractedText.slice(0, 3000)
+        ctx += `  CONTENT:\n${preview}\n`
+        if (doc.extractedText.length > 3000) ctx += `  ...(${doc.extractedText.length - 3000} more chars)\n`
+      }
     }
+    console.log(`[Full Fetch] Loaded ${documents.length} documents`)
+  } catch (e: any) {
+    console.error("[Full Fetch] Documents query failed:", e.message)
+    ctx += `\nDOCUMENTS: Error loading documents\n`
   }
 
   // Liability periods
-  if (caseData.liabilityPeriods.length > 0) {
-    ctx += `\nLIABILITY PERIODS:\n`
-    for (const lp of caseData.liabilityPeriods) {
-      ctx += `- TY ${lp.taxYear}: Assessment $${Number(lp.originalAssessment || 0).toLocaleString()}, Penalties $${Number(lp.penalties || 0).toLocaleString()}, Interest $${Number(lp.interest || 0).toLocaleString()}, Total $${Number(lp.totalBalance || 0).toLocaleString()}, Status: ${lp.status}\n`
+  try {
+    const liabilityPeriods = await prisma.liabilityPeriod.findMany({
+      where: { caseId },
+      orderBy: { taxYear: "asc" },
+    })
+    if (liabilityPeriods.length > 0) {
+      ctx += `\nLIABILITY PERIODS:\n`
+      for (const lp of liabilityPeriods) {
+        ctx += `- TY ${lp.taxYear} (${lp.formType}): Assessment $${Number(lp.originalAssessment || 0).toLocaleString()}, Penalties $${Number(lp.penalties || 0).toLocaleString()}, Interest $${Number(lp.interest || 0).toLocaleString()}, Total $${Number(lp.totalBalance || 0).toLocaleString()}, Status: ${lp.status || "N/A"}`
+        if (lp.csedDate) ctx += `, CSED: ${lp.csedDate.toLocaleDateString()}`
+        ctx += `\n`
+      }
     }
+  } catch (e: any) {
+    console.error("[Full Fetch] Liability periods query failed:", e.message)
   }
 
   // Deadlines
-  if (caseData.deadlines.length > 0) {
-    ctx += `\nACTIVE DEADLINES:\n`
-    for (const d of caseData.deadlines) {
-      const daysRemaining = Math.ceil((d.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      ctx += `- ${d.title}: ${d.dueDate.toLocaleDateString()} (${daysRemaining <= 0 ? "OVERDUE" : `${daysRemaining} days`}, ${d.priority})\n`
+  try {
+    const deadlines = await prisma.deadline.findMany({
+      where: { caseId, status: { not: "COMPLETED" } },
+      orderBy: { dueDate: "asc" },
+      take: 10,
+    })
+    if (deadlines.length > 0) {
+      ctx += `\nACTIVE DEADLINES:\n`
+      for (const d of deadlines) {
+        const daysRemaining = Math.ceil((d.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        ctx += `- ${d.title}: ${d.dueDate.toLocaleDateString()} (${daysRemaining <= 0 ? "OVERDUE" : `${daysRemaining} days`}, ${d.priority})\n`
+      }
     }
+  } catch (e: any) {
+    console.error("[Full Fetch] Deadlines query failed:", e.message)
   }
 
   // Intelligence / Smart Status
-  if (caseData.intelligence) {
-    ctx += `\nCASE INTELLIGENCE:\n`
-    if (caseData.intelligence.digest) ctx += `Digest: ${caseData.intelligence.digest}\n`
-    if (caseData.intelligence.nextSteps) {
-      const steps = caseData.intelligence.nextSteps as any[]
-      if (Array.isArray(steps) && steps.length > 0) {
-        ctx += `Next Steps:\n`
-        for (const s of steps.slice(0, 5)) {
-          ctx += `  - [${String(s.priority || "NORMAL").toUpperCase()}] ${s.action}${s.reason ? ` — ${s.reason}` : ""}\n`
+  try {
+    const intelligence = await prisma.caseIntelligence.findUnique({ where: { caseId } })
+    if (intelligence) {
+      ctx += `\nCASE INTELLIGENCE:\n`
+      if (intelligence.digest) ctx += `Digest: ${intelligence.digest}\n`
+      if (intelligence.nextSteps) {
+        const steps = intelligence.nextSteps as any[]
+        if (Array.isArray(steps) && steps.length > 0) {
+          ctx += `Next Steps:\n`
+          for (const s of steps.slice(0, 5)) {
+            ctx += `  - [${String(s.priority || "NORMAL").toUpperCase()}] ${s.action}${s.reason ? ` — ${s.reason}` : ""}\n`
+          }
         }
       }
+      if (intelligence.irsLastAction) ctx += `IRS Last Action: ${intelligence.irsLastAction}\n`
+      if (intelligence.irsAssignedUnit) ctx += `IRS Assigned Unit: ${intelligence.irsAssignedUnit}\n`
     }
-    if (caseData.intelligence.irsLastAction) ctx += `IRS Last Action: ${caseData.intelligence.irsLastAction}\n`
-    if (caseData.intelligence.irsAssignedUnit) ctx += `IRS Assigned Unit: ${caseData.intelligence.irsAssignedUnit}\n`
+  } catch (e: any) {
+    console.error("[Full Fetch] Intelligence query failed:", e.message)
   }
 
-  // Notes
-  if (caseData.clientNotes && caseData.clientNotes.length > 0) {
-    ctx += `\nCLIENT NOTES (${caseData.clientNotes.length}):\n`
-    for (const note of caseData.clientNotes) {
-      ctx += `- [${note.noteType}] ${note.title || "(no title)"} (${note.createdAt.toLocaleDateString()}):\n`
-      ctx += `  ${note.content.slice(0, 300)}\n`
+  // Client notes
+  try {
+    const clientNotes = await prisma.clientNote.findMany({
+      where: { caseId, isDeleted: false },
+      select: { content: true, noteType: true, title: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    })
+    if (clientNotes.length > 0) {
+      ctx += `\nCLIENT NOTES (${clientNotes.length}):\n`
+      for (const note of clientNotes) {
+        ctx += `- [${note.noteType}] ${note.title || "(no title)"} (${note.createdAt.toLocaleDateString()}):\n`
+        ctx += `  ${note.content.slice(0, 500)}\n`
+      }
     }
+  } catch (e: any) {
+    console.error("[Full Fetch] Client notes query failed:", e.message)
   }
 
   // AI Task outputs
-  if (caseData.aiTasks.length > 0) {
-    ctx += `\nAI WORK PRODUCTS:\n`
-    for (const task of caseData.aiTasks) {
-      ctx += `- ${task.banjoStepLabel || task.taskType} (${task.status}, ${task.createdAt.toLocaleDateString()})\n`
-      if (task.detokenizedOutput) {
-        try {
-          const output = decryptField(task.detokenizedOutput)
-          ctx += `  Preview: ${output.slice(0, 500)}...\n`
-        } catch { /* skip decryption failures */ }
+  try {
+    const aiTasks = await prisma.aITask.findMany({
+      where: { caseId, status: { in: ["READY_FOR_REVIEW", "APPROVED"] } },
+      select: { taskType: true, status: true, detokenizedOutput: true, createdAt: true, banjoStepLabel: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    })
+    if (aiTasks.length > 0) {
+      ctx += `\nAI WORK PRODUCTS:\n`
+      for (const task of aiTasks) {
+        ctx += `- ${task.banjoStepLabel || task.taskType} (${task.status}, ${task.createdAt.toLocaleDateString()})\n`
+        if (task.detokenizedOutput) {
+          try {
+            const output = decryptField(task.detokenizedOutput)
+            ctx += `  Preview: ${output.slice(0, 800)}\n`
+          } catch { /* skip decryption failures */ }
+        }
       }
     }
+  } catch (e: any) {
+    console.error("[Full Fetch] AI tasks query failed:", e.message)
   }
 
   // Case notes field (legacy)
