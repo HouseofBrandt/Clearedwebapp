@@ -509,6 +509,53 @@
   animation: fadeIn 150ms ease-out;
 }
 
+/* ── Global Polish — Apple-quality refinements ─────────────────────── */
+
+/* All cards get softer shadows */
+.rounded-xl {
+  box-shadow: var(--shadow-1);
+}
+
+/* Smooth transitions everywhere */
+a, button, [role="button"] {
+  transition: all 150ms ease-out;
+}
+
+/* Global table refinement — applies to all data tables */
+table:not(.junebug-prose table) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stat cards — refined */
+.stat-number {
+  letter-spacing: -0.03em;
+}
+
+/* Better scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--c-gray-200);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--c-gray-300);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(46, 134, 171, 0.15);
+  color: inherit;
+}
+
 /* ── Cleared Design System Typography ──────────────────────────────── */
 
 /* Display headings - Instrument Serif */

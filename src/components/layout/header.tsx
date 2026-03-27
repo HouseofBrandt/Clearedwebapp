@@ -45,8 +45,8 @@ export function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-c-gray-100 bg-white dark:border-c-gray-900 dark:bg-c-gray-900">
-        <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl dark:bg-c-gray-900/80" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+        <div className="flex h-12 items-center gap-3 px-4 sm:px-6">
           {/* Mobile menu trigger */}
           <Button
             variant="ghost"

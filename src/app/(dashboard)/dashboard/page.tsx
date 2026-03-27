@@ -152,22 +152,22 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Stat Cards */}
-      <div className="grid grid-cols-4 gap-3 mb-8">
-        <div className="rounded-xl border border-[var(--c-gray-100)] p-5" style={{ background: 'var(--c-danger-soft)' }}>
-          <div className="text-overline" style={{ color: 'var(--c-danger)' }}>AWAITING REVIEW</div>
-          <div className="stat-number mt-1" style={{ color: 'var(--c-danger)' }}>{pendingReviews}</div>
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
+          <div className="text-overline" style={{ color: 'var(--c-danger)' }}>Awaiting Review</div>
+          <div className="stat-number mt-1.5" style={{ color: pendingReviews > 0 ? 'var(--c-danger)' : 'var(--c-gray-700)' }}>{pendingReviews}</div>
         </div>
-        <div className="rounded-xl border border-[var(--c-gray-100)] p-5" style={{ background: 'var(--c-warning-soft)' }}>
-          <div className="text-overline" style={{ color: 'var(--c-warning)' }}>DEADLINES THIS WEEK</div>
-          <div className="stat-number mt-1" style={{ color: 'var(--c-warning)' }}>{deadlinesThisWeek}</div>
+        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
+          <div className="text-overline" style={{ color: 'var(--c-warning)' }}>Deadlines This Week</div>
+          <div className="stat-number mt-1.5" style={{ color: deadlinesThisWeek > 0 ? 'var(--c-warning)' : 'var(--c-gray-700)' }}>{deadlinesThisWeek}</div>
         </div>
-        <div className="rounded-xl border border-[var(--c-gray-100)] bg-[var(--c-gray-50)] p-5">
-          <div className="text-overline">ACTIVE CASES</div>
-          <div className="stat-number mt-1">{activeCases}</div>
+        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
+          <div className="text-overline">Active Cases</div>
+          <div className="stat-number mt-1.5">{activeCases}</div>
         </div>
-        <div className="rounded-xl border border-[var(--c-gray-100)] bg-[var(--c-gray-50)] p-5">
-          <div className="text-overline">OPEN TASKS</div>
-          <div className="stat-number mt-1">{openTasks}</div>
+        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
+          <div className="text-overline">Open Tasks</div>
+          <div className="stat-number mt-1.5">{openTasks}</div>
         </div>
       </div>
 
@@ -176,10 +176,10 @@ export default async function DashboardPage() {
         hasUrgentItems ? (
           <DailyBrief data={commandData} userName={session.user.name || "there"} />
         ) : (
-          <div className="rounded-xl border border-[var(--c-gray-100)] bg-[var(--c-snow)] px-5 py-3 flex items-center gap-3">
-            <span className="text-[var(--c-success)]">&#10003;</span>
-            <span className="text-sm" style={{ color: 'var(--c-gray-500)' }}>
-              All clear &mdash; no items need attention
+          <div className="rounded-xl border border-[var(--c-gray-100)] bg-white px-5 py-4 flex items-center gap-3" style={{ boxShadow: 'var(--shadow-1)' }}>
+            <span className="text-[var(--c-success)] text-lg">&#10003;</span>
+            <span className="text-[13px]" style={{ color: 'var(--c-gray-500)' }}>
+              All clear &mdash; no items need attention right now.
             </span>
           </div>
         )

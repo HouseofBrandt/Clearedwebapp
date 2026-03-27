@@ -82,11 +82,12 @@ export function SidebarContent({
             <div key={section} className={cn(section !== "MAIN" ? "mt-5" : "")}>
               {section !== "MAIN" && (
                 <p
-                  className="mb-1.5 px-5 text-[10px] tracking-[0.12em] uppercase"
+                  className="mb-2 px-5 text-[10px] tracking-[0.1em] uppercase"
                   style={{
                     fontFamily: "var(--font-body)",
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.3)",
+                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.25)",
+                    letterSpacing: "0.1em",
                   }}
                 >
                   {SECTION_LABELS[section]}
