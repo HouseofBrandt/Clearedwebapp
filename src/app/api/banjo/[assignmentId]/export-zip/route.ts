@@ -78,7 +78,7 @@ export async function GET(
 
   const zip = new JSZip()
   const caseName = assignment.case.tabsNumber || "case"
-  const clientName = assignment.case.clientName || ""
+  const clientName = assignment.case.clientName ? decryptField(assignment.case.clientName) : ""
 
   for (const task of assignment.tasks) {
     const output = task.detokenizedOutput ? decryptField(task.detokenizedOutput) : ""

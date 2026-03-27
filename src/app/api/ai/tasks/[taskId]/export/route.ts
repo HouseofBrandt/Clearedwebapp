@@ -83,6 +83,7 @@ export async function GET(
   }
 
   const output = decryptField(task.detokenizedOutput!)
+  const clientName = clientName ? decryptField(clientName) : ""
   const format = request.nextUrl.searchParams.get("format") || "xlsx"
 
   // Audit log for export (fire-and-forget)
@@ -107,7 +108,7 @@ export async function GET(
           parsed.extracted,
           parsed.merged,
           task.case.tabsNumber,
-          task.case.clientName
+          clientName
         )
       } else {
         throw new Error("not template format")
@@ -126,7 +127,7 @@ export async function GET(
         const parsed = parseOICOutput(output)
         tabs = oicToSpreadsheetData(parsed)
       }
-      buffer = await generateOICWorkbook(tabs, task.case.tabsNumber, task.case.clientName)
+      buffer = await generateOICWorkbook(tabs, task.case.tabsNumber, clientName)
     }
 
     const filename = `${task.case.tabsNumber}_OIC_Working_Papers.xlsx`
@@ -150,14 +151,14 @@ export async function GET(
         buffer = await generateTemplateDocx(
           parsed.merged,
           task.case.tabsNumber,
-          task.case.clientName
+          clientName
         )
       } else {
-        buffer = await generateDocx(output, task.case.tabsNumber, task.case.clientName, task.taskType)
+        buffer = await generateDocx(output, task.case.tabsNumber, clientName, task.taskType)
       }
     } catch {
       // Not JSON — use markdown rendering pipeline
-      buffer = await generateDocx(output, task.case.tabsNumber, task.case.clientName, task.taskType)
+      buffer = await generateDocx(output, task.case.tabsNumber, clientName, task.taskType)
     }
 
     const filename = `${task.case.tabsNumber}_${task.taskType.replace(/_/g, "_")}.docx`
