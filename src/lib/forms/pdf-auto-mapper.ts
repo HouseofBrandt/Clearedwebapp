@@ -52,10 +52,18 @@ export async function getAutoMapping(formNumber: string): Promise<AutoMapResult 
   }
 
   const pdfFile = getPDFFileName(formNumber)
-  if (!pdfFile) return null
+  if (!pdfFile) {
+    console.error(`[AUTO-MAP] No PDF file found for ${formNumber}`)
+    return null
+  }
 
   const schema = getFormSchema(formNumber)
-  if (!schema) return null
+  if (!schema) {
+    console.error(`[AUTO-MAP] No schema found for ${formNumber}`)
+    return null
+  }
+
+  console.log(`[AUTO-MAP] Starting auto-map for ${formNumber}, PDF: ${pdfFile}, Schema sections: ${schema.sections.length}`)
 
   try {
     // Step 1: Extract all PDF field names
@@ -191,8 +199,16 @@ Return ONLY valid JSON with no markdown formatting, no backticks, no code blocks
 
     return result
   } catch (error: any) {
-    console.error(`[AUTO-MAP] Failed for ${formNumber}:`, error.message)
-    return null
+    console.error(`[AUTO-MAP] Failed for ${formNumber}:`, error.message, error.stack?.slice(0, 200))
+    // Return error info instead of null so the API can show what went wrong
+    return {
+      formNumber,
+      mappings: {},
+      unmapped: [],
+      confidence: 0,
+      generatedAt: new Date().toISOString(),
+      error: error.message,
+    } as AutoMapResult & { error: string }
   }
 }
 
