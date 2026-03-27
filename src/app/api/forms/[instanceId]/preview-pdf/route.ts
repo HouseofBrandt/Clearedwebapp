@@ -6,6 +6,7 @@ import { readFile } from "fs/promises"
 import { join } from "path"
 import { getFormInstance } from "@/lib/forms/form-store"
 import { getAcroFieldMap } from "@/lib/forms/pdf-maps/registry"
+import { getAutoMapping, getPDFFileName } from "@/lib/forms/pdf-auto-mapper"
 
 const FORM_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
@@ -617,14 +618,27 @@ const FORM_911_FIELD_MAP: Record<string, string> = {
 // Combined field map selector based on form number
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getFieldMap(formNumber: string): Record<string, string> {
-  // Try the centralized PDF map registry first
+async function getFieldMap(formNumber: string): Promise<Record<string, string>> {
+  // 1. Try AI-powered auto-mapping first
+  try {
+    const autoMap = await getAutoMapping(formNumber)
+    if (autoMap && Object.keys(autoMap.mappings).length > 0) {
+      console.log(`[PDF FILL] Using auto-map for ${formNumber}: ${Object.keys(autoMap.mappings).length} fields, confidence ${autoMap.confidence}%`)
+      return autoMap.mappings
+    }
+  } catch (e: any) {
+    console.warn(`[PDF FILL] Auto-map failed for ${formNumber}, falling back to manual maps: ${e.message}`)
+  }
+
+  // 2. Try the centralized PDF map registry
   const registryMap = getAcroFieldMap(formNumber)
   if (registryMap && Object.keys(registryMap).length > 0) {
+    console.log(`[PDF FILL] Using registry map for ${formNumber}: ${Object.keys(registryMap).length} fields`)
     return registryMap
   }
 
-  // Fall back to inline maps for forms not yet migrated to the registry
+  // 3. Fall back to inline maps for forms not yet migrated to the registry
+  console.log(`[PDF FILL] Using inline map for ${formNumber}`)
   switch (formNumber) {
     case "433-A":
     case "433-A-OIC":
@@ -658,7 +672,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
 
-  const pdfFileName = FORM_PDF_FILES[formNumber]
+  const pdfFileName = FORM_PDF_FILES[formNumber] || getPDFFileName(formNumber)
   if (!pdfFileName) {
     return NextResponse.json({ error: "PDF not available" }, { status: 404 })
   }
@@ -685,7 +699,7 @@ export async function GET(
     formNumber = instance.formNumber || "433-A"
   }
 
-  const pdfFileName = FORM_PDF_FILES[formNumber]
+  const pdfFileName = FORM_PDF_FILES[formNumber] || getPDFFileName(formNumber)
   if (!pdfFileName) {
     return NextResponse.json({ error: "PDF not available" }, { status: 404 })
   }
@@ -699,8 +713,8 @@ async function generateFilledPDF(formNumber: string, values: Record<string, any>
     const pdfBytes = await readFile(pdfPath)
     const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
 
-    // Select the correct field map for this form
-    const fieldMap = getFieldMap(formNumber)
+    // Select the correct field map for this form (tries AI auto-map, then registry, then inline)
+    const fieldMap = await getFieldMap(formNumber)
 
     // DEBUG MODE: report field info and test results
     if (Object.keys(values).length > 0) {
