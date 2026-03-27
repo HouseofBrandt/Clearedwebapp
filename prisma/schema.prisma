@@ -386,6 +386,7 @@ model Case {
   clientNotes        ClientNote[]
   conversations      Conversation[]
   formInstances      FormInstance[]
+  reasoningLogs      ReasoningPipelineLog[]
 
   @@index([tabsNumber])
   @@map("cases")
@@ -1450,4 +1451,41 @@ model JunebugObservation {
   @@index([syncedToTasks, createdAt])
   @@index([severity])
   @@map("junebug_observations")
+}
+
+// ── Reasoning Pipeline ────────────────────────────────────────────
+// Logs every generate → evaluate → refine cycle for auditability.
+
+model ReasoningPipelineLog {
+  id                    String    @id @default(cuid())
+  caseId                String?
+  taskType              String
+  originalRequest       String    @db.Text
+  generationModel       String
+  evaluationModel       String
+  originalDraft         String    @db.Text
+  revisedDraft          String?   @db.Text
+  finalOutput           String    @db.Text
+  firstEvaluation       Json
+  secondEvaluation      Json?
+  firstThinkingContent  String    @db.Text
+  secondThinkingContent String?   @db.Text
+  decision              String    // 'pass' | 'revise' | 'human_review'
+  overallScore          Int
+  revisionAttempted     Boolean   @default(false)
+  deliveredToUser       Boolean   @default(false)
+  totalLatencyMs        Int
+  humanReviewedBy       String?
+  humanReviewedAt       DateTime?
+  humanReviewAction     String?   // 'approved' | 'rejected' | 'edited'
+  humanReviewNotes      String?   @db.Text
+  createdAt             DateTime  @default(now())
+
+  case                  Case?     @relation(fields: [caseId], references: [id])
+
+  @@index([caseId])
+  @@index([taskType])
+  @@index([decision])
+  @@index([createdAt])
+  @@map("reasoning_pipeline_logs")
 }
