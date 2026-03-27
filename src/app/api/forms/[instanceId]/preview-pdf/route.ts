@@ -17,16 +17,40 @@ const FORM_PDF_FILES: Record<string, string> = {
 // These are the actual AcroForm field names from the IRS PDF
 const P = "topmostSubform[0].Page1[0]"
 const EXACT_FIELD_MAP: Record<string, string> = {
+  // Line 1a: Full Name
   "taxpayer_name": `${P}.c1[0].Lines1a-b[0].p1-t4[0]`,
-  "ssn": `${P}.c1[0].Lines1a-b[0].p1-t5[0]`,
+  // Line 1b: Address (street, city, state, ZIP code and country)
+  "address_street": `${P}.c1[0].Lines1a-b[0].p1-t5[0]`,
+  // Line 1c: County of Residence
   "county": `${P}.c1[0].Line1c[0].p1-t6c[0]`,
+  // Line 1d: Home Phone
   "home_phone": `${P}.c1[0].Line1c[0].p1-t7c[0]`,
+  // Line 1e: Cell Phone
   "cell_phone": `${P}.c1[0].Line1d[0].p1-t8d[0]`,
+  // Line 1e second field (could be cell phone alt)
+  // "cell_phone_alt": `${P}.c1[0].Line1d[0].p1-t9d[0]`,
+  // Line 1f: Work Phone
   "work_phone": `${P}.c1[0].Line1e[0].p1-t10e[0]`,
+  // Line 2b: SSN/ITIN - Taxpayer
+  "ssn": `${P}.c1[0].Table_Part4-Line5[0].Row1[0].F02_030_0_[0]`,
+  // Line 2b: DOB - Taxpayer
+  "dob": `${P}.c1[0].Table_Part4-Line5[0].Row1[0].F02_031_0_[0]`,
+  // Line 2b: SSN/ITIN - Spouse
+  "spouse_ssn": `${P}.c1[0].Table_Part4-Line5[0].Row2[0].F02_034_0_[0]`,
+  // Line 2b: DOB - Spouse
+  "spouse_dob": `${P}.c1[0].Table_Part4-Line5[0].Row2[0].F02_035_0_[0]`,
+  // Spouse name
   "spouse_name": `${P}.c1[0].Lines1a-b[1].p1-t4[0]`,
-  "spouse_ssn": `${P}.c1[0].Lines1a-b[1].p1-t5[0]`,
-  "address_street": `${P}.c1[0].C1_01_2a[0]`,
-  "address_city": `${P}.c1[0].C1_01_2a[1]`,
+  // Dependents
+  "dependents.0.dep_name": `${P}.c2[0].ClaimedAsDependents[0].Row1[0].Name[0]`,
+  "dependents.0.dep_age": `${P}.c2[0].ClaimedAsDependents[0].Row1[0].Age[0]`,
+  "dependents.0.dep_relationship": `${P}.c2[0].ClaimedAsDependents[0].Row1[0].Relationship[0]`,
+  "dependents.1.dep_name": `${P}.c2[0].ClaimedAsDependents[0].Row2[0].Name[0]`,
+  "dependents.1.dep_age": `${P}.c2[0].ClaimedAsDependents[0].Row2[0].Age[0]`,
+  "dependents.1.dep_relationship": `${P}.c2[0].ClaimedAsDependents[0].Row2[0].Relationship[0]`,
+  "dependents.2.dep_name": `${P}.c2[0].ClaimedAsDependents[0].Row3[0].Name[0]`,
+  "dependents.2.dep_age": `${P}.c2[0].ClaimedAsDependents[0].Row3[0].Age[0]`,
+  "dependents.2.dep_relationship": `${P}.c2[0].ClaimedAsDependents[0].Row3[0].Relationship[0]`,
 }
 
 export async function POST(
