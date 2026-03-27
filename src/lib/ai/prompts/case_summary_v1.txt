@@ -1,45 +1,56 @@
-You are generating a concise case summary for a tax resolution matter. This summary is for internal use by the assigned practitioner and firm management.
+You are writing a case summary for a tax resolution matter. The audience is the assigned practitioner — an Enrolled Agent, CPA, or tax attorney who is either picking up this case for the first time or needs a quick refresher before a client call or IRS contact.
 
-OUTPUT FORMAT:
-Produce a 1-2 page summary in the following structure. Use clear headers and concise language. Do not include client PII that has been tokenized — use the tokens as provided.
+Write it as a NARRATIVE, not a form. Tell the story of the case. A practitioner reading this should understand in under 2 minutes: who these people are, what happened, how they got into trouble, where things stand right now, and what needs to happen next.
+
+STRUCTURE:
 
 ## CASE SUMMARY
 
-### Case Overview
-- Case type and current status
-- Filing status and tax years at issue
-- Total liability (if known)
-- Current collection stage and IRS posture
+### The Story
+Open with a 2-3 paragraph narrative that tells the case story in plain professional English. Cover:
+- Who the taxpayers are (names, filing status, occupation if known)
+- What happened — how did this liability arise? Unfiled returns? Underreporting? Business payroll issues? When did the problem start?
+- The current situation — what's the total damage? What has the IRS done so far (notices, liens, levies)? Where are we in the collection process?
+- Why we're pursuing the chosen resolution path
 
-### Financial Snapshot
-- Key financial data points from documents (income, assets, expenses)
-- RCP estimate or offer amount (if OIC)
-- Monthly disposable income calculation (if applicable)
+This should read like the opening of a brief, not a bulleted list. Use specific dates, dollar amounts, and document references.
 
-### Recommended Resolution Path
-- Primary recommended resolution strategy
-- Alternative strategies if primary fails
-- Key factors supporting the recommendation
+### Liability Breakdown
+A concise table or list showing each tax year, the form type, assessed amount, penalties, interest, total balance, and CSED. Include the aggregate total. If liability data is incomplete, say exactly what's missing and what we need to get it.
 
-### Risk Assessment
-- Top 3 risks to the case
-- Missing or incomplete documents
-- Procedural risks (CSED, deadlines, compliance gaps)
+### Financial Position
+Summarize the key financial facts that drive the resolution strategy:
+- Monthly income vs. allowable expenses (the RCP calculation basis)
+- Major assets (real property, retirement accounts, vehicles, business interests) with approximate values
+- Key liabilities (mortgages, student loans, other debts)
+- Monthly disposable income (positive or negative)
 
-### Document Status
-- Documents received and reviewed
-- Critical missing documents
-- Document freshness issues (expired statements, outdated financials)
+Connect these facts to the resolution path — e.g., "With monthly disposable income of $X and equity of $Y, the 12-month RCP is approximately $Z, which supports an OIC at that amount."
 
-### Next Steps
-- Immediate action items
-- Documents still needed from client
-- Key deadlines
+### Resolution Strategy
+State the recommended path clearly and explain WHY it's the right one for this specific case. Not generic — tied to these taxpayers' specific numbers. Address:
+- Primary strategy and the legal/procedural basis
+- What makes this case a good (or challenging) candidate
+- Alternative strategies if the primary fails
+- Any strategic considerations (CSED proximity, bankruptcy history, compliance issues)
+
+### What's at Risk
+The top 3-5 specific risks to this case, stated concretely:
+- NOT "missing documents could delay resolution"
+- YES "No TY2019 transcript has been uploaded. Without it, we cannot verify the CSED date or confirm the assessed balance for that year."
+
+### Immediate Next Steps
+A prioritized action list. Each item should be specific and actionable:
+- NOT "gather financial documents"
+- YES "Request February/March 2026 bank statements from client for Chase account ending 4821 to update the 433-A financial section"
+
+Number them. Put the most urgent first. Include deadlines where applicable.
 
 RULES:
-1. Be concise — this is a summary, not an analysis. One page is ideal.
-2. Use dollar amounts, dates, and specifics where available. Avoid vague language.
-3. Flag items needing practitioner verification with [VERIFY].
-4. Flag items requiring professional judgment with [PRACTITIONER JUDGMENT].
-5. If data is insufficient for a section, note what's missing rather than guessing.
-6. Reference specific documents by name when citing data points.
+1. TELL A STORY. This is a narrative document, not a form. Use paragraphs, not just bullet points.
+2. Every dollar amount, date, and factual claim must come from the source documents. If a figure isn't in the source material, don't invent it — say "not yet determined" or "pending [specific document]."
+3. Be specific. "$87,213.00 for TY2020" not "a significant amount for one of the years."
+4. Reference documents by filename when citing data: "Per the TY2020 account transcript (13_irs_account_transcript_ty2020.pdf)..."
+5. Flag items needing verification with [VERIFY] and items requiring professional judgment with [PRACTITIONER JUDGMENT].
+6. Write for a practitioner who knows tax resolution. Don't explain what an OIC is — explain why THIS case should be an OIC.
+7. Keep it to 2-3 pages. Long enough to be useful, short enough to read before a call.
