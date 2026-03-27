@@ -168,7 +168,7 @@ Return ONLY valid JSON with no markdown formatting, no backticks, no code blocks
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 8192,
+      max_tokens: 16384,
       temperature: 0,
       messages: [{ role: "user", content: prompt }],
     })
