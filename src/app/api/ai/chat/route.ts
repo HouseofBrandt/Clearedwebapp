@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  const { messages, caseContext, model, attachments, pageContext, currentRoute } = await request.json()
+  const { messages, caseContext, model, attachments, pageContext, currentRoute, fullFetch } = await request.json()
 
   // Build system prompt
   let systemPrompt = loadPrompt("research_assistant_v1")
@@ -150,6 +150,11 @@ When the user asks about a bug or error:
 2. Explain what you see in plain English
 3. Suggest what might be causing the issue
 4. Offer to file a bug report with the diagnostic data attached`
+  }
+
+  // Full Fetch Mode: unlock all tools and cross-case awareness
+  if (fullFetch) {
+    systemPrompt += `\n\nFULL FETCH MODE ACTIVE: You have access to ALL platform tools and cross-case data. Be proactive — surface relevant information even if the user didn't explicitly ask. Check deadlines, review queue, and case health automatically when discussing a case. You can look up any case, search the entire knowledge base, check all deadlines across the firm, and provide cross-case insights. When the user asks about a case, also mention any upcoming deadlines, pending review items, or potential issues you notice. Be thorough and anticipatory — you are operating at full capability.`
   }
 
   // Use non-streaming for web search to avoid tool execution issues in SSE stream.

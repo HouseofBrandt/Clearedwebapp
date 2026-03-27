@@ -3,6 +3,7 @@ interface JunebugIconProps {
   animated?: boolean
   mood?: "idle" | "happy" | "thinking" | "treat"
   style?: React.CSSProperties
+  fullFetch?: boolean
 }
 
 /**
@@ -17,10 +18,11 @@ interface JunebugIconProps {
  *  - thinking: head tilt + ear perk (for loading states)
  *  - treat: excited bounce + tail wag effect
  */
-export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "idle", style }: JunebugIconProps) {
+export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "idle", style, fullFetch = false }: JunebugIconProps) {
   const activeMood = animated ? (mood === "idle" ? "thinking" : mood) : mood === "treat" ? "treat" : "idle"
 
   return (
+    <div className={`relative inline-flex ${fullFetch ? 'full-fetch-icon' : ''}`} style={{ display: 'inline-flex', lineHeight: 0 }}>
     <svg
       viewBox="0 0 24 24"
       fill="currentColor"
@@ -77,6 +79,28 @@ export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "i
       <path d="M7.5 9 Q9 8 10.5 9" fill="none" stroke="white" strokeWidth="0.4" opacity="0.4" />
       <path d="M13.5 9 Q15 8 16.5 9" fill="none" stroke="white" strokeWidth="0.4" opacity="0.4" />
 
+      {/* Full Fetch armor overlay */}
+      {fullFetch && (
+        <>
+          {/* Visor / helmet piece */}
+          <path d="M6 5.5 L12 3 L18 5.5 L17 8 L7 8 Z"
+            fill="none" stroke="var(--c-teal)" strokeWidth="0.6" opacity="0.8" />
+          {/* Chest armor plate */}
+          <path d="M8 14 L12 12 L16 14 L16 18 L8 18 Z"
+            fill="rgba(46,134,171,0.12)" stroke="var(--c-teal)" strokeWidth="0.5" opacity="0.7" />
+          {/* Glowing eyes — override the dark pupils */}
+          <circle cx="9.3" cy="10.7" r="1.0" fill="var(--c-teal)" opacity="0.85">
+            <animate attributeName="opacity" values="0.85;1;0.85" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="15.3" cy="10.7" r="1.0" fill="var(--c-teal)" opacity="0.85">
+            <animate attributeName="opacity" values="0.85;1;0.85" dur="2s" repeatCount="indefinite" />
+          </circle>
+          {/* Energy lines */}
+          <line x1="2" y1="12" x2="4" y2="12" stroke="var(--c-teal)" strokeWidth="0.5" opacity="0.4" />
+          <line x1="20" y1="12" x2="22" y2="12" stroke="var(--c-teal)" strokeWidth="0.5" opacity="0.4" />
+        </>
+      )}
+
       <style>{`
         @keyframes jb-tilt {
           0%, 85%, 100% { transform: rotate(0deg); transform-origin: 12px 12px; }
@@ -124,6 +148,15 @@ export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "i
         .jb-bounce { animation: jb-bounce-anim 0.6s ease-out; }
       `}</style>
     </svg>
+
+    {/* Full Fetch indicator dot */}
+    {fullFetch && (
+      <span
+        className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full"
+        style={{ background: 'var(--c-teal)', boxShadow: '0 0 6px var(--c-teal)' }}
+      />
+    )}
+    </div>
   )
 }
 

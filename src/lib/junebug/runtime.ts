@@ -51,6 +51,9 @@ export interface JunebugRequest {
   maxTokens?: number
   temperature?: number
   stream?: boolean
+
+  // Full Fetch Mode — unlocks all tools and cross-case awareness
+  fullFetch?: boolean
 }
 
 export interface JunebugResponse {

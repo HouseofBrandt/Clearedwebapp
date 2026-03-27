@@ -657,6 +657,13 @@ export function ChatPanel() {
   const recentLoadingMessagesRef = useRef<string[]>([])
   const loadingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Full Fetch Mode state
+  const [fullFetchMode, setFullFetchMode] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("junebug-full-fetch") === "true"
+  })
+  const [fullFetchActivating, setFullFetchActivating] = useState(false)
+
   // Error indicator on FAB — pulse red when recent browser errors exist
   const [hasRecentErrors, setHasRecentErrors] = useState(false)
   useEffect(() => {
@@ -862,6 +869,7 @@ export function ChatPanel() {
             messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
             caseContext,
             model,
+            fullFetch: fullFetchMode || undefined,
             attachments: filesToSend.length > 0 ? filesToSend : undefined,
             pageContext,
             currentRoute: typeof window !== "undefined" ? window.location.pathname : undefined,
@@ -943,7 +951,7 @@ export function ChatPanel() {
         abortRef.current = null
       }
     },
-    [messages, caseContext, model, isStreaming, attachedFiles]
+    [messages, caseContext, model, isStreaming, attachedFiles, fullFetchMode]
   )
 
   const handleSubmit = (e: FormEvent) => {
@@ -981,16 +989,21 @@ export function ChatPanel() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-c-gray-900 shadow-lg transition-all hover:scale-110 hover:bg-c-gray-900 hover:shadow-xl lg:h-14 lg:w-14"
-          title="Ask Junebug 🐕"
+          className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-110 hover:shadow-xl lg:h-14 lg:w-14"
+          style={{
+            background: fullFetchMode ? 'var(--c-gray-900)' : 'var(--c-gray-900)',
+            border: fullFetchMode ? '2px solid var(--c-teal)' : '2px solid transparent',
+            boxShadow: fullFetchMode ? '0 0 12px rgba(46,134,171,0.3), 0 4px 12px rgba(0,0,0,0.15)' : undefined,
+          }}
+          title={fullFetchMode ? "Junebug — Full Fetch Active" : "Ask Junebug"}
         >
           <span className="group-hover:hidden">
-            <JunebugIcon className="h-7 w-7 text-white" mood="idle" />
+            <JunebugIcon className="h-7 w-7 text-white" mood="idle" fullFetch={fullFetchMode} />
           </span>
           <span className="hidden group-hover:block">
-            <JunebugIcon className="h-7 w-7 text-white" mood="happy" />
+            <JunebugIcon className="h-7 w-7 text-white" mood="happy" fullFetch={fullFetchMode} />
           </span>
-          {hasRecentErrors && (
+          {hasRecentErrors && !fullFetchMode && (
             <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-c-danger animate-pulse" />
           )}
         </button>
@@ -999,23 +1012,60 @@ export function ChatPanel() {
       {/* Slide-out panel */}
       {isOpen && (
         <div
-          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-c-gray-100 bg-white shadow-xl lg:w-[420px]"
+          className={`fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-c-gray-100 bg-white shadow-xl lg:w-[420px] ${fullFetchMode ? 'full-fetch-hud' : ''}`}
         >
           {/* Header */}
           <div className="flex items-center justify-between bg-c-gray-900 px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-c-warning-soft/20 flex items-center justify-center">
-                <JunebugIcon className="h-5 w-5 text-c-warning" mood="happy" />
+              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${fullFetchActivating ? 'full-fetch-activating' : ''}`}
+                style={{ background: fullFetchMode ? 'rgba(46,134,171,0.2)' : 'rgba(255,255,255,0.08)' }}>
+                <JunebugIcon className="h-5 w-5" mood="happy" fullFetch={fullFetchMode}
+                  style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-warning)' }} />
               </div>
               <div>
                 <h2 className="text-base font-medium text-white flex items-center gap-1.5">
                   Junebug
-                  <span className="text-xs font-normal text-c-warning/80">🐕</span>
+                  <span className="text-xs font-normal" style={{ color: fullFetchMode ? 'var(--c-teal)' : 'rgba(217,119,6,0.8)' }}>
+                    {fullFetchMode ? '🛡️' : '🐕'}
+                  </span>
                 </h2>
-                <p className="text-[10px] text-c-gray-300 -mt-0.5">Your tax resolution assistant</p>
+                <p className="text-[10px] -mt-0.5" style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-gray-300)' }}>
+                  {fullFetchMode ? 'Full Fetch Mode' : 'Your tax resolution assistant'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {/* Full Fetch toggle */}
+              <button
+                onClick={() => {
+                  const newState = !fullFetchMode
+                  setFullFetchMode(newState)
+                  localStorage.setItem("junebug-full-fetch", String(newState))
+                  if (newState) {
+                    setFullFetchActivating(true)
+                    setTimeout(() => setFullFetchActivating(false), 1200)
+                  }
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200"
+                style={{
+                  background: fullFetchMode ? 'rgba(46,134,171,0.12)' : 'transparent',
+                  border: `1px solid ${fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.15)'}`,
+                }}
+                title={fullFetchMode ? 'Deactivate Full Fetch Mode' : 'Activate Full Fetch Mode — unlock all tools'}
+              >
+                <span className="text-[10px] font-medium" style={{
+                  color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                  letterSpacing: '0.04em',
+                }}>
+                  {fullFetchMode ? 'FULL FETCH' : 'Normal'}
+                </span>
+                <div className="w-6 h-3.5 rounded-full relative transition-colors duration-200"
+                  style={{ background: fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.2)' }}>
+                  <div className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all duration-200"
+                    style={{ left: fullFetchMode ? '12px' : '2px' }} />
+                </div>
+              </button>
+
               {/* New conversation */}
               <button
                 onClick={clearConversation}
@@ -1035,6 +1085,21 @@ export function ChatPanel() {
               </button>
             </div>
           </div>
+
+          {/* Full Fetch status bar */}
+          {fullFetchMode && (
+            <div className="full-fetch-status-bar px-3 py-1.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--c-teal)' }} />
+                <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--c-teal)' }}>
+                  Full Fetch Active
+                </span>
+              </div>
+              <span style={{ fontSize: 10, color: 'var(--c-gray-300)' }}>
+                All tools &middot; Cross-case &middot; Proactive
+              </span>
+            </div>
+          )}
 
           {/* Case context pill or case selector */}
           {caseContext ? (
@@ -1113,8 +1178,13 @@ export function ChatPanel() {
             {messages.length === 0 ? (
               /* Empty state with suggestions */
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center px-6">
-                <div className="rounded-full bg-c-warning-soft dark:bg-c-warning/20 p-5 border border-c-warning/20/50 dark:border-c-warning/30/30">
-                  <JunebugIcon className="h-12 w-12 text-c-warning dark:text-c-warning" mood="happy" />
+                <div className={`rounded-full p-5 border ${fullFetchMode ? '' : 'bg-c-warning-soft dark:bg-c-warning/20'}`}
+                  style={{
+                    background: fullFetchMode ? 'rgba(46,134,171,0.08)' : undefined,
+                    borderColor: fullFetchMode ? 'rgba(46,134,171,0.2)' : 'rgba(217,119,6,0.15)',
+                  }}>
+                  <JunebugIcon className="h-12 w-12" mood="happy" fullFetch={fullFetchMode}
+                    style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-warning)' }} />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-c-gray-700">
@@ -1153,7 +1223,8 @@ export function ChatPanel() {
                   >
                     {msg.role === "assistant" && (
                       <div className="mt-1 flex-shrink-0">
-                        <JunebugIcon className="h-5 w-5 text-c-warning dark:text-c-warning" mood={isStreaming && msg === messages[messages.length - 1] ? "thinking" : "idle"} animated={isStreaming && msg === messages[messages.length - 1]} />
+                        <JunebugIcon className="h-5 w-5" mood={isStreaming && msg === messages[messages.length - 1] ? "thinking" : "idle"} animated={isStreaming && msg === messages[messages.length - 1]} fullFetch={fullFetchMode}
+                          style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-warning)' }} />
                       </div>
                     )}
                     <div
