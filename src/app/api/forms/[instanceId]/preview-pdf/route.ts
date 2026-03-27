@@ -114,51 +114,72 @@ async function generateFilledPDF(formNumber: string, values: Record<string, any>
 
     console.log(`[PDF FILL] Form has ${fields.length} AcroForm fields after XFA strip`)
 
-    // Strategy: iterate all PDF fields, try to match each to our values
+    // Build a reverse lookup: short suffix -> full field name
+    const fieldLookup: Record<string, string> = {}
     for (const field of fields) {
-      const pdfName = field.getName()
+      const name = field.getName()
+      // Store multiple lookup keys for each field
+      fieldLookup[name] = name
+      // Also store by last segment
+      const parts = name.split(".")
+      const lastPart = parts[parts.length - 1]
+      if (!fieldLookup[lastPart]) fieldLookup[lastPart] = name
+      // Store by last two segments
+      if (parts.length >= 2) {
+        const last2 = parts.slice(-2).join(".")
+        if (!fieldLookup[last2]) fieldLookup[last2] = name
+      }
+    }
 
-      // Try each of our values to see if it matches this PDF field
-      for (const [ourId, value] of Object.entries(flatValues)) {
-        if (value === undefined || value === null || value === "") continue
+    // Direct mapping: our field ID -> the exact PDF field name suffix to match
+    const DIRECT_MAP: Record<string, string> = {
+      "taxpayer_name": "p1-t4[0]",
+      "ssn": "p1-t5[0]",
+      "address_street": "C1_01_2a[0]",
+      "county": "p1-t6c[0]",
+      "home_phone": "p1-t7c[0]",
+      "cell_phone": "p1-t8d[0]",
+      "work_phone": "p1-t10e[0]",
+      "spouse_name": "p1-t4[0]", // Second instance
+    }
 
-        // Check if this PDF field name matches our field ID
-        const keywords = FIELD_KEYWORDS[ourId]
-        let matched = false
+    // Try to fill each of our values into the PDF
+    for (const [ourId, value] of Object.entries(flatValues)) {
+      if (value === undefined || value === null || value === "") continue
 
-        if (keywords) {
-          // Use keyword matching
-          matched = keywords.some(kw => pdfName.includes(kw))
-        } else {
-          // Fuzzy match: check if the PDF field name contains our field ID parts
-          const parts = ourId.replace(/_/g, "").toLowerCase()
-          const pdfLower = pdfName.toLowerCase()
-          if (parts.length > 3 && pdfLower.includes(parts)) {
-            matched = true
-          }
+      const suffix = DIRECT_MAP[ourId]
+      if (!suffix) continue
+
+      // Find the PDF field that ends with this suffix
+      let targetField: string | null = null
+      for (const field of fields) {
+        const name = field.getName()
+        if (name.endsWith(suffix)) {
+          // For spouse_name, skip the first match (taxpayer) and use the second
+          if (ourId === "spouse_name" && name.includes("[0].Lines1a-b[0]")) continue
+          targetField = name
+          break
         }
+      }
 
-        if (matched) {
-          try {
-            const textField = form.getTextField(pdfName)
-            let displayValue = String(value)
-            if (typeof value === "boolean") displayValue = value ? "Yes" : "No"
-            textField.setText(displayValue)
+      if (!targetField) continue
+
+      try {
+        const textField = form.getTextField(targetField)
+        let displayValue = String(value)
+        if (typeof value === "boolean") displayValue = value ? "Yes" : "No"
+        textField.setText(displayValue)
+        filledCount++
+        console.log(`[PDF FILL] ✓ ${ourId} → ${targetField.slice(-50)} = "${displayValue.slice(0, 30)}"`)
+      } catch (e: any) {
+        try {
+          if (value === true) {
+            const cb = form.getCheckBox(targetField)
+            cb.check()
             filledCount++
-            console.log(`[PDF FILL] ✓ ${ourId} → ${pdfName.slice(-40)} = "${displayValue.slice(0, 30)}"`)
-          } catch (e: any) {
-            // Try as checkbox
-            try {
-              if (value === true) {
-                const cb = form.getCheckBox(pdfName)
-                cb.check()
-                filledCount++
-              }
-            } catch {
-              errors.push(`${ourId}: ${e?.message?.slice(0, 50)}`)
-            }
           }
-          break // Don't try to match more values to this field
+        } catch {
+          errors.push(`${ourId}: ${e?.message?.slice(0, 50)}`)
         }
       }
     }
