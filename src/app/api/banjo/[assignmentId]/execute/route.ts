@@ -395,42 +395,12 @@ export async function POST(
             judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
           }
 
-          // ── Reasoning Pipeline: evaluate before delivery ──────────
-          let reasoningDecision: string = "skipped"
-          let reasoningScore: number | null = null
-          if (detokenized && typeof detokenized === "string" && taskType !== "WORKING_PAPERS") {
-            // Working papers are structured JSON, not prose — skip evaluation
-            try {
-              const pipelineResult = await evaluateBanjoDeliverable({
-                draft: detokenized,
-                banjoTaskType: taskType,
-                originalRequest: deliverable.label || taskType,
-                sourceContext: detokenizeText(tokenizedDocText.substring(0, 8000), tokenMap),
-                model: responseModel,
-                caseId: caseData.id,
-              })
-              if (pipelineResult.pipelineDecision !== "skipped") {
-                detokenized = pipelineResult.output
-                reasoningDecision = pipelineResult.pipelineDecision
-                reasoningScore = pipelineResult.pipelineScore
-                console.log(`[Reasoning] ${taskType}: ${reasoningDecision} (score=${reasoningScore})`)
-              }
-            } catch (e: any) {
-              console.warn("[Reasoning] Pipeline error, continuing:", e.message)
-            }
-          }
-
-          // Determine status based on reasoning decision
-          const taskStatus = reasoningDecision === "human_review"
-            ? "READY_FOR_REVIEW" // flagged — needs human attention
-            : "READY_FOR_REVIEW" // all outputs go to review queue regardless
-
-          // Create AITask record
+          // Create AITask record first (don't block on reasoning pipeline)
           const aiTask = await prisma.aITask.create({
             data: {
               caseId: caseData.id,
               taskType,
-              status: taskStatus,
+              status: "READY_FOR_REVIEW",
               tokenizedInput: tokenizedDocText.substring(0, 10000),
               tokenizedOutput: fullContent,
               detokenizedOutput: detokenized ? encryptField(typeof detokenized === "string" ? detokenized : JSON.stringify(detokenized)) : null,
@@ -443,9 +413,39 @@ export async function POST(
               banjoAssignmentId: assignmentId,
               banjoStepNumber: stepNumber,
               banjoStepLabel: deliverable.label,
-              metadata: reasoningDecision !== "skipped" ? { reasoningDecision, reasoningScore } : undefined,
             },
           })
+
+          // ── Reasoning Pipeline: evaluate async (fire-and-forget) ──
+          // Runs after AITask creation to avoid Vercel timeout.
+          // Results stored in ReasoningPipelineLog + AITask metadata.
+          if (detokenized && typeof detokenized === "string" && taskType !== "WORKING_PAPERS") {
+            evaluateBanjoDeliverable({
+              draft: detokenized,
+              banjoTaskType: taskType,
+              originalRequest: deliverable.label || taskType,
+              sourceContext: detokenizeText(tokenizedDocText.substring(0, 8000), tokenMap),
+              model: responseModel,
+              caseId: caseData.id,
+            }).then((result) => {
+              if (result.pipelineDecision !== "skipped") {
+                console.log(`[Reasoning] ${taskType}: ${result.pipelineDecision} (score=${result.pipelineScore})`)
+                // Update AITask metadata with reasoning result
+                prisma.aITask.update({
+                  where: { id: aiTask.id },
+                  data: {
+                    metadata: { reasoningDecision: result.pipelineDecision, reasoningScore: result.pipelineScore },
+                    // If reasoning revised the output, update it
+                    ...(result.pipelineDecision === "pass" && result.output !== detokenized
+                      ? { detokenizedOutput: encryptField(result.output) }
+                      : {}),
+                  },
+                }).catch((e: any) => console.warn("[Reasoning] Metadata update failed:", e.message))
+              }
+            }).catch((e: any) => {
+              console.warn("[Reasoning] Pipeline error (non-blocking):", e.message)
+            })
+          }
 
           logAIRequest({
             aiTaskId: aiTask.id,
