@@ -1,0 +1,35 @@
+{
+  "433-A": {
+    "total": 393,
+    "page1": [
+      "c1[0].Lines1a-b[0].p1-t4[0]",
+      "c1[0].Lines1a-b[0].p1-t5[0]",
+      "c1[0].Line1c[0].p1-t6c[0]",
+      "c1[0].Line1c[0].p1-t7c[0]",
+      "c1[0].Line1d[0].p1-t8d[0]",
+      "c1[0].Line1d[0].p1-t9d[0]",
+      "c1[0].Line1e[0].p1-t10e[0]",
+      "c1[0].Line1e[0].p1-t11e[0]",
+      "c1[0].C1_01_2a[0]",
+      "c1[0].C1_01_2a[1]",
+      "c1[0].Table_Part4-Line5[0].Row1[0].F02_030_0_[0]",
+      "c1[0].Table_Part4-Line5[0].Row1[0].F02_031_0_[0]",
+      "c1[0].Table_Part4-Line5[0].Row2[0].F02_034_0_[0]",
+      "c1[0].Table_Part4-Line5[0].Row2[0].F02_035_0_[0]",
+      "c1[0].Lines1a-b[1].p1-t4[0]",
+      "c2[0].ClaimedAsDependents[0].Row1[0].Name[0]",
+      "c2[0].ClaimedAsDependents[0].Row1[0].Age[0]",
+      "c2[0].ClaimedAsDependents[0].Row1[0].Relationship[0]",
+      "c2[0].ClaimedAsDependents[0].Row2[0].Name[0]",
+      "c2[0].ClaimedAsDependents[0].Row2[0].Age[0]",
+      "c2[0].ClaimedAsDependents[0].Row2[0].Relationship[0]",
+      "c2[0].ClaimedAsDependents[0].Row3[0].Name[0]",
+      "c2[0].ClaimedAsDependents[0].Row3[0].Age[0]",
+      "c2[0].ClaimedAsDependents[0].Row3[0].Relationship[0]"
+    ],
+    "note": "All fields prefixed with topmostSubform[0].PageN[0]. See /api/forms/pdf-fields?form=433-A for complete list."
+  },
+  "12153": { "total": 79 },
+  "911": { "total": 54 },
+  "433-A-OIC": { "total": 0, "note": "Pure XFA — no AcroForm fields available" }
+}
