@@ -189,9 +189,26 @@ When the user asks about a bug or error:
     }
 
     if (contextAvailable) {
-      systemPrompt += `\n\nFULL FETCH MODE ACTIVE: You have LIVE CASE DATA loaded above between the === FULL FETCH === markers. USE IT. When the user asks about documents, transcripts, balances, notes, deadlines, or anything else — look in the data above FIRST. List specific document filenames, quote from extracted text, cite liability amounts. Do NOT say "I don't have" or "filenames aren't included" — the data IS above. If the specific detail isn't in the loaded data, say "I searched the case file and this specific information isn't in the uploaded documents — you may need to upload [specific document type]."`
+      systemPrompt += `\n\n=== FULL FETCH MODE — RESPONSE STANDARDS ===
+
+You have LIVE CASE DATA loaded above between the === FULL FETCH === markers. This includes documents with extracted text, liability periods with dollar amounts, deadlines, case intelligence, client notes, and AI work products.
+
+RESPONSE RULES:
+1. LEAD WITH DATA, NOT FILENAMES. When asked about balances, give the actual dollar amounts from the LIABILITY PERIODS section. When asked about document content, quote the actual CONTENT text, not just the filename.
+
+2. BE SPECIFIC AND CITE NUMBERS. Never say "approximately" when you have exact figures. Use the actual amounts from the data: "$45,231.18" not "around $45K". Include assessment dates, CSED dates, penalty amounts — every number that's in the data.
+
+3. FORMAT FOR PRACTITIONERS. These are licensed EAs, CPAs, and attorneys. Present data in clean tables when comparing across tax years. Use professional language. No unnecessary caveats or hedging when the data is right in front of you.
+
+4. NEVER SAY "I don't have" when the data IS loaded above. Search the CONTENT sections of documents for the answer. Search LIABILITY PERIODS for balances. Search CLIENT NOTES for history. Search CASE INTELLIGENCE for status.
+
+5. IF DATA IS GENUINELY MISSING, be specific: "The case file has transcripts for TY2019-2024 but no TY2018 transcript has been uploaded. You'll need to pull that from e-Services."
+
+6. PROACTIVE INSIGHTS. After answering the question, briefly flag anything relevant you notice: approaching CSEDs, missing documents that block resolution, compliance gaps, or strategic considerations.
+
+7. KEEP IT CONCISE. Answer the question directly first. Supporting detail second. No preamble, no "Great question!", no restating what the user asked.`
     } else {
-      systemPrompt += `\n\nFULL FETCH MODE ACTIVE but no case data was loaded. The user may need to select a case from the dropdown or mention a client name. You can still help with general tax resolution questions.`
+      systemPrompt += `\n\nFULL FETCH MODE is active but no case data was loaded — either no case was detected from the message or there was a loading error. Ask the user to select a case from the dropdown or mention a specific client name. You can still help with general tax resolution questions.`
     }
   }
 
@@ -456,10 +473,12 @@ async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
       orderBy: { taxYear: "asc" },
     })
     if (liabilityPeriods.length > 0) {
-      ctx += `\nLIABILITY PERIODS:\n`
+      const totalLiability = liabilityPeriods.reduce((sum, lp) => sum + Number(lp.totalBalance || 0), 0)
+      ctx += `\nLIABILITY PERIODS (${liabilityPeriods.length} periods, TOTAL: $${totalLiability.toLocaleString()}):\n`
       for (const lp of liabilityPeriods) {
-        ctx += `- TY ${lp.taxYear} (${lp.formType}): Assessment $${Number(lp.originalAssessment || 0).toLocaleString()}, Penalties $${Number(lp.penalties || 0).toLocaleString()}, Interest $${Number(lp.interest || 0).toLocaleString()}, Total $${Number(lp.totalBalance || 0).toLocaleString()}, Status: ${lp.status || "N/A"}`
-        if (lp.csedDate) ctx += `, CSED: ${lp.csedDate.toLocaleDateString()}`
+        ctx += `  TY ${lp.taxYear} | Form ${lp.formType} | Assessment: $${Number(lp.originalAssessment || 0).toLocaleString()} | Penalties: $${Number(lp.penalties || 0).toLocaleString()} | Interest: $${Number(lp.interest || 0).toLocaleString()} | TOTAL DUE: $${Number(lp.totalBalance || 0).toLocaleString()} | Status: ${lp.status || "N/A"}`
+        if (lp.assessmentDate) ctx += ` | Assessed: ${lp.assessmentDate.toLocaleDateString()}`
+        if (lp.csedDate) ctx += ` | CSED: ${lp.csedDate.toLocaleDateString()}`
         ctx += `\n`
       }
     }
