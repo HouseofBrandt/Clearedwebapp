@@ -90,6 +90,42 @@ async function generateFilledPDF(formNumber: string, values: Record<string, any>
     const pdfBytes = await readFile(pdfPath)
     const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
 
+    // DEBUG MODE: try filling the first field and report what happens
+    if (Object.keys(values).length > 0) {
+      const form = pdfDoc.getForm()
+      const allFields = form.getFields()
+      const firstFieldName = allFields[0]?.getName()
+      const testResults: string[] = []
+
+      // Try to fill the first field
+      try {
+        const tf = form.getTextField(firstFieldName)
+        tf.setText("TEST_VALUE")
+        testResults.push(`SUCCESS: getTextField('${firstFieldName}') worked, setText succeeded`)
+      } catch (e: any) {
+        testResults.push(`FAILED getTextField: ${e.message}`)
+        // Try getField instead
+        try {
+          const f = allFields[0]
+          testResults.push(`Field class: ${f.constructor.name}`)
+          testResults.push(`Field acroField: ${JSON.stringify(Object.keys(f))}`)
+        } catch (e2: any) {
+          testResults.push(`Inspection failed: ${e2.message}`)
+        }
+      }
+
+      // Return debug info as JSON instead of PDF
+      const isDebug = new URL("http://x?" + (values._debug || "")).searchParams.has("debug") || values._debug === true
+      if (isDebug) {
+        return NextResponse.json({
+          fieldCount: allFields.length,
+          firstField: firstFieldName,
+          testResults,
+          valuesReceived: Object.keys(values),
+        })
+      }
+    }
+
     // Flatten repeating groups
     const flatValues: Record<string, any> = {}
     for (const [key, val] of Object.entries(values)) {
