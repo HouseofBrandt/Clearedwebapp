@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
+import { evaluateAIOutput } from "@/lib/reasoning/wrap"
 import { prisma } from "@/lib/db"
 import Anthropic from "@anthropic-ai/sdk"
 
@@ -63,7 +64,29 @@ Do not add preamble, commentary, or explanation. Return only the updated documen
 
     const editedOutput = detokenizeText(editedTokenized, tokenMap)
 
-    return NextResponse.json({ updatedOutput: editedOutput })
+    // Run through reasoning pipeline
+    let caseId: string | undefined
+    if (taskId) {
+      const task = await prisma.aITask.findUnique({ where: { id: taskId }, select: { caseId: true } }).catch(() => null)
+      caseId = task?.caseId || undefined
+    }
+
+    const evaluated = await evaluateAIOutput({
+      draft: editedOutput,
+      taskType: "internal_memo",
+      originalRequest: `Edit request: ${instruction}`,
+      sourceContext: currentOutput.slice(0, 5000),
+      model: "claude-opus-4-6",
+      caseId,
+    })
+
+    return NextResponse.json({
+      updatedOutput: evaluated.output,
+      reasoning: evaluated.pipelineDecision !== "skipped" ? {
+        decision: evaluated.pipelineDecision,
+        score: evaluated.pipelineScore,
+      } : undefined,
+    })
   } catch (error: any) {
     console.error("[Review Edit] Error:", error.message)
     return NextResponse.json({ error: "Edit failed. Please try again." }, { status: 500 })

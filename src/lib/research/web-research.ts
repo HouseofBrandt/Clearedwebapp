@@ -54,10 +54,28 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly"
   })
 
   const textBlocks = response.content.filter((b: any) => b.type === "text")
-  const fullText = textBlocks.map((b: any) => b.text).join("\n\n")
+  let fullText = textBlocks.map((b: any) => b.text).join("\n\n")
 
   const sources = extractSourcesFromResponse(response)
   const summary = extractSummaryFromText(fullText)
+
+  // Run through reasoning pipeline for quality evaluation
+  try {
+    const { evaluateAIOutput } = await import("@/lib/reasoning/wrap")
+    const evaluated = await evaluateAIOutput({
+      draft: fullText,
+      taskType: "general",
+      originalRequest: request.topic,
+      sourceContext: `Research topic: ${request.topic}. Scope: ${request.scope || "standard"}.`,
+      model: "claude-opus-4-6",
+    })
+    if (evaluated.pipelineDecision !== "skipped") {
+      fullText = evaluated.output
+      console.log(`[Reasoning] Web research: ${evaluated.pipelineDecision} (score=${evaluated.pipelineScore})`)
+    }
+  } catch (e: any) {
+    console.warn("[Reasoning] Web research pipeline error (non-blocking):", e.message)
+  }
 
   const result: ResearchResult = { summary, sources, fullText }
 
