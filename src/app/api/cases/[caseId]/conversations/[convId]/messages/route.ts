@@ -84,26 +84,66 @@ export async function GET(
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "100", 10), 200)
   const offset = parseInt(url.searchParams.get("offset") || "0", 10)
 
-  const [messages, total] = await Promise.all([
-    prisma.conversationMsg.findMany({
-      where: { conversationId: params.convId, isDeleted: false },
-      include: {
-        author: { select: { id: true, name: true, email: true } },
-        attachments: true,
-      },
-      orderBy: { createdAt: "asc" },
-      take: limit,
-      skip: offset,
-    }),
-    prisma.conversationMsg.count({
-      where: { conversationId: params.convId, isDeleted: false },
-    }),
-  ])
+  try {
+    // Try with attachments first; fall back without if the table doesn't exist
+    let messages: any[]
+    let total: number
 
-  return NextResponse.json({
-    messages,
-    pagination: { total, limit, offset, hasMore: offset + limit < total },
-  })
+    try {
+      ;[messages, total] = await Promise.all([
+        prisma.conversationMsg.findMany({
+          where: { conversationId: params.convId, isDeleted: false },
+          include: {
+            author: { select: { id: true, name: true, email: true } },
+            attachments: true,
+          },
+          orderBy: { createdAt: "asc" },
+          take: limit,
+          skip: offset,
+        }),
+        prisma.conversationMsg.count({
+          where: { conversationId: params.convId, isDeleted: false },
+        }),
+      ])
+    } catch (attachErr: any) {
+      // P2021 = table doesn't exist, P2022 = column doesn't exist
+      if (attachErr.code === "P2021" || attachErr.code === "P2022") {
+        console.warn("[Messages GET] Attachments table/column missing, querying without attachments:", attachErr.code)
+        ;[messages, total] = await Promise.all([
+          prisma.conversationMsg.findMany({
+            where: { conversationId: params.convId, isDeleted: false },
+            include: {
+              author: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: "asc" },
+            take: limit,
+            skip: offset,
+          }),
+          prisma.conversationMsg.count({
+            where: { conversationId: params.convId, isDeleted: false },
+          }),
+        ])
+      } else {
+        throw attachErr
+      }
+    }
+
+    return NextResponse.json({
+      messages,
+      pagination: { total, limit, offset, hasMore: offset + limit < total },
+    })
+  } catch (error: any) {
+    console.error("[Messages GET] Error:", {
+      caseId: params.caseId,
+      convId: params.convId,
+      error: error.message,
+      code: error.code,
+    })
+    return NextResponse.json(
+      { error: "Failed to load messages", details: error.message },
+      { status: 500 }
+    )
+  }
 }
 
 // ─── POST: Add a message ──────────────────────────────────

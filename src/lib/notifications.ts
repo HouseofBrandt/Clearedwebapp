@@ -43,6 +43,15 @@ export async function notifyAdmins(params: {
     select: { id: true },
   })
 
+  console.log(`[notifyAdmins] Found ${admins.length} admin(s) for ${params.type}: "${params.subject}"`, {
+    adminIds: admins.map((a) => a.id),
+    senderId: params.senderId,
+  })
+
+  if (admins.length === 0) {
+    console.warn("[notifyAdmins] No admins found in database! Bug reports and feature requests will not be delivered.")
+  }
+
   return Promise.all(
     admins.map((admin) =>
       prisma.message.create({

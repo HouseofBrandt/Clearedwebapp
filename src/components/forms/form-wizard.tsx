@@ -557,7 +557,17 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                 {currentSection.fields.map((field) => (
                   <div
                     key={field.id}
-                    onBlur={() => handleFieldBlur(field)}
+                    onBlur={(e) => {
+                      // Only validate on blur from actual input/textarea/select elements,
+                      // not from button clicks within the field (which would eat the click)
+                      const target = e.target as HTMLElement
+                      const relatedTarget = e.relatedTarget as HTMLElement | null
+                      const isInputBlur = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT"
+                      const isClickingButton = relatedTarget?.tagName === "BUTTON" || relatedTarget?.closest("button") !== null
+                      if (isInputBlur && !isClickingButton) {
+                        handleFieldBlur(field)
+                      }
+                    }}
                   >
                     <FieldRenderer
                       field={field}
@@ -629,7 +639,7 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
       {!junebugOpen && (
         <button
           onClick={() => setJunebugOpen(true)}
-          className="fixed bottom-28 right-[396px] z-40 flex items-center gap-2 rounded-full bg-[var(--c-teal)] px-3 py-2 text-white shadow-md hover:shadow-lg transition-shadow text-xs"
+          className="fixed bottom-28 right-[396px] z-30 flex items-center gap-2 rounded-full bg-[var(--c-teal)] px-3 py-2 text-white shadow-md hover:shadow-lg transition-shadow text-xs pointer-events-auto"
           title="Ask Junebug (Ctrl+J)"
         >
           <JunebugIcon className="h-4 w-4" />

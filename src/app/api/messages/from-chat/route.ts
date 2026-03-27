@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
 
     // Bug reports and feature requests go to all admins
     if (data.type === "BUG_REPORT" || data.type === "FEATURE_REQUEST") {
+      console.log(`[from-chat] Created ${data.type} report: "${data.subject}", notifying admins...`)
+
       // Build metadata with optional screenshot and browser diagnostics
       const metadata: Record<string, any> = {}
       if (data.screenshot) metadata.screenshot = data.screenshot
@@ -90,6 +92,16 @@ export async function POST(request: NextRequest) {
         tags: data.tags,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       })
+
+      console.log(`[from-chat] Notified ${results.length} admin(s) for ${data.type}: "${data.subject}"`, {
+        adminMessageIds: results.map((r: any) => r.id),
+        recipientIds: results.map((r: any) => r.recipientId),
+      })
+
+      if (results.length === 0) {
+        console.warn(`[from-chat] WARNING: No admins received the ${data.type}. Check that users with role=ADMIN exist in the database.`)
+      }
+
       return NextResponse.json({ sent: results.length, type: data.type })
     }
 
