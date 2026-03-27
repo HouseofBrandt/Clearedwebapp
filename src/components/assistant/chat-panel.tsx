@@ -11,6 +11,7 @@ import {
   getJunebugErrorMessage,
   JUNEBUG_EMPTY_STATE,
 } from "@/lib/junebug/loading-messages"
+import { browserDiagnostics } from "@/lib/browser-diagnostics"
 
 // -------------------------------------------------------------------
 // Types
@@ -193,6 +194,14 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
     setStatus("sending")
     const requestId = crypto.randomUUID()
     try {
+      // Auto-attach browser diagnostics for bug reports
+      const diagnosticsPayload = draft.type === "BUG_REPORT"
+        ? {
+            browserContext: browserDiagnostics.getContext(),
+            userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+          }
+        : {}
+
       const res = await fetch("/api/messages/from-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -204,6 +213,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
           priority: draft.priority || (draft.type === "BUG_REPORT" ? "HIGH" : "NORMAL"),
           tags: draft.tags ? draft.tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
           screenshot: screenshotData || undefined,
+          ...diagnosticsPayload,
         }),
       })
       if (!res.ok) throw new Error("Failed to send")
@@ -647,6 +657,15 @@ export function ChatPanel() {
   const recentLoadingMessagesRef = useRef<string[]>([])
   const loadingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Error indicator on FAB — pulse red when recent browser errors exist
+  const [hasRecentErrors, setHasRecentErrors] = useState(false)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHasRecentErrors(browserDiagnostics.hasRecentErrors())
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
   // FEAT-3: Cross-context case selector
   const [showCaseSelector, setShowCaseSelector] = useState(false)
   const [caseList, setCaseList] = useState<{ id: string; tabsNumber: string; caseType: string; status: string; clientName?: string; totalLiability?: number; filingStatus?: string }[]>([])
@@ -832,6 +851,10 @@ export function ChatPanel() {
       setAttachedFiles([])
 
       try {
+        // Check if the user message mentions bugs/errors — if so, attach browser diagnostics
+        const hasBugKeywords = /bug|error|broken|not working|issue|problem|crash|fail|see this|seeing this/i.test(content)
+        const pageContext = hasBugKeywords ? browserDiagnostics.getContext() : undefined
+
         const response = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -840,6 +863,8 @@ export function ChatPanel() {
             caseContext,
             model,
             attachments: filesToSend.length > 0 ? filesToSend : undefined,
+            pageContext,
+            currentRoute: typeof window !== "undefined" ? window.location.pathname : undefined,
           }),
           signal: abortController.signal,
         })
@@ -965,6 +990,9 @@ export function ChatPanel() {
           <span className="hidden group-hover:block">
             <JunebugIcon className="h-7 w-7 text-white" mood="happy" />
           </span>
+          {hasRecentErrors && (
+            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-c-danger animate-pulse" />
+          )}
         </button>
       )}
 

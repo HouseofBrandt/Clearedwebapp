@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     return new Response("Unauthorized", { status: 401 })
   }
 
-  const { messages, caseContext, model, attachments } = await request.json()
+  const { messages, caseContext, model, attachments, pageContext, currentRoute } = await request.json()
 
   // Build system prompt
   let systemPrompt = loadPrompt("research_assistant_v1")
@@ -118,6 +118,37 @@ export async function POST(request: NextRequest) {
     } catch {
       // ignore
     }
+  }
+
+  // If browser diagnostics context was provided (user mentioned a bug/error), inject it
+  if (pageContext && typeof pageContext === "object") {
+    const errorLines = Array.isArray(pageContext.errors) && pageContext.errors.length > 0
+      ? pageContext.errors.map((e: any) =>
+          `- [${e.type}] ${e.message} (${new Date(e.timestamp).toLocaleTimeString()})`
+        ).join("\n")
+      : "No recent errors"
+
+    const networkLines = Array.isArray(pageContext.networkFailures) && pageContext.networkFailures.length > 0
+      ? pageContext.networkFailures.map((f: any) =>
+          `- ${f.method} ${f.url} → ${f.status} (${new Date(f.timestamp).toLocaleTimeString()})`
+        ).join("\n")
+      : "No recent failures"
+
+    systemPrompt += `\n\nBROWSER CONTEXT (from the user's current page):
+Route: ${pageContext.route || currentRoute || "unknown"}
+Page Title: ${pageContext.title || "unknown"}
+
+Recent Console Errors:
+${errorLines}
+
+Recent Network Failures:
+${networkLines}
+
+When the user asks about a bug or error:
+1. Check the browser context above for relevant errors
+2. Explain what you see in plain English
+3. Suggest what might be causing the issue
+4. Offer to file a bug report with the diagnostic data attached`
   }
 
   // Use non-streaming for web search to avoid tool execution issues in SSE stream.

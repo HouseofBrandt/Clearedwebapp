@@ -94,19 +94,38 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
 
   const fetchMessages = useCallback(async (convId: string) => {
     setLoadingMessages(true)
+    setMessages([])
+    setSelectedConv(null)
     try {
+      // Fetch conversation detail and messages in parallel
       const [convRes, msgRes] = await Promise.all([
         fetch(`/api/cases/${caseId}/conversations/${convId}`),
         fetch(`/api/cases/${caseId}/conversations/${convId}/messages`),
       ])
-      if (!convRes.ok || !msgRes.ok) throw new Error()
+
+      if (!convRes.ok) {
+        const errText = await convRes.text().catch(() => "")
+        console.error(`[Conversations] Failed to load conversation ${convId}: ${convRes.status} ${errText}`)
+        throw new Error(`Conversation load failed (${convRes.status})`)
+      }
+
       const convData = await convRes.json()
-      const msgData = await msgRes.json()
       setSelectedConv(convData)
-      setMessages(msgData.messages || [])
       setEditSubjectText(convData.subject || "")
-    } catch {
-      addToast({ title: "Error loading messages", variant: "destructive" })
+
+      if (msgRes.ok) {
+        const msgData = await msgRes.json()
+        setMessages(msgData.messages || [])
+      } else {
+        // Fallback: use messages from the conversation detail endpoint if available
+        console.warn(`[Conversations] Messages endpoint returned ${msgRes.status}, falling back to conversation messages`)
+        if (convData.messages && Array.isArray(convData.messages)) {
+          setMessages(convData.messages)
+        }
+      }
+    } catch (err: any) {
+      console.error("[Conversations] fetchMessages error:", err)
+      addToast({ title: "Error loading messages", description: err.message || "Please try again.", variant: "destructive" })
     } finally {
       setLoadingMessages(false)
     }
@@ -442,6 +461,12 @@ export function ConversationsPanel({ caseId, currentUserId, currentUserRole }: C
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {messages.length === 0 && !loadingMessages && (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <MessageSquare className="h-8 w-8 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground mt-2">No messages yet. Start the conversation below.</p>
+                </div>
+              )}
               {messages.map((msg) => {
                 const isOwn = msg.authorId === currentUserId
                 return (

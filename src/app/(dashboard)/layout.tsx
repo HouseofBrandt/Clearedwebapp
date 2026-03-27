@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { ChatPanel } from "@/components/assistant/chat-panel"
 import { IdleTimeout } from "@/components/layout/idle-timeout"
+import { DiagnosticsInit } from "@/components/diagnostics-init"
 
 export default async function DashboardLayout({
   children,
@@ -55,6 +56,7 @@ export default async function DashboardLayout({
       </div>
       <ChatPanel />
       <IdleTimeout />
+      <DiagnosticsInit />
     </>
   )
 }

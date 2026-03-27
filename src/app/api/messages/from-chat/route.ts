@@ -13,6 +13,24 @@ const chatMessageSchema = z.object({
   priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).optional(),
   tags: z.array(z.string()).optional(),
   screenshot: z.string().optional(),
+  browserContext: z.object({
+    route: z.string().optional(),
+    title: z.string().optional(),
+    errors: z.array(z.object({
+      type: z.string(),
+      message: z.string(),
+      source: z.string().optional(),
+      timestamp: z.number(),
+      details: z.string().optional(),
+    })).optional(),
+    networkFailures: z.array(z.object({
+      url: z.string(),
+      status: z.number(),
+      method: z.string(),
+      timestamp: z.number(),
+    })).optional(),
+  }).optional(),
+  userAgent: z.string().optional(),
 })
 
 // In-memory set to track processed requestIds for idempotency (per server instance)
@@ -56,6 +74,12 @@ export async function POST(request: NextRequest) {
 
     // Bug reports and feature requests go to all admins
     if (data.type === "BUG_REPORT" || data.type === "FEATURE_REQUEST") {
+      // Build metadata with optional screenshot and browser diagnostics
+      const metadata: Record<string, any> = {}
+      if (data.screenshot) metadata.screenshot = data.screenshot
+      if (data.browserContext) metadata.browserContext = data.browserContext
+      if (data.userAgent) metadata.userAgent = data.userAgent
+
       const results = await notifyAdmins({
         type: data.type,
         subject: data.subject,
@@ -64,7 +88,7 @@ export async function POST(request: NextRequest) {
         senderId: auth.userId,
         senderName: sender?.name || "Unknown",
         tags: data.tags,
-        metadata: data.screenshot ? { screenshot: data.screenshot } : undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       })
       return NextResponse.json({ sent: results.length, type: data.type })
     }
