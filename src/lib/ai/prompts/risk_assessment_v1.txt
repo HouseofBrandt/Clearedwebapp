@@ -1,57 +1,140 @@
-You are generating a risk assessment report for a tax resolution matter. This report identifies strengths, weaknesses, and potential obstacles to resolution.
+You are generating a risk assessment report for a tax resolution matter. This is the document that keeps the practitioner from getting blindsided. It should read like a briefing from the most paranoid — and most prepared — member of the team.
 
-OUTPUT FORMAT:
-Produce a focused risk analysis using the following structure. Be direct and specific.
+Open with the headline risk. Not a summary of the case — the ONE thing that could derail this resolution. Then build outward.
+
+Write in the firm's analytical voice: direct, specific, quantified where possible. No generic risk categories. Every risk connects to a specific fact in this case. Every strength explains why it matters, not just that it exists.
+
+---
 
 ## RISK ASSESSMENT REPORT
 
-### Case Strengths
-Identify 3-5 factors that support a favorable resolution:
-- Strong factual or legal arguments
-- Favorable financial position for the chosen resolution type
-- Complete documentation
-- Compliance history
-- Mitigating circumstances
+### Case: [TABS Number]
+### Resolution Type: [OIC / IA / Penalty / CNC / etc.]
+### Date: [Current date]
 
-### Case Weaknesses
-Identify 3-5 factors that could undermine the case:
-- Adverse facts or legal issues
-- Incomplete or unfavorable financial data
-- Compliance gaps
-- Prior failed attempts
-- Credibility concerns
+---
 
-### Missing Documents & Data Gaps
-List specific documents or information that are missing and explain how each gap affects the case:
-- Critical missing documents (those that could prevent resolution)
-- Important but not critical documents
-- Data that needs updating (expired statements, outdated financials)
+## HEADLINE RISK
 
-### Procedural Risks
-Identify procedural issues that could affect the case timeline or outcome:
-- CSED analysis (earliest and latest expiration dates)
-- Approaching deadlines (CDP, Tax Court, OIC deemed acceptance)
-- Filing compliance issues
-- Power of Attorney status
-- Statute of limitations concerns
+One paragraph. The single biggest threat to this case's success. Be specific and quantify:
 
-### IRS Position Analysis
-Based on available data, assess the likely IRS position:
-- How the IRS is likely to view the current financial data
-- Potential IRS objections to the proposed resolution
-- Areas where the IRS may request additional documentation
+Not: "The case has asset valuation issues that may complicate the OIC."
+Instead: "The $142,800 SEP-IRA is the case-killer. It inflates the RCP by $128,520 (using quick-sale value at 90%), and the IRS will not accept an OIC that ignores it. Unless we can argue special circumstances — the 10% early withdrawal penalty plus the tax hit on distribution effectively reduces the realizable value to $85,680 — the RCP exceeds the offer by $43,000. This is the hill the case lives or dies on."
 
-### Mitigation Recommendations
-For each identified risk, suggest specific mitigation steps:
-- Documents to obtain
-- Arguments to prepare
-- Procedural actions to take
-- Timeline for addressing each risk
+---
+
+## CASE STRENGTHS
+
+Not a generic list — an argued position on why each strength matters for THIS resolution type. Three to five factors, ranked by importance:
+
+**1. [Specific strength]**
+Why it matters: Connect to the resolution standard. "Full filing compliance for the past 6 years eliminates the most common OIC rejection ground. Per IRM 5.8.2.3, the IRS will not consider an offer from a non-compliant taxpayer. This box is checked — cleanly."
+
+**2. [Specific strength]**
+Why it matters: Quantify where possible. "Monthly disposable income of $127 leaves minimal future income in the RCP. At 12 months (lump sum), that's $1,524 — virtually a rounding error against a $287,000 liability."
+
+**3. [Specific strength]**
+[Continue pattern. Each strength names a specific fact, cites a document or number, and explains its impact on the resolution calculus.]
+
+---
+
+## CASE WEAKNESSES
+
+Same format. Honest, specific, quantified. Each weakness includes a mitigation note — the practitioner needs to know not just what's wrong, but what to do about it.
+
+**1. [Specific weakness] — [Risk Level: Critical / High / Medium / Low]**
+The problem: [Specific facts and numbers]
+Why it matters: [Impact on resolution — will it cause rejection, delay, or a worse outcome?]
+Mitigation: [Specific action to take] [PRACTITIONER JUDGMENT if the mitigation involves a strategic choice]
+
+Example:
+**1. Business Asset Valuation Dispute — Critical**
+The problem: The dental practice generated $312,000 in gross revenue last year. An IRS examiner using standard multipliers will value it at $140,000-$200,000. Our position — that a solo practice with no transferable goodwill should be valued at equipment liquidation ($31,500) — is defensible but will be contested.
+Why it matters: The valuation difference is $110,000-$170,000 in RCP. This single item determines whether the offer amount is sufficient.
+Mitigation: Obtain a formal business valuation from a certified appraiser. The $2,000-$3,000 cost is trivial compared to the RCP impact. Include a declaration explaining why the practice has no transferable goodwill. [VERIFY: confirm no associate dentists, no assignable contracts, no franchise value]
+
+**2. [Next weakness] — [Risk Level]**
+[Continue pattern]
+
+---
+
+## DATA GAPS & MISSING DOCUMENTS
+
+Not a generic checklist — a prioritized list of what's missing and how each gap affects the case. Group by impact:
+
+**Case-blocking gaps** (resolution cannot proceed without these):
+- [Document/data] — needed because [specific reason]. Impact: [what happens without it]. Source: [where to get it and timeline]. Example: "No TY2021 account transcript. Without it, we cannot verify the $52,400 assessed balance or confirm the 7/15/2032 CSED. If the actual CSED is earlier, the entire OIC calculus changes. Order from IRS via e-Services — 5-7 business day turnaround."
+
+**Significant gaps** (weakens the case but doesn't prevent filing):
+- [Document/data] — [same format]
+
+**Minor gaps** (should be addressed but won't derail the case):
+- [Document/data] — [same format]
+
+---
+
+## PROCEDURAL & TIMELINE RISKS
+
+Specific to this case. Include exact dates and calculations where available:
+
+**CSED Analysis** [VERIFY]
+| Tax Year | Assessment Date | CSED | Time Remaining | Notes |
+|---|---|---|---|---|
+| [Year] | [Date] | [Date] | [X years, Y months] | [Tolling events, if any] |
+
+What the CSEDs mean for strategy: "The earliest CSED expires in 4.3 years. If we file an OIC now, the 30-day assessment hold plus typical processing time (6-12 months) consumes a significant portion of the remaining collection window. This strengthens the ETA argument — the IRS's realistic collection potential is limited by time, not just ability to pay."
+
+**Approaching deadlines:**
+- CDP hearing request: [deadline if applicable]
+- Tax Court petition: [deadline if applicable]
+- OIC deemed acceptance: [90-day / 24-month window if applicable]
+- Filing compliance: [any unfiled returns that must be filed before resolution]
+
+**POA status:** [VERIFY] Is Form 2848 current and on file? "IRS will not communicate with us until the POA is processed. If not filed, this is a Day 1 priority."
+
+---
+
+## IRS POSITION FORECAST
+
+Based on the financials and case facts, how will the IRS likely view this case? This isn't speculation — it's applying the IRS's own standards to our numbers:
+
+**Financial assessment:** "Using IRS Collection Financial Standards for [location], the allowable living expenses total $X/month against reported income of $Y/month. The IRS will calculate disposable income of $Z/month — [higher/lower/consistent with] our figure because [reason for any discrepancy]."
+
+**Likely objections:**
+1. [Specific objection] — [why the IRS will raise it and how strong the objection is]
+2. [Specific objection] — [same format]
+
+**Areas requiring additional documentation:** What will the IRS ask for that we haven't provided yet?
+
+---
+
+## MITIGATION PLAN
+
+For each risk identified above, the specific action, who does it, and when. Presented as a prioritized action list:
+
+| Priority | Risk | Action | Owner | Deadline | Status |
+|---|---|---|---|---|---|
+| 1 — Urgent | [Risk name] | [Specific action] | Firm / Client / IRS | [Date or timeline] | [Pending/In Progress/Complete] |
+| 2 — High | [Risk name] | [Specific action] | [Owner] | [Timeline] | [Status] |
+| 3 — Medium | [Risk name] | [Specific action] | [Owner] | [Timeline] | [Status] |
+
+---
+
+## BOTTOM LINE [PRACTITIONER JUDGMENT]
+
+One paragraph. Overall case viability — not a probability percentage, but an honest assessment:
+
+"This OIC is winnable but only if we solve the business valuation problem. With a formal appraisal supporting the $31,500 equipment-only value, the RCP drops to $74,820 and the $75,000 offer is defensible. Without it, the examiner will use a revenue multiplier, the RCP exceeds $180,000, and the offer gets rejected on first review. The filing compliance, minimal disposable income, and approaching CSEDs all work in our favor — but none of them matter if the asset number is wrong. Get the appraisal first."
+
+---
 
 RULES:
-1. Be specific — cite document names, dollar amounts, dates, and IRC/IRM sections.
-2. Rank risks by severity (Critical / High / Medium / Low).
-3. Flag items needing practitioner verification with [VERIFY].
-4. Flag items requiring professional judgment with [PRACTITIONER JUDGMENT].
-5. Do not sugarcoat risks. The practitioner needs an honest assessment.
-6. If a risk area cannot be assessed due to missing data, say so explicitly.
+1. Be specific — document names, dollar amounts, dates, IRC/IRM sections. Not categories.
+2. Quantify risks: "the CSED expires in 4.3 years" beats "the CSED is approaching."
+3. Every risk gets a mitigation. Identifying problems without solutions isn't useful.
+4. [VERIFY] for facts, figures, dates, and CSED calculations — these must be confirmed against source documents.
+5. [PRACTITIONER JUDGMENT] for strategic decisions: which risks to accept, which to mitigate, how aggressively to argue contested points.
+6. Do not sugarcoat. The practitioner needs to know the worst-case scenario BEFORE the IRS presents it.
+7. Do not catastrophize. A medium risk presented as critical wastes the practitioner's time and credibility.
+8. If a risk area cannot be assessed due to missing data, say so explicitly and explain what data is needed.
+9. The report should make the practitioner feel informed and prepared — not panicked, not complacent.

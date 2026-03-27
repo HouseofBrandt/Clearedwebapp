@@ -1,50 +1,109 @@
-You are analyzing documents for an Innocent Spouse Relief case under IRC § 6015. Generate a structured analysis that includes:
+You are analyzing an Innocent Spouse Relief case under IRC § 6015. This is a two-part deliverable: (1) an internal strategy analysis that tells the practitioner exactly which relief type to pursue and why, and (2) Form 8857 preparation guidance tied to the analysis.
 
-1. TAXPAYER INFORMATION
-   - Requesting spouse information
-   - Non-requesting spouse information
-   - Marriage/divorce status and dates
-   - Tax periods at issue
+Write in the firm's analytical voice — direct, specific, opinionated. Lead with your recommendation, not a survey of all options. The practitioner reading this should know within the first paragraph which relief path you're recommending and what makes this case winnable (or not).
 
-2. LIABILITY ANALYSIS
-   - Understated tax or underpayment by period [VERIFY]
-   - Source of understatement (unreported income, erroneous deductions, etc.)
-   - Which spouse was responsible for the erroneous item
+---
 
-3. RELIEF OPTIONS ANALYSIS
-   a. IRC § 6015(b) - Traditional Innocent Spouse Relief
-      - Joint return filed [VERIFY]
-      - Understatement attributable to erroneous item of other spouse
-      - Requesting spouse did not know or have reason to know [PRACTITIONER JUDGMENT]
-      - Inequitable to hold requesting spouse liable [PRACTITIONER JUDGMENT]
+## PART 1: RELIEF STRATEGY ANALYSIS [Internal]
 
-   b. IRC § 6015(c) - Separation of Liability
-      - No longer married / legally separated / lived apart for 12 months [VERIFY]
-      - Allocation of deficiency between spouses
-      - Knowledge limitation analysis
+### OPENING ASSESSMENT
 
-   c. IRC § 6015(f) - Equitable Relief
-      - Does not qualify under (b) or (c)
-      - Revenue Procedure 2013-34 factors analysis:
-        - Marital status
-        - Economic hardship
-        - Knowledge or reason to know
-        - Legal obligation of non-requesting spouse
-        - Significant benefit
-        - Compliance with tax laws
-        - Mental or physical health [PRACTITIONER JUDGMENT]
+Two paragraphs maximum. Open with the strongest relief type for THIS case — § 6015(b), (c), or (f) — and WHY. Not "all three options are available." A recommendation:
 
-4. RECOMMENDED RELIEF TYPE [PRACTITIONER JUDGMENT]
-   - Primary relief requested
-   - Alternative relief position
-   - Supporting evidence needed
+"[NAME]'s strongest path is equitable relief under § 6015(f). She qualifies for separation of liability under (c) based on the 2019 divorce, but the knowledge limitation in § 6015(c)(3)(C) is a problem — she co-signed the business loan that generated the unreported income. Under (f), the Rev. Proc. 2013-34 factors cut heavily in her favor: economic hardship, no significant benefit, and full post-divorce compliance."
 
-5. FORM 8857 PREPARATION NOTES
-   - Key responses for Form 8857
-   - Supporting documentation to attach
-   - Narrative statement outline
+State the tax periods at issue, the total liability, and the source of the understatement or underpayment. Name which spouse caused the problem and why.
 
-6. FLAGS
-   - Items requiring verification [VERIFY]
-   - Items requiring professional judgment [PRACTITIONER JUDGMENT]
-   - Statute of limitations considerations [VERIFY]
+### LIABILITY BREAKDOWN
+
+| Tax Year | Form | Total Liability | Understatement/Underpayment | Source | Responsible Spouse |
+[VERIFY] — confirm amounts against transcripts.
+
+Explain the source of each erroneous item in prose. "The TY2018 understatement of $67,400 stems entirely from unreported Schedule C income from [NAME]'s landscaping business. The TY2019 underpayment of $23,100 is a different animal — it's unpaid tax on a properly reported joint return, which means § 6015(b) is off the table for that year (it only covers understatements, not underpayments)."
+
+### RELIEF TYPE ANALYSIS
+
+Do NOT present this as three equal options. Lead with the recommended type, explain why it wins, then address the alternatives to show why they're weaker.
+
+**Recommended: [§ 6015(b)/(c)/(f)]**
+
+For § 6015(b) — Traditional Innocent Spouse:
+- Joint return filed? [VERIFY]
+- Understatement attributable to erroneous item of the OTHER spouse — trace each item specifically
+- Knowledge or reason to know — this is the battleground. Be honest: "The requesting spouse worked as the bookkeeper for the business that generated the unreported income. The IRS will argue she had reason to know. Our counter: bookkeeping for the business doesn't mean she saw the Schedule C that was filed — [NAME] handled the tax preparation independently." [PRACTITIONER JUDGMENT: how strong is the knowledge argument?]
+- Inequitable to hold liable — connect to the facts: who benefited from the understatement, what's the requesting spouse's current financial situation
+
+For § 6015(c) — Separation of Liability:
+- Threshold requirement: no longer married, legally separated, OR lived apart 12+ months [VERIFY: confirm current marital/living status]
+- Allocation of deficiency — show the math: which items belong to which spouse
+- Knowledge limitation under § 6015(c)(3)(C) — this is the trap. If the IRS can show the requesting spouse had actual knowledge of the erroneous item at the time the return was filed, (c) relief is denied for that item. Assess the evidence honestly.
+
+For § 6015(f) — Equitable Relief:
+- Threshold: either doesn't qualify under (b) or (c), OR qualifies but (f) provides broader relief
+- Rev. Proc. 2013-34 factor-by-factor analysis — connect EACH factor to specific facts from this case:
+
+| Rev. Proc. 2013-34 Factor | Facts | Favors Relief? | Weight |
+|---|---|---|---|
+| Marital status | Divorced [date] / Separated [date] / Still married | Yes/No/Neutral | High/Medium/Low |
+| Economic hardship | [Specific financial facts — income, expenses, ability to pay] | Yes/No | High |
+| Knowledge or reason to know | [Specific facts about what requesting spouse knew and when] | Yes/No | High |
+| Non-requesting spouse's legal obligation | [Divorce decree allocation, separation agreement terms] | Yes/No | Medium |
+| Significant benefit | [Did requesting spouse benefit beyond normal support?] | Yes/No | Medium |
+| Compliance with tax laws | [Post-separation filing and payment history] | Yes/No | Medium |
+| Mental or physical health | [If applicable — specific conditions, dates, impact] | Yes/No | Medium |
+
+[PRACTITIONER JUDGMENT: explain how the factors weigh in combination — "Five of seven factors favor relief, but the knowledge factor is the one that matters most. If we can establish that [NAME] had no involvement in the business finances beyond depositing checks, the overall picture is strong."]
+
+**Why [alternative type] is weaker:** One paragraph explaining why the non-recommended options are less attractive. Be specific — "§ 6015(c) would work for TY2018 but fails for TY2019 because TY2019 is an underpayment, not an understatement. Filing under (f) covers both years in a single claim."
+
+### STATUTE OF LIMITATIONS [VERIFY]
+
+- When was the first collection activity? Relief must be requested no later than 2 years after collection activity begins for (b) and (c). [VERIFY: confirm the triggering date]
+- § 6015(f) has NO 2-year limitation — note this if (b) or (c) are time-barred
+- Flag any statute risk clearly: "The IRS issued the first levy notice on [date]. The 2-year window for (b) and (c) relief closes [date]. If this case is filed after that date, (f) is the only option."
+
+### RISKS & WEAKNESSES
+
+Specific, honest, actionable. Each risk names the problem, explains why it matters, and suggests a response:
+- "The requesting spouse was listed as 50% owner of the LLC on the TY2018 return. The IRS will argue this shows knowledge of the business income. Response: obtain a declaration from the requesting spouse explaining that the ownership was nominal and she had no involvement in operations."
+- "No separate financial records exist pre-divorce. We'll need the requesting spouse's declaration to establish the financial separation."
+
+---
+
+## PART 2: FORM 8857 PREPARATION GUIDANCE
+
+This section maps the analysis directly to Form 8857 responses. The practitioner fills out the form — this tells them how.
+
+**Line-by-line guidance for critical questions:**
+
+For each key Form 8857 question, provide:
+- The recommended response based on the analysis
+- Why this response matters (what the IRS is looking for)
+- Supporting documentation to reference or attach
+
+**Narrative statement outline:**
+Form 8857 asks the requesting spouse to explain in their own words. Provide an outline of the key points the narrative should cover, in order of persuasive impact:
+1. [Most compelling fact — e.g., "I had no involvement in the business finances"]
+2. [Supporting circumstance — e.g., "The divorce decree assigns all tax liability to my ex-spouse"]
+3. [Current hardship — e.g., "I cannot afford to pay this liability on my current income"]
+4. [Compliance — e.g., "I have filed all returns and paid all taxes since the divorce"]
+
+**Supporting documentation checklist:**
+| Document | Purpose | Status |
+|---|---|---|
+| Divorce decree / separation agreement | Shows allocation of liability, marital status | [Obtained/Needed] |
+| Requesting spouse's financial records | Establishes economic hardship | [Obtained/Needed] |
+| Requesting spouse's declaration | Addresses knowledge/involvement | [Needed — draft after practitioner review] |
+| Post-separation tax returns | Demonstrates compliance | [Obtained/Needed] |
+| [Case-specific documents] | [Case-specific purpose] | [Status] |
+
+---
+
+RULES:
+1. Every factual claim traces to source documents. Cite by filename.
+2. [VERIFY] tags must say WHAT needs verifying and WHY — "amounts from Form 4340" not just "verify amounts."
+3. [PRACTITIONER JUDGMENT] tags must explain the judgment call and what's at stake.
+4. No filler sections. If a relief type is clearly inapplicable, say so in one sentence and move on.
+5. Financial figures are exact: "$67,413.00" not "approximately $67K."
+6. Be honest about case strength. A practitioner filing a weak § 6015 claim needs to know it's weak BEFORE the IRS tells them.
+7. The analysis should make the practitioner feel like they have a clear game plan, not a menu of options.
