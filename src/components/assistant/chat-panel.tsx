@@ -30,6 +30,7 @@ interface CaseContext {
   status: string
   filingStatus?: string
   totalLiability?: number
+  clientName?: string
 }
 
 // -------------------------------------------------------------------
@@ -1119,13 +1120,13 @@ export function ChatPanel() {
               </span>
             </div>
           ) : (
-            <div className="flex items-center border-b border-c-gray-100 bg-c-gray-50 px-4 py-2">
+            <div className={`flex items-center border-b px-4 py-2 ${fullFetchMode ? 'border-c-teal/20 bg-c-teal/5' : 'border-c-gray-100 bg-c-gray-50'}`}>
               <div className="relative flex-1" data-case-selector>
                 <button
                   onClick={() => { setShowCaseSelector(!showCaseSelector); fetchCaseList() }}
-                  className="flex items-center gap-1.5 rounded-full bg-white border border-c-gray-200 px-3 py-1 text-xs text-c-gray-500 hover:border-c-gray-300 transition-colors"
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${fullFetchMode ? 'bg-white border-2 border-c-teal/40 text-c-teal hover:border-c-teal font-medium' : 'bg-white border border-c-gray-200 text-c-gray-500 hover:border-c-gray-300'}`}
                 >
-                  <span>Select a case for context</span>
+                  <span>{fullFetchMode ? 'Select a case or mention a client name' : 'Select a case for context'}</span>
                   <ChevronDown className="h-3 w-3" />
                 </button>
                 {showCaseSelector && (
@@ -1146,6 +1147,7 @@ export function ChatPanel() {
                               status: c.status,
                               filingStatus: c.filingStatus,
                               totalLiability: c.totalLiability,
+                              clientName: c.clientName,
                             })
                             setShowCaseSelector(false)
                             setContextAvailable(null)

@@ -8,6 +8,8 @@ import { detectDataNeeds, fetchPlatformData } from "@/lib/ai/platform-data"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
 import { createAuditLog } from "@/lib/ai/audit"
 import { logObservations } from "@/lib/dev/junebug-observer"
+import { prisma } from "@/lib/db"
+import { decryptField } from "@/lib/encryption"
 import Anthropic from "@anthropic-ai/sdk"
 
 const anthropic = new Anthropic({
@@ -48,8 +50,8 @@ export async function POST(request: NextRequest) {
       contextFailureReason = ctxErr?.message || "Context packet loading failed"
     }
 
-    // When context was requested but unavailable, add guardrail to prevent fabrication
-    if (!contextAvailable) {
+    // When context was requested but unavailable (and not in Full Fetch mode which handles its own data loading), add guardrail to prevent fabrication
+    if (!contextAvailable && !fullFetch) {
       systemPrompt = `IMPORTANT: You do NOT have live case data for this conversation. Do not fabricate or guess specific case details like document counts, file names, Smart Status details, deadlines, AI task status, review queue status, or liability amounts. If asked about specific case data, respond: "I don't currently have live case data loaded for this case. I can help with general tax resolution guidance, but for specific case details, please check the case detail page directly."\n\n` + systemPrompt
 
       // Log missing-context event for audit trail
@@ -152,9 +154,36 @@ When the user asks about a bug or error:
 4. Offer to file a bug report with the diagnostic data attached`
   }
 
-  // Full Fetch Mode: unlock all tools and cross-case awareness
+  // Full Fetch Mode: detect case references and load live data
   if (fullFetch) {
-    systemPrompt += `\n\nFULL FETCH MODE ACTIVE: You have access to ALL platform tools and cross-case data. Be proactive — surface relevant information even if the user didn't explicitly ask. Check deadlines, review queue, and case health automatically when discussing a case. You can look up any case, search the entire knowledge base, check all deadlines across the firm, and provide cross-case insights. When the user asks about a case, also mention any upcoming deadlines, pending review items, or potential issues you notice. Be thorough and anticipatory — you are operating at full capability.`
+    let fullFetchCaseId = caseContext?.caseId || null
+
+    // If no explicit case context, try to detect a case reference in the user's message
+    if (!fullFetchCaseId && lastUserContent) {
+      try {
+        const detectedCase = await findCaseByName(lastUserContent)
+        if (detectedCase) {
+          fullFetchCaseId = detectedCase.id
+          console.log(`[Full Fetch] Detected case reference: ${detectedCase.name} (${detectedCase.id})`)
+        }
+      } catch (e: any) {
+        console.warn("[Full Fetch] Case detection failed:", e.message)
+      }
+    }
+
+    if (fullFetchCaseId) {
+      try {
+        const fullFetchData = await loadFullFetchCaseData(fullFetchCaseId)
+        if (fullFetchData) {
+          systemPrompt += fullFetchData
+          contextAvailable = true
+        }
+      } catch (e: any) {
+        console.warn("[Full Fetch] Case data loading failed:", e.message)
+      }
+    }
+
+    systemPrompt += `\n\nFULL FETCH MODE ACTIVE: You have access to ALL platform data loaded above. Be proactive — surface relevant information even if the user didn't explicitly ask. When you have case data above, answer questions DIRECTLY from that data. Do NOT say "I don't have live platform data" — if case data is loaded above, you DO have it. Search through the documents, notes, and case intelligence to find the answer. If the specific information isn't in the data above, say "I checked the case file and didn't find that specific information — you may need to upload the relevant document or add a note." Also mention any upcoming deadlines, pending review items, or potential issues you notice.`
   }
 
   // Use non-streaming for web search to avoid tool execution issues in SSE stream.
@@ -259,7 +288,7 @@ When the user asks about a bug or error:
       start(controller) {
         try {
           // Send metadata (including contextAvailable flag) as first event
-          if (caseContext?.caseId) {
+          if (caseContext?.caseId || fullFetch) {
             controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ meta: { contextAvailable } })}\n\n`))
           }
           controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text: textContent })}\n\n`))
@@ -294,4 +323,212 @@ When the user asks about a bug or error:
       },
     })
   }
+}
+
+// ── Full Fetch helpers ────────────────────────────────────────────
+
+/**
+ * Search for a case by client name or TABS number in the user's message.
+ * Since clientName is encrypted in the database, we decrypt each name and
+ * compare against the user message text.
+ */
+async function findCaseByName(
+  userMessage: string
+): Promise<{ id: string; name: string; tabsNumber: string } | null> {
+  // Get active cases (not CLOSED) to search through
+  const cases = await prisma.case.findMany({
+    where: { status: { not: "CLOSED" } },
+    select: { id: true, clientName: true, tabsNumber: true, caseType: true },
+    take: 100,
+  })
+
+  const messageLower = userMessage.toLowerCase()
+
+  // Check TABS numbers first (exact match in message)
+  const tabsMatch = messageLower.match(/\d{4,5}\.\d{4}/)
+  if (tabsMatch) {
+    const found = cases.find((c) => c.tabsNumber?.includes(tabsMatch[0]))
+    if (found) {
+      try {
+        const name = decryptField(found.clientName)
+        return { id: found.id, name, tabsNumber: found.tabsNumber || "" }
+      } catch {
+        return { id: found.id, name: found.tabsNumber || "Unknown", tabsNumber: found.tabsNumber || "" }
+      }
+    }
+  }
+
+  // Search by client name — decrypt and compare
+  for (const c of cases) {
+    try {
+      const decryptedName = decryptField(c.clientName)
+      if (!decryptedName) continue
+
+      const nameLower = decryptedName.toLowerCase()
+      // Split the name into parts (e.g., "John Whitfield" -> ["john", "whitfield"])
+      const nameParts = nameLower.split(/\s+/).filter((p) => p.length > 2)
+
+      // Check if any significant name part appears in the message
+      // (skip very short parts like "Jr", "II", etc. to avoid false positives)
+      for (const part of nameParts) {
+        if (part.length >= 4 && messageLower.includes(part)) {
+          return { id: c.id, name: decryptedName, tabsNumber: c.tabsNumber || "" }
+        }
+      }
+
+      // Also check if the full name appears
+      if (messageLower.includes(nameLower)) {
+        return { id: c.id, name: decryptedName, tabsNumber: c.tabsNumber || "" }
+      }
+    } catch {
+      // Decryption failed for this case — skip it
+      continue
+    }
+  }
+
+  return null
+}
+
+/**
+ * Load comprehensive case data for Full Fetch mode.
+ * Returns a formatted string to inject into the system prompt.
+ */
+async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
+  const caseData = await prisma.case.findUnique({
+    where: { id: caseId },
+    include: {
+      documents: {
+        select: {
+          id: true,
+          fileName: true,
+          documentCategory: true,
+          extractedText: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+      },
+      liabilityPeriods: { orderBy: { taxYear: "asc" } },
+      deadlines: {
+        where: { status: { not: "COMPLETED" } },
+        orderBy: { dueDate: "asc" },
+        take: 10,
+      },
+      intelligence: true,
+      aiTasks: {
+        where: { status: { in: ["READY_FOR_REVIEW", "APPROVED"] } },
+        select: {
+          taskType: true,
+          status: true,
+          detokenizedOutput: true,
+          createdAt: true,
+          banjoStepLabel: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
+      clientNotes: {
+        where: { isDeleted: false },
+        select: {
+          content: true,
+          noteType: true,
+          title: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+      assignedPractitioner: { select: { name: true } },
+    },
+  })
+
+  if (!caseData) return null
+
+  let clientName: string
+  try {
+    clientName = decryptField(caseData.clientName)
+  } catch {
+    clientName = caseData.tabsNumber || "Unknown Client"
+  }
+
+  let ctx = `\n\n=== FULL FETCH: LIVE CASE DATA FOR ${clientName} (${caseData.tabsNumber}) ===\n`
+  ctx += `Case Type: ${caseData.caseType} | Status: ${caseData.status}`
+  if (caseData.filingStatus) ctx += ` | Filing: ${caseData.filingStatus}`
+  if (caseData.totalLiability) ctx += ` | Total Liability: $${Number(caseData.totalLiability).toLocaleString()}`
+  ctx += ` | Assigned: ${caseData.assignedPractitioner?.name || "Unassigned"}\n`
+
+  // Documents
+  ctx += `\nDOCUMENTS ON FILE (${caseData.documents.length}):\n`
+  for (const doc of caseData.documents) {
+    ctx += `- ${doc.fileName} [${doc.documentCategory}] (${doc.createdAt.toLocaleDateString()})\n`
+    if (doc.extractedText) {
+      ctx += `  Content preview: ${doc.extractedText.slice(0, 500)}...\n`
+    }
+  }
+
+  // Liability periods
+  if (caseData.liabilityPeriods.length > 0) {
+    ctx += `\nLIABILITY PERIODS:\n`
+    for (const lp of caseData.liabilityPeriods) {
+      ctx += `- TY ${lp.taxYear}: Assessment $${Number(lp.originalAssessment || 0).toLocaleString()}, Penalties $${Number(lp.penalties || 0).toLocaleString()}, Interest $${Number(lp.interest || 0).toLocaleString()}, Total $${Number(lp.totalBalance || 0).toLocaleString()}, Status: ${lp.status}\n`
+    }
+  }
+
+  // Deadlines
+  if (caseData.deadlines.length > 0) {
+    ctx += `\nACTIVE DEADLINES:\n`
+    for (const d of caseData.deadlines) {
+      const daysRemaining = Math.ceil((d.dueDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      ctx += `- ${d.title}: ${d.dueDate.toLocaleDateString()} (${daysRemaining <= 0 ? "OVERDUE" : `${daysRemaining} days`}, ${d.priority})\n`
+    }
+  }
+
+  // Intelligence / Smart Status
+  if (caseData.intelligence) {
+    ctx += `\nCASE INTELLIGENCE:\n`
+    if (caseData.intelligence.digest) ctx += `Digest: ${caseData.intelligence.digest}\n`
+    if (caseData.intelligence.nextSteps) {
+      const steps = caseData.intelligence.nextSteps as any[]
+      if (Array.isArray(steps) && steps.length > 0) {
+        ctx += `Next Steps:\n`
+        for (const s of steps.slice(0, 5)) {
+          ctx += `  - [${String(s.priority || "NORMAL").toUpperCase()}] ${s.action}${s.reason ? ` — ${s.reason}` : ""}\n`
+        }
+      }
+    }
+    if (caseData.intelligence.irsLastAction) ctx += `IRS Last Action: ${caseData.intelligence.irsLastAction}\n`
+    if (caseData.intelligence.irsAssignedUnit) ctx += `IRS Assigned Unit: ${caseData.intelligence.irsAssignedUnit}\n`
+  }
+
+  // Notes
+  if (caseData.clientNotes && caseData.clientNotes.length > 0) {
+    ctx += `\nCLIENT NOTES (${caseData.clientNotes.length}):\n`
+    for (const note of caseData.clientNotes) {
+      ctx += `- [${note.noteType}] ${note.title || "(no title)"} (${note.createdAt.toLocaleDateString()}):\n`
+      ctx += `  ${note.content.slice(0, 300)}\n`
+    }
+  }
+
+  // AI Task outputs
+  if (caseData.aiTasks.length > 0) {
+    ctx += `\nAI WORK PRODUCTS:\n`
+    for (const task of caseData.aiTasks) {
+      ctx += `- ${task.banjoStepLabel || task.taskType} (${task.status}, ${task.createdAt.toLocaleDateString()})\n`
+      if (task.detokenizedOutput) {
+        try {
+          const output = decryptField(task.detokenizedOutput)
+          ctx += `  Preview: ${output.slice(0, 500)}...\n`
+        } catch { /* skip decryption failures */ }
+      }
+    }
+  }
+
+  // Case notes field (legacy)
+  if (caseData.notes) {
+    ctx += `\nCASE NOTES (legacy):\n${caseData.notes.slice(0, 500)}\n`
+  }
+
+  ctx += `\n=== END FULL FETCH DATA ===\n`
+
+  return ctx
 }
