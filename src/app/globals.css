@@ -80,9 +80,11 @@
     --space-12: 48px;
     --space-16: 64px;
 
-    /* Shadows */
-    --shadow-1: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
-    --shadow-2: 0 4px 12px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+    /* Shadows — Apple-style soft, diffused */
+    --shadow-1: 0 1px 2px rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.04);
+    --shadow-2: 0 2px 4px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.06);
+    --shadow-3: 0 4px 8px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08);
+    --shadow-panel: 0 8px 40px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
 
     /* Fonts */
     --font-display: 'Instrument Serif', Georgia, serif;
@@ -130,6 +132,8 @@
     font-family: var(--font-body);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+    font-feature-settings: 'cv11' 1, 'ss01' 1; /* Inter stylistic alternates */
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-body);
@@ -304,117 +308,205 @@
   border-color: rgba(59, 130, 246, 0.3);
 }
 
-/* Junebug chat prose — compact, clean, good tables */
+/* ── Junebug Chat Prose — Apple-quality typography & data presentation ── */
 .junebug-prose {
-  font-size: 14px;
-  line-height: 1.6;
-  color: inherit;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--c-gray-900);
+  letter-spacing: -0.006em;
 }
 
+.junebug-prose > *:first-child { margin-top: 0; }
+.junebug-prose > *:last-child { margin-bottom: 0; }
+
+/* Headings — clean with subtle left accent */
 .junebug-prose h1, .junebug-prose h2 {
-  font-size: 1.1em;
-  font-weight: 500;
-  margin-top: 1em;
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-top: 1.2em;
   margin-bottom: 0.4em;
+  padding-left: 10px;
+  border-left: 2px solid var(--c-teal);
+  color: var(--c-gray-900);
+  letter-spacing: -0.01em;
 }
 
 .junebug-prose h3, .junebug-prose h4 {
-  font-size: 1em;
-  font-weight: 500;
-  margin-top: 0.8em;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 1em;
   margin-bottom: 0.3em;
+  color: var(--c-gray-700);
 }
 
+/* Paragraphs — generous but not wasteful */
 .junebug-prose p {
-  margin-bottom: 0.5em;
+  margin-bottom: 0.6em;
 }
 
+/* Lists — refined bullets and spacing */
 .junebug-prose ul, .junebug-prose ol {
-  padding-left: 1.5em;
-  margin-bottom: 0.5em;
+  padding-left: 1.25em;
+  margin-bottom: 0.6em;
+  margin-top: 0.3em;
 }
 
 .junebug-prose ul { list-style-type: disc; }
 .junebug-prose ol { list-style-type: decimal; }
 
 .junebug-prose li {
-  margin-bottom: 0.25em;
+  margin-bottom: 0.35em;
+  line-height: 1.55;
 }
 
 .junebug-prose li > p {
-  margin-bottom: 0.15em;
+  margin-bottom: 0.1em;
 }
 
+.junebug-prose li::marker {
+  color: var(--c-gray-300);
+}
+
+/* Horizontal rules — subtle centered divider */
 .junebug-prose hr {
   border: none;
-  border-top: 1px solid var(--c-gray-100);
-  margin: 1em 0;
+  height: 1px;
+  background: var(--c-gray-100);
+  margin: 1.25em auto;
+  max-width: 60%;
 }
 
+/* Inline code — subtle pill */
 .junebug-prose code {
   background: var(--c-gray-50);
-  border-radius: 3px;
-  padding: 1px 5px;
-  font-size: 0.9em;
+  border: 1px solid var(--c-gray-100);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 0.88em;
+  font-family: var(--font-mono);
+  color: var(--c-gray-700);
 }
 
+/* Code blocks — refined dark bg */
 .junebug-prose pre {
-  background: var(--c-gray-900);
+  background: var(--c-navy-950);
   color: var(--c-gray-100);
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 14px 16px;
   overflow-x: auto;
   margin: 0.75em 0;
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
 .junebug-prose pre code {
   background: none;
+  border: none;
   padding: 0;
   color: inherit;
+  font-size: inherit;
 }
 
-/* Tables — this is the main fix */
+/* ── Tables — borderless, professional, Apple-style ── */
 .junebug-prose table {
   width: 100%;
   border-collapse: collapse;
   margin: 0.75em 0;
-  font-size: 13px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.junebug-prose thead {
+  border-bottom: 1.5px solid var(--c-gray-200);
 }
 
 .junebug-prose th {
-  background: var(--c-snow);
-  font-weight: 500;
+  font-weight: 600;
   text-align: left;
-  padding: 6px 10px;
-  border: 1px solid var(--c-gray-100);
-  font-size: 12px;
+  padding: 8px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--c-gray-500);
+  background: transparent;
+  border: none;
+  white-space: nowrap;
 }
 
 .junebug-prose td {
-  padding: 6px 10px;
-  border: 1px solid var(--c-gray-100);
+  padding: 7px 12px;
+  border: none;
+  border-bottom: 1px solid var(--c-gray-50);
   vertical-align: top;
+  color: var(--c-gray-700);
+}
+
+.junebug-prose tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .junebug-prose tr:nth-child(even) td {
   background: var(--c-snow);
 }
 
-.junebug-prose blockquote {
-  border-left: 3px solid var(--c-gray-200);
-  padding-left: 12px;
-  color: var(--c-gray-500);
-  margin: 0.75em 0;
+/* Last row as totals — bold with top border */
+.junebug-prose tbody tr:last-child td {
+  font-weight: 600;
+  color: var(--c-gray-900);
 }
 
+/* Blockquotes — teal accent */
+.junebug-prose blockquote {
+  border-left: 2px solid var(--c-teal);
+  padding: 8px 12px;
+  background: var(--c-teal-soft);
+  border-radius: 0 6px 6px 0;
+  color: var(--c-gray-700);
+  margin: 0.75em 0;
+  font-size: 13px;
+}
+
+.junebug-prose blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Strong — slightly heavier */
 .junebug-prose strong {
+  font-weight: 600;
+  color: var(--c-gray-900);
+}
+
+/* Links — teal, underline on hover only */
+.junebug-prose a {
+  color: var(--c-teal);
+  text-decoration: none;
   font-weight: 500;
 }
 
-.junebug-prose a {
-  color: var(--c-teal);
+.junebug-prose a:hover {
   text-decoration: underline;
+}
+
+/* ── Message animations ── */
+@keyframes messageIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-message-in {
+  animation: messageIn 200ms ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 150ms ease-out;
 }
 
 /* ── Cleared Design System Typography ──────────────────────────────── */

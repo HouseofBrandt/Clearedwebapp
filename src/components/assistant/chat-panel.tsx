@@ -1013,26 +1013,22 @@ export function ChatPanel() {
       {/* Slide-out panel */}
       {isOpen && (
         <div
-          className={`fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-c-gray-100 bg-white shadow-xl lg:w-[420px] ${fullFetchMode ? 'full-fetch-hud' : ''}`}
+          className={`fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white lg:w-[420px] ${fullFetchMode ? 'full-fetch-hud' : ''}`}
+          style={{ boxShadow: 'var(--shadow-panel)' }}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between bg-c-gray-900 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className={`h-8 w-8 rounded-full flex items-center justify-center ${fullFetchActivating ? 'full-fetch-activating' : ''}`}
-                style={{ background: fullFetchMode ? 'rgba(46,134,171,0.2)' : 'rgba(255,255,255,0.08)' }}>
-                <JunebugIcon className="h-5 w-5" mood="happy" fullFetch={fullFetchMode}
+          {/* Header — slim, clean */}
+          <div className="flex items-center justify-between px-4" style={{ height: 48, background: 'var(--c-navy-950)' }}>
+            <div className="flex items-center gap-2.5">
+              <div className={`h-7 w-7 rounded-full flex items-center justify-center ${fullFetchActivating ? 'full-fetch-activating' : ''}`}
+                style={{ background: fullFetchMode ? 'rgba(46,134,171,0.15)' : 'rgba(255,255,255,0.06)' }}>
+                <JunebugIcon className="h-4 w-4" mood="happy" fullFetch={fullFetchMode}
                   style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-warning)' }} />
               </div>
-              <div>
-                <h2 className="text-base font-medium text-white flex items-center gap-1.5">
-                  Junebug
-                  <span className="text-xs font-normal" style={{ color: fullFetchMode ? 'var(--c-teal)' : 'rgba(217,119,6,0.8)' }}>
-                    {fullFetchMode ? '🛡️' : '🐕'}
-                  </span>
-                </h2>
-                <p className="text-[10px] -mt-0.5" style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-gray-300)' }}>
-                  {fullFetchMode ? 'Full Fetch Mode' : 'Your tax resolution assistant'}
-                </p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[14px] font-semibold text-white tracking-tight">Junebug</h2>
+                {fullFetchMode && (
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--c-teal)' }} />
+                )}
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -1087,17 +1083,14 @@ export function ChatPanel() {
             </div>
           </div>
 
-          {/* Full Fetch status bar */}
+          {/* Full Fetch indicator — minimal, integrated */}
           {fullFetchMode && (
-            <div className="full-fetch-status-bar px-3 py-1.5 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--c-teal)' }} />
-                <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--c-teal)' }}>
-                  Full Fetch Active
-                </span>
-              </div>
-              <span style={{ fontSize: 10, color: 'var(--c-gray-300)' }}>
-                All tools &middot; Cross-case &middot; Proactive
+            <div className="px-4 py-1.5 flex items-center justify-between" style={{ background: 'rgba(46,134,171,0.04)', borderBottom: '1px solid rgba(46,134,171,0.1)' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--c-teal)' }}>
+                Full Fetch
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--c-gray-300)', letterSpacing: '0.02em' }}>
+                All data &middot; All documents
               </span>
             </div>
           )}
@@ -1189,20 +1182,19 @@ export function ChatPanel() {
                     style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-warning)' }} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-c-gray-700">
-                    Junebug is ready to help! 🐕
+                  <p className="text-[15px] font-semibold text-c-gray-900 tracking-tight">
+                    How can I help?
                   </p>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-c-gray-300">
-                    Ask about the case, tax law, what to do next, or anything else.
-                    I&apos;ll fetch the answer.
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-c-gray-300">
+                    Ask about a case, tax law, or what to do next.
                   </p>
                 </div>
-                <div className="mt-2 flex w-full flex-col gap-2">
+                <div className="mt-3 flex w-full flex-col gap-1.5">
                   {suggestions.map((s) => (
                     <button
                       key={s}
                       onClick={() => sendMessage(s)}
-                      className="rounded-lg border border-c-gray-100 px-3 py-2 text-left text-sm text-c-gray-700 hover:border-c-gray-200 hover:bg-c-gray-50 transition-colors"
+                      className="rounded-full border border-c-gray-100 px-4 py-2 text-left text-[12.5px] text-c-gray-500 hover:border-c-gray-200 hover:bg-c-gray-50 hover:text-c-gray-700 transition-all duration-150"
                     >
                       {s}
                     </button>
@@ -1211,7 +1203,7 @@ export function ChatPanel() {
               </div>
             ) : (
               /* Messages */
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
                 {messages.map((msg) => {
                   // Skip rendering empty assistant bubbles (no content, not actively streaming)
                   const isLastMsg = msg === messages[messages.length - 1]
@@ -1221,7 +1213,7 @@ export function ChatPanel() {
                   return (
                   <div
                     key={msg.id}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start gap-2"}`}
+                    className={`flex animate-message-in ${msg.role === "user" ? "justify-end" : "justify-start gap-2.5"}`}
                   >
                     {msg.role === "assistant" && (
                       <div className="mt-1 flex-shrink-0">
@@ -1230,12 +1222,12 @@ export function ChatPanel() {
                       </div>
                     )}
                     <div
-                      className={`group relative max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                      className={`group relative text-[13.5px] ${
                         msg.role === "user"
-                          ? "text-white"
-                          : "bg-c-gray-100 text-c-gray-900"
+                          ? "max-w-[80%] rounded-2xl px-4 py-2.5 text-white"
+                          : "max-w-[92%] text-c-gray-900"
                       }`}
-                      style={msg.role === "user" ? { backgroundColor: "rgb(15 23 42)" } : undefined}
+                      style={msg.role === "user" ? { backgroundColor: 'var(--c-navy-950)', lineHeight: '1.5' } : undefined}
                     >
                       {msg.role === "assistant" ? (
                         <>
@@ -1290,7 +1282,7 @@ export function ChatPanel() {
           </div>
 
           {/* Input area */}
-          <form onSubmit={handleSubmit} className="border-t border-c-gray-100 p-3">
+          <form onSubmit={handleSubmit} className="px-4 py-3">
             {/* Attached files preview */}
             {attachedFiles.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2">
@@ -1314,9 +1306,9 @@ export function ChatPanel() {
                 ))}
               </div>
             )}
-            <div className="flex items-end gap-2">
-              <label className="flex h-[38px] w-[38px] shrink-0 cursor-pointer items-center justify-center rounded-lg text-c-gray-300 hover:text-c-gray-500 transition-colors" title="Attach file">
-                <Paperclip className="h-4 w-4" />
+            <div className="flex items-end gap-1.5 rounded-2xl border border-c-gray-200 bg-white px-2 py-1.5 focus-within:border-c-teal/30 focus-within:ring-1 focus-within:ring-c-teal/20 transition-all duration-150">
+              <label className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-c-gray-300 hover:text-c-gray-500 hover:bg-c-gray-50 transition-colors" title="Attach file">
+                <Paperclip className="h-[15px] w-[15px]" />
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -1332,24 +1324,25 @@ export function ChatPanel() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask Junebug anything..."
+                placeholder="Ask about a case..."
                 disabled={isStreaming}
                 rows={1}
-                className="flex-1 resize-none rounded-lg border border-c-gray-200 px-3 py-2 text-sm placeholder:text-c-gray-300 focus:border-c-teal/30 focus:outline-none focus:ring-1 focus:ring-c-teal disabled:opacity-50"
-                style={{ maxHeight: "120px", minHeight: "38px" }}
+                className="flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-[13.5px] placeholder:text-c-gray-300 focus:outline-none focus:ring-0 disabled:opacity-50"
+                style={{ maxHeight: "120px", minHeight: "34px" }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement
-                  target.style.height = "38px"
+                  target.style.height = "34px"
                   target.style.height = Math.min(target.scrollHeight, 120) + "px"
                 }}
               />
               <button
                 type="submit"
                 disabled={(!input.trim() && attachedFiles.length === 0) || isStreaming}
-                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg bg-c-gray-900 text-white transition-colors disabled:opacity-40"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:opacity-30"
+                style={{ background: input.trim() ? 'var(--c-teal)' : 'var(--c-gray-100)', color: input.trim() ? 'white' : 'var(--c-gray-300)' }}
                 title="Send message"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-[14px] w-[14px]" />
               </button>
             </div>
           </form>
