@@ -430,12 +430,12 @@ async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
   try {
     const documents = await prisma.document.findMany({
       where: { caseId },
-      select: { id: true, fileName: true, documentCategory: true, extractedText: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
+      select: { id: true, fileName: true, documentCategory: true, extractedText: true, uploadedAt: true },
+      orderBy: { uploadedAt: "desc" },
     })
     ctx += `\nDOCUMENTS ON FILE (${documents.length}):\n`
     for (const doc of documents) {
-      ctx += `- ${doc.fileName} [${doc.documentCategory}] (${doc.createdAt.toLocaleDateString()})\n`
+      ctx += `- ${doc.fileName} [${doc.documentCategory}] (${doc.uploadedAt.toLocaleDateString()})\n`
       if (doc.extractedText) {
         // Include up to 3000 chars of extracted text for meaningful content search
         const preview = doc.extractedText.slice(0, 3000)
