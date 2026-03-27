@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
+import { decryptField } from "@/lib/encryption"
 import { notFound } from "next/navigation"
 import { TaskReview } from "@/components/review/task-review"
 import { Badge } from "@/components/ui/badge"
@@ -51,7 +52,17 @@ export default async function ReviewTaskPage({
     )
   }
 
+  // Decrypt PII fields before passing to client component
+  const decryptedTask = {
+    ...task,
+    detokenizedOutput: task.detokenizedOutput ? decryptField(task.detokenizedOutput) : null,
+    case: {
+      ...task.case,
+      clientName: task.case.clientName ? decryptField(task.case.clientName) : "",
+    },
+  }
+
   // The TaskReview component manages its own full-height layout
   // with sticky header, scrollable body, and fixed footer.
-  return <TaskReview task={task} documents={task.case.documents} />
+  return <TaskReview task={decryptedTask} documents={task.case.documents} />
 }
