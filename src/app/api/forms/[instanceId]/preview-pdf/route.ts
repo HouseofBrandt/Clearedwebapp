@@ -13,20 +13,20 @@ const FORM_PDF_FILES: Record<string, string> = {
   "911": "f911.pdf",
 }
 
-// Map our schema field IDs to keywords that appear in the PDF field names
-// The PDF has 393 fields with names like "topmostSubform[0].Page1[0].c1[0].Lines1a-b[0].p1-t4[0]"
-// We match by looking for patterns in the field names
-const FIELD_KEYWORDS: Record<string, string[]> = {
-  "taxpayer_name": ["Lines1a-b[0].p1-t4[0]"],
-  "ssn": ["Lines1a-b[0].p1-t5[0]"],
-  "address_street": ["C1_01_2a[0]", "2a[0]"],
-  "address_city": ["C1_01_2a[1]", "2a[1]"],
-  "county": ["Line1c[0].p1-t6"],
-  "home_phone": ["Line1c[0].p1-t7", "Line1d[0].p1-t8"],
-  "cell_phone": ["Line1d[0].p1-t8", "Line1e[0].p1-t10"],
-  "work_phone": ["Line1e[0].p1-t10", "Line1e[0].p1-t11"],
-  "spouse_name": ["Lines1a-b[1].p1-t4[0]"],
-  "spouse_ssn": ["Lines1a-b[1].p1-t5[0]"],
+// EXACT mapping: our field ID -> the full PDF field name
+// These are the actual AcroForm field names from the IRS PDF
+const P = "topmostSubform[0].Page1[0]"
+const EXACT_FIELD_MAP: Record<string, string> = {
+  "taxpayer_name": `${P}.c1[0].Lines1a-b[0].p1-t4[0]`,
+  "ssn": `${P}.c1[0].Lines1a-b[0].p1-t5[0]`,
+  "county": `${P}.c1[0].Line1c[0].p1-t6c[0]`,
+  "home_phone": `${P}.c1[0].Line1c[0].p1-t7c[0]`,
+  "cell_phone": `${P}.c1[0].Line1d[0].p1-t8d[0]`,
+  "work_phone": `${P}.c1[0].Line1e[0].p1-t10e[0]`,
+  "spouse_name": `${P}.c1[0].Lines1a-b[1].p1-t4[0]`,
+  "spouse_ssn": `${P}.c1[0].Lines1a-b[1].p1-t5[0]`,
+  "address_street": `${P}.c1[0].C1_01_2a[0]`,
+  "address_city": `${P}.c1[0].C1_01_2a[1]`,
 }
 
 export async function POST(
@@ -150,73 +150,22 @@ async function generateFilledPDF(formNumber: string, values: Record<string, any>
 
     console.log(`[PDF FILL] Form has ${fields.length} AcroForm fields after XFA strip`)
 
-    // Build a reverse lookup: short suffix -> full field name
-    const fieldLookup: Record<string, string> = {}
-    for (const field of fields) {
-      const name = field.getName()
-      // Store multiple lookup keys for each field
-      fieldLookup[name] = name
-      // Also store by last segment
-      const parts = name.split(".")
-      const lastPart = parts[parts.length - 1]
-      if (!fieldLookup[lastPart]) fieldLookup[lastPart] = name
-      // Store by last two segments
-      if (parts.length >= 2) {
-        const last2 = parts.slice(-2).join(".")
-        if (!fieldLookup[last2]) fieldLookup[last2] = name
-      }
-    }
-
-    // Direct mapping: our field ID -> the exact PDF field name suffix to match
-    const DIRECT_MAP: Record<string, string> = {
-      "taxpayer_name": "p1-t4[0]",
-      "ssn": "p1-t5[0]",
-      "address_street": "C1_01_2a[0]",
-      "county": "p1-t6c[0]",
-      "home_phone": "p1-t7c[0]",
-      "cell_phone": "p1-t8d[0]",
-      "work_phone": "p1-t10e[0]",
-      "spouse_name": "p1-t4[0]", // Second instance
-    }
-
-    // Try to fill each of our values into the PDF
+    // Fill fields using exact name mapping
     for (const [ourId, value] of Object.entries(flatValues)) {
       if (value === undefined || value === null || value === "") continue
+      if (ourId === "_debug") continue
 
-      const suffix = DIRECT_MAP[ourId]
-      if (!suffix) continue
-
-      // Find the PDF field that ends with this suffix
-      let targetField: string | null = null
-      for (const field of fields) {
-        const name = field.getName()
-        if (name.endsWith(suffix)) {
-          // For spouse_name, skip the first match (taxpayer) and use the second
-          if (ourId === "spouse_name" && name.includes("[0].Lines1a-b[0]")) continue
-          targetField = name
-          break
-        }
-      }
-
-      if (!targetField) continue
+      const pdfFieldName = EXACT_FIELD_MAP[ourId]
+      if (!pdfFieldName) continue
 
       try {
-        const textField = form.getTextField(targetField)
+        const textField = form.getTextField(pdfFieldName)
         let displayValue = String(value)
         if (typeof value === "boolean") displayValue = value ? "Yes" : "No"
         textField.setText(displayValue)
         filledCount++
-        console.log(`[PDF FILL] ✓ ${ourId} → ${targetField.slice(-50)} = "${displayValue.slice(0, 30)}"`)
       } catch (e: any) {
-        try {
-          if (value === true) {
-            const cb = form.getCheckBox(targetField)
-            cb.check()
-            filledCount++
-          }
-        } catch {
-          errors.push(`${ourId}: ${e?.message?.slice(0, 50)}`)
-        }
+        errors.push(`${ourId} → ${pdfFieldName}: ${e?.message?.slice(0, 80)}`)
       }
     }
 
