@@ -137,7 +137,14 @@ export function WorkProductControls() {
     fetch("/api/work-product")
       .then((r) => r.json())
       .then((data) => {
-        setRegistry(data.types || [])
+        // API returns { categories: { case_analysis: [...], ... }, stats: {...} }
+        // Flatten categories into a single array
+        if (data.categories) {
+          const flat = Object.values(data.categories).flat() as WorkProductType[]
+          setRegistry(flat)
+        } else if (data.types) {
+          setRegistry(data.types)
+        }
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -187,7 +194,7 @@ export function WorkProductControls() {
       // Refresh registry
       const res = await fetch("/api/work-product")
       const data = await res.json()
-      setRegistry(data.types || [])
+      setRegistry(data.categories ? (Object.values(data.categories).flat() as WorkProductType[]) : (data.types || []))
       // Refresh detail
       const detRes = await fetch(`/api/work-product/${selectedType}`)
       const detData = await detRes.json()
@@ -211,7 +218,7 @@ export function WorkProductControls() {
       setEnabled(detData.enabled !== false)
       const res = await fetch("/api/work-product")
       const data = await res.json()
-      setRegistry(data.types || [])
+      setRegistry(data.categories ? (Object.values(data.categories).flat() as WorkProductType[]) : (data.types || []))
     } catch {
       // silent
     }
