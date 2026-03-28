@@ -32,10 +32,16 @@ export async function GET() {
   if (!auth.authorized) return auth.response
 
   // Load all overrides for this user with example counts
-  const overrides = await prisma.workProductOverride.findMany({
-    where: { userId: auth.userId },
-    include: { _count: { select: { examples: true } } },
-  })
+  // Wrapped in try/catch — table may not exist yet if migration hasn't run
+  let overrides: any[] = []
+  try {
+    overrides = await prisma.workProductOverride.findMany({
+      where: { userId: auth.userId },
+      include: { _count: { select: { examples: true } } },
+    })
+  } catch {
+    // Table doesn't exist yet — return registry without overrides
+  }
 
   // Build a lookup map
   const overrideMap = new Map(
