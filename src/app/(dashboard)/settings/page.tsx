@@ -1,7 +1,8 @@
 import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
-import { User, Shield, Activity } from "lucide-react"
+import { User, Shield, Activity, Sparkles, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import Link from "next/link"
 
 export const metadata: Metadata = { title: "Settings | Cleared" }
 import { UserManagement } from "@/components/settings/user-management"
@@ -45,6 +46,26 @@ export default async function SettingsPage() {
         {/* Preferences Section */}
         <div>
           <TimezoneForm />
+        </div>
+
+        {/* AI Work Product */}
+        <div>
+          <Link href="/settings/work-product">
+            <Card className="p-4 hover:border-c-teal/30 transition-colors cursor-pointer">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-c-teal-soft shrink-0">
+                  <Sparkles className="h-4.5 w-4.5 text-c-teal" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-[13.5px] font-medium text-c-gray-800">AI Work Product</h3>
+                  <p className="text-[12px] text-c-gray-500 mt-0.5">
+                    Control how the AI writes each type of deliverable
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-c-gray-400 shrink-0" />
+              </div>
+            </Card>
+          </Link>
         </div>
 
         {/* System Health Section (admin only) */}

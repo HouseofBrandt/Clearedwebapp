@@ -20,6 +20,7 @@ import { runRevisionPass } from "@/lib/banjo/revision-pass"
 import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
 import { createFeedEvent } from "@/lib/feed/create-event"
 import { evaluateBanjoDeliverable } from "@/lib/reasoning/wrap"
+import { getWorkProductPromptBlock } from "@/lib/work-product/prompt-merger"
 import { EventEmitter } from "events"
 
 const TASK_TYPE_TO_PROMPT: Record<string, string> = {
@@ -249,6 +250,12 @@ export async function POST(
             if (kbContext) systemPrompt += kbContext
           }
         } catch { /* KB failure is non-fatal */ }
+
+        // Inject practitioner work product preferences
+        try {
+          const wpBlock = await getWorkProductPromptBlock(userId, taskType)
+          if (wpBlock) systemPrompt += "\n\n" + wpBlock
+        } catch { /* non-fatal — table may not exist yet */ }
 
         // Inject review-based prompt bias (learning loop)
         try {

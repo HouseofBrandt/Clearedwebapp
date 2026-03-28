@@ -349,6 +349,7 @@ model User {
   disposalsConfirmed    DataDisposalRecord[]   @relation("DisposalConfirmer")
   dsrAssigned           DataSubjectRequest[]   @relation("DSRAssignee")
   formInstances         FormInstance[]         @relation("FormInstances")
+  workProductOverrides  WorkProductOverride[]  @relation("WorkProductOverrides")
 
   @@map("users")
 }
@@ -1488,4 +1489,43 @@ model ReasoningPipelineLog {
   @@index([decision])
   @@index([createdAt])
   @@map("reasoning_pipeline_logs")
+}
+
+// ── Work Product Controls ─────────────────────────────────────────
+// Per-user, per-task-type AI output customization.
+
+model WorkProductOverride {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation("WorkProductOverrides", fields: [userId], references: [id], onDelete: Cascade)
+  taskType            String
+  isEnabled           Boolean   @default(true)
+  toneDirective       String?   @db.Text
+  structureDirective  String?   @db.Text
+  lengthDirective     String?   @db.Text
+  emphasisAreas       String?   @db.Text
+  avoidances          String?   @db.Text
+  customInstructions  String?   @db.Text
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  examples            WorkProductExample[]
+
+  @@unique([userId, taskType])
+  @@index([userId])
+  @@map("work_product_overrides")
+}
+
+model WorkProductExample {
+  id              String    @id @default(cuid())
+  overrideId      String
+  override        WorkProductOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+  label           String
+  content         String    @db.Text
+  isGoodExample   Boolean   @default(true)
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+
+  @@index([overrideId])
+  @@map("work_product_examples")
 }
