@@ -318,7 +318,49 @@ function MessageDraftCard({ draft, draftKey, onStatusChange }: { draft: MessageD
               </button>
             </div>
           ) : (
-            <span>Paste screenshot here (Ctrl+V / Cmd+V)</span>
+            <div className="space-y-2">
+              <span>Paste screenshot here (Ctrl+V / Cmd+V)</span>
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  try {
+                    // Dynamic import to avoid loading html2canvas unless needed
+                    const html2canvas = (await import("html2canvas")).default
+                    // Capture the main content area (exclude the chat panel itself)
+                    const target = document.querySelector("main") || document.body
+                    const canvas = await html2canvas(target as HTMLElement, {
+                      scale: 1,
+                      useCORS: true,
+                      logging: false,
+                      windowWidth: target.scrollWidth,
+                      windowHeight: Math.min(target.scrollHeight, 4000),
+                    })
+                    setScreenshotData(canvas.toDataURL("image/png", 0.8))
+                  } catch {
+                    // Fallback: try to use native API
+                    try {
+                      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+                      const track = stream.getVideoTracks()[0]
+                      const imageCapture = new (window as any).ImageCapture(track)
+                      const bitmap = await imageCapture.grabFrame()
+                      const canvas = document.createElement("canvas")
+                      canvas.width = bitmap.width
+                      canvas.height = bitmap.height
+                      const ctx = canvas.getContext("2d")
+                      ctx?.drawImage(bitmap, 0, 0)
+                      setScreenshotData(canvas.toDataURL("image/png", 0.8))
+                      track.stop()
+                    } catch {
+                      // Both methods failed
+                    }
+                  }
+                }}
+                className="block text-[10px] text-c-teal hover:underline mx-auto"
+              >
+                or capture current page
+              </button>
+            </div>
           )}
         </div>
       )}
