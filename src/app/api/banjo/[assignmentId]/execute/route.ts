@@ -163,7 +163,7 @@ export async function POST(
 
       if (!documentText.trim()) {
         emit({ type: "failed", assignmentId, error: "No extracted text in case documents" })
-        await prisma.banjoAssignment.update({ where: { id: assignmentId }, data: { status: "FAILED" } })
+        await prisma.banjoAssignment.update({ where: { id: assignmentId }, data: { status: "FAILED", completedAt: new Date() } })
         emit({ type: "_done" })
         return
       }
@@ -567,6 +567,7 @@ export async function POST(
           await prisma.banjoAssignment.update({
             where: { id: assignmentId },
             data: {
+              status: "COMPLETED",
               revisionRan: false,
               revisionResult: "Revision pass failed \u2014 deliverables were not cross-checked. Review carefully.",
             },
@@ -638,10 +639,21 @@ export async function POST(
     } catch (error: any) {
       console.error("[Banjo Execute] Fatal:", error.message)
 
-      await prisma.banjoAssignment.update({
-        where: { id: assignmentId },
-        data: { status: "FAILED" },
-      }).catch(() => {})
+      // Ensure assignment reaches a terminal state
+      try {
+        const current = await prisma.banjoAssignment.findUnique({
+          where: { id: assignmentId },
+          select: { status: true },
+        })
+        if (current && !["COMPLETED", "FAILED", "CANCELLED"].includes(current.status)) {
+          await prisma.banjoAssignment.update({
+            where: { id: assignmentId },
+            data: { status: "FAILED", completedAt: new Date() },
+          })
+        }
+      } catch (updateError) {
+        console.error("[Banjo Execute] Failed to mark assignment as FAILED:", updateError)
+      }
 
       emit({ type: "failed", assignmentId, error: error.message || "Execution failed" })
     } finally {

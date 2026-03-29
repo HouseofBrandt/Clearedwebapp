@@ -41,46 +41,71 @@ export async function GET(
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 100)
   const offset = parseInt(url.searchParams.get("offset") || "0", 10)
 
+  const VALID_STATUSES = ["OPEN", "RESOLVED", "ARCHIVED"]
+  const VALID_PRIORITIES = ["NORMAL", "URGENT", "FYI"]
+
   const where: any = { caseId: params.caseId }
-  if (status) where.status = status
-  if (priority) where.priority = priority
+  if (status) {
+    if (!VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: `Invalid status '${status}'` }, { status: 400 })
+    }
+    where.status = status
+  }
+  if (priority) {
+    if (!VALID_PRIORITIES.includes(priority)) {
+      return NextResponse.json({ error: `Invalid priority '${priority}'` }, { status: 400 })
+    }
+    where.priority = priority
+  }
   if (participant) where.participants = { has: participant }
 
-  const [conversations, total] = await Promise.all([
-    prisma.conversation.findMany({
-      where,
-      include: {
-        startedBy: { select: { id: true, name: true } },
-        messages: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          where: { isDeleted: false },
-          include: {
-            author: { select: { id: true, name: true } },
+  try {
+    const [conversations, total] = await Promise.all([
+      prisma.conversation.findMany({
+        where,
+        include: {
+          startedBy: { select: { id: true, name: true } },
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            where: { isDeleted: false },
+            include: {
+              author: { select: { id: true, name: true } },
+            },
           },
+          _count: { select: { messages: true } },
         },
-        _count: { select: { messages: true } },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: limit,
-      skip: offset,
-    }),
-    prisma.conversation.count({ where }),
-  ])
+        orderBy: { updatedAt: "desc" },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.conversation.count({ where }),
+    ])
 
-  // Transform to include message count and last message preview
-  const result = conversations.map((conv) => ({
-    ...conv,
-    messageCount: conv._count.messages,
-    lastMessage: conv.messages[0] || null,
-    messages: undefined,
-    _count: undefined,
-  }))
+    // Transform to include message count and last message preview
+    const result = conversations.map((conv) => ({
+      ...conv,
+      messageCount: conv._count.messages,
+      lastMessage: conv.messages[0] || null,
+      messages: undefined,
+      _count: undefined,
+    }))
 
-  return NextResponse.json({
-    conversations: result,
-    pagination: { total, limit, offset, hasMore: offset + limit < total },
-  })
+    return NextResponse.json({
+      conversations: result,
+      pagination: { total, limit, offset, hasMore: offset + limit < total },
+    })
+  } catch (error: any) {
+    console.error("[Conversations GET] Error:", {
+      caseId: params.caseId,
+      error: error.message,
+      code: error.code,
+    })
+    return NextResponse.json(
+      { error: "Failed to load conversations" },
+      { status: 500 }
+    )
+  }
 }
 
 // ─── POST: Create a conversation ───────────────────────────

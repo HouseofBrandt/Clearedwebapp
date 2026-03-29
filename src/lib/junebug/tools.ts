@@ -134,18 +134,30 @@ export function getAvailableTools(request: JunebugRequest): JunebugTool[] {
           query: { type: "string", description: "Search query" },
           category: {
             type: "string",
+            enum: [
+              "IRC_STATUTE", "TREASURY_REGULATION", "IRM_SECTION", "REVENUE_PROCEDURE",
+              "REVENUE_RULING", "CASE_LAW", "TREATISE", "FIRM_TEMPLATE", "WORK_PRODUCT",
+              "APPROVED_OUTPUT", "FIRM_PROCEDURE", "TRAINING_MATERIAL", "CLIENT_GUIDE", "CUSTOM",
+            ],
             description:
-              "Category filter (optional): IRC_STATUTE, IRM_REFERENCE, CASE_LAW, TRAINING_MATERIAL, COURT_FILING, TREATISE",
+              "Category filter (optional): IRC_STATUTE, TREASURY_REGULATION, IRM_SECTION, REVENUE_PROCEDURE, REVENUE_RULING, CASE_LAW, TREATISE, FIRM_TEMPLATE, WORK_PRODUCT, APPROVED_OUTPUT, FIRM_PROCEDURE, TRAINING_MATERIAL, CLIENT_GUIDE, CUSTOM",
           },
         },
         required: ["query"],
       },
       execute: async (input) => {
         try {
+          const VALID_KB_CATEGORIES = [
+            "IRC_STATUTE", "TREASURY_REGULATION", "IRM_SECTION", "REVENUE_PROCEDURE",
+            "REVENUE_RULING", "CASE_LAW", "TREATISE", "FIRM_TEMPLATE", "WORK_PRODUCT",
+            "APPROVED_OUTPUT", "FIRM_PROCEDURE", "TRAINING_MATERIAL", "CLIENT_GUIDE", "CUSTOM",
+          ]
+          const validCategory = input.category && VALID_KB_CATEGORIES.includes(input.category)
+            ? input.category : undefined
           const { searchKnowledge } = await import("@/lib/knowledge/search")
           const results = await searchKnowledge(input.query, {
             topK: 5,
-            categoryFilter: input.category ? [input.category] : undefined,
+            categoryFilter: validCategory ? [validCategory] : undefined,
           })
           if (!results.length) return { data: "No knowledge base results found." }
           return {

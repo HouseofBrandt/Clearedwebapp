@@ -33,26 +33,64 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  const conversation = await prisma.conversation.findFirst({
-    where: { id: params.convId, caseId: params.caseId },
-    include: {
-      startedBy: { select: { id: true, name: true, email: true } },
-      resolvedBy: { select: { id: true, name: true } },
-      messages: {
-        where: { isDeleted: false },
-        include: {
-          author: { select: { id: true, name: true, email: true } },
+  try {
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: params.convId, caseId: params.caseId },
+      include: {
+        startedBy: { select: { id: true, name: true, email: true } },
+        resolvedBy: { select: { id: true, name: true } },
+        messages: {
+          where: { isDeleted: false },
+          include: {
+            author: { select: { id: true, name: true, email: true } },
+            attachments: true,
+          },
+          orderBy: { createdAt: "asc" },
         },
-        orderBy: { createdAt: "asc" },
       },
-    },
-  })
+    })
 
-  if (!conversation) {
-    return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
+    }
+
+    return NextResponse.json(conversation)
+  } catch (error: any) {
+    // Retry without attachments if the table/column is missing
+    if (error.code === "P2021" || error.code === "P2022") {
+      const conversation = await prisma.conversation.findFirst({
+        where: { id: params.convId, caseId: params.caseId },
+        include: {
+          startedBy: { select: { id: true, name: true, email: true } },
+          resolvedBy: { select: { id: true, name: true } },
+          messages: {
+            where: { isDeleted: false },
+            include: {
+              author: { select: { id: true, name: true, email: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      })
+
+      if (!conversation) {
+        return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
+      }
+
+      return NextResponse.json(conversation)
+    }
+
+    console.error("[Conversation GET] Error:", {
+      caseId: params.caseId,
+      convId: params.convId,
+      error: error.message,
+      code: error.code,
+    })
+    return NextResponse.json(
+      { error: "Failed to load conversation" },
+      { status: 500 }
+    )
   }
-
-  return NextResponse.json(conversation)
 }
 
 // ─── PATCH: Update conversation ────────────────────────────
