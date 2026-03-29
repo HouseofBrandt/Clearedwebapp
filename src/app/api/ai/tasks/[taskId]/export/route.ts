@@ -83,7 +83,7 @@ export async function GET(
   }
 
   const output = decryptField(task.detokenizedOutput!)
-  const clientName = clientName ? decryptField(clientName) : ""
+  const clientName = task.case.clientName ? decryptField(task.case.clientName) : ""
   const format = request.nextUrl.searchParams.get("format") || "xlsx"
 
   // Audit log for export (fire-and-forget)
