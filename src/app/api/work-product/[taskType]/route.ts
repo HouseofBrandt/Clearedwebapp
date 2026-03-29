@@ -42,10 +42,24 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   // Load user override with examples
-  const override = await prisma.workProductOverride.findUnique({
-    where: { userId_taskType: { userId: auth.userId, taskType } },
-    include: { examples: true },
-  })
+  let override: any = null
+  try {
+    override = await prisma.workProductOverride.findUnique({
+      where: { userId_taskType: { userId: auth.userId, taskType } },
+      include: { examples: true },
+    })
+  } catch (err: any) {
+    // Graceful fallback if columns don't exist yet (migration pending)
+    console.warn("[Work Product GET] Override query failed, trying without examples:", err.code || err.message)
+    try {
+      override = await prisma.workProductOverride.findUnique({
+        where: { userId_taskType: { userId: auth.userId, taskType } },
+      })
+      if (override) (override as any).examples = []
+    } catch {
+      // Table may not exist at all
+    }
+  }
 
   return NextResponse.json({
     entry,
