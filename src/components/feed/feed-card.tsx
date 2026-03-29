@@ -36,14 +36,34 @@ function timeAgo(date: string | Date): string {
 
 /**
  * Renders inline mentions and case tags as styled elements.
- * @mentions -> teal highlight
+ * @mentions -> teal highlight (uses mentions array for multi-word names)
  * #CaseTags -> clickable links with mono font
+ * $amounts  -> mono font
  */
 function renderContent(content: string, mentions?: any[], caseData?: any): React.ReactNode {
   if (!content) return null
 
+  // Build a regex that matches known mention display names (multi-word safe),
+  // plus fallback patterns for #tags and $amounts
+  const mentionDisplays = (mentions || [])
+    .map((m: any) => m.display as string)
+    .filter(Boolean)
+    .sort((a: string, b: string) => b.length - a.length) // longest first to avoid partial matches
+
+  const escapedMentions = mentionDisplays.map((d: string) =>
+    d.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  )
+
+  // Combine: known mentions | @single-word fallback | #tags | $amounts
+  const patternParts = [
+    ...escapedMentions,
+    "@\\w+(?:\\s\\w+)?",
+    "#[\\w-]+",
+    "\\$[\\d,]+(?:\\.\\d{2})?",
+  ]
+  const pattern = new RegExp(`(${patternParts.join("|")})`, "g")
+
   const parts: React.ReactNode[] = []
-  const pattern = /(@\w+(?:\s\w+)?|#[\w-]+|\$[\d,]+(?:\.\d{2})?)/g
   let match
   let lastIndex = 0
   let key = 0

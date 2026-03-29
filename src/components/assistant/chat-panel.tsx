@@ -154,31 +154,44 @@ interface MessageDraft {
   tags?: string
 }
 
-function parseMessageDraft(content: string): { before: string; draft: MessageDraft | null; after: string } {
-  const match = content.match(/:::message\n([\s\S]*?):::/)
-  if (!match) return { before: content, draft: null, after: "" }
+function parseMessageDrafts(content: string): { text: string; drafts: MessageDraft[] } {
+  const drafts: MessageDraft[] = []
+  let text = content
 
-  const before = content.slice(0, match.index)
-  const after = content.slice((match.index || 0) + match[0].length)
-  const block = match[1]
+  const regex = /:::message\n([\s\S]*?):::/g
+  let match
+  while ((match = regex.exec(content)) !== null) {
+    text = text.replace(match[0], "")
+    const block = match[1]
 
-  const draft: any = {}
-  const bodyMatch = block.match(/body:\s*([\s\S]*?)(?=\n[a-z]+:|$)/i)
-  if (bodyMatch) draft.body = bodyMatch[1].trim()
+    const draft: any = {}
+    const bodyMatch = block.match(/body:\s*([\s\S]*?)(?=\n[a-z]+:|$)/i)
+    if (bodyMatch) draft.body = bodyMatch[1].trim()
 
-  for (const line of block.split("\n")) {
+    for (const line of block.split("\n")) {
     const kv = line.match(/^(\w+):\s*(.+)$/)
     if (kv && kv[1] !== "body") {
       draft[kv[1]] = kv[2].trim()
     }
   }
 
-  if (!draft.type || !draft.subject) return { before: content, draft: null, after: "" }
-  return { before: before.trim(), draft: draft as MessageDraft, after: after.trim() }
+    if (draft.type && draft.subject) {
+      drafts.push(draft as MessageDraft)
+    }
+  }
+
+  return { text: text.trim(), drafts }
 }
 
-function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onStatusChange?: (status: "sent" | "cancelled") => void }) {
-  const [status, setStatus] = useState<"draft" | "sending" | "sent" | "error" | "cancelled">("draft")
+function MessageDraftCard({ draft, draftKey, onStatusChange }: { draft: MessageDraft; draftKey?: string; onStatusChange?: (status: "sent" | "cancelled") => void }) {
+  const storageKey = draftKey ? `junebug-draft-${draftKey}` : null
+  const [status, setStatus] = useState<"draft" | "sending" | "sent" | "error" | "cancelled">(() => {
+    if (storageKey && typeof window !== "undefined") {
+      const saved = localStorage.getItem(storageKey)
+      if (saved === "sent") return "sent"
+    }
+    return "draft"
+  })
   const [errorMsg, setErrorMsg] = useState("")
   const [submissionId, setSubmissionId] = useState<string | null>(null)
   const [screenshotData, setScreenshotData] = useState<string | null>(null)
@@ -220,6 +233,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
       if (!res.ok) throw new Error("Failed to send")
       setStatus("sent")
       setSubmissionId(requestId)
+      if (storageKey) localStorage.setItem(storageKey, "sent")
       onStatusChange?.("sent")
     } catch (err: any) {
       setStatus("error")
@@ -1340,7 +1354,7 @@ export function ChatPanel() {
             ) : (
               /* Messages */
               <div className="flex flex-col gap-5">
-                {messages.map((msg) => {
+                {messages.map((msg, msgIndex) => {
                   // Skip rendering empty assistant bubbles (no content, not actively streaming)
                   const isLastMsg = msg === messages[messages.length - 1]
                   if (msg.role === "assistant" && !msg.content && !(isStreaming && isLastMsg)) {
@@ -1369,18 +1383,18 @@ export function ChatPanel() {
                         <>
                           {msg.content ? (
                             (() => {
-                              // Parse action blocks first
+                              // Parse action blocks and message drafts
                               const { text: textWithoutActions, actions } = parseActionBlocks(msg.content)
-                              const { before, draft, after } = parseMessageDraft(textWithoutActions)
-                              const hasSpecialContent = draft || actions.length > 0
+                              const { text: cleanText, drafts } = parseMessageDrafts(textWithoutActions)
+                              const hasSpecialContent = drafts.length > 0 || actions.length > 0
 
                               if (hasSpecialContent) {
-                                const textContent = draft ? before : textWithoutActions
                                 return (
                                   <div className="space-y-2">
-                                    {textContent && renderMarkdown(textContent)}
-                                    {draft && <MessageDraftCard draft={draft} />}
-                                    {draft && after && renderMarkdown(after)}
+                                    {cleanText && renderMarkdown(cleanText)}
+                                    {drafts.map((draft, idx) => (
+                                      <MessageDraftCard key={`draft-${msgIndex}-${idx}`} draft={draft} draftKey={`${msgIndex}-${idx}`} />
+                                    ))}
                                     {actions.map((action, idx) => (
                                       <ActionCard key={idx} action={action} caseContext={caseContext} messageText={textWithoutActions} />
                                     ))}

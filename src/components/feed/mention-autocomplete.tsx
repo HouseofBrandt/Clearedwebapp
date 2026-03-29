@@ -160,8 +160,9 @@ export function useMentionDetection(text: string, cursorPos: number) {
     }
 
     // Look backwards from cursor for @ or #
+    // Match @query where query can include spaces (for multi-word name search)
     const beforeCursor = text.slice(0, cursorPos)
-    const atMatch = beforeCursor.match(/[@#](\w*)$/)
+    const atMatch = beforeCursor.match(/[@#]([\w]+(?:\s[\w]+)?)$/)
 
     if (atMatch) {
       const triggerChar = atMatch[0][0] as "@" | "#"
