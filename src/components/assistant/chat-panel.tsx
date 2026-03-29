@@ -1035,43 +1035,144 @@ export function ChatPanel() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {/* Full Fetch toggle */}
-              <button
-                onClick={() => {
-                  const newState = !fullFetchMode
-                  setFullFetchMode(newState)
-                  localStorage.setItem("junebug-full-fetch", String(newState))
-                  if (newState) {
-                    setFullFetchActivating(true)
-                    setFfShowScan(true)
-                    setFfStatusText("INITIALIZING FULL DOCUMENT RETRIEVAL...")
-                    setTimeout(() => { setFfStatusText("SCANNING IRS KNOWLEDGE BASE..."); setFfShowScan(false) }, 800)
-                    setTimeout(() => setFfStatusText("CROSS-REFERENCING IRC / IRM / PUBS..."), 1600)
-                    setTimeout(() => { setFfStatusText(""); setFullFetchActivating(false) }, 2400)
-                  } else {
-                    setFfStatusText("")
-                    setFfShowScan(false)
-                  }
-                }}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200"
-                style={{
-                  background: fullFetchMode ? 'rgba(46,134,171,0.12)' : 'transparent',
-                  border: `1px solid ${fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.15)'}`,
-                }}
-                title={fullFetchMode ? 'Deactivate Full Fetch Mode' : 'Activate Full Fetch Mode — unlock all tools'}
-              >
-                <span className="text-[10px] font-medium" style={{
-                  color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-gray-300)',
-                  letterSpacing: '0.04em',
-                }}>
-                  {fullFetchMode ? 'FULL FETCH' : 'Normal'}
-                </span>
-                <div className="w-6 h-3.5 rounded-full relative transition-colors duration-200"
-                  style={{ background: fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.2)' }}>
-                  <div className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all duration-200"
-                    style={{ left: fullFetchMode ? '12px' : '2px' }} />
-                </div>
-              </button>
+              {/* Full Fetch toggle + info */}
+              <div className="relative flex items-center gap-0.5">
+                <button
+                  onClick={() => {
+                    const newState = !fullFetchMode
+                    setFullFetchMode(newState)
+                    localStorage.setItem("junebug-full-fetch", String(newState))
+                    if (newState) {
+                      setFullFetchActivating(true)
+                      setFfShowScan(true)
+                      setFfStatusText("INITIALIZING FULL DOCUMENT RETRIEVAL...")
+                      setTimeout(() => { setFfStatusText("SCANNING IRS KNOWLEDGE BASE..."); setFfShowScan(false) }, 800)
+                      setTimeout(() => setFfStatusText("CROSS-REFERENCING IRC / IRM / PUBS..."), 1600)
+                      setTimeout(() => { setFfStatusText(""); setFullFetchActivating(false) }, 2400)
+                    } else {
+                      setFfStatusText("")
+                      setFfShowScan(false)
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200"
+                  style={{
+                    background: fullFetchMode ? 'rgba(46,134,171,0.12)' : 'transparent',
+                    border: `1px solid ${fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.15)'}`,
+                  }}
+                  title={fullFetchMode ? 'Deactivate Full Fetch Mode' : 'Activate Full Fetch Mode — unlock all tools'}
+                >
+                  <span className="text-[10px] font-medium" style={{
+                    color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {fullFetchMode ? 'FULL FETCH' : 'Normal'}
+                  </span>
+                  <div className="w-6 h-3.5 rounded-full relative transition-colors duration-200"
+                    style={{ background: fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.2)' }}>
+                    <div className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all duration-200"
+                      style={{ left: fullFetchMode ? '12px' : '2px' }} />
+                  </div>
+                </button>
+                {/* Info button — always visible */}
+                <button
+                  onMouseEnter={() => setFfShowTooltip(true)}
+                  onMouseLeave={() => setFfShowTooltip(false)}
+                  onClick={() => setFfShowTooltip(!ffShowTooltip)}
+                  className="w-4 h-4 rounded-full flex items-center justify-center transition-all duration-150 flex-shrink-0"
+                  style={{
+                    background: ffShowTooltip ? 'rgba(46,134,171,0.2)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${ffShowTooltip ? 'var(--c-teal)' : 'rgba(255,255,255,0.1)'}`,
+                    color: ffShowTooltip ? 'var(--c-teal)' : 'var(--c-gray-400)',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    fontFamily: 'Georgia, serif',
+                    fontStyle: 'italic',
+                  }}
+                  title="What is Full Fetch?"
+                >
+                  i
+                </button>
+                {/* Full Fetch info tooltip */}
+                {ffShowTooltip && (
+                  <div
+                    className="absolute right-0 top-full mt-2 z-50 animate-fade-in"
+                    onMouseEnter={() => setFfShowTooltip(true)}
+                    onMouseLeave={() => setFfShowTooltip(false)}
+                    style={{
+                      width: 320,
+                      background: 'linear-gradient(135deg, #151d2e 0%, #111827 100%)',
+                      border: '1px solid rgba(46,134,171,0.2)',
+                      borderRadius: 10,
+                      padding: '14px 16px',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(46,134,171,0.1)',
+                    }}
+                  >
+                    {/* Title */}
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        Normal vs. Full Fetch
+                      </span>
+                    </div>
+
+                    {/* Comparison table */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                      {/* Normal column */}
+                      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-gray-400)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Normal</div>
+                        <div style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.5 }}>
+                          Junebug searches for <strong style={{ color: 'var(--c-gray-100)' }}>relevant excerpts</strong> from your case documents. Fast, focused answers for everyday questions.
+                        </div>
+                      </div>
+                      {/* Full Fetch column */}
+                      <div style={{ background: 'rgba(46,134,171,0.06)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(46,134,171,0.15)' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Full Fetch</div>
+                        <div style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.5 }}>
+                          Junebug loads <strong style={{ color: '#fff' }}>every document, deadline, and AI task</strong> for the case. Deep analysis with nothing missed.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* When to turn it on */}
+                    <div style={{ background: 'rgba(46,134,171,0.06)', borderRadius: 6, padding: '8px 10px', marginBottom: 10, borderLeft: '2px solid var(--c-teal)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Turn on Full Fetch when you need to...</div>
+                      {[
+                        'Draft a penalty abatement letter citing specific IRC/IRM sections',
+                        'Evaluate OIC viability across all financials and liabilities',
+                        'Cross-reference multiple notices or transcripts in one question',
+                        'Build a case strategy memo that accounts for everything on file',
+                      ].map((t, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: i < 3 ? 4 : 0 }}>
+                          <span style={{ color: 'var(--c-teal)', fontSize: 8, marginTop: 3, flexShrink: 0 }}>▸</span>
+                          <span style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.4 }}>{t}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Keep Normal when... */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px', marginBottom: 10, borderLeft: '2px solid rgba(255,255,255,0.15)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-gray-400)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Keep Normal for...</div>
+                      {[
+                        'Quick lookups — "What\'s the filing status?" or "When is the deadline?"',
+                        'General tax questions not tied to a specific case',
+                        'Simple clarifications on a single document',
+                      ].map((t, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: i < 2 ? 4 : 0 }}>
+                          <span style={{ color: 'var(--c-gray-400)', fontSize: 8, marginTop: 3, flexShrink: 0 }}>▸</span>
+                          <span style={{ fontSize: 11, color: 'var(--c-gray-400)', lineHeight: 1.4 }}>{t}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Cost caveat */}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 8px', background: 'rgba(217,119,6,0.08)', borderRadius: 5, border: '1px solid rgba(217,119,6,0.15)' }}>
+                      <span style={{ fontSize: 10, flexShrink: 0 }}>⏱</span>
+                      <span style={{ fontSize: 10, color: 'var(--c-warning)', lineHeight: 1.3 }}>
+                        Full Fetch uses more processing time and tokens. Use it when accuracy matters most.
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* New conversation */}
               <button
@@ -1121,69 +1222,9 @@ export function ChatPanel() {
                         Full Fetch Active
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span style={{ fontSize: 10, color: 'var(--c-gray-300)', letterSpacing: '0.02em' }}>
-                        All data &middot; All documents
-                      </span>
-                      {/* Info tooltip trigger */}
-                      <div className="relative">
-                        <button
-                          onMouseEnter={() => setFfShowTooltip(true)}
-                          onMouseLeave={() => setFfShowTooltip(false)}
-                          onClick={() => setFfShowTooltip(!ffShowTooltip)}
-                          className="w-4 h-4 rounded-full flex items-center justify-center transition-all duration-150"
-                          style={{
-                            background: ffShowTooltip ? 'rgba(46,134,171,0.2)' : 'rgba(255,255,255,0.06)',
-                            border: `1px solid ${ffShowTooltip ? 'var(--c-teal)' : 'rgba(255,255,255,0.1)'}`,
-                            color: ffShowTooltip ? 'var(--c-teal)' : 'var(--c-gray-300)',
-                            fontSize: 9,
-                            fontWeight: 700,
-                            fontFamily: 'Georgia, serif',
-                            fontStyle: 'italic',
-                          }}
-                        >
-                          i
-                        </button>
-                        {/* Tooltip */}
-                        {ffShowTooltip && (
-                          <div
-                            className="absolute right-0 top-full mt-2 z-50 animate-fade-in"
-                            style={{
-                              width: 300,
-                              background: 'linear-gradient(135deg, #151d2e 0%, #111827 100%)',
-                              border: '1px solid rgba(46,134,171,0.2)',
-                              borderRadius: 10,
-                              padding: '14px 16px',
-                              boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(46,134,171,0.1)',
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                                Full Fetch Mode
-                              </span>
-                            </div>
-                            <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--c-gray-300)', margin: '0 0 10px 0' }}>
-                              Retrieves <strong style={{ color: '#fff' }}>complete documents</strong> from the case file and knowledge base instead of excerpts. Junebug reads the full text.
-                            </p>
-                            <div style={{ background: 'rgba(46,134,171,0.06)', borderRadius: 6, padding: '8px 10px', marginBottom: 10, borderLeft: '2px solid var(--c-teal)' }}>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>When to use</div>
-                              {['Complex penalty abatement with multiple IRC sections', 'OIC viability requiring full IRM 5.8 context', 'Cross-referencing procedural requirements', 'Building comprehensive case strategy memos'].map((t, i) => (
-                                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
-                                  <span style={{ color: 'var(--c-teal)', fontSize: 8, marginTop: 3 }}>▸</span>
-                                  <span style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.4 }}>{t}</span>
-                                </div>
-                              ))}
-                            </div>
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 8px', background: 'rgba(217,119,6,0.08)', borderRadius: 5, border: '1px solid rgba(217,119,6,0.15)' }}>
-                              <span style={{ fontSize: 10 }}>⏱</span>
-                              <span style={{ fontSize: 10, color: 'var(--c-warning)', lineHeight: 1.3 }}>
-                                Uses more tokens. Best for high-stakes deliverables.
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <span style={{ fontSize: 10, color: 'var(--c-gray-300)', letterSpacing: '0.02em' }}>
+                      All data &middot; All documents
+                    </span>
                   </>
                 )}
               </div>
