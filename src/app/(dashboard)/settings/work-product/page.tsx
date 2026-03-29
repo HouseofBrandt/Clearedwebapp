@@ -5,5 +5,5 @@ export const metadata = { title: "Work Product Controls | Cleared" }
 
 export default async function WorkProductPage() {
   await requireAuth()
-  return <WorkProductControls />
+  return <div className="page-enter"><WorkProductControls /></div>
 }

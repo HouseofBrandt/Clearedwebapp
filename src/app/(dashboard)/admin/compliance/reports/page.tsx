@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: "Compliance Reports | Cleared" }
 export default async function ComplianceReportsPage() {
   await requireRole(["ADMIN"])
 
-  return <ReportsView />
+  return <div className="page-enter"><ReportsView /></div>
 }

@@ -715,6 +715,89 @@ table:not(.junebug-prose table) {
   animation: ffCounterIn 0.4s ease both;
 }
 
+/* ── Motion Graphics: Page & Card Entrances ──────────────────────── */
+
+@keyframes pageContentIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: pageContentIn 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stat-card-enter {
+  animation: cardEntrance 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Motion Graphics: Banjo Completion ───────────────────────────── */
+
+@keyframes banjoNoteFloat {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg); }
+  100% { opacity: 0; transform: translate(var(--note-x, 10px), -30px) rotate(var(--note-r, 15deg)); }
+}
+
+.banjo-note-particle {
+  position: absolute;
+  pointer-events: none;
+  animation: banjoNoteFloat 1s ease-out both;
+  font-size: 14px;
+}
+
+@keyframes deliverableSlideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.deliverable-enter {
+  animation: deliverableSlideIn 350ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes statRibbonWipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+.stat-ribbon-enter {
+  animation: statRibbonWipe 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes celebrationBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.15); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.banjo-celebrate {
+  animation: celebrationBounce 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes checkPopIn {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.check-pop-in {
+  animation: checkPopIn 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Reduced Motion ──────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Skeleton shimmer animation */
 @keyframes shimmer {
   0% { background-position: 200% 0; }

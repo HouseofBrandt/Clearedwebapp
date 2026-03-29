@@ -1,9 +1,14 @@
 interface BanjoIconProps {
   className?: string
   animated?: boolean
+  /** "celebration" plays faster strings + scale bounce on completion */
+  mood?: "idle" | "celebration"
 }
 
-export function BanjoIcon({ className = "h-4 w-4", animated = false }: BanjoIconProps) {
+export function BanjoIcon({ className = "h-4 w-4", animated = false, mood = "idle" }: BanjoIconProps) {
+  const isCelebrating = mood === "celebration"
+  const shouldAnimate = animated || isCelebrating
+
   return (
     <svg
       viewBox="0 0 24 24"
@@ -12,7 +17,7 @@ export function BanjoIcon({ className = "h-4 w-4", animated = false }: BanjoIcon
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className}
+      className={`${className} ${isCelebrating ? "banjo-celebrate" : ""}`}
     >
       {/* Banjo body (circle) */}
       <circle cx="14" cy="14" r="7" />
@@ -22,9 +27,9 @@ export function BanjoIcon({ className = "h-4 w-4", animated = false }: BanjoIcon
       <line x1="2" y1="5" x2="4" y2="5" />
       <line x1="5" y1="2" x2="5" y2="4" />
       {/* Strings */}
-      <line x1="11" y1="11" x2="17" y2="17" className={animated ? "animate-banjo-string-1" : ""} />
-      <line x1="12" y1="10" x2="18" y2="16" className={animated ? "animate-banjo-string-2" : ""} />
-      <line x1="10" y1="12" x2="16" y2="18" className={animated ? "animate-banjo-string-3" : ""} />
+      <line x1="11" y1="11" x2="17" y2="17" className={shouldAnimate ? (isCelebrating ? "animate-banjo-string-fast-1" : "animate-banjo-string-1") : ""} />
+      <line x1="12" y1="10" x2="18" y2="16" className={shouldAnimate ? (isCelebrating ? "animate-banjo-string-fast-2" : "animate-banjo-string-2") : ""} />
+      <line x1="10" y1="12" x2="16" y2="18" className={shouldAnimate ? (isCelebrating ? "animate-banjo-string-fast-3" : "animate-banjo-string-3") : ""} />
       {/* Bridge */}
       <circle cx="14" cy="14" r="2" />
       <style>{`
@@ -40,6 +45,21 @@ export function BanjoIcon({ className = "h-4 w-4", animated = false }: BanjoIcon
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(0.3px); }
         }
+        @keyframes banjoStringFast1 {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(0.5px); }
+          75% { transform: translateX(-0.5px); }
+        }
+        @keyframes banjoStringFast2 {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-0.5px); }
+          75% { transform: translateX(0.5px); }
+        }
+        @keyframes banjoStringFast3 {
+          0%, 100% { transform: translateY(0); }
+          25% { transform: translateY(0.5px); }
+          75% { transform: translateY(-0.5px); }
+        }
         .animate-banjo-string-1 {
           animation: banjoString1 0.6s ease-in-out infinite;
         }
@@ -50,6 +70,17 @@ export function BanjoIcon({ className = "h-4 w-4", animated = false }: BanjoIcon
         .animate-banjo-string-3 {
           animation: banjoString3 0.7s ease-in-out infinite;
           animation-delay: 0.2s;
+        }
+        .animate-banjo-string-fast-1 {
+          animation: banjoStringFast1 0.3s ease-in-out 3;
+        }
+        .animate-banjo-string-fast-2 {
+          animation: banjoStringFast2 0.25s ease-in-out 3;
+          animation-delay: 0.05s;
+        }
+        .animate-banjo-string-fast-3 {
+          animation: banjoStringFast3 0.35s ease-in-out 3;
+          animation-delay: 0.1s;
         }
       `}</style>
     </svg>

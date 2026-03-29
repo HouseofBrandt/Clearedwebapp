@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db"
 import { getCommandCenterData } from "@/lib/dashboard/command-center"
 import { DailyBrief } from "@/components/dashboard/command-center"
 import { FeedPage } from "@/components/feed/feed-page"
+import { StatCards } from "@/components/dashboard/stat-cards"
 
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
 
@@ -150,26 +151,14 @@ export default async function DashboardPage() {
   )
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Stat Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
-          <div className="text-overline" style={{ color: 'var(--c-danger)' }}>Awaiting Review</div>
-          <div className="stat-number mt-1.5" style={{ color: pendingReviews > 0 ? 'var(--c-danger)' : 'var(--c-gray-700)' }}>{pendingReviews}</div>
-        </div>
-        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
-          <div className="text-overline" style={{ color: 'var(--c-warning)' }}>Deadlines This Week</div>
-          <div className="stat-number mt-1.5" style={{ color: deadlinesThisWeek > 0 ? 'var(--c-warning)' : 'var(--c-gray-700)' }}>{deadlinesThisWeek}</div>
-        </div>
-        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
-          <div className="text-overline">Active Cases</div>
-          <div className="stat-number mt-1.5">{activeCases}</div>
-        </div>
-        <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
-          <div className="text-overline">Open Tasks</div>
-          <div className="stat-number mt-1.5">{openTasks}</div>
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto page-enter">
+      {/* Stat Cards — animated count-up + staggered entrance */}
+      <StatCards
+        pendingReviews={pendingReviews}
+        deadlinesThisWeek={deadlinesThisWeek}
+        activeCases={activeCases}
+        openTasks={openTasks}
+      />
 
       {/* Daily Brief / Command Center */}
       {commandData ? (

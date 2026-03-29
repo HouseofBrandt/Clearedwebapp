@@ -34,13 +34,15 @@ export default async function InboxPage() {
   })
 
   return (
-    <InboxList
-      initialMessages={JSON.parse(JSON.stringify(messages))}
-      initialUnreadCount={unreadCount}
-      currentUserId={userId}
-      currentUserRole={session.user.role}
-      users={JSON.parse(JSON.stringify(users))}
-      cases={JSON.parse(JSON.stringify(cases))}
-    />
+    <div className="page-enter">
+      <InboxList
+        initialMessages={JSON.parse(JSON.stringify(messages))}
+        initialUnreadCount={unreadCount}
+        currentUserId={userId}
+        currentUserRole={session.user.role}
+        users={JSON.parse(JSON.stringify(users))}
+        cases={JSON.parse(JSON.stringify(cases))}
+      />
+    </div>
   )
 }

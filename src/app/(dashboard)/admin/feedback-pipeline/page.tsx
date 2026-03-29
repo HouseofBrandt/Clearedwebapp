@@ -108,7 +108,7 @@ export default function FeedbackPipelinePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="page-enter flex items-center justify-center h-64">
         <Loader2 className="w-6 h-6 animate-spin text-[var(--c-teal)]" />
       </div>
     )
@@ -116,7 +116,7 @@ export default function FeedbackPipelinePage() {
 
   if (error && !data) {
     return (
-      <div className="p-6 rounded-lg border border-red-200 bg-red-50 text-red-700">
+      <div className="page-enter p-6 rounded-lg border border-red-200 bg-red-50 text-red-700">
         Failed to load pipeline data: {error}
       </div>
     )
@@ -126,7 +126,7 @@ export default function FeedbackPipelinePage() {
   const summary = data?.summary
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-display-md font-[family-name:var(--font-instrument)]">

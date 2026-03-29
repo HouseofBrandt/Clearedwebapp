@@ -63,12 +63,14 @@ export default async function CalendarPage() {
   const totalCount = activeDeadlines.length
 
   return (
-    <CalendarClient
-      deadlines={serialized}
-      users={users}
-      cases={cases}
-      currentUserId={userId}
-      summaryStats={{ overdueCount, thisWeekCount, thisMonthCount, totalCount }}
-    />
+    <div className="page-enter">
+      <CalendarClient
+        deadlines={serialized}
+        users={users}
+        cases={cases}
+        currentUserId={userId}
+        summaryStats={{ overdueCount, thisWeekCount, thisMonthCount, totalCount }}
+      />
+    </div>
   )
 }

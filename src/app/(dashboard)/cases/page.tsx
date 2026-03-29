@@ -24,5 +24,5 @@ export default async function CasesPage() {
     }),
   ])
 
-  return <CasesList initialCases={cases.map(decryptCasePII)} practitioners={practitioners} />
+  return <div className="page-enter"><CasesList initialCases={cases.map(decryptCasePII)} practitioners={practitioners} /></div>
 }

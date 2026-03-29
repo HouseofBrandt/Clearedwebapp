@@ -38,7 +38,7 @@ export default async function ReviewTaskPage({
 
   if (task.status !== "READY_FOR_REVIEW") {
     return (
-      <div className="space-y-6">
+      <div className="page-enter space-y-6">
         <div className="rounded-lg border p-6 text-center space-y-4">
           <p className="text-muted-foreground">This task has already been reviewed.</p>
           <Badge variant="outline">{task.status.replace(/_/g, " ")}</Badge>
@@ -64,5 +64,5 @@ export default async function ReviewTaskPage({
 
   // The TaskReview component manages its own full-height layout
   // with sticky header, scrollable body, and fixed footer.
-  return <TaskReview task={decryptedTask} documents={task.case.documents} />
+  return <div className="page-enter"><TaskReview task={decryptedTask} documents={task.case.documents} /></div>
 }

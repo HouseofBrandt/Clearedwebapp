@@ -8,7 +8,7 @@ export default async function AnalyticsPage() {
   await requireRole(["ADMIN", "SENIOR"])
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div>
         <h1 className="text-display-md">Feedback Analytics</h1>
         <p className="text-muted-foreground">

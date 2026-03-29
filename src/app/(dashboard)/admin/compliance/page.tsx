@@ -8,7 +8,7 @@ export default async function CompliancePage() {
   await requireRole(["ADMIN"])
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div>
         <h1 className="text-display-md">SOC 2 Compliance</h1>
         <p className="text-sm text-muted-foreground">SOC 2 Type II compliance tracker and health monitoring</p>
