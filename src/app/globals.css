@@ -654,6 +654,67 @@ table:not(.junebug-prose table) {
   border-bottom: 1px solid rgba(46, 134, 171, 0.15);
 }
 
+/* Scan line sweep — plays on activation */
+@keyframes ffScanDown {
+  0% { top: -2px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: calc(100% + 2px); opacity: 0; }
+}
+
+.full-fetch-scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--c-teal), transparent);
+  animation: ffScanDown 1s ease-in-out;
+  z-index: 5;
+  box-shadow: 0 0 16px var(--c-teal), 0 0 40px rgba(46,134,171,0.15);
+  pointer-events: none;
+}
+
+.full-fetch-scan-trail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(46,134,171,0.3), transparent);
+  animation: ffScanDown 1s ease-in-out 0.12s;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* Breathing border glow when active */
+@keyframes ffBorderGlow {
+  0%, 100% { border-color: rgba(46, 134, 171, 0.2); }
+  50% { border-color: rgba(46, 134, 171, 0.45); }
+}
+
+.full-fetch-active-border {
+  animation: ffBorderGlow 3s ease infinite;
+}
+
+/* Status text blink cursor */
+@keyframes ffBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.full-fetch-blink {
+  animation: ffBlink 0.6s step-end infinite;
+}
+
+/* Telemetry counter entrance */
+@keyframes ffCounterIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.full-fetch-counter {
+  animation: ffCounterIn 0.4s ease both;
+}
+
 /* Skeleton shimmer animation */
 @keyframes shimmer {
   0% { background-position: 200% 0; }

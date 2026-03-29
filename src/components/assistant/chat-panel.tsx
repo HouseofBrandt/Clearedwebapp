@@ -664,6 +664,9 @@ export function ChatPanel() {
     return localStorage.getItem("junebug-full-fetch") === "true"
   })
   const [fullFetchActivating, setFullFetchActivating] = useState(false)
+  const [ffStatusText, setFfStatusText] = useState("")
+  const [ffShowScan, setFfShowScan] = useState(false)
+  const [ffShowTooltip, setFfShowTooltip] = useState(false)
 
   // Error indicator on FAB — pulse red when recent browser errors exist
   const [hasRecentErrors, setHasRecentErrors] = useState(false)
@@ -1040,7 +1043,14 @@ export function ChatPanel() {
                   localStorage.setItem("junebug-full-fetch", String(newState))
                   if (newState) {
                     setFullFetchActivating(true)
-                    setTimeout(() => setFullFetchActivating(false), 1200)
+                    setFfShowScan(true)
+                    setFfStatusText("INITIALIZING FULL DOCUMENT RETRIEVAL...")
+                    setTimeout(() => { setFfStatusText("SCANNING IRS KNOWLEDGE BASE..."); setFfShowScan(false) }, 800)
+                    setTimeout(() => setFfStatusText("CROSS-REFERENCING IRC / IRM / PUBS..."), 1600)
+                    setTimeout(() => { setFfStatusText(""); setFullFetchActivating(false) }, 2400)
+                  } else {
+                    setFfStatusText("")
+                    setFfShowScan(false)
                   }
                 }}
                 className="flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200"
@@ -1083,15 +1093,100 @@ export function ChatPanel() {
             </div>
           </div>
 
-          {/* Full Fetch indicator — minimal, integrated */}
-          {fullFetchMode && (
-            <div className="px-4 py-1.5 flex items-center justify-between" style={{ background: 'rgba(46,134,171,0.04)', borderBottom: '1px solid rgba(46,134,171,0.1)' }}>
-              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--c-teal)' }}>
-                Full Fetch
-              </span>
-              <span style={{ fontSize: 10, color: 'var(--c-gray-300)', letterSpacing: '0.02em' }}>
-                All data &middot; All documents
-              </span>
+          {/* Full Fetch indicator with activation sequence */}
+          {(fullFetchMode || fullFetchActivating) && (
+            <div className="relative overflow-hidden" style={{ background: 'rgba(46,134,171,0.04)', borderBottom: '1px solid rgba(46,134,171,0.1)' }}>
+              {/* Scan lines during activation */}
+              {ffShowScan && (
+                <>
+                  <div className="full-fetch-scan-line" />
+                  <div className="full-fetch-scan-trail" />
+                </>
+              )}
+              <div className="px-4 py-1.5 flex items-center justify-between">
+                {ffStatusText ? (
+                  /* Activation status text */
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full full-fetch-blink" style={{ background: '#f4c542' }} />
+                    <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 500, letterSpacing: '0.06em', color: '#f4c542' }}>
+                      {ffStatusText}
+                    </span>
+                  </div>
+                ) : (
+                  /* Active state */
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--c-teal)', boxShadow: '0 0 6px var(--c-teal)' }} />
+                      <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: 'var(--c-teal)' }}>
+                        Full Fetch Active
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ fontSize: 10, color: 'var(--c-gray-300)', letterSpacing: '0.02em' }}>
+                        All data &middot; All documents
+                      </span>
+                      {/* Info tooltip trigger */}
+                      <div className="relative">
+                        <button
+                          onMouseEnter={() => setFfShowTooltip(true)}
+                          onMouseLeave={() => setFfShowTooltip(false)}
+                          onClick={() => setFfShowTooltip(!ffShowTooltip)}
+                          className="w-4 h-4 rounded-full flex items-center justify-center transition-all duration-150"
+                          style={{
+                            background: ffShowTooltip ? 'rgba(46,134,171,0.2)' : 'rgba(255,255,255,0.06)',
+                            border: `1px solid ${ffShowTooltip ? 'var(--c-teal)' : 'rgba(255,255,255,0.1)'}`,
+                            color: ffShowTooltip ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                            fontSize: 9,
+                            fontWeight: 700,
+                            fontFamily: 'Georgia, serif',
+                            fontStyle: 'italic',
+                          }}
+                        >
+                          i
+                        </button>
+                        {/* Tooltip */}
+                        {ffShowTooltip && (
+                          <div
+                            className="absolute right-0 top-full mt-2 z-50 animate-fade-in"
+                            style={{
+                              width: 300,
+                              background: 'linear-gradient(135deg, #151d2e 0%, #111827 100%)',
+                              border: '1px solid rgba(46,134,171,0.2)',
+                              borderRadius: 10,
+                              padding: '14px 16px',
+                              boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(46,134,171,0.1)',
+                            }}
+                          >
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                                Full Fetch Mode
+                              </span>
+                            </div>
+                            <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--c-gray-300)', margin: '0 0 10px 0' }}>
+                              Retrieves <strong style={{ color: '#fff' }}>complete documents</strong> from the case file and knowledge base instead of excerpts. Junebug reads the full text.
+                            </p>
+                            <div style={{ background: 'rgba(46,134,171,0.06)', borderRadius: 6, padding: '8px 10px', marginBottom: 10, borderLeft: '2px solid var(--c-teal)' }}>
+                              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>When to use</div>
+                              {['Complex penalty abatement with multiple IRC sections', 'OIC viability requiring full IRM 5.8 context', 'Cross-referencing procedural requirements', 'Building comprehensive case strategy memos'].map((t, i) => (
+                                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
+                                  <span style={{ color: 'var(--c-teal)', fontSize: 8, marginTop: 3 }}>▸</span>
+                                  <span style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.4 }}>{t}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 8px', background: 'rgba(217,119,6,0.08)', borderRadius: 5, border: '1px solid rgba(217,119,6,0.15)' }}>
+                              <span style={{ fontSize: 10 }}>⏱</span>
+                              <span style={{ fontSize: 10, color: 'var(--c-warning)', lineHeight: 1.3 }}>
+                                Uses more tokens. Best for high-stakes deliverables.
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
 
