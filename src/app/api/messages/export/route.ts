@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
   const format = searchParams.get("format") || "markdown"
   const days = parseInt(searchParams.get("days") || "0", 10)
   const includeResolved = searchParams.get("includeResolved") === "true"
+  const status = searchParams.get("status") // open, in_progress, resolved, implemented, archived — comma-separated
 
   const where: any = {}
   if (type) {
@@ -31,13 +32,41 @@ export async function GET(request: NextRequest) {
   } else {
     where.type = { in: ["BUG_REPORT", "FEATURE_REQUEST"] }
   }
-  if (!includeResolved) {
+
+  if (status) {
+    // Explicit status filter overrides includeResolved
+    const statuses = status.split(",").map((s) => s.trim()).filter(Boolean)
+    if (statuses.includes("archived")) {
+      where.archived = true
+      const nonArchived = statuses.filter((s) => s !== "archived")
+      if (nonArchived.length > 0) {
+        where.OR = [
+          { archived: true },
+          { implementationStatus: { in: nonArchived } },
+        ]
+        delete where.archived
+      }
+    } else {
+      where.archived = false
+      where.implementationStatus = { in: statuses.map((s) => s === "open" ? null : s) }
+      // Handle null for "open" status
+      if (statuses.includes("open")) {
+        const nonOpen = statuses.filter((s) => s !== "open")
+        where.OR = [
+          { implementationStatus: null },
+          ...(nonOpen.length > 0 ? [{ implementationStatus: { in: nonOpen } }] : []),
+        ]
+        delete where.implementationStatus
+      }
+    }
+  } else if (!includeResolved) {
     where.archived = false
     where.OR = [
       { implementationStatus: null },
       { implementationStatus: { in: ["open", "in_progress"] } },
     ]
   }
+
   if (days > 0) {
     where.createdAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) }
   }
