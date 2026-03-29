@@ -1524,6 +1524,9 @@ model WorkProductExample {
   content         String    @db.Text
   isGoodExample   Boolean   @default(true)
   notes           String?   @db.Text
+  sourceFileName  String?
+  sourceFileType  String?
+  sourceFilePath  String?
   createdAt       DateTime  @default(now())
 
   @@index([overrideId])
