@@ -13,7 +13,7 @@ import { extractTextFromBuffer } from "@/lib/documents/extract"
 import { z } from "zod"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
-import { createId } from "@paralleldrive/cuid2"
+import { randomUUID } from "crypto"
 
 interface RouteContext {
   params: Promise<{ taskType: string }>
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const content = extractedText.slice(0, MAX_CONTENT_LENGTH)
 
     // Store original file
-    const fileId = createId()
+    const fileId = randomUUID()
     const ext = file.name.split(".").pop() || "bin"
     const storedFileName = `${fileId}.${ext}`
     const filePath = join(UPLOAD_DIR, storedFileName)
