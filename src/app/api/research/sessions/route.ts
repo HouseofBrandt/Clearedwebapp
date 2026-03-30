@@ -20,7 +20,7 @@ const createSessionSchema = z.object({
   intendedAudience: z.string().optional(),
   knownAuthorities: z.string().optional(),
   specificQuestions: z.string().optional(),
-  sourcePriorities: z.record(z.number()).optional(),
+  sourcePriorities: z.array(z.string()).optional(),
   excludedSources: z.array(z.string()).optional(),
   recencyBias: z.number().int().min(0).max(100).optional(),
   caseId: z.string().optional(),

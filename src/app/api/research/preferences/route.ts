@@ -48,7 +48,7 @@ const updatePreferencesSchema = z.object({
     ])
     .nullable()
     .optional(),
-  defaultSourcePriorities: z.record(z.number()).nullable().optional(),
+  defaultSourcePriorities: z.array(z.string()).nullable().optional(),
   defaultExcludedSources: z.array(z.string()).optional(),
   defaultRecencyBias: z.number().int().min(0).max(100).optional(),
   defaultAudience: z.string().nullable().optional(),
