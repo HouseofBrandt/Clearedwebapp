@@ -98,6 +98,11 @@ enum AITaskType {
   CASE_SUMMARY
   RISK_ASSESSMENT
   WEB_RESEARCH
+  RESEARCH_QUICK_ANSWER
+  RESEARCH_ISSUE_BRIEF
+  RESEARCH_MEMORANDUM
+  RESEARCH_AUTHORITY_SURVEY
+  RESEARCH_COUNTERARGUMENT
 }
 
 // ─── Client Notes & Conversations ───
@@ -350,6 +355,9 @@ model User {
   dsrAssigned           DataSubjectRequest[]   @relation("DSRAssignee")
   formInstances         FormInstance[]         @relation("FormInstances")
   workProductOverrides  WorkProductOverride[]  @relation("WorkProductOverrides")
+  researchSessions      ResearchSession[]      @relation("UserResearch")
+  researchReviews       ResearchReview[]       @relation("UserResearchReviews")
+  researchPreference    ResearchPreference?
 
   @@map("users")
 }
@@ -388,6 +396,7 @@ model Case {
   conversations      Conversation[]
   formInstances      FormInstance[]
   reasoningLogs      ReasoningPipelineLog[]
+  researchSessions   ResearchSession[]
 
   @@index([tabsNumber])
   @@map("cases")
@@ -1531,4 +1540,177 @@ model WorkProductExample {
 
   @@index([overrideId])
   @@map("work_product_examples")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MICANOPY RESEARCH CENTER
+// ═══════════════════════════════════════════════════════════════
+
+enum ResearchMode {
+  QUICK_ANSWER
+  ISSUE_BRIEF
+  RESEARCH_MEMORANDUM
+  AUTHORITY_SURVEY
+  COUNTERARGUMENT_PREP
+}
+
+enum ResearchStatus {
+  INTAKE
+  PRESCOPING
+  RETRIEVING
+  COMPOSING
+  EVALUATING
+  READY_FOR_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum ResearchSourceType {
+  KB_INTERNAL
+  IRC_STATUTE
+  TREASURY_REGULATION
+  IRM_SECTION
+  REVENUE_PROCEDURE
+  REVENUE_RULING
+  TAX_COURT
+  CIRCUIT_COURT
+  SUPREME_COURT
+  PLR_CCA
+  IRS_PUBLICATION
+  TREATISE
+  WEB_GENERAL
+  FIRM_WORK_PRODUCT
+}
+
+model ResearchSession {
+  id                   String            @id @default(cuid())
+
+  // Intake data
+  mode                 ResearchMode
+  questionText         String            @db.Text
+  factsText            String?           @db.Text
+  proceduralPosture    String?
+  intendedAudience     String?           @default("Internal case file")
+  knownAuthorities     String?           @db.Text
+  specificQuestions     String?           @db.Text
+  prescopeResult       Json?
+  sourcePriorities     Json?
+  excludedSources      String[]
+  recencyBias          Int               @default(50)
+
+  // Case binding
+  caseId               String?
+  case                 Case?             @relation(fields: [caseId], references: [id])
+  caseContextSnapshot  Json?
+
+  // Execution state
+  status               ResearchStatus    @default(INTAKE)
+  retrievalStartedAt   DateTime?
+  compositionStartedAt DateTime?
+  completedAt          DateTime?
+
+  // Output
+  output               String?           @db.Text
+  outputFormat         String?
+  executiveSummary     String?           @db.Text
+
+  // Source tracking
+  sourcesUsed          Json?
+  kbResultCount        Int               @default(0)
+  webResultCount       Int               @default(0)
+  primarySourceCount   Int               @default(0)
+  citationCount        Int               @default(0)
+  unverifiedCitations  Int               @default(0)
+
+  // Quality
+  reasoningScore       Float?
+  reasoningVerdict     String?
+  verifyFlagCount      Int               @default(0)
+  judgmentFlagCount     Int               @default(0)
+
+  // Metadata
+  model                String            @default("claude-opus-4-6")
+  totalTokensUsed      Int?
+  totalDurationMs      Int?
+  createdById          String
+  createdBy            User              @relation("UserResearch", fields: [createdById], references: [id])
+
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  // Relations
+  sources              ResearchSource[]
+  reviewActions        ResearchReview[]
+
+  @@index([caseId])
+  @@index([createdById])
+  @@index([status])
+  @@index([mode])
+  @@index([createdAt])
+  @@map("research_sessions")
+}
+
+model ResearchSource {
+  id                String              @id @default(cuid())
+  sessionId         String
+  session           ResearchSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  sourceType        ResearchSourceType
+  citation          String
+  title             String
+  url               String?
+  fullText          String?             @db.Text
+  snippet           String?             @db.Text
+
+  authorityScore    Float               @default(0.5)
+  relevanceScore    Float               @default(0.5)
+  isVerified        Boolean             @default(false)
+  dateOfAuthority   DateTime?
+
+  knowledgeDocId    String?
+  knowledgeChunkId  String?
+
+  createdAt         DateTime            @default(now())
+
+  @@index([sessionId])
+  @@index([sourceType])
+  @@map("research_sources")
+}
+
+model ResearchReview {
+  id                String              @id @default(cuid())
+  sessionId         String
+  session           ResearchSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  practitionerId    String
+  practitioner      User                @relation("UserResearchReviews", fields: [practitionerId], references: [id])
+  action            ReviewActionType
+  editedOutput      String?             @db.Text
+  reviewNotes       String?             @db.Text
+
+  reviewStartedAt   DateTime
+  reviewCompletedAt DateTime?
+
+  @@index([sessionId])
+  @@index([practitionerId])
+  @@map("research_reviews")
+}
+
+model ResearchPreference {
+  id                     String        @id @default(cuid())
+  userId                 String        @unique
+  user                   User          @relation(fields: [userId], references: [id])
+
+  defaultMode            ResearchMode?
+  defaultSourcePriorities Json?
+  defaultExcludedSources String[]
+  defaultRecencyBias     Int           @default(50)
+  defaultAudience        String?
+  templates              Json?
+
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  @@map("research_preferences")
 }
