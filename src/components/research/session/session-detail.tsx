@@ -1,0 +1,529 @@
+"use client"
+
+import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import {
+  ArrowLeft,
+  Zap,
+  ClipboardList,
+  ScrollText,
+  BarChart3,
+  Swords,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  FileText,
+  LinkIcon,
+  RefreshCw,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import type { LucideIcon } from "lucide-react"
+
+/* ── Types ────────────────────────────────────────────────────────── */
+
+type ResearchMode =
+  | "QUICK_ANSWER"
+  | "ISSUE_BRIEF"
+  | "RESEARCH_MEMO"
+  | "AUTHORITY_SURVEY"
+  | "COUNTERARGUMENT"
+
+type ResearchStatus =
+  | "DRAFT"
+  | "QUEUED"
+  | "PROCESSING"
+  | "READY_FOR_REVIEW"
+  | "APPROVED"
+  | "REJECTED"
+
+interface ResearchSessionDetail {
+  id: string
+  mode: ResearchMode
+  question: string
+  status: ResearchStatus
+  caseId?: string | null
+  caseNumber?: string | null
+  output?: string | null
+  sourceCount?: number
+  createdAt: string
+  updatedAt: string
+  launchedAt?: string | null
+  completedAt?: string | null
+  creatorName?: string
+}
+
+/* ── Config ───────────────────────────────────────────────────────── */
+
+const MODE_CONFIG: Record<
+  ResearchMode,
+  { label: string; icon: LucideIcon; color: string; bg: string; badgeBg: string }
+> = {
+  QUICK_ANSWER: {
+    label: "Quick Answer",
+    icon: Zap,
+    color: "text-teal-700",
+    bg: "bg-teal-50",
+    badgeBg: "bg-teal-50 border-teal-200 text-teal-700",
+  },
+  ISSUE_BRIEF: {
+    label: "Issue Brief",
+    icon: ClipboardList,
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+    badgeBg: "bg-amber-50 border-amber-200 text-amber-700",
+  },
+  RESEARCH_MEMO: {
+    label: "Research Memo",
+    icon: ScrollText,
+    color: "text-[#1e3a5f]",
+    bg: "bg-[#eef2f7]",
+    badgeBg: "bg-[#eef2f7] border-[#c5d3e3] text-[#1e3a5f]",
+  },
+  AUTHORITY_SURVEY: {
+    label: "Authority Survey",
+    icon: BarChart3,
+    color: "text-slate-700",
+    bg: "bg-slate-50",
+    badgeBg: "bg-slate-50 border-slate-200 text-slate-700",
+  },
+  COUNTERARGUMENT: {
+    label: "Counterargument",
+    icon: Swords,
+    color: "text-red-700",
+    bg: "bg-red-50",
+    badgeBg: "bg-red-50 border-red-200 text-red-700",
+  },
+}
+
+const STATUS_CONFIG: Record<
+  ResearchStatus,
+  {
+    label: string
+    variant: "default" | "secondary" | "success" | "warning" | "info" | "neutral" | "destructive"
+  }
+> = {
+  DRAFT: { label: "Draft", variant: "neutral" },
+  QUEUED: { label: "Queued", variant: "info" },
+  PROCESSING: { label: "Processing", variant: "warning" },
+  READY_FOR_REVIEW: { label: "Ready for Review", variant: "info" },
+  APPROVED: { label: "Approved", variant: "success" },
+  REJECTED: { label: "Rejected", variant: "destructive" },
+}
+
+const PROGRESS_MESSAGES = [
+  "Parsing your question...",
+  "Searching the Internal Revenue Code...",
+  "Reviewing Treasury Regulations...",
+  "Analyzing relevant case law...",
+  "Checking Revenue Rulings and Procedures...",
+  "Cross-referencing IRS guidance...",
+  "Structuring the analysis...",
+  "Drafting output...",
+  "Finalizing citations...",
+  "Almost there...",
+]
+
+/* ── Component ────────────────────────────────────────────────────── */
+
+export function SessionDetail({ sessionId }: { sessionId: string }) {
+  const router = useRouter()
+  const [session, setSession] = useState<ResearchSessionDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const fetchSession = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/research/sessions/${sessionId}`)
+      if (!res.ok) {
+        setError("Failed to load research session.")
+        return
+      }
+      const data = await res.json()
+      setSession(data)
+    } catch {
+      setError("Failed to load research session.")
+    } finally {
+      setLoading(false)
+    }
+  }, [sessionId])
+
+  useEffect(() => {
+    fetchSession()
+  }, [fetchSession])
+
+  /* Poll while processing */
+  useEffect(() => {
+    if (!session) return
+    if (session.status !== "QUEUED" && session.status !== "PROCESSING") return
+
+    const interval = setInterval(() => {
+      fetchSession()
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [session, fetchSession])
+
+  /* ── Actions ──────────────────────────────────────────────────── */
+
+  const handleAction = async (action: "APPROVE" | "REJECT") => {
+    if (actionLoading || !session) return
+    setActionLoading(true)
+    try {
+      const res = await fetch(`/api/research/sessions/${sessionId}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) {
+        await fetchSession()
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  /* ── Render ───────────────────────────────────────────────────── */
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (error || !session) {
+    return (
+      <div className="space-y-4">
+        <Button variant="outline" asChild>
+          <Link href="/research">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Research
+          </Link>
+        </Button>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+            <XCircle className="mb-3 h-10 w-10 text-destructive" />
+            <p className="text-sm font-medium">
+              {error ?? "Session not found."}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              The research session may have been deleted or you may not have
+              access.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const modeConfig = MODE_CONFIG[session.mode]
+  const statusConfig = STATUS_CONFIG[session.status]
+  const ModeIcon = modeConfig.icon
+  const isProcessing =
+    session.status === "QUEUED" || session.status === "PROCESSING"
+  const isReviewable = session.status === "READY_FOR_REVIEW"
+
+  return (
+    <div className="space-y-6">
+      {/* Back link */}
+      <Button variant="outline" size="sm" asChild>
+        <Link href="/research">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Research
+        </Link>
+      </Button>
+
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${modeConfig.bg}`}
+          >
+            <ModeIcon className={`h-5 w-5 ${modeConfig.color}`} />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">
+              {modeConfig.label}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground line-clamp-2">
+              {session.question}
+            </p>
+          </div>
+        </div>
+        <Badge variant={statusConfig.variant} className="shrink-0">
+          {statusConfig.label}
+        </Badge>
+      </div>
+
+      {/* Metadata */}
+      <Card>
+        <CardContent className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+          <MetaItem
+            icon={Clock}
+            label="Created"
+            value={formatDate(session.createdAt)}
+          />
+          {session.launchedAt && (
+            <MetaItem
+              icon={Zap}
+              label="Launched"
+              value={formatDate(session.launchedAt)}
+            />
+          )}
+          {session.completedAt && (
+            <MetaItem
+              icon={CheckCircle2}
+              label="Completed"
+              value={formatDate(session.completedAt)}
+            />
+          )}
+          {session.caseNumber && (
+            <MetaItem
+              icon={LinkIcon}
+              label="Case"
+              value={session.caseNumber}
+            />
+          )}
+          {session.sourceCount !== undefined && session.sourceCount > 0 && (
+            <MetaItem
+              icon={FileText}
+              label="Sources Cited"
+              value={String(session.sourceCount)}
+            />
+          )}
+          {session.creatorName && (
+            <MetaItem
+              icon={FileText}
+              label="Created By"
+              value={session.creatorName}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Processing state */}
+      {isProcessing && <ProcessingIndicator />}
+
+      {/* Output */}
+      {session.output && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Research Output</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div
+              className="junebug-prose prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(session.output) }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Review actions */}
+      {isReviewable && (
+        <Card>
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <p className="text-sm font-medium">Review Required</p>
+              <p className="text-xs text-muted-foreground">
+                This output requires practitioner review before it can be used.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleAction("REJECT")}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="mr-2 h-4 w-4" />
+                )}
+                Reject
+              </Button>
+              <Button
+                onClick={() => handleAction("APPROVE")}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                )}
+                Approve
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approved / Rejected state */}
+      {session.status === "APPROVED" && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+          <CheckCircle2 className="h-5 w-5 text-green-600" />
+          <p className="text-sm font-medium text-green-800">
+            This research has been approved by a practitioner.
+          </p>
+        </div>
+      )}
+
+      {session.status === "REJECTED" && (
+        <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <XCircle className="h-5 w-5 text-red-600" />
+          <p className="text-sm font-medium text-red-800">
+            This research was rejected. You may start a new session.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Sub-components ───────────────────────────────────────────────── */
+
+function MetaItem({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <p className="text-sm">{value}</p>
+      </div>
+    </div>
+  )
+}
+
+function ProcessingIndicator() {
+  const [msgIndex, setMsgIndex] = useState(0)
+  const [progress, setProgress] = useState(5)
+
+  useEffect(() => {
+    const msgTimer = setInterval(() => {
+      setMsgIndex((prev) =>
+        prev < PROGRESS_MESSAGES.length - 1 ? prev + 1 : prev
+      )
+    }, 4000)
+
+    const progressTimer = setInterval(() => {
+      setProgress((prev) => Math.min(prev + 2, 90))
+    }, 2000)
+
+    return () => {
+      clearInterval(msgTimer)
+      clearInterval(progressTimer)
+    }
+  }, [])
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center justify-center p-10 text-center">
+        <div className="relative mb-4">
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <p className="text-sm font-medium">Banjo is working on it...</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {PROGRESS_MESSAGES[msgIndex]}
+        </p>
+        <div className="mt-4 w-full max-w-xs">
+          <Progress value={progress} size="sm" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/* ── Utilities ────────────────────────────────────────────────────── */
+
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
+/**
+ * Minimal markdown-to-HTML renderer for research output.
+ * Handles headings, bold, italic, code, lists, and paragraphs.
+ * For production, swap with a full markdown library.
+ */
+function renderMarkdownToHtml(md: string): string {
+  const lines = md.split("\n")
+  const htmlParts: string[] = []
+  let inList = false
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+
+    // Close list if needed
+    if (inList && !trimmed.startsWith("- ") && !trimmed.startsWith("* ")) {
+      htmlParts.push("</ul>")
+      inList = false
+    }
+
+    if (!trimmed) {
+      htmlParts.push("")
+      continue
+    }
+
+    // Headings
+    if (trimmed.startsWith("### ")) {
+      htmlParts.push(`<h3>${inlineFormat(trimmed.slice(4))}</h3>`)
+      continue
+    }
+    if (trimmed.startsWith("## ")) {
+      htmlParts.push(`<h2>${inlineFormat(trimmed.slice(3))}</h2>`)
+      continue
+    }
+    if (trimmed.startsWith("# ")) {
+      htmlParts.push(`<h1>${inlineFormat(trimmed.slice(2))}</h1>`)
+      continue
+    }
+
+    // List items
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (!inList) {
+        htmlParts.push("<ul>")
+        inList = true
+      }
+      htmlParts.push(`<li>${inlineFormat(trimmed.slice(2))}</li>`)
+      continue
+    }
+
+    // Paragraph
+    htmlParts.push(`<p>${inlineFormat(trimmed)}</p>`)
+  }
+
+  if (inList) htmlParts.push("</ul>")
+  return htmlParts.join("\n")
+}
+
+function inlineFormat(text: string): string {
+  return text
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+    .replace(/_([^_]+)_/g, "<em>$1</em>")
+}
