@@ -560,7 +560,6 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
                       revisionStatus={revisionStatus === "waiting" || revisionStatus === "running" ? "not_run" : revisionStatus}
                       revisionSummary={revisionSummary}
                       revisedCount={revisedCount}
-                      assignmentId={assignmentId || undefined}
                     />
                   </div>
                 </details>
@@ -593,7 +592,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
         {(phase === "idle" || phase === "completed") && existingTasks.length > 0 && (
           <>
             <Separator />
-            <BanjoHistory tasks={existingTasks} onAssignmentDeleted={() => router.refresh()} />
+            <BanjoHistory tasks={existingTasks} />
           </>
         )}
       </CardContent>
