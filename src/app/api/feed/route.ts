@@ -238,11 +238,11 @@ export async function POST(request: NextRequest) {
           data: {
             type: "DIRECT_MESSAGE",
             priority: "NORMAL",
-            subject: `${post.author.name} mentioned you in a post`,
+            subject: `${post.author?.name || "Someone"} mentioned you in a post`,
             body: content.substring(0, 300),
             recipientId: m.id!,
             senderId: auth.userId,
-            senderName: post.author.name || "Unknown",
+            senderName: post.author?.name || "Unknown",
             tags: ["feed-mention"],
             metadata: { postId: post.id, caseId: caseId || undefined },
           },
