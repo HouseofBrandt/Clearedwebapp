@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import JSZip from "jszip"
 import { generateDocx } from "@/lib/documents/docx"
 import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
+import { validateForExport } from "@/lib/banjo/export-validation"
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
 
@@ -34,6 +35,18 @@ export async function GET(
 
   if (assignment.tasks.length === 0) {
     return NextResponse.json({ error: "No approved deliverables to export" }, { status: 400 })
+  }
+
+  // Pre-export validation (C8) — block export if critical errors found
+  const skipValidation = request.nextUrl.searchParams.get("skipValidation") === "true"
+  if (!skipValidation) {
+    const validation = validateForExport(assignment.tasks)
+    if (!validation.valid) {
+      return NextResponse.json({
+        error: "Export blocked: deliverables failed validation",
+        validation,
+      }, { status: 422 })
+    }
   }
 
   const zip = new JSZip()

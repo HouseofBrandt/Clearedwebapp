@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
   const format = searchParams.get("format") || "markdown"
   const days = parseInt(searchParams.get("days") || "0", 10)
   const includeResolved = searchParams.get("includeResolved") === "true"
+  const includeArchived = searchParams.get("includeArchived") === "true"
+  const readFilter = searchParams.get("readFilter") // "read", "unread", or null for both
+  const statusFilter = searchParams.get("statusFilter") // comma-separated: "open,in_progress,implemented,wont_fix,duplicate"
 
   const where: any = {}
   if (type) {
@@ -31,12 +34,44 @@ export async function GET(request: NextRequest) {
   } else {
     where.type = { in: ["BUG_REPORT", "FEATURE_REQUEST"] }
   }
-  if (!includeResolved) {
+
+  // Status filter — supports both legacy includeResolved and new statusFilter
+  if (statusFilter) {
+    const statuses = statusFilter.split(",").map((s) => s.trim()).filter(Boolean)
+    if (statuses.length > 0) {
+      where.OR = [
+        { implementationStatus: null, ...(statuses.includes("open") ? {} : { id: "__never__" }) },
+        { implementationStatus: { in: statuses } },
+      ]
+      // Simplify: if "open" is in the list, include null status
+      if (statuses.includes("open")) {
+        where.OR = [
+          { implementationStatus: null },
+          { implementationStatus: { in: statuses } },
+        ]
+      } else {
+        where.implementationStatus = { in: statuses }
+      }
+    }
+  } else if (!includeResolved) {
     where.OR = [
       { implementationStatus: null },
       { implementationStatus: { in: ["open", "in_progress"] } },
     ]
   }
+
+  // Archived filter — exclude archived by default
+  if (!includeArchived) {
+    where.archived = false
+  }
+
+  // Read/unread filter
+  if (readFilter === "read") {
+    where.read = true
+  } else if (readFilter === "unread") {
+    where.read = false
+  }
+
   if (days > 0) {
     where.createdAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) }
   }
@@ -74,7 +109,15 @@ export async function GET(request: NextRequest) {
   if (bugCount > 0) typeSummary.push(`${bugCount} bug${bugCount !== 1 ? "s" : ""}`)
   if (featureCount > 0) typeSummary.push(`${featureCount} feature request${featureCount !== 1 ? "s" : ""}`)
 
-  const filterNote = includeResolved ? "All items (including resolved)" : "Open and In Progress only"
+  const filterParts = []
+  if (statusFilter) filterParts.push(`Status: ${statusFilter}`)
+  else if (includeResolved) filterParts.push("All statuses (including resolved)")
+  else filterParts.push("Open and In Progress only")
+  if (includeArchived) filterParts.push("including archived")
+  else filterParts.push("excluding archived")
+  if (readFilter === "read") filterParts.push("read only")
+  else if (readFilter === "unread") filterParts.push("unread only")
+  const filterNote = filterParts.join(" | ")
 
   let md = `# Cleared Platform — Bug Reports & Feature Requests\n`
   md += `# Exported ${dateStr}\n`

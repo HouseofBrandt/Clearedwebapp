@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
-import { X, Trash2, Copy, Check, Send, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil } from "lucide-react"
+import { X, Trash2, Copy, Check, Send, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil, Paperclip, Camera, Search } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
@@ -536,6 +536,19 @@ export function ChatPanel() {
   const recentLoadingMessagesRef = useRef<string[]>([])
   const loadingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  // C4: Case selector for non-case-page contexts
+  const [caseSearchOpen, setCaseSearchOpen] = useState(false)
+  const [caseSearchQuery, setCaseSearchQuery] = useState("")
+  const [caseSearchResults, setCaseSearchResults] = useState<{ id: string; tabsNumber: string; clientName: string; caseType: string }[]>([])
+
+  // C5: Screenshot capture
+  const [screenshotData, setScreenshotData] = useState<string | null>(null)
+
+  // C6: File upload
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [attachments, setAttachments] = useState<{ fileName: string; fileUrl: string; fileType: string }[]>([])
+  const [uploading, setUploading] = useState(false)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -548,6 +561,79 @@ export function ChatPanel() {
       persistMessages(nonEmpty)
     }
   }, [messages])
+
+  // C4: Search cases for case selector
+  const searchCases = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setCaseSearchResults([])
+      return
+    }
+    try {
+      const res = await fetch(`/api/cases?search=${encodeURIComponent(query)}&limit=5`)
+      if (res.ok) {
+        const data = await res.json()
+        setCaseSearchResults(data.cases?.map((c: any) => ({
+          id: c.id,
+          tabsNumber: c.tabsNumber,
+          clientName: c.clientName,
+          caseType: c.caseType,
+        })) || [])
+      }
+    } catch { /* ignore */ }
+  }, [])
+
+  // C4: Select a case from search results
+  const selectCase = useCallback((c: { id: string; tabsNumber: string; clientName: string; caseType: string }) => {
+    setCaseContext({
+      caseId: c.id,
+      tabsNumber: c.tabsNumber,
+      caseType: c.caseType,
+      status: "",
+    })
+    setCaseSearchOpen(false)
+    setCaseSearchQuery("")
+    setCaseSearchResults([])
+  }, [])
+
+  // C5: Capture screenshot
+  const captureScreenshot = useCallback(async () => {
+    try {
+      const html2canvas = (await import("html2canvas-pro")).default
+      // Capture the main content area (not the Junebug panel itself)
+      const target = document.querySelector("main") || document.body
+      const canvas = await html2canvas(target as HTMLElement, {
+        scale: 1,
+        useCORS: true,
+        logging: false,
+        ignoreElements: (el) => el.closest?.("[data-junebug-panel]") !== null,
+      })
+      const dataUrl = canvas.toDataURL("image/png", 0.8)
+      setScreenshotData(dataUrl)
+    } catch (err) {
+      console.error("[Junebug] Screenshot failed:", err)
+    }
+  }, [])
+
+  // C6: Handle file upload
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setUploading(true)
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData()
+        formData.append("file", file)
+        const res = await fetch("/api/feed/upload", { method: "POST", body: formData })
+        if (res.ok) {
+          const data = await res.json()
+          setAttachments((prev) => [...prev, { fileName: data.fileName, fileUrl: data.fileUrl, fileType: data.fileType }])
+        }
+      }
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }, [])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -615,10 +701,19 @@ export function ChatPanel() {
     async (content: string) => {
       if (!content.trim() || isStreaming) return
 
+      // Build display content with attachment info
+      let displayContent = content.trim()
+      if (attachments.length > 0) {
+        displayContent += `\n\n[Attached: ${attachments.map((a) => a.fileName).join(", ")}]`
+      }
+      if (screenshotData) {
+        displayContent += "\n\n[Screenshot attached]"
+      }
+
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "user",
-        content: content.trim(),
+        content: displayContent,
         timestamp: new Date(),
       }
 
@@ -646,6 +741,8 @@ export function ChatPanel() {
             messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
             caseContext,
             model,
+            attachments: attachments.length > 0 ? attachments : undefined,
+            screenshot: screenshotData || undefined,
           }),
           signal: abortController.signal,
         })
@@ -716,9 +813,12 @@ export function ChatPanel() {
         stopLoadingMessages()
         setIsStreaming(false)
         abortRef.current = null
+        // Clear attachments and screenshot after send
+        setAttachments([])
+        setScreenshotData(null)
       }
     },
-    [messages, caseContext, model, isStreaming]
+    [messages, caseContext, model, isStreaming, attachments, screenshotData]
   )
 
   const handleSubmit = (e: FormEvent) => {
@@ -766,6 +866,7 @@ export function ChatPanel() {
       {/* Slide-out panel */}
       {isOpen && (
         <div
+          data-junebug-panel
           className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-gray-200 bg-white shadow-xl lg:w-[420px]"
         >
           {/* Header */}
@@ -795,8 +896,8 @@ export function ChatPanel() {
             </div>
           </div>
 
-          {/* Case context pill */}
-          {caseContext && (
+          {/* Case context pill or case selector (C4) */}
+          {caseContext ? (
             <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800">
                 {caseContext.tabsNumber} &middot; {caseContext.caseType}
@@ -811,6 +912,55 @@ export function ChatPanel() {
                   <X className="h-3 w-3" />
                 </button>
               </span>
+            </div>
+          ) : (
+            <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
+              {caseSearchOpen ? (
+                <div className="relative">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={caseSearchQuery}
+                      onChange={(e) => {
+                        setCaseSearchQuery(e.target.value)
+                        searchCases(e.target.value)
+                      }}
+                      placeholder="Search cases..."
+                      className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => { setCaseSearchOpen(false); setCaseSearchQuery(""); setCaseSearchResults([]) }}
+                      className="text-muted-foreground hover:text-gray-700"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  {caseSearchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-md border bg-white shadow-md">
+                      {caseSearchResults.map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => selectCase(c)}
+                          className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center justify-between"
+                        >
+                          <span className="font-medium">{c.tabsNumber}</span>
+                          <span className="text-muted-foreground">{c.caseType}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setCaseSearchOpen(true)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-gray-700 transition-colors"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  Select a case for context...
+                </button>
+              )}
             </div>
           )}
 
@@ -909,9 +1059,63 @@ export function ChatPanel() {
             )}
           </div>
 
+          {/* Attachment preview (C5 + C6) */}
+          {(attachments.length > 0 || screenshotData) && (
+            <div className="border-t border-gray-200 px-3 pt-2 flex flex-wrap gap-1.5">
+              {screenshotData && (
+                <div className="flex items-center gap-1 rounded bg-amber-50 border border-amber-200 px-2 py-1 text-xs">
+                  <Camera className="h-3 w-3 text-amber-600" />
+                  <span className="text-amber-700">Screenshot</span>
+                  <button onClick={() => setScreenshotData(null)} className="ml-1">
+                    <X className="h-3 w-3 text-amber-500" />
+                  </button>
+                </div>
+              )}
+              {attachments.map((att, i) => (
+                <div key={i} className="flex items-center gap-1 rounded bg-blue-50 border border-blue-200 px-2 py-1 text-xs">
+                  <Paperclip className="h-3 w-3 text-blue-600" />
+                  <span className="text-blue-700 truncate max-w-[120px]">{att.fileName}</span>
+                  <button onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))} className="ml-1">
+                    <X className="h-3 w-3 text-blue-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Input area */}
           <form onSubmit={handleSubmit} className="border-t border-gray-200 p-3">
+            {/* Hidden file input (C6) */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+              accept=".pdf,.doc,.docx,.xlsx,.csv,.txt,.jpg,.jpeg,.png,.gif"
+            />
             <div className="flex items-end gap-2">
+              {/* Action buttons (C5 + C6) */}
+              <div className="flex gap-0.5 pb-1.5">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isStreaming || uploading}
+                  className="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
+                  title="Upload file"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={captureScreenshot}
+                  disabled={isStreaming}
+                  className="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40"
+                  title="Capture screenshot"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+              </div>
               <textarea
                 ref={inputRef}
                 value={input}
@@ -930,7 +1134,7 @@ export function ChatPanel() {
               />
               <button
                 type="submit"
-                disabled={!input.trim() || isStreaming}
+                disabled={(!input.trim() && attachments.length === 0 && !screenshotData) || isStreaming}
                 className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white transition-colors disabled:opacity-40"
                 title="Send message"
               >
