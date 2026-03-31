@@ -692,20 +692,18 @@ function saveCaseContext(ctx: CaseContext | null) {
   } catch { /* storage full or unavailable */ }
 }
 
-const JUNEBUG_STORAGE_KEY = "junebug-chat-history"
-
 function clearStoredChat() {
   if (typeof window === "undefined") return
   try {
     sessionStorage.removeItem(STORAGE_KEY_MESSAGES)
     sessionStorage.removeItem(STORAGE_KEY_CASE_CTX)
-    localStorage.removeItem(JUNEBUG_STORAGE_KEY)
   } catch { /* silent */ }
 }
 
 // -------------------------------------------------------------------
 // Main ChatPanel component
 // -------------------------------------------------------------------
+const JUNEBUG_STORAGE_KEY = "junebug-chat-history"
 
 function loadPersistedMessages(): ChatMessage[] {
   if (typeof window === "undefined") return []
