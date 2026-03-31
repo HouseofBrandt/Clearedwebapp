@@ -9,6 +9,7 @@ import {
   ScrollText,
   BarChart3,
   Shield,
+  FileText,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Knowledge Base", href: "/knowledge", icon: BookOpen, description: "Firm institutional memory" },
   { name: "Inbox", href: "/inbox", icon: Inbox, description: "Messages and alerts" },
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences" },
+  { name: "Work Product", href: "/settings/work-product", icon: FileText, description: "Work product controls", adminOnly: true },
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true },
 ]
 

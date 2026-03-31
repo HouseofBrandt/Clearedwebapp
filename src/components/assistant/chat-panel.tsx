@@ -112,27 +112,33 @@ interface MessageDraft {
   tags?: string
 }
 
-function parseMessageDraft(content: string): { before: string; draft: MessageDraft | null; after: string } {
-  const match = content.match(/:::message\n([\s\S]*?):::/)
-  if (!match) return { before: content, draft: null, after: "" }
+function parseMessageDrafts(content: string): { text: string; drafts: MessageDraft[] } {
+  const drafts: MessageDraft[] = []
+  let text = content
 
-  const before = content.slice(0, match.index)
-  const after = content.slice((match.index || 0) + match[0].length)
-  const block = match[1]
+  const regex = /:::message\n([\s\S]*?):::/g
+  let match
+  while ((match = regex.exec(content)) !== null) {
+    text = text.replace(match[0], "")
+    const block = match[1]
 
-  const draft: any = {}
-  const bodyMatch = block.match(/body:\s*([\s\S]*?)(?=\n[a-z]+:|$)/i)
-  if (bodyMatch) draft.body = bodyMatch[1].trim()
+    const draft: any = {}
+    const bodyMatch = block.match(/body:\s*([\s\S]*?)(?=\n[a-z]+:|$)/i)
+    if (bodyMatch) draft.body = bodyMatch[1].trim()
 
-  for (const line of block.split("\n")) {
-    const kv = line.match(/^(\w+):\s*(.+)$/)
-    if (kv && kv[1] !== "body") {
-      draft[kv[1]] = kv[2].trim()
+    for (const line of block.split("\n")) {
+      const kv = line.match(/^(\w+):\s*(.+)$/)
+      if (kv && kv[1] !== "body") {
+        draft[kv[1]] = kv[2].trim()
+      }
+    }
+
+    if (draft.type && draft.subject) {
+      drafts.push(draft as MessageDraft)
     }
   }
 
-  if (!draft.type || !draft.subject) return { before: content, draft: null, after: "" }
-  return { before: before.trim(), draft: draft as MessageDraft, after: after.trim() }
+  return { text: text.trim(), drafts }
 }
 
 function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onStatusChange?: (status: "sent" | "cancelled") => void }) {
@@ -496,9 +502,32 @@ function ActionCard({ action, caseContext, messageText }: { action: ChatAction; 
 // -------------------------------------------------------------------
 // Main ChatPanel component
 // -------------------------------------------------------------------
+const JUNEBUG_STORAGE_KEY = "junebug-chat-history"
+
+function loadPersistedMessages(): ChatMessage[] {
+  if (typeof window === "undefined") return []
+  try {
+    const stored = localStorage.getItem(JUNEBUG_STORAGE_KEY)
+    if (!stored) return []
+    const parsed = JSON.parse(stored) as any[]
+    return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+  } catch {
+    return []
+  }
+}
+
+function persistMessages(messages: ChatMessage[]) {
+  if (typeof window === "undefined") return
+  try {
+    // Keep last 50 messages to avoid bloating localStorage
+    const toStore = messages.slice(-50)
+    localStorage.setItem(JUNEBUG_STORAGE_KEY, JSON.stringify(toStore))
+  } catch { /* storage full or unavailable */ }
+}
+
 export function ChatPanel() {
   const [isOpen, setIsOpen] = useState(false)
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadPersistedMessages())
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [caseContext, setCaseContext] = useState<CaseContext | null>(null)
@@ -511,6 +540,14 @@ export function ChatPanel() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const pathname = usePathname()
+
+  // Persist messages whenever they change (skip empty streaming messages)
+  useEffect(() => {
+    const nonEmpty = messages.filter((m) => m.content)
+    if (nonEmpty.length > 0) {
+      persistMessages(nonEmpty)
+    }
+  }, [messages])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -702,6 +739,9 @@ export function ChatPanel() {
     }
     setMessages([])
     setIsStreaming(false)
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(JUNEBUG_STORAGE_KEY)
+    }
   }
 
   const suggestions = getSuggestions(caseContext)
@@ -828,18 +868,18 @@ export function ChatPanel() {
                             (() => {
                               // Parse action blocks first
                               const { text: textWithoutActions, actions } = parseActionBlocks(msg.content)
-                              const { before, draft, after } = parseMessageDraft(textWithoutActions)
-                              const hasSpecialContent = draft || actions.length > 0
+                              const { text: cleanText, drafts } = parseMessageDrafts(textWithoutActions)
+                              const hasSpecialContent = drafts.length > 0 || actions.length > 0
 
                               if (hasSpecialContent) {
-                                const textContent = draft ? before : textWithoutActions
                                 return (
                                   <div className="space-y-2">
-                                    {textContent && renderMarkdown(textContent)}
-                                    {draft && <MessageDraftCard draft={draft} />}
-                                    {draft && after && renderMarkdown(after)}
+                                    {cleanText && renderMarkdown(cleanText)}
+                                    {drafts.map((draft, idx) => (
+                                      <MessageDraftCard key={`draft-${idx}`} draft={draft} />
+                                    ))}
                                     {actions.map((action, idx) => (
-                                      <ActionCard key={idx} action={action} caseContext={caseContext} messageText={textWithoutActions} />
+                                      <ActionCard key={`action-${idx}`} action={action} caseContext={caseContext} messageText={cleanText} />
                                     ))}
                                   </div>
                                 )

@@ -82,6 +82,36 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } })
   }
 
+  // Check for stuck assignments and auto-fail them (> 30 minutes in EXECUTING/POLISHING)
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+  await prisma.banjoAssignment.updateMany({
+    where: {
+      caseId,
+      status: { in: ["EXECUTING", "POLISHING"] },
+      updatedAt: { lt: thirtyMinutesAgo },
+    },
+    data: { status: "FAILED" },
+  })
+
+  // Block new assignment creation if one is actively running (not stuck)
+  const activeAssignment = await prisma.banjoAssignment.findFirst({
+    where: {
+      caseId,
+      status: { in: ["EXECUTING", "POLISHING"] },
+    },
+    select: { id: true, status: true },
+  })
+
+  if (activeAssignment) {
+    return new Response(
+      JSON.stringify({
+        error: `A Banjo assignment is currently ${activeAssignment.status.toLowerCase()}. Wait for it to finish or cancel it first.`,
+        activeAssignmentId: activeAssignment.id,
+      }),
+      { status: 409, headers: { "Content-Type": "application/json" } }
+    )
+  }
+
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
     include: {

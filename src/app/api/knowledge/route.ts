@@ -1,3 +1,5 @@
+export const maxDuration = 300 // 5 minutes for large document ingestion
+
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"

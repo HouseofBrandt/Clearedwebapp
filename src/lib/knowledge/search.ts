@@ -123,7 +123,7 @@ export async function searchKnowledge(
   }
 
   if (categoryFilter && categoryFilter.length > 0) {
-    sql += ` AND kd.category = ANY($${paramIndex}::text[])`
+    sql += ` AND kd.category::text = ANY($${paramIndex}::text[])`
     params.push(categoryFilter)
     paramIndex++
   }
