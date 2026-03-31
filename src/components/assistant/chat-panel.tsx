@@ -180,6 +180,7 @@ function parseMessageDrafts(content: string): { text: string; drafts: MessageDra
     }
   }
 
+
   return { text: text.trim(), drafts }
 }
 
@@ -702,6 +703,29 @@ function clearStoredChat() {
 // -------------------------------------------------------------------
 // Main ChatPanel component
 // -------------------------------------------------------------------
+const JUNEBUG_STORAGE_KEY = "junebug-chat-history"
+
+function loadPersistedMessages(): ChatMessage[] {
+  if (typeof window === "undefined") return []
+  try {
+    const stored = localStorage.getItem(JUNEBUG_STORAGE_KEY)
+    if (!stored) return []
+    const parsed = JSON.parse(stored) as any[]
+    return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }))
+  } catch {
+    return []
+  }
+}
+
+function persistMessages(messages: ChatMessage[]) {
+  if (typeof window === "undefined") return
+  try {
+    // Keep last 50 messages to avoid bloating localStorage
+    const toStore = messages.slice(-50)
+    localStorage.setItem(JUNEBUG_STORAGE_KEY, JSON.stringify(toStore))
+  } catch { /* storage full or unavailable */ }
+}
+
 export function ChatPanel() {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>(loadStoredMessages)
@@ -746,6 +770,14 @@ export function ChatPanel() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const pathname = usePathname()
+
+  // Persist messages whenever they change (skip empty streaming messages)
+  useEffect(() => {
+    const nonEmpty = messages.filter((m) => m.content)
+    if (nonEmpty.length > 0) {
+      persistMessages(nonEmpty)
+    }
+  }, [messages])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -1438,7 +1470,7 @@ export function ChatPanel() {
                                       <MessageDraftCard key={`draft-${msgIndex}-${idx}`} draft={draft} draftKey={`${msgIndex}-${idx}`} />
                                     ))}
                                     {actions.map((action, idx) => (
-                                      <ActionCard key={idx} action={action} caseContext={caseContext} messageText={textWithoutActions} />
+                                      <ActionCard key={`action-${idx}`} action={action} caseContext={caseContext} messageText={cleanText} />
                                     ))}
                                   </div>
                                 )

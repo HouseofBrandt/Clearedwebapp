@@ -8,6 +8,13 @@ import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
 import { searchKnowledge } from "@/lib/knowledge/search"
 import { canAccessCase } from "@/lib/auth/case-access"
 
+const VALID_KB_CATEGORIES = [
+  "IRC_STATUTE", "TREASURY_REGULATION", "IRM_SECTION", "REVENUE_PROCEDURE",
+  "REVENUE_RULING", "CASE_LAW", "TREATISE", "FIRM_TEMPLATE", "WORK_PRODUCT",
+  "APPROVED_OUTPUT", "FIRM_PROCEDURE", "TRAINING_MATERIAL", "CLIENT_GUIDE", "CUSTOM",
+] as const
+type KnowledgeCategory = typeof VALID_KB_CATEGORIES[number]
+
 const actionSchema = z.object({
   action: z.enum([
     "GENERATE_DOCUMENT_REQUEST",
@@ -286,7 +293,7 @@ export async function POST(request: NextRequest) {
         const doc = await prisma.knowledgeDocument.create({
           data: {
             title: title || "Untitled KB Entry",
-            category: (category || "CUSTOM") as any,
+            category: (VALID_KB_CATEGORIES.includes(category as KnowledgeCategory) ? category : "CUSTOM") as KnowledgeCategory,
             sourceText: scrubbed,
             sourceType: "JUNEBUG_CURATED",
             tags: tags || [],
