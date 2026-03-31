@@ -82,22 +82,15 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } })
   }
 
-  // Auto-fail assignments stuck in EXECUTING/POLISHING for > 30 minutes
-  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
-  await prisma.banjoAssignment.updateMany({
-    where: {
-      caseId,
-      status: { in: ["EXECUTING", "POLISHING"] },
-      updatedAt: { lt: thirtyMinutesAgo },
-    },
-    data: { status: "FAILED" },
-  })
-
-  // Block new assignment creation if one is actively running (not stuck)
+  // Only block if there is an actively processing assignment (not stuck).
+  // Assignments in PROCESSING for >10 minutes are considered stuck and do NOT block.
+  // Terminal statuses (COMPLETED, CANCELLED, FAILED) and review statuses never block.
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
   const activeAssignment = await prisma.banjoAssignment.findFirst({
     where: {
       caseId,
       status: { in: ["EXECUTING", "POLISHING"] },
+      updatedAt: { gte: tenMinutesAgo },
     },
     select: { id: true, status: true, startedAt: true },
   })
@@ -109,7 +102,6 @@ export async function POST(request: NextRequest) {
     return new Response(
       JSON.stringify({
         error: `Another assignment is currently processing (started ${startedMinutesAgo} minute${startedMinutesAgo !== 1 ? "s" : ""} ago). Wait for it to finish or cancel it first.`,
-        activeAssignmentId: activeAssignment.id,
       }),
       { status: 409, headers: { "Content-Type": "application/json" } }
     )

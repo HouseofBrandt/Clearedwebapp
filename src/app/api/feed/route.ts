@@ -230,29 +230,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Notify mentioned users
-    const userMentions = mentions?.filter((m) => m.type === "user" && m.id) || []
-    if (userMentions.length > 0) {
-      const mentionNotifications = userMentions.map((m) =>
-        prisma.message.create({
-          data: {
-            type: "DIRECT_MESSAGE",
-            priority: "NORMAL",
-            subject: `${post.author.name} mentioned you in a post`,
-            body: content.substring(0, 300),
-            recipientId: m.id!,
-            senderId: auth.userId,
-            senderName: post.author.name || "Unknown",
-            tags: ["feed-mention"],
-            metadata: { postId: post.id, caseId: caseId || undefined },
-          },
-        }).catch((err: any) => {
-          console.error("[Feed] Failed to notify mentioned user:", err.message)
-        })
-      )
-      Promise.all(mentionNotifications).catch(() => {})
-    }
-
     return NextResponse.json(post, { status: 201 })
   } catch (error: any) {
     console.error("[Feed] Create post failed:", error.message)

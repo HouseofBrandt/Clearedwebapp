@@ -4,13 +4,6 @@ import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
-const VALID_KB_CATEGORIES = [
-  "IRC_STATUTE", "TREASURY_REGULATION", "IRM_SECTION", "REVENUE_PROCEDURE",
-  "REVENUE_RULING", "CASE_LAW", "TREATISE", "FIRM_TEMPLATE", "WORK_PRODUCT",
-  "APPROVED_OUTPUT", "FIRM_PROCEDURE", "TRAINING_MATERIAL", "CLIENT_GUIDE", "CUSTOM",
-] as const
-type KnowledgeCategory = typeof VALID_KB_CATEGORIES[number]
-
 export interface ResearchRequest {
   topic: string
   context?: string
@@ -94,7 +87,7 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly"
       data: {
         title,
         description: `Web research conducted ${new Date().toISOString()}. Topic: ${request.topic}`,
-        category: (VALID_KB_CATEGORIES.includes(request.kbCategory as KnowledgeCategory) ? request.kbCategory : "CUSTOM") as KnowledgeCategory,
+        category: (request.kbCategory || "CUSTOM") as any,
         sourceText: scrubbed,
         sourceType: "WEB_RESEARCH",
         tags: [...(request.kbTags || []), "web-research", "auto-generated"],
