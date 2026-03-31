@@ -82,26 +82,31 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } })
   }
 
-  // Only block if there is an actively processing assignment (not stuck).
-  // Assignments in PROCESSING for >10 minutes are considered stuck and do NOT block.
-  // Terminal statuses (COMPLETED, CANCELLED, FAILED) and review statuses never block.
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
+  // Check for stuck assignments and auto-fail them (> 30 minutes in EXECUTING/POLISHING)
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+  await prisma.banjoAssignment.updateMany({
+    where: {
+      caseId,
+      status: { in: ["EXECUTING", "POLISHING"] },
+      updatedAt: { lt: thirtyMinutesAgo },
+    },
+    data: { status: "FAILED" },
+  })
+
+  // Block new assignment creation if one is actively running (not stuck)
   const activeAssignment = await prisma.banjoAssignment.findFirst({
     where: {
       caseId,
       status: { in: ["EXECUTING", "POLISHING"] },
-      updatedAt: { gte: tenMinutesAgo },
     },
-    select: { id: true, status: true, startedAt: true },
+    select: { id: true, status: true },
   })
 
   if (activeAssignment) {
-    const startedMinutesAgo = activeAssignment.startedAt
-      ? Math.floor((Date.now() - new Date(activeAssignment.startedAt).getTime()) / 60_000)
-      : 0
     return new Response(
       JSON.stringify({
-        error: `Another assignment is currently processing (started ${startedMinutesAgo} minute${startedMinutesAgo !== 1 ? "s" : ""} ago). Wait for it to finish or cancel it first.`,
+        error: `A Banjo assignment is currently ${activeAssignment.status.toLowerCase()}. Wait for it to finish or cancel it first.`,
+        activeAssignmentId: activeAssignment.id,
       }),
       { status: 409, headers: { "Content-Type": "application/json" } }
     )

@@ -3,12 +3,18 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { conductResearch } from "@/lib/research/web-research"
 import { z } from "zod"
 
+const VALID_KB_CATEGORIES = [
+  "IRC_STATUTE", "TREASURY_REGULATION", "IRM_SECTION", "REVENUE_PROCEDURE",
+  "REVENUE_RULING", "CASE_LAW", "TREATISE", "FIRM_TEMPLATE", "WORK_PRODUCT",
+  "APPROVED_OUTPUT", "FIRM_PROCEDURE", "TRAINING_MATERIAL", "CLIENT_GUIDE", "CUSTOM",
+] as const
+
 const researchSchema = z.object({
   topic: z.string().min(1),
   context: z.string().optional(),
   scope: z.enum(["narrow", "broad"]),
   saveToKB: z.boolean().optional(),
-  kbCategory: z.string().optional(),
+  kbCategory: z.enum(VALID_KB_CATEGORIES).optional(),
   kbTags: z.array(z.string()).optional(),
 })
 
@@ -27,7 +33,7 @@ export async function POST(request: NextRequest) {
 
   const parsed = researchSchema.safeParse(body)
   if (!parsed.success) {
-    return new Response(JSON.stringify({ error: parsed.error.issues.map((i) => i.message).join(", ") }), { status: 400, headers: { "Content-Type": "application/json" } })
+    return new Response(JSON.stringify({ error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", "), details: parsed.error.flatten() }), { status: 400, headers: { "Content-Type": "application/json" } })
   }
 
   try {

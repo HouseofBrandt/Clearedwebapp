@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
   const format = searchParams.get("format") || "markdown"
   const days = parseInt(searchParams.get("days") || "0", 10)
   const includeResolved = searchParams.get("includeResolved") === "true"
+  const includeArchived = searchParams.get("includeArchived") === "true"
+  const readFilter = searchParams.get("readFilter") // "read", "unread", or null for both
   const status = searchParams.get("status") // open, in_progress, resolved, implemented, archived — comma-separated
 
   const where: any = {}
@@ -67,6 +69,18 @@ export async function GET(request: NextRequest) {
     ]
   }
 
+  // C3: Override archived filter if includeArchived is explicitly set
+  if (includeArchived && !status) {
+    delete where.archived
+  }
+
+  // C3: Read/unread filter
+  if (readFilter === "read") {
+    where.read = true
+  } else if (readFilter === "unread") {
+    where.read = false
+  }
+
   if (days > 0) {
     where.createdAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) }
   }
@@ -104,7 +118,15 @@ export async function GET(request: NextRequest) {
   if (bugCount > 0) typeSummary.push(`${bugCount} bug${bugCount !== 1 ? "s" : ""}`)
   if (featureCount > 0) typeSummary.push(`${featureCount} feature request${featureCount !== 1 ? "s" : ""}`)
 
-  const filterNote = includeResolved ? "All items (including resolved)" : "Open and In Progress only"
+  const filterParts = []
+  if (status) filterParts.push(`Status: ${status}`)
+  else if (includeResolved) filterParts.push("All statuses (including resolved)")
+  else filterParts.push("Open and In Progress only")
+  if (includeArchived) filterParts.push("including archived")
+  else filterParts.push("excluding archived")
+  if (readFilter === "read") filterParts.push("read only")
+  else if (readFilter === "unread") filterParts.push("unread only")
+  const filterNote = filterParts.join(" | ")
 
   let md = `# Cleared Platform — Bug Reports & Feature Requests\n`
   md += `# Exported ${dateStr}\n`

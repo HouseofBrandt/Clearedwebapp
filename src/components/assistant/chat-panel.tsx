@@ -1438,7 +1438,7 @@ export function ChatPanel() {
                                       <MessageDraftCard key={`draft-${msgIndex}-${idx}`} draft={draft} draftKey={`${msgIndex}-${idx}`} />
                                     ))}
                                     {actions.map((action, idx) => (
-                                      <ActionCard key={idx} action={action} caseContext={caseContext} messageText={textWithoutActions} />
+                                      <ActionCard key={`action-${idx}`} action={action} caseContext={caseContext} messageText={cleanText} />
                                     ))}
                                   </div>
                                 )
