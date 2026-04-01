@@ -258,7 +258,7 @@ export async function POST(
         if (uid !== auth.userId) {
           await notify({
             recipientId: uid,
-            type: "CASE_ACTIVITY",
+            type: "CASE_NOTE",
             subject: `Mentioned in conversation: ${conversation.subject}`,
             body: `${auth.name} mentioned you in a conversation on case ${caseData?.tabsNumber || params.caseId}`,
             caseId: params.caseId,
@@ -274,7 +274,7 @@ export async function POST(
         if (pid !== auth.userId && !mentionedSet.has(pid)) {
           await notify({
             recipientId: pid,
-            type: "CASE_ACTIVITY",
+            type: "CASE_NOTE",
             subject: `New message in: ${conversation.subject}`,
             body: `${auth.name} posted in conversation "${conversation.subject}" on case ${caseData?.tabsNumber || params.caseId}`,
             caseId: params.caseId,

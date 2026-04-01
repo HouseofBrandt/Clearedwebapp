@@ -190,7 +190,7 @@ export async function POST(
     if (caseData?.assignedPractitionerId && caseData.assignedPractitionerId !== auth.userId) {
       notify({
         recipientId: caseData.assignedPractitionerId,
-        type: "CASE_ACTIVITY",
+        type: "CASE_NOTE",
         subject: `New conversation: ${data.subject}`,
         body: `${auth.name} started a conversation on case ${caseData.tabsNumber}: "${data.subject}"`,
         priority: data.priority === "URGENT" ? "URGENT" : "NORMAL",
