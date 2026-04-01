@@ -460,7 +460,7 @@ export function WorkProductControls() {
               <div className="space-y-3">
                 {detail.examples.map((ex) => (
                   <div key={ex.id} className="flex items-start gap-3 p-3 rounded-lg bg-c-gray-50">
-                    <Badge variant={ex.type === "good" ? "success" : "danger"} className="mt-0.5 shrink-0">
+                    <Badge variant={ex.type === "good" ? "success" : "destructive"} className="mt-0.5 shrink-0">
                       {ex.type === "good" ? "Good" : "Anti"}
                     </Badge>
                     <div className="flex-1 min-w-0">
@@ -783,7 +783,7 @@ export function WorkProductControls() {
                             </p>
                             <div className="flex items-center gap-2 mt-1.5">
                               {t.surfaces.map((s) => (
-                                <Badge key={s} variant="neutral" className="text-[10px]">
+                                <Badge key={s} variant="default" className="text-[10px]">
                                   {s}
                                 </Badge>
                               ))}

@@ -80,9 +80,9 @@ const MODE_CONFIG: Record<
 
 const STATUS_CONFIG: Record<
   ResearchStatus,
-  { label: string; variant: "default" | "secondary" | "success" | "warning" | "info" | "neutral" | "destructive" }
+  { label: string; variant: "default" | "secondary" | "success" | "warning" | "info" | "teal" | "destructive" | "outline" }
 > = {
-  DRAFT: { label: "Draft", variant: "neutral" },
+  DRAFT: { label: "Draft", variant: "default" },
   QUEUED: { label: "Queued", variant: "info" },
   PROCESSING: { label: "Processing", variant: "warning" },
   READY_FOR_REVIEW: { label: "Ready for Review", variant: "info" },
