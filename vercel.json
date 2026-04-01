@@ -6,6 +6,11 @@
     }
   },
   "crons": [
-    { "path": "/api/cron/refresh-intelligence", "schedule": "0 */6 * * *" }
+    { "path": "/api/cron/refresh-intelligence", "schedule": "0 */6 * * *" },
+    { "path": "/api/cron/tax-authority/daily-harvest", "schedule": "0 9 * * 1-6" },
+    { "path": "/api/cron/tax-authority/weekly-irb", "schedule": "0 8 * * 1" },
+    { "path": "/api/cron/tax-authority/weekly-reconcile", "schedule": "0 9 * * 0" },
+    { "path": "/api/cron/tax-authority/benchmark-replay", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/tax-authority/daily-digest", "schedule": "0 14 * * *" }
   ]
 }
