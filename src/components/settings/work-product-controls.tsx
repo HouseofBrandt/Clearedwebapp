@@ -63,6 +63,9 @@ interface WorkProductExample {
   content: string
   type: "good" | "anti"
   notes: string
+  sourceFileName?: string | null
+  sourceFileType?: string | null
+  sourceFilePath?: string | null
 }
 
 // ---------------------------------------------------------------------------

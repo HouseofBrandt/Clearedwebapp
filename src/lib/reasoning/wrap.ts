@@ -80,7 +80,7 @@ export async function evaluateBanjoDeliverable(opts: {
           userMessage: "Produce the revised output now.",
           model: opts.model,
         })
-        return response.text
+        return response.content
       },
       opts.caseId
     )
@@ -152,7 +152,7 @@ export async function evaluateAIOutput(opts: {
           userMessage: "Produce the revised output now.",
           model: opts.model,
         })
-        return response.text
+        return response.content
       },
       opts.caseId
     )

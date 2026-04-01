@@ -20,7 +20,7 @@ export async function GET(
       where: { id: sessionId },
       include: {
         createdBy: { select: { id: true, name: true, email: true } },
-        case: { select: { id: true, caseNumber: true, clientName: true, caseType: true } },
+        case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
         sources: {
           orderBy: { authorityScore: "desc" },
         },

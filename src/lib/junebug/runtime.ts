@@ -97,7 +97,7 @@ export async function runJunebug(
   const toolDefinitions = tools.map((t) => ({
     name: t.name,
     description: t.description,
-    input_schema: t.inputSchema as Anthropic.Tool["input_schema"],
+    input_schema: t.inputSchema as { type: "object"; [key: string]: unknown },
   }))
 
   // Initial API call

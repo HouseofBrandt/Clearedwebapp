@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 const DEFAULT_PREFERENCES = {
@@ -90,7 +91,9 @@ export async function PUT(request: NextRequest) {
       update: {
         ...(data.defaultMode !== undefined && { defaultMode: data.defaultMode }),
         ...(data.defaultSourcePriorities !== undefined && {
-          defaultSourcePriorities: data.defaultSourcePriorities,
+          defaultSourcePriorities: data.defaultSourcePriorities === null
+            ? Prisma.JsonNull
+            : data.defaultSourcePriorities,
         }),
         ...(data.defaultExcludedSources !== undefined && {
           defaultExcludedSources: data.defaultExcludedSources,

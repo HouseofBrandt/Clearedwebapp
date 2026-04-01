@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
+import Image from "next/image"
 import { X, Trash2, Copy, Check, Send, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil, Paperclip, FileText, ChevronDown } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
@@ -309,7 +310,7 @@ function MessageDraftCard({ draft, draftKey, onStatusChange }: { draft: MessageD
         >
           {screenshotData ? (
             <div className="space-y-1">
-              <img src={screenshotData} className="rounded max-h-32 mx-auto" alt="Screenshot" />
+              <Image src={screenshotData} className="rounded max-h-32 mx-auto" alt="Screenshot" width={256} height={128} unoptimized />
               <button
                 onClick={(e) => { e.stopPropagation(); setScreenshotData(null) }}
                 className="text-[10px] text-c-danger hover:underline"
@@ -1481,7 +1482,7 @@ export function ChatPanel() {
                 {attachedFiles.map((file, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 rounded-md border border-c-gray-200 bg-c-gray-50 px-2 py-1 text-xs">
                     {file.type.startsWith("image/") ? (
-                      <img src={file.dataUrl} className="h-8 w-8 rounded object-cover" alt={file.name} />
+                      <Image src={file.dataUrl} className="h-8 w-8 rounded object-cover" alt={file.name} width={32} height={32} unoptimized />
                     ) : (
                       <FileText className="h-4 w-4 text-c-gray-400" />
                     )}

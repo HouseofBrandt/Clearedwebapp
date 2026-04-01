@@ -185,12 +185,12 @@ export function getAvailableTools(request: JunebugRequest): JunebugTool[] {
       execute: async (input) => {
         const docs = await prisma.document.findMany({
           where: { caseId: input.caseId },
-          orderBy: { createdAt: "desc" },
+          orderBy: { uploadedAt: "desc" },
           select: {
             fileName: true,
             documentCategory: true,
             fileType: true,
-            createdAt: true,
+            uploadedAt: true,
           },
         })
         if (docs.length === 0) return { data: "No documents uploaded for this case." }
@@ -200,7 +200,7 @@ export function getAvailableTools(request: JunebugRequest): JunebugTool[] {
             docs
               .map(
                 (d) =>
-                  `- ${d.fileName} (${d.documentCategory}, ${d.fileType}, uploaded ${new Date(d.createdAt).toLocaleDateString()})`
+                  `- ${d.fileName} (${d.documentCategory}, ${d.fileType}, uploaded ${new Date(d.uploadedAt).toLocaleDateString()})`
               )
               .join("\n"),
         }

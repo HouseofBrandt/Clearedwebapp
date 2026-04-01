@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
         skip: offset,
         include: {
           createdBy: { select: { id: true, name: true, email: true } },
-          case: { select: { id: true, caseNumber: true, clientName: true } },
+          case: { select: { id: true, tabsNumber: true, clientName: true } },
           _count: { select: { sources: true, reviewActions: true } },
         },
       }),
