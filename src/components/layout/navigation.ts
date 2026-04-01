@@ -18,6 +18,7 @@ import {
   GitBranch,
   Microscope,
   Library,
+  Dog,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -48,6 +49,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "OIC Modeler", href: "/oic-modeler", icon: Scale, description: "Offer in Compromise RCP modeling", section: "TOOLS" },
   { name: "Penalty Abatement", href: "/penalty-abatement", icon: ShieldAlert, description: "FTA & reasonable cause letters", section: "TOOLS" },
   { name: "Form Builder", href: "/forms", icon: FileText, description: "IRS form completion wizard", section: "TOOLS" as NavSection },
+  { name: "Pippen's Report", href: "/pippen", icon: Dog, description: "Daily intake report — what Pippen fetched today", section: "TOOLS" as NavSection },
 
   // Standalone items
   { name: "Settings", href: "/settings", icon: Settings, description: "Workspace preferences", section: "MAIN" },
@@ -58,7 +60,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true, section: "ADMIN" },
   { name: "Switchboard", href: "/admin/switchboard", icon: Network, description: "AI pipeline visibility", adminOnly: true, section: "ADMIN" },
   { name: "Feedback Pipeline", href: "/admin/feedback-pipeline", icon: GitBranch, description: "Junebug feedback sync to Claude Code", adminOnly: true, section: "ADMIN" },
-  { name: "Tax Authority", href: "/admin/tax-authority", icon: Library, description: "Tax authority conveyor and knowledge graph", adminOnly: true, section: "ADMIN" },
+  { name: "Pippen", href: "/admin/tax-authority", icon: Library, description: "Pippen — tax authority conveyor and knowledge graph", adminOnly: true, section: "ADMIN" },
   { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true, section: "ADMIN" },
 ]
 

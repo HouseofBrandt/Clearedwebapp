@@ -99,7 +99,7 @@ export function TaxAuthorityOverviewClient({ data }: { data: OverviewData }) {
       {/* Header */}
       <div>
         <h1 className="text-display-md font-[family-name:var(--font-instrument)]">
-          Tax Authority Conveyor
+          Pippen — Tax Authority Conveyor
         </h1>
         <p className="text-[var(--c-gray-500)]">
           Source health, ingestion pipeline, authority management, and benchmark monitoring

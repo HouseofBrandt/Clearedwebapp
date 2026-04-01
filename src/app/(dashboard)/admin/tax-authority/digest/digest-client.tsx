@@ -39,7 +39,7 @@ export function DigestClient({ digests }: { digests: DigestRow[] | null }) {
     <div className="page-enter space-y-6">
       <div>
         <h1 className="text-display-md font-[family-name:var(--font-instrument)]">
-          Daily Digests
+          Pippen&apos;s Daily Digests
         </h1>
         <p className="text-[var(--c-gray-500)]">
           Daily summaries of authority changes, benchmark results, and knowledge gaps
