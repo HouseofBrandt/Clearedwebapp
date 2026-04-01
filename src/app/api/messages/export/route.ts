@@ -85,6 +85,38 @@ export async function GET(request: NextRequest) {
     where.createdAt = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) }
   }
 
+  // Auto-scan for implemented items before export (best-effort, don't block on failure)
+  const autoScan = searchParams.get("skipScan") !== "true"
+  if (autoScan && !includeResolved && !status) {
+    try {
+      const { detectImplementation } = await import("@/lib/ai/feature-detection")
+      const openItems = await prisma.message.findMany({
+        where: {
+          type: { in: ["FEATURE_REQUEST", "BUG_REPORT"] },
+          OR: [{ implementationStatus: null }, { implementationStatus: "open" }],
+        },
+        select: { id: true, subject: true, body: true, type: true },
+        take: 20, // Cap to avoid timeout
+      })
+      for (const item of openItems) {
+        try {
+          const detection = await detectImplementation({ subject: item.subject, body: item.body, type: item.type })
+          if (detection.confidence === "HIGH") {
+            await prisma.message.update({
+              where: { id: item.id },
+              data: {
+                implementationStatus: "implemented",
+                implementedAt: new Date(),
+                implementationNotes: `Auto-detected on export: ${detection.evidence}`,
+                implementedById: auth.userId,
+              },
+            })
+          }
+        } catch { /* skip individual item failures */ }
+      }
+    } catch { /* scan infrastructure unavailable — continue with export */ }
+  }
+
   logAudit({
     userId: auth.userId,
     action: AUDIT_ACTIONS.MESSAGES_EXPORTED,
