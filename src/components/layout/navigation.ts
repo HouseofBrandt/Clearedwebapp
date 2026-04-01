@@ -17,6 +17,7 @@ import {
   BookOpen,
   GitBranch,
   Microscope,
+  Library,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -57,6 +58,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Audit Log", href: "/settings/audit-log", icon: ScrollText, description: "System activity log", adminOnly: true, section: "ADMIN" },
   { name: "Switchboard", href: "/admin/switchboard", icon: Network, description: "AI pipeline visibility", adminOnly: true, section: "ADMIN" },
   { name: "Feedback Pipeline", href: "/admin/feedback-pipeline", icon: GitBranch, description: "Junebug feedback sync to Claude Code", adminOnly: true, section: "ADMIN" },
+  { name: "Tax Authority", href: "/admin/tax-authority", icon: Library, description: "Tax authority conveyor and knowledge graph", adminOnly: true, section: "ADMIN" },
   { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true, section: "ADMIN" },
 ]
 
