@@ -198,26 +198,30 @@ export async function POST(
 
     // Create attachment records if documentIds were provided
     if (attachmentIds && attachmentIds.length > 0) {
-      // Fetch document info for the attachments
-      const documents = await prisma.document.findMany({
-        where: {
-          id: { in: attachmentIds },
-          caseId: params.caseId, // ensure docs belong to this case
-        },
-        select: { id: true, fileName: true, filePath: true, fileType: true, fileSize: true },
-      })
-
-      if (documents.length > 0) {
-        await prisma.conversationMsgAttachment.createMany({
-          data: documents.map((doc) => ({
-            messageId: message.id,
-            documentId: doc.id,
-            fileName: doc.fileName,
-            fileUrl: doc.filePath,
-            fileType: doc.fileType,
-            fileSize: doc.fileSize,
-          })),
+      try {
+        // Fetch document info for the attachments
+        const documents = await prisma.document.findMany({
+          where: {
+            id: { in: attachmentIds },
+            caseId: params.caseId, // ensure docs belong to this case
+          },
+          select: { id: true, fileName: true, filePath: true, fileType: true, fileSize: true },
         })
+
+        if (documents.length > 0) {
+          await prisma.conversationMsgAttachment.createMany({
+            data: documents.map((doc) => ({
+              messageId: message.id,
+              documentId: doc.id,
+              fileName: doc.fileName,
+              fileUrl: doc.filePath,
+              fileType: doc.fileType as string,
+              fileSize: doc.fileSize ?? 0,
+            })),
+          })
+        }
+      } catch (attachErr) {
+        console.warn("[Messages POST] Attachment creation failed (non-critical):", attachErr)
       }
     }
 
@@ -243,66 +247,85 @@ export async function POST(
       },
     })
 
-    // Notify mentioned users
-    const caseData = await prisma.case.findUnique({
-      where: { id: params.caseId },
-      select: { tabsNumber: true },
-    })
+    // Notify mentioned users (non-critical — should not block message creation)
+    try {
+      const caseData = await prisma.case.findUnique({
+        where: { id: params.caseId },
+        select: { tabsNumber: true },
+      })
 
-    for (const uid of mentionedUserIds) {
-      if (uid !== auth.userId) {
-        notify({
-          recipientId: uid,
-          type: "CASE_ACTIVITY",
-          subject: `Mentioned in conversation: ${conversation.subject}`,
-          body: `${auth.name} mentioned you in a conversation on case ${caseData?.tabsNumber || params.caseId}`,
-          caseId: params.caseId,
-          senderId: auth.userId,
-          senderName: auth.name,
-        })
+      for (const uid of mentionedUserIds) {
+        if (uid !== auth.userId) {
+          await notify({
+            recipientId: uid,
+            type: "CASE_ACTIVITY",
+            subject: `Mentioned in conversation: ${conversation.subject}`,
+            body: `${auth.name} mentioned you in a conversation on case ${caseData?.tabsNumber || params.caseId}`,
+            caseId: params.caseId,
+            senderId: auth.userId,
+            senderName: auth.name,
+          }).catch(() => { /* non-critical */ })
+        }
       }
+
+      // Notify existing participants (except author and newly mentioned)
+      const mentionedSet = new Set(mentionedUserIds)
+      for (const pid of conversation.participants) {
+        if (pid !== auth.userId && !mentionedSet.has(pid)) {
+          await notify({
+            recipientId: pid,
+            type: "CASE_ACTIVITY",
+            subject: `New message in: ${conversation.subject}`,
+            body: `${auth.name} posted in conversation "${conversation.subject}" on case ${caseData?.tabsNumber || params.caseId}`,
+            caseId: params.caseId,
+            senderId: auth.userId,
+            senderName: auth.name,
+          }).catch(() => { /* non-critical */ })
+        }
+      }
+    } catch (notifyErr) {
+      console.warn("[Messages POST] Notification delivery failed (non-critical):", notifyErr)
     }
 
-    // Notify existing participants (except author and newly mentioned)
-    const mentionedSet = new Set(mentionedUserIds)
-    for (const pid of conversation.participants) {
-      if (pid !== auth.userId && !mentionedSet.has(pid)) {
-        notify({
-          recipientId: pid,
-          type: "CASE_ACTIVITY",
-          subject: `New message in: ${conversation.subject}`,
-          body: `${auth.name} posted in conversation "${conversation.subject}" on case ${caseData?.tabsNumber || params.caseId}`,
-          caseId: params.caseId,
-          senderId: auth.userId,
-          senderName: auth.name,
-        })
-      }
+    // Audit log (non-critical)
+    try {
+      await logAudit({
+        userId: auth.userId,
+        action: AUDIT_ACTIONS.CONVERSATION_MESSAGE_POSTED,
+        caseId: params.caseId,
+        resourceId: message.id,
+        resourceType: "ConversationMsg",
+        metadata: {
+          conversationId: params.convId,
+          messageId: message.id,
+          mentionedUsers: mentionedUserIds,
+          newParticipants,
+        },
+        ipAddress: getClientIP(),
+      })
+    } catch {
+      // Non-critical: audit logging should not block message creation
     }
-
-    // Audit log
-    await logAudit({
-      userId: auth.userId,
-      action: AUDIT_ACTIONS.CONVERSATION_MESSAGE_POSTED,
-      caseId: params.caseId,
-      resourceId: message.id,
-      resourceType: "ConversationMsg",
-      metadata: {
-        conversationId: params.convId,
-        messageId: message.id,
-        mentionedUsers: mentionedUserIds,
-        newParticipants,
-      },
-      ipAddress: getClientIP(),
-    })
 
     // Re-query to include attachments in the response
-    const fullMessage = await prisma.conversationMsg.findUnique({
-      where: { id: message.id },
-      include: {
-        author: { select: { id: true, name: true, email: true } },
-        attachments: true,
-      },
-    })
+    let fullMessage: any
+    try {
+      fullMessage = await prisma.conversationMsg.findUnique({
+        where: { id: message.id },
+        include: {
+          author: { select: { id: true, name: true, email: true } },
+          attachments: true,
+        },
+      })
+    } catch {
+      // Fallback without attachments if table doesn't exist
+      fullMessage = await prisma.conversationMsg.findUnique({
+        where: { id: message.id },
+        include: {
+          author: { select: { id: true, name: true, email: true } },
+        },
+      })
+    }
 
     return NextResponse.json(fullMessage, { status: 201 })
   } catch (error) {

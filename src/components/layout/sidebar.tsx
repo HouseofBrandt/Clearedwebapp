@@ -166,6 +166,17 @@ export function SidebarContent({
                         >
                           {overdueDeadlineCount! > 99 ? "99+" : overdueDeadlineCount}
                         </span>
+                      ) : item.name === "Inbox" && (unreadMessageCount ?? 0) > 0 ? (
+                        <span
+                          className="flex h-[18px] min-w-[18px] items-center justify-center rounded-[6px] px-1.5 text-[10px] tabular-nums text-white"
+                          style={{
+                            backgroundColor: "rgba(42,143,168,0.9)",
+                            fontWeight: 600,
+                            boxShadow: "0 0 6px rgba(42,143,168,0.3)",
+                          }}
+                        >
+                          {unreadMessageCount! > 99 ? "99+" : unreadMessageCount}
+                        </span>
                       ) : undefined
                     }
                   />

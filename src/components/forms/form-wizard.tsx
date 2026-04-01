@@ -554,18 +554,22 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
 
               {/* Fields grid */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-                {currentSection.fields.map((field) => (
+                {currentSection.fields.map((field) => {
+                  const isFullWidth = field.type === "textarea" || field.type === "repeating_group" || field.type === "file_upload" || field.type === "computed"
+                  return (
                   <div
                     key={field.id}
+                    className={isFullWidth ? "col-span-2" : undefined}
                     onBlur={(e) => {
                       // Only validate on blur from actual input/textarea/select elements,
-                      // not from button clicks within the field (which would eat the click)
+                      // not from button clicks within the field (which would eat the click).
+                      // Use setTimeout to defer validation so pending onClick events fire first.
                       const target = e.target as HTMLElement
                       const relatedTarget = e.relatedTarget as HTMLElement | null
                       const isInputBlur = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT"
                       const isClickingButton = relatedTarget?.tagName === "BUTTON" || relatedTarget?.closest("button") !== null
                       if (isInputBlur && !isClickingButton) {
-                        handleFieldBlur(field)
+                        setTimeout(() => handleFieldBlur(field), 0)
                       }
                     }}
                   >
@@ -590,7 +594,8 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                       }
                     />
                   </div>
-                ))}
+                  )
+                })}
               </div>
 
               {/* Section navigation */}

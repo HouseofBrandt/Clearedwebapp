@@ -35,9 +35,9 @@ import type { LucideIcon } from "lucide-react"
 type ResearchMode =
   | "QUICK_ANSWER"
   | "ISSUE_BRIEF"
-  | "RESEARCH_MEMO"
+  | "RESEARCH_MEMORANDUM"
   | "AUTHORITY_SURVEY"
-  | "COUNTERARGUMENT"
+  | "COUNTERARGUMENT_PREP"
 
 type WizardStep = 1 | 2 | 3 | 4 | 5
 
@@ -113,7 +113,7 @@ const MODES: ModeConfig[] = [
     accentText: "text-amber-700",
   },
   {
-    key: "RESEARCH_MEMO",
+    key: "RESEARCH_MEMORANDUM",
     label: "Research Memorandum",
     description:
       "Comprehensive legal memo with full authority analysis, counterarguments, and conclusions. Firm-grade work product.",
@@ -135,7 +135,7 @@ const MODES: ModeConfig[] = [
     accentText: "text-slate-700",
   },
   {
-    key: "COUNTERARGUMENT",
+    key: "COUNTERARGUMENT_PREP",
     label: "Counterargument Prep",
     description:
       "Anticipates IRS positions and prepares rebuttals. Essential for Appeals, CDP hearings, and Tax Court.",
@@ -257,15 +257,16 @@ export function IntakeWizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: state.mode,
-          question: state.questionData.question,
-          jurisdiction: state.questionData.jurisdiction || undefined,
-          taxpayerType: state.questionData.taxpayerType || undefined,
-          irsPosition: state.questionData.irsPosition || undefined,
-          targetAuthority: state.questionData.targetAuthority || undefined,
-          adversePosition: state.questionData.adversePosition || undefined,
-          clientPosition: state.questionData.clientPosition || undefined,
+          questionText: state.questionData.question,
+          factsText: state.questionData.jurisdiction || undefined,
+          proceduralPosture: state.questionData.taxpayerType || undefined,
+          knownAuthorities: state.questionData.targetAuthority || undefined,
+          specificQuestions: state.questionData.adversePosition || undefined,
+          intendedAudience: state.questionData.clientPosition || undefined,
           caseId: state.bindToCase ? state.selectedCaseId : undefined,
-          sourcePriorities: state.sourcePriorities,
+          sourcePriorities: Object.entries(state.sourcePriorities)
+            .filter(([, enabled]) => enabled)
+            .map(([key]) => key),
           recencyBias: state.recencyBias,
         }),
       })
@@ -559,11 +560,11 @@ function QuestionInput({
             "State your question clearly for a concise, citable answer."}
           {mode === "ISSUE_BRIEF" &&
             "Describe the issue for a structured brief with authority discussion."}
-          {mode === "RESEARCH_MEMO" &&
+          {mode === "RESEARCH_MEMORANDUM" &&
             "Frame the legal question for a comprehensive research memorandum."}
           {mode === "AUTHORITY_SURVEY" &&
             "Identify the topic or code section for a tabular authority survey."}
-          {mode === "COUNTERARGUMENT" &&
+          {mode === "COUNTERARGUMENT_PREP" &&
             "Describe the IRS position you need to counter."}
         </p>
       </div>
@@ -571,7 +572,7 @@ function QuestionInput({
       {/* Primary question field - always shown */}
       <div className="space-y-2">
         <Label htmlFor="question">
-          {mode === "COUNTERARGUMENT"
+          {mode === "COUNTERARGUMENT_PREP"
             ? "IRS Position or Issue to Counter"
             : mode === "AUTHORITY_SURVEY"
             ? "Topic or Code Section"
@@ -584,7 +585,7 @@ function QuestionInput({
               ? "e.g., Can a taxpayer claim the home office deduction if they rent rather than own?"
               : mode === "ISSUE_BRIEF"
               ? "e.g., Whether taxpayer qualifies for innocent spouse relief under IRC 6015(b) given..."
-              : mode === "RESEARCH_MEMO"
+              : mode === "RESEARCH_MEMORANDUM"
               ? "e.g., Whether the taxpayer's cryptocurrency staking rewards constitute ordinary income under IRC 61..."
               : mode === "AUTHORITY_SURVEY"
               ? "e.g., IRC 6672 - Trust Fund Recovery Penalty responsible person analysis"
@@ -600,7 +601,7 @@ function QuestionInput({
       </div>
 
       {/* Mode-specific additional fields */}
-      {(mode === "RESEARCH_MEMO" || mode === "ISSUE_BRIEF") && (
+      {(mode === "RESEARCH_MEMORANDUM" || mode === "ISSUE_BRIEF") && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="jurisdiction">Jurisdiction</Label>
@@ -623,7 +624,7 @@ function QuestionInput({
         </div>
       )}
 
-      {mode === "COUNTERARGUMENT" && (
+      {mode === "COUNTERARGUMENT_PREP" && (
         <>
           <div className="space-y-2">
             <Label htmlFor="adversePosition">Adverse Position Details</Label>
