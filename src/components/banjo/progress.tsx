@@ -69,13 +69,18 @@ export function BanjoProgress({ deliverables, overallPercent, elapsedSeconds, re
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <BanjoIcon className="h-5 w-5" animated />
-        <span className="text-sm font-medium">Banjo is working on your assignment</span>
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: 'linear-gradient(135deg, rgba(196,154,60,0.15), rgba(196,154,60,0.05))' }}>
+          <BanjoIcon className="h-5 w-5" animated style={{ color: 'var(--c-gold, #C49A3C)' }} />
+        </div>
+        <div>
+          <span className="text-sm font-semibold">Banjo is working</span>
+          <span className="block text-xs text-muted-foreground">Generating your deliverables</span>
+        </div>
       </div>
 
       {/* Loading message */}
-      <div className="rounded-lg border bg-card p-4 text-center space-y-3">
+      <div className="rounded-[14px] p-5 text-center space-y-3" style={{ background: 'linear-gradient(180deg, rgba(196,154,60,0.04), rgba(196,154,60,0.01))', border: '1px solid rgba(196,154,60,0.1)' }}>
         <p className="text-sm text-muted-foreground italic">{loadingMessage}</p>
         <ProgressBar value={overallPercent} showPercent size="md" />
         <p className="text-xs text-muted-foreground">
@@ -85,7 +90,7 @@ export function BanjoProgress({ deliverables, overallPercent, elapsedSeconds, re
 
       {/* Per-deliverable status */}
       <div className="space-y-2">
-        <p className="text-sm font-medium">Deliverables:</p>
+        <p className="text-overline">Deliverables</p>
         {deliverables.map((d) => (
           <div key={d.step} className="flex items-center gap-2 text-sm">
             <span>{statusIcons[d.status]}</span>

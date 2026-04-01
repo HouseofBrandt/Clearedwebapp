@@ -1052,9 +1052,13 @@ export function ChatPanel() {
           onClick={() => setIsOpen(true)}
           className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-110 hover:shadow-xl lg:h-14 lg:w-14"
           style={{
-            background: fullFetchMode ? 'var(--c-gray-900)' : 'var(--c-gray-900)',
-            border: fullFetchMode ? '2px solid var(--c-teal)' : '2px solid transparent',
-            boxShadow: fullFetchMode ? '0 0 12px rgba(46,134,171,0.3), 0 4px 12px rgba(0,0,0,0.15)' : undefined,
+            background: fullFetchMode
+              ? 'linear-gradient(135deg, #0D1B2E 0%, #132B46 100%)'
+              : 'linear-gradient(135deg, var(--c-gray-900) 0%, #1a1a2e 100%)',
+            border: fullFetchMode ? '2px solid var(--c-teal, #2A8FA8)' : '2px solid rgba(255,255,255,0.08)',
+            boxShadow: fullFetchMode
+              ? '0 0 16px rgba(42,143,168,0.35), 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(42,143,168,0.1)'
+              : '0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
           }}
           title={fullFetchMode ? "Junebug — Full Fetch Active" : "Ask Junebug"}
         >
@@ -1077,10 +1081,10 @@ export function ChatPanel() {
           style={{ boxShadow: 'var(--shadow-panel)' }}
         >
           {/* Header — slim, clean */}
-          <div className="flex items-center justify-between px-4" style={{ height: 48, background: 'var(--c-navy-950)' }}>
+          <div className="flex items-center justify-between px-4" style={{ height: 52, background: 'linear-gradient(180deg, #0D1B2E, #0A1628)' }}>
             <div className="flex items-center gap-2.5">
-              <div className={`h-7 w-7 rounded-full flex items-center justify-center ${fullFetchActivating ? 'full-fetch-activating' : ''}`}
-                style={{ background: fullFetchMode ? 'rgba(46,134,171,0.15)' : 'rgba(255,255,255,0.06)' }}>
+              <div className={`h-8 w-8 rounded-[10px] flex items-center justify-center ${fullFetchActivating ? 'full-fetch-activating' : ''}`}
+                style={{ background: fullFetchMode ? 'linear-gradient(135deg, rgba(42,143,168,0.2), rgba(42,143,168,0.08))' : 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))' }}>
                 <JunebugIcon className="h-4 w-4" mood="happy" fullFetch={fullFetchMode}
                   style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-warning)' }} />
               </div>
@@ -1253,7 +1257,7 @@ export function ChatPanel() {
 
           {/* Full Fetch indicator with activation sequence */}
           {(fullFetchMode || fullFetchActivating) && (
-            <div className="relative overflow-hidden" style={{ background: 'rgba(46,134,171,0.04)', borderBottom: '1px solid rgba(46,134,171,0.1)' }}>
+            <div className="relative overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(42,143,168,0.06), rgba(42,143,168,0.02))', borderBottom: '1px solid rgba(42,143,168,0.1)', borderTop: '1px solid rgba(42,143,168,0.06)' }}>
               {/* Scan lines during activation */}
               {ffShowScan && (
                 <>
@@ -1291,7 +1295,7 @@ export function ChatPanel() {
           {/* Case context pill or case selector */}
           {caseContext ? (
             <div className="flex items-center gap-2 border-b border-c-gray-100 bg-c-gray-50 px-4 py-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-c-info-soft px-3 py-1 text-xs font-medium text-c-teal">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium" style={{ background: 'rgba(42,143,168,0.08)', color: 'var(--c-teal, #2A8FA8)', border: '1px solid rgba(42,143,168,0.12)' }}>
                 {caseContext.tabsNumber} &middot; {caseContext.caseType}
                 {caseContext.totalLiability != null && (
                   <> &middot; ${Number(caseContext.totalLiability).toLocaleString()}</>

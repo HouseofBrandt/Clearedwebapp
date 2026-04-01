@@ -3,11 +3,13 @@ interface BanjoIconProps {
   animated?: boolean
   /** "celebration" plays faster strings + scale bounce on completion */
   mood?: "idle" | "celebration"
+  style?: React.CSSProperties
 }
 
-export function BanjoIcon({ className = "h-4 w-4", animated = false, mood = "idle" }: BanjoIconProps) {
+export function BanjoIcon({ className = "h-4 w-4", animated = false, mood = "idle", style }: BanjoIconProps) {
   const isCelebrating = mood === "celebration"
   const shouldAnimate = animated || isCelebrating
+  const id = `bj-${Math.random().toString(36).slice(2, 6)}`
 
   return (
     <svg
@@ -18,10 +20,24 @@ export function BanjoIcon({ className = "h-4 w-4", animated = false, mood = "idl
       strokeLinecap="round"
       strokeLinejoin="round"
       className={`${className} ${isCelebrating ? "banjo-celebrate" : ""}`}
+      style={style}
     >
-      {/* Banjo body (circle) */}
-      <circle cx="14" cy="14" r="7" />
-      {/* Banjo neck */}
+      <defs>
+        <radialGradient id={`${id}-body`} cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stopColor="var(--c-gold, #C49A3C)" stopOpacity="0.25" />
+          <stop offset="100%" stopColor="var(--c-gold, #C49A3C)" stopOpacity="0.08" />
+        </radialGradient>
+        <linearGradient id={`${id}-neck`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--c-gold, #C49A3C)" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="var(--c-gold, #C49A3C)" stopOpacity="0.1" />
+        </linearGradient>
+      </defs>
+      {/* Banjo body (circle) with gold gradient fill */}
+      <circle cx="14" cy="14" r="7" fill={`url(#${id}-body)`} />
+      {/* Inner ring */}
+      <circle cx="14" cy="14" r="5" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.2" />
+      {/* Banjo neck with gradient */}
+      <line x1="9" y1="9" x2="3" y2="3" stroke={`url(#${id}-neck)`} strokeWidth="2" />
       <line x1="9" y1="9" x2="3" y2="3" />
       {/* Tuning pegs */}
       <line x1="2" y1="5" x2="4" y2="5" />
@@ -60,6 +76,12 @@ export function BanjoIcon({ className = "h-4 w-4", animated = false, mood = "idl
           25% { transform: translateY(0.5px); }
           75% { transform: translateY(-0.5px); }
         }
+        @keyframes banjoCelebrate {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          25% { transform: scale(1.08) rotate(-3deg); }
+          50% { transform: scale(1.05) rotate(2deg); }
+          75% { transform: scale(1.08) rotate(-2deg); }
+        }
         .animate-banjo-string-1 {
           animation: banjoString1 0.6s ease-in-out infinite;
         }
@@ -81,6 +103,9 @@ export function BanjoIcon({ className = "h-4 w-4", animated = false, mood = "idl
         .animate-banjo-string-fast-3 {
           animation: banjoStringFast3 0.35s ease-in-out 3;
           animation-delay: 0.1s;
+        }
+        .banjo-celebrate {
+          animation: banjoCelebrate 0.8s ease-in-out;
         }
       `}</style>
     </svg>

@@ -44,7 +44,7 @@ function NoteParticles() {
             "--note-x": `${(i % 2 === 0 ? 1 : -1) * (8 + i * 6)}px`,
             "--note-r": `${(i % 2 === 0 ? 1 : -1) * (10 + i * 8)}deg`,
             animationDelay: `${i * 120}ms`,
-            color: "var(--c-teal)",
+            color: "var(--c-gold, #C49A3C)",
             opacity: 0.7,
           } as React.CSSProperties}
         >
@@ -125,18 +125,23 @@ export function BanjoComplete({ tasks, totalTimeSeconds, model, failedSteps = []
   return (
     <div className="space-y-4">
       {/* Header with celebration */}
-      <div className="relative flex items-center gap-2">
-        <BanjoIcon className="h-5 w-5" mood={celebrating ? "celebration" : "idle"} />
+      <div className="relative flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-[10px]" style={{ background: 'linear-gradient(135deg, rgba(196,154,60,0.15), rgba(196,154,60,0.05))' }}>
+          <BanjoIcon className="h-5 w-5" mood={celebrating ? "celebration" : "idle"} style={{ color: 'var(--c-gold, #C49A3C)' }} />
+        </div>
         {showParticles && <NoteParticles />}
-        <h3 className="font-medium">Assignment Complete</h3>
+        <div>
+          <h3 className="font-semibold">Assignment Complete</h3>
+          <span className="text-xs text-muted-foreground">All deliverables ready for review</span>
+        </div>
       </div>
 
       {/* Stat ribbon — animated entrance with count-up numbers */}
       <div
         className="stat-ribbon-enter flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm"
         style={{
-          background: "rgba(46,134,171,0.06)",
-          border: "1px solid rgba(46,134,171,0.15)",
+          background: "linear-gradient(135deg, rgba(196,154,60,0.06), rgba(42,143,168,0.04))",
+          border: "1px solid rgba(196,154,60,0.15)",
         }}
       >
         <div className="flex items-center gap-1.5">
@@ -159,8 +164,8 @@ export function BanjoComplete({ tasks, totalTimeSeconds, model, failedSteps = []
         {tasks.map((t, i) => (
           <div
             key={t.taskId}
-            className="deliverable-enter flex items-center gap-2 rounded-lg border p-3"
-            style={{ animationDelay: `${400 + i * 80}ms` }}
+            className="deliverable-enter flex items-center gap-3 rounded-[12px] p-4"
+            style={{ animationDelay: `${400 + i * 80}ms`, background: 'linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.3))', border: '1px solid rgba(0,0,0,0.06)' }}
           >
             <span className="check-pop-in text-sm" style={{ animationDelay: `${500 + i * 80}ms` }}>{"\u2705"}</span>
             <div className="flex-1">
@@ -191,7 +196,7 @@ export function BanjoComplete({ tasks, totalTimeSeconds, model, failedSteps = []
 
       {/* Revision pass result */}
       {revisionStatus === "complete" && revisedCount > 0 && (
-        <div className="rounded-lg border border-c-teal/20 bg-c-info-soft p-3 text-sm">
+        <div className="rounded-[12px] p-4 text-sm" style={{ background: 'rgba(42,143,168,0.04)', border: '1px solid rgba(42,143,168,0.1)' }}>
           <p className="font-medium text-c-teal">
             Banjo made consistency corrections to {revisedCount} deliverable{revisedCount !== 1 ? "s" : ""}
           </p>
