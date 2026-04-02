@@ -567,9 +567,19 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                       const target = e.target as HTMLElement
                       const relatedTarget = e.relatedTarget as HTMLElement | null
                       const isInputBlur = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT"
-                      const isClickingButton = relatedTarget?.tagName === "BUTTON" || relatedTarget?.closest("button") !== null
-                      if (isInputBlur && !isClickingButton) {
-                        setTimeout(() => handleFieldBlur(field), 0)
+                      // Check if the user is clicking a button, checkbox, or any interactive element.
+                      // relatedTarget can be null in some browsers (e.g., Safari), so also check
+                      // if the blur is going to something within the same field container.
+                      const isClickingInteractive =
+                        relatedTarget?.tagName === "BUTTON" ||
+                        relatedTarget?.closest("button") !== null ||
+                        relatedTarget?.role === "checkbox" ||
+                        relatedTarget?.closest("[role=checkbox]") !== null ||
+                        relatedTarget?.closest("[role=combobox]") !== null ||
+                        relatedTarget?.closest("[role=listbox]") !== null
+                      if (isInputBlur && !isClickingInteractive) {
+                        // Defer validation with enough time for click handlers to fire
+                        setTimeout(() => handleFieldBlur(field), 50)
                       }
                     }}
                   >

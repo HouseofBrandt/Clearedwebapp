@@ -52,14 +52,19 @@ export async function buildSystemPrompt(request: JunebugRequest): Promise<string
     if (request.activeField) prompt += ` Current field: ${request.activeField}.`
   }
 
-  // Add browser context if errors present
-  if (request.pageContext?.errors?.length > 0 || request.pageContext?.networkFailures?.length > 0) {
-    const errors = (request.pageContext.errors || []).slice(0, 5)
-    const failures = (request.pageContext.networkFailures || []).slice(0, 5)
-    prompt += `\n\nBROWSER CONTEXT (from user's page):\nRoute: ${request.currentRoute || "unknown"}`
+  // Always include browser context when available, and instruct Junebug to use it
+  if (request.pageContext || request.currentRoute) {
+    const errors = (request.pageContext?.errors || []).slice(0, 5)
+    const failures = (request.pageContext?.networkFailures || []).slice(0, 5)
+    prompt += `\n\nBROWSER CONTEXT (from user's page):`
+    prompt += `\nRoute: ${request.currentRoute || request.pageContext?.route || "unknown"}`
+    if (request.pageContext?.title) prompt += `\nPage title: ${request.pageContext.title}`
     if (errors.length) prompt += `\nConsole errors: ${errors.map((e: any) => e.message).join("; ")}`
+    else prompt += `\nConsole errors: none`
     if (failures.length) prompt += `\nNetwork failures: ${failures.map((f: any) => `${f.method} ${f.url} → ${f.status}`).join("; ")}`
-    prompt += `\n\nWhen discussing bugs/errors, reference the browser context above.`
+    else prompt += `\nNetwork failures: none`
+
+    prompt += `\n\nWhen the user reports a problem or says something isn't working, ALWAYS check the browserContext data first. Report what you find (current route, any console errors, network failures) before asking follow-up questions. If the browser context shows errors or network failures, mention them proactively — the user may not know about them. If there are no errors in the browser context, say so, as that's also useful diagnostic information.`
   }
 
   return prompt
