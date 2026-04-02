@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   Database,
   Download,
@@ -10,6 +11,7 @@ import {
   FileText,
   Clock,
   Loader2,
+  Play,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -82,6 +84,27 @@ function formatRelative(iso: string | null): string {
 }
 
 export function TaxAuthorityOverviewClient({ data }: { data: OverviewData }) {
+  const [fetching, setFetching] = useState(false)
+  const [fetchResult, setFetchResult] = useState<{ ok: boolean; summary?: any; error?: string } | null>(null)
+
+  async function handleFetchNow() {
+    setFetching(true)
+    setFetchResult(null)
+    try {
+      const res = await fetch("/api/admin/tax-authority/fetch-now", { method: "POST" })
+      const json = await res.json()
+      setFetchResult(json)
+      if (json.ok) {
+        // Reload page after short delay to show updated data
+        setTimeout(() => window.location.reload(), 2000)
+      }
+    } catch (e) {
+      setFetchResult({ ok: false, error: e instanceof Error ? e.message : "Fetch failed" })
+    } finally {
+      setFetching(false)
+    }
+  }
+
   if (!data) {
     return (
       <div className="page-enter p-6 rounded-lg border border-amber-200 bg-amber-50 text-amber-700">
@@ -97,14 +120,49 @@ export function TaxAuthorityOverviewClient({ data }: { data: OverviewData }) {
   return (
     <div className="page-enter space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-display-md font-[family-name:var(--font-instrument)]">
-          Pippen — Tax Authority Conveyor
-        </h1>
-        <p className="text-[var(--c-gray-500)]">
-          Source health, ingestion pipeline, authority management, and benchmark monitoring
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-display-md font-[family-name:var(--font-instrument)]">
+            Pippen — Tax Authority Conveyor
+          </h1>
+          <p className="text-[var(--c-gray-500)]">
+            Source health, ingestion pipeline, authority management, and benchmark monitoring
+          </p>
+        </div>
+        <button
+          onClick={handleFetchNow}
+          disabled={fetching}
+          className="shrink-0 inline-flex items-center gap-2 rounded-[10px] px-4 py-2.5 text-[13px] font-medium text-white transition-all duration-150 active:scale-[0.97] disabled:opacity-50"
+          style={{
+            background: fetching
+              ? "var(--c-gray-400)"
+              : "linear-gradient(135deg, rgba(196,154,60,0.9), rgba(196,154,60,0.75))",
+            boxShadow: fetching ? "none" : "0 2px 8px rgba(196,154,60,0.25), inset 0 1px 0 rgba(255,255,255,0.15)",
+          }}
+        >
+          {fetching ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+          {fetching ? "Fetching..." : "Fetch Now"}
+        </button>
       </div>
+
+      {/* Fetch result banner */}
+      {fetchResult && (
+        <div className={`rounded-[12px] px-5 py-3 text-[13px] flex items-center gap-2 ${
+          fetchResult.ok
+            ? "bg-[var(--c-success-soft)] text-[var(--c-success)]"
+            : "bg-[var(--c-danger-soft)] text-[var(--c-danger)]"
+        }`} style={{ border: `1px solid ${fetchResult.ok ? "rgba(11,138,94,0.1)" : "rgba(217,48,37,0.1)"}` }}>
+          {fetchResult.ok ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+          {fetchResult.ok
+            ? `Pippen fetched ${fetchResult.summary?.totalNew ?? 0} new, ${fetchResult.summary?.totalChanged ?? 0} changed items. Refreshing...`
+            : `Fetch failed: ${fetchResult.error || "Unknown error"}`
+          }
+        </div>
+      )}
 
       {/* Quick nav */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
