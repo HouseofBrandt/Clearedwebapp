@@ -46,3 +46,33 @@ export async function GET(
     )
   }
 }
+
+/**
+ * PATCH /api/research/sessions/[sessionId]
+ * Reset a stuck session back to INTAKE so it can be relaunched.
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ sessionId: string }> }
+) {
+  const auth = await requireApiAuth(PRACTITIONER_ROLES)
+  if (!auth.authorized) return auth.response
+
+  try {
+    const { sessionId } = await params
+    const body = await req.json()
+
+    if (body.status === "INTAKE") {
+      const updated = await prisma.researchSession.update({
+        where: { id: sessionId },
+        data: { status: "INTAKE", output: null, completedAt: null },
+      })
+      return NextResponse.json({ id: updated.id, status: updated.status })
+    }
+
+    return NextResponse.json({ error: "Invalid status transition" }, { status: 400 })
+  } catch (error: any) {
+    console.error("[Research Session] PATCH error:", error.message)
+    return NextResponse.json({ error: "Failed to update session" }, { status: 500 })
+  }
+}

@@ -238,6 +238,31 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
     session.status === "PRESCOPING" || session.status === "RETRIEVING" || session.status === "COMPOSING" || session.status === "EVALUATING"
   const isReviewable = session.status === "READY_FOR_REVIEW"
 
+  // Detect stuck sessions (processing for >5 minutes)
+  const isStuck = isProcessing && session?.createdAt &&
+    (Date.now() - new Date(session.createdAt).getTime()) > 5 * 60 * 1000
+
+  const [retrying, setRetrying] = useState(false)
+
+  async function handleRetry() {
+    if (!session) return
+    setRetrying(true)
+    try {
+      // Reset to INTAKE then relaunch
+      await fetch(`/api/research/sessions/${session.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "INTAKE" }),
+      })
+      await fetch(`/api/research/sessions/${session.id}/launch`, { method: "POST" })
+      // Polling will pick up the new status
+    } catch {
+      // Ignore — polling will show current state
+    } finally {
+      setRetrying(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Back link */}
@@ -318,6 +343,25 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
 
       {/* Processing state */}
       {isProcessing && <ProcessingIndicator />}
+
+      {/* Stuck session retry */}
+      {isStuck && (
+        <div className="rounded-[12px] px-5 py-4 flex items-center justify-between" style={{ background: "var(--c-warning-soft)", border: "1px solid rgba(217,119,6,0.15)" }}>
+          <div>
+            <p className="text-[13px] font-medium" style={{ color: "var(--c-warning)" }}>Research appears to be stuck</p>
+            <p className="text-[12px]" style={{ color: "var(--c-gray-500)" }}>This session has been processing for over 5 minutes.</p>
+          </div>
+          <button
+            onClick={handleRetry}
+            disabled={retrying}
+            className="inline-flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
+            style={{ background: "var(--c-warning)" }}
+          >
+            <RefreshCw className={`h-3 w-3 ${retrying ? "animate-spin" : ""}`} />
+            {retrying ? "Retrying..." : "Retry"}
+          </button>
+        </div>
+      )}
 
       {/* Output */}
       {session.output && (
