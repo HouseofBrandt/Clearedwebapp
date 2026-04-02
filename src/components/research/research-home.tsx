@@ -21,17 +21,20 @@ import {
 export type ResearchMode =
   | "QUICK_ANSWER"
   | "ISSUE_BRIEF"
-  | "RESEARCH_MEMO"
+  | "RESEARCH_MEMORANDUM"
   | "AUTHORITY_SURVEY"
-  | "COUNTERARGUMENT"
+  | "COUNTERARGUMENT_PREP"
 
 export type ResearchStatus =
-  | "DRAFT"
-  | "QUEUED"
-  | "PROCESSING"
+  | "INTAKE"
+  | "PRESCOPING"
+  | "RETRIEVING"
+  | "COMPOSING"
+  | "EVALUATING"
   | "READY_FOR_REVIEW"
   | "APPROVED"
   | "REJECTED"
+  | "ARCHIVED"
 
 export interface ResearchSession {
   id: string
@@ -61,7 +64,7 @@ const MODE_CONFIG: Record<
     color: "text-amber-700",
     bg: "bg-amber-50 border-amber-200",
   },
-  RESEARCH_MEMO: {
+  RESEARCH_MEMORANDUM: {
     label: "Research Memo",
     color: "text-[#1e3a5f]",
     bg: "bg-[#eef2f7] border-[#c5d3e3]",
@@ -71,7 +74,7 @@ const MODE_CONFIG: Record<
     color: "text-slate-700",
     bg: "bg-slate-50 border-slate-200",
   },
-  COUNTERARGUMENT: {
+  COUNTERARGUMENT_PREP: {
     label: "Counterargument",
     color: "text-red-700",
     bg: "bg-red-50 border-red-200",
@@ -82,12 +85,15 @@ const STATUS_CONFIG: Record<
   ResearchStatus,
   { label: string; variant: "default" | "secondary" | "success" | "warning" | "info" | "teal" | "destructive" | "outline" }
 > = {
-  DRAFT: { label: "Draft", variant: "default" },
-  QUEUED: { label: "Queued", variant: "info" },
-  PROCESSING: { label: "Processing", variant: "warning" },
+  INTAKE: { label: "Intake", variant: "default" },
+  PRESCOPING: { label: "Pre-scoping", variant: "info" },
+  RETRIEVING: { label: "Retrieving", variant: "warning" },
+  COMPOSING: { label: "Composing", variant: "warning" },
+  EVALUATING: { label: "Evaluating", variant: "info" },
   READY_FOR_REVIEW: { label: "Ready for Review", variant: "info" },
   APPROVED: { label: "Approved", variant: "success" },
   REJECTED: { label: "Rejected", variant: "destructive" },
+  ARCHIVED: { label: "Archived", variant: "secondary" },
 }
 
 /* ── Component ────────────────────────────────────────────────────── */
@@ -170,9 +176,9 @@ export function ResearchHome() {
             <SelectItem value="all">All Modes</SelectItem>
             <SelectItem value="QUICK_ANSWER">Quick Answer</SelectItem>
             <SelectItem value="ISSUE_BRIEF">Issue Brief</SelectItem>
-            <SelectItem value="RESEARCH_MEMO">Research Memo</SelectItem>
+            <SelectItem value="RESEARCH_MEMORANDUM">Research Memo</SelectItem>
             <SelectItem value="AUTHORITY_SURVEY">Authority Survey</SelectItem>
-            <SelectItem value="COUNTERARGUMENT">Counterargument</SelectItem>
+            <SelectItem value="COUNTERARGUMENT_PREP">Counterargument</SelectItem>
           </SelectContent>
         </Select>
 
@@ -182,12 +188,15 @@ export function ResearchHome() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="DRAFT">Draft</SelectItem>
-            <SelectItem value="QUEUED">Queued</SelectItem>
-            <SelectItem value="PROCESSING">Processing</SelectItem>
+            <SelectItem value="INTAKE">Intake</SelectItem>
+            <SelectItem value="PRESCOPING">Pre-scoping</SelectItem>
+            <SelectItem value="RETRIEVING">Retrieving</SelectItem>
+            <SelectItem value="COMPOSING">Composing</SelectItem>
+            <SelectItem value="EVALUATING">Evaluating</SelectItem>
             <SelectItem value="READY_FOR_REVIEW">Ready for Review</SelectItem>
             <SelectItem value="APPROVED">Approved</SelectItem>
             <SelectItem value="REJECTED">Rejected</SelectItem>
+            <SelectItem value="ARCHIVED">Archived</SelectItem>
           </SelectContent>
         </Select>
       </div>

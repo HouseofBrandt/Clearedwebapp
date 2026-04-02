@@ -29,17 +29,20 @@ import type { LucideIcon } from "lucide-react"
 type ResearchMode =
   | "QUICK_ANSWER"
   | "ISSUE_BRIEF"
-  | "RESEARCH_MEMO"
+  | "RESEARCH_MEMORANDUM"
   | "AUTHORITY_SURVEY"
-  | "COUNTERARGUMENT"
+  | "COUNTERARGUMENT_PREP"
 
 type ResearchStatus =
-  | "DRAFT"
-  | "QUEUED"
-  | "PROCESSING"
+  | "INTAKE"
+  | "PRESCOPING"
+  | "RETRIEVING"
+  | "COMPOSING"
+  | "EVALUATING"
   | "READY_FOR_REVIEW"
   | "APPROVED"
   | "REJECTED"
+  | "ARCHIVED"
 
 interface ResearchSessionDetail {
   id: string
@@ -77,7 +80,7 @@ const MODE_CONFIG: Record<
     bg: "bg-amber-50",
     badgeBg: "bg-amber-50 border-amber-200 text-amber-700",
   },
-  RESEARCH_MEMO: {
+  RESEARCH_MEMORANDUM: {
     label: "Research Memo",
     icon: ScrollText,
     color: "text-[#1e3a5f]",
@@ -91,7 +94,7 @@ const MODE_CONFIG: Record<
     bg: "bg-slate-50",
     badgeBg: "bg-slate-50 border-slate-200 text-slate-700",
   },
-  COUNTERARGUMENT: {
+  COUNTERARGUMENT_PREP: {
     label: "Counterargument",
     icon: Swords,
     color: "text-red-700",
@@ -107,12 +110,15 @@ const STATUS_CONFIG: Record<
     variant: "default" | "secondary" | "success" | "warning" | "info" | "teal" | "destructive" | "outline"
   }
 > = {
-  DRAFT: { label: "Draft", variant: "default" },
-  QUEUED: { label: "Queued", variant: "info" },
-  PROCESSING: { label: "Processing", variant: "warning" },
+  INTAKE: { label: "Intake", variant: "default" },
+  PRESCOPING: { label: "Pre-scoping", variant: "info" },
+  RETRIEVING: { label: "Retrieving", variant: "warning" },
+  COMPOSING: { label: "Composing", variant: "warning" },
+  EVALUATING: { label: "Evaluating", variant: "info" },
   READY_FOR_REVIEW: { label: "Ready for Review", variant: "info" },
   APPROVED: { label: "Approved", variant: "success" },
   REJECTED: { label: "Rejected", variant: "destructive" },
+  ARCHIVED: { label: "Archived", variant: "secondary" },
 }
 
 const PROGRESS_MESSAGES = [
@@ -160,7 +166,7 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
   /* Poll while processing */
   useEffect(() => {
     if (!session) return
-    if (session.status !== "QUEUED" && session.status !== "PROCESSING") return
+    if (session.status !== "PRESCOPING" && session.status !== "RETRIEVING" && session.status !== "COMPOSING" && session.status !== "EVALUATING") return
 
     const interval = setInterval(() => {
       fetchSession()
@@ -229,7 +235,7 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
   const statusConfig = STATUS_CONFIG[session.status]
   const ModeIcon = modeConfig.icon
   const isProcessing =
-    session.status === "QUEUED" || session.status === "PROCESSING"
+    session.status === "PRESCOPING" || session.status === "RETRIEVING" || session.status === "COMPOSING" || session.status === "EVALUATING"
   const isReviewable = session.status === "READY_FOR_REVIEW"
 
   return (

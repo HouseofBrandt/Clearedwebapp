@@ -49,6 +49,25 @@ export abstract class BaseHarvester {
       durationMs: 0,
     }
 
+    // Ensure source registry entry exists (auto-seed on first run)
+    await prisma.sourceRegistry.upsert({
+      where: { sourceId: this.config.sourceId },
+      create: {
+        sourceId: this.config.sourceId,
+        name: this.config.name,
+        endpoint: this.config.endpoint,
+        altEndpoint: this.config.altEndpoint ?? null,
+        format: 'JSON',
+        cadence: '0 9 * * 1-6',
+        rightsProfile: this.config.rightsProfile,
+        defaultTier: this.config.defaultTier,
+        parserKey: this.config.sourceId,
+        rateLimitMs: this.config.rateLimitMs,
+        enabled: true,
+      },
+      update: {},
+    })
+
     const run = await prisma.ingestionRun.create({
       data: { sourceId: this.config.sourceId, status: 'FETCHING' },
     })
@@ -84,8 +103,9 @@ export abstract class BaseHarvester {
           lastFetchedAt: new Date(),
           lastSuccessAt: new Date(),
           fetchCount: { increment: 1 },
+          lastError: null,
         },
-      })
+      }).catch(() => {})
 
       await prisma.ingestionRun.update({
         where: { id: run.id },
