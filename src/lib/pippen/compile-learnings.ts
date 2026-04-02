@@ -146,6 +146,19 @@ For each source material provided, you must:
 3. List any action items or deadlines practitioners should note
 4. Pick the single most important item as the "top takeaway" for the firm newsfeed
 
+Organize the learnings by priority tier:
+
+**Tier 1 — Core Practice (most important):**
+Topics: OIC (IRC § 7122), Penalty Administration (IRC § 6651/6654), IRS Liens & Levies (IRC § 6321-6343), CDP (IRC § 6320/6330), Installment Agreements (IRC § 6159), CNC, TFRP (IRC § 6672), Innocent Spouse (IRC § 6015), CSED (IRC § 6502), legal drafting guidance
+
+**Tier 2 — Adjacent Practice:**
+Topics: Audit & Exam procedures, Appeals processes, Tax Court litigation, Circular 230
+
+**Tier 3 — General (supplemental):**
+Topics: General tax policy, state tax, legislative proposals
+
+Lead with Tier 1 items. If volume is high, truncate Tier 3 to a single summary line.
+
 Respond in valid JSON with this exact structure:
 {
   "learnings": [
@@ -154,7 +167,8 @@ Respond in valid JSON with this exact structure:
       "title": "...",
       "summary": "...",
       "relevance": "...",
-      "actionItems": ["..."]
+      "actionItems": ["..."],
+      "tier": 1
     }
   ],
   "topTakeaway": "A single sentence describing the most important item for practitioners today."
