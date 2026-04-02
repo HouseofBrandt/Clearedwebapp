@@ -178,6 +178,26 @@ export async function GET(request: NextRequest) {
     if ((msg as any).implementationNotes) {
       md += `Notes: ${(msg as any).implementationNotes}\n`
     }
+
+    // Browser context from metadata (if present)
+    const meta = (msg as any).metadata as Record<string, any> | null
+    if (meta?.browserContext) {
+      const bc = meta.browserContext
+      md += `\n**Browser Context:**\n`
+      if (bc.route) md += `- Route: \`${bc.route}\`\n`
+      if (bc.errors?.length) {
+        md += `- Console errors: ${bc.errors.map((e: any) => e.message).join("; ")}\n`
+      }
+      if (bc.networkFailures?.length) {
+        md += `- Network failures: ${bc.networkFailures.map((f: any) => `${f.method} ${f.url} → ${f.status}`).join("; ")}\n`
+      }
+    }
+
+    // Screenshot attachment note (base64 images can't be embedded in markdown export)
+    if (meta?.screenshot) {
+      md += `\n> **[Screenshot attached]** — A screenshot was captured with this report. View it in the admin inbox for the full image.\n`
+    }
+
     md += `\n${msg.body}\n\n---\n\n`
   }
 

@@ -55,14 +55,33 @@ export async function POST(request: NextRequest) {
   ]
 
   if (CASE_REQUIRED_ACTIONS.includes(action)) {
-    if (!caseId) {
-      return NextResponse.json({ error: "caseId is required for this action" }, { status: 400 })
+    if (!caseId || caseId.trim() === "") {
+      return NextResponse.json(
+        { error: "caseId is required for this action", action },
+        { status: 400 }
+      )
     }
-    const caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true } })
+
+    let caseExists
+    try {
+      caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true } })
+    } catch (dbError: any) {
+      console.error("[ChatActions] DB error looking up case:", dbError.message)
+      return NextResponse.json({ error: "Invalid case ID" }, { status: 400 })
+    }
+
     if (!caseExists) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
-    const hasAccess = await canAccessCase(auth.userId, caseId)
+
+    let hasAccess = false
+    try {
+      hasAccess = await canAccessCase(auth.userId, caseId)
+    } catch (accessError: any) {
+      console.error("[ChatActions] Access check failed:", accessError.message)
+      return NextResponse.json({ error: "Access check failed" }, { status: 500 })
+    }
+
     if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
@@ -340,7 +359,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unknown action" }, { status: 400 })
     }
   } catch (error: any) {
-    console.error("[ChatActions] Error:", error.message)
-    return NextResponse.json({ error: "Action failed" }, { status: 500 })
+    console.error("[ChatActions] Error executing action:", action, {
+      message: error.message,
+      caseId: caseId || "(none)",
+      stack: error.stack?.split("\n").slice(0, 3).join("\n"),
+    })
+    return NextResponse.json(
+      { error: `Action "${action}" failed: ${error.message || "Unknown error"}` },
+      { status: 500 }
+    )
   }
 }

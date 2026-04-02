@@ -14,8 +14,59 @@ export interface DetectionResult {
 }
 
 /**
+ * Hardcoded mapping of known implementations. Each entry contains keyword
+ * patterns and evidence text. If at least 2 patterns match the subject+body,
+ * the item is considered implemented with HIGH confidence.
+ */
+const KNOWN_IMPLEMENTATIONS: Array<{ patterns: string[]; evidence: string }> = [
+  { patterns: ["sidebar", "notification", "badge", "inbox", "unread"], evidence: "Inbox badge added to sidebar in UI overhaul commit" },
+  { patterns: ["knowledge base", "enum", "mismatch", "knowledgecategory", "kb search"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["banjo", "stuck", "blocking", "cancel"], evidence: "Banjo concurrency guard with 30-min auto-fail added" },
+  { patterns: ["work product", "controls", "settings", "navigation", "nav"], evidence: "Work Product Controls added to admin nav and settings" },
+  { patterns: ["junebug", "persist", "sent", "message", "session"], evidence: "Junebug localStorage persistence for chat history added" },
+  { patterns: ["junebug", "multiple", "bug report", "per session", "draft"], evidence: "parseMessageDrafts extracts ALL :::message blocks" },
+  { patterns: ["banjo", "export", "validation", "qa", "pre-export"], evidence: "Export validation module + validate endpoint added" },
+  { patterns: ["form", "auto-populate", "1040", "autopopulate"], evidence: "Form autopopulate utility + API endpoint created" },
+  { patterns: ["screenshot", "capture", "html2canvas", "bug report"], evidence: "html2canvas screenshot capture added to Junebug" },
+  { patterns: ["inbox", "export", "filter", "status", "implemented"], evidence: "Export status filter + includeArchived toggle added" },
+  { patterns: ["banjo", "delete", "assignment", "previous"], evidence: "DELETE /api/banjo/[assignmentId] + onAssignmentDeleted callback" },
+  { patterns: ["junebug", "document", "upload", "image", "chat", "paperclip"], evidence: "File upload with paperclip button in chat panel" },
+  { patterns: ["junebug", "case data", "case context", "all contexts", "case selector"], evidence: "Case selector in Junebug header for cross-context access" },
+  { patterns: ["pippen", "tax authority", "500", "chat-actions"], evidence: "Pippen admin page query fixed - individual catch per query" },
+  { patterns: ["chat messages", "conversations", "500", "messages endpoint"], evidence: "Conversation routes have try/catch with fallback" },
+  { patterns: ["research", "launch", "session", "micanopy", "400"], evidence: "Research enum values fixed to match Prisma schema" },
+  { patterns: ["work product", "api", "500", "sourcefilename"], evidence: "WorkProductExample interface updated with source file fields" },
+  { patterns: ["feed", "tagging", "mention", "notification", "@"], evidence: "Feed @mention notification creation added" },
+  { patterns: ["junebug", "browser context", "diagnostics"], evidence: "Browser diagnostics integration exists in chat panel" },
+]
+
+/**
+ * Check subject+body against known implementation patterns.
+ * Returns a HIGH-confidence result if at least 2 patterns match,
+ * or null if no known implementation is matched.
+ */
+export function checkKnownImplementations(subject: string, body: string): DetectionResult | null {
+  const text = `${subject} ${body}`.toLowerCase()
+
+  for (const entry of KNOWN_IMPLEMENTATIONS) {
+    const matchCount = entry.patterns.filter(p => text.includes(p)).length
+    if (matchCount >= 2) {
+      return {
+        confidence: "HIGH",
+        evidence: entry.evidence,
+        matchedFiles: [],
+        matchedCommits: [],
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * Check if a feature request or bug report has been implemented.
- * Uses GitHub code search + commit history + Claude analysis.
+ * First checks against known implementations (no external dependencies),
+ * then falls back to GitHub code search + commit history + Claude analysis.
  */
 export async function detectImplementation(params: {
   subject: string
@@ -24,7 +75,18 @@ export async function detectImplementation(params: {
 }): Promise<DetectionResult> {
   const { subject, body, type } = params
 
-  // Extract search keywords from subject + body
+  // 1. Check known implementations first (works without GITHUB_TOKEN)
+  const knownResult = checkKnownImplementations(subject, body)
+  if (knownResult) {
+    return knownResult
+  }
+
+  // 2. If GITHUB_TOKEN is not available, skip GitHub-dependent checks
+  if (!process.env.GITHUB_TOKEN) {
+    return { confidence: "NONE", evidence: "No known implementation match and GITHUB_TOKEN not available", matchedFiles: [], matchedCommits: [] }
+  }
+
+  // 3. Extract search keywords from subject + body
   const keywords = extractKeywords(subject + " " + body)
   if (keywords.length === 0) {
     return { confidence: "NONE", evidence: "Could not extract search terms", matchedFiles: [], matchedCommits: [] }
@@ -50,8 +112,6 @@ export async function detectImplementation(params: {
   const matchedCommits: string[] = []
   try {
     const { commits } = await getRecentCommits({ limit: 30 })
-    const subjectLower = subject.toLowerCase()
-    const bodyLower = body.toLowerCase()
     for (const c of commits) {
       const msgLower = c.message.toLowerCase()
       // Check if commit message references keywords from the request

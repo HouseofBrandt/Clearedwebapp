@@ -2,109 +2,70 @@ import { NextResponse } from "next/server"
 import { requireApiAuth, ADMIN_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logAudit } from "@/lib/ai/audit"
+import { checkKnownImplementations } from "@/lib/ai/feature-detection"
 
-const IMPLEMENTED_FEATURES = [
-  { subjectMatch: "Document freshness", notes: "src/lib/case-intelligence/document-freshness.ts — expiration tracking + freshness badges" },
-  { subjectMatch: "Smart Document Completeness", notes: "src/lib/case-intelligence/doc-completeness.ts — dynamic case-type-aware checklists" },
-  { subjectMatch: "Case Document Progress Shows 0%", notes: "Backfill route + recalculation wired into uploads via recalculateDocCompleteness()" },
-  { subjectMatch: "Inbox UI/UX", notes: "bulk/route.ts + checkboxes in inbox-list.tsx — bulk actions implemented" },
-  { subjectMatch: "Inbox & Tracking Export", notes: "src/app/api/messages/export/route.ts — has includeResolved filter" },
-  { subjectMatch: "Inbox Export", notes: "src/app/api/messages/export/route.ts — default excluding implemented" },
-  { subjectMatch: "Platform Timezone", notes: "src/lib/date-utils.ts uses America/Chicago" },
-  { subjectMatch: "Inbox Does Not Auto-Refresh", notes: "src/components/inbox/inbox-list.tsx — setInterval polling" },
-  { subjectMatch: "Numbered lists display", notes: "src/components/assistant/chat-panel.tsx — <ol> with list-decimal" },
-  { subjectMatch: "Reject Action Failing", notes: "router.push('/review') redirect after reject + status guard on task page" },
-  { subjectMatch: "Read Access to Codebase", notes: "src/lib/infrastructure/github-api.ts (229 lines)" },
-  { subjectMatch: "Multi-Platform Infrastructure Logs", notes: "src/lib/infrastructure/vercel-logs.ts (126+ lines)" },
-  { subjectMatch: "Live Access to Infra Logs", notes: "src/lib/infrastructure/vercel-logs.ts" },
-  { subjectMatch: "Full Platform Data Access", notes: "src/lib/ai/platform-data.ts (36K+)" },
-  { subjectMatch: "Vercel Logs and Runtime Error", notes: "src/lib/infrastructure/vercel-logs.ts" },
-  { subjectMatch: "Live Access to Vercel Logs", notes: "src/lib/infrastructure/vercel-logs.ts" },
-  { subjectMatch: "Deep Full Access to All Case Data", notes: "src/lib/ai/platform-data.ts — covers cases, intelligence, docs, smart status" },
-  { subjectMatch: "Deep Full Access to Case Data", notes: "src/lib/ai/platform-data.ts" },
-  { subjectMatch: "IRS Response Rebuttal", notes: "appeals_rebuttal_v1.txt prompt + APPEALS_REBUTTAL task type" },
-  { subjectMatch: "Live Codebase Read Access", notes: "src/lib/ai/feature-detection.ts + scan-implementations route" },
-]
-
+/**
+ * POST — marks all inbox items that match known implementations as "implemented".
+ * Admin-only. Runs checkKnownImplementations() against all open BUG_REPORT
+ * and FEATURE_REQUEST messages.
+ */
 export async function POST() {
   const auth = await requireApiAuth(ADMIN_ROLES)
   if (!auth.authorized) return auth.response
 
+  // 1. Query all open bug reports and feature requests
+  const openMessages = await prisma.message.findMany({
+    where: {
+      type: { in: ["BUG_REPORT", "FEATURE_REQUEST"] },
+      OR: [
+        { implementationStatus: null },
+        { implementationStatus: "open" },
+      ],
+    },
+    select: {
+      id: true,
+      subject: true,
+      body: true,
+    },
+  })
+
   const results: { subject: string; status: string }[] = []
+  let markedCount = 0
 
-  // Mark each feature as implemented
-  for (const feature of IMPLEMENTED_FEATURES) {
-    const message = await prisma.message.findFirst({
-      where: {
-        subject: { contains: feature.subjectMatch },
-        OR: [
-          { implementationStatus: null },
-          { implementationStatus: "open" },
-        ],
-      },
-    })
+  // 2. Check each message against known implementations
+  for (const msg of openMessages) {
+    const detection = checkKnownImplementations(msg.subject, msg.body)
 
-    if (message) {
+    if (detection && detection.confidence === "HIGH") {
       await prisma.message.update({
-        where: { id: message.id },
+        where: { id: msg.id },
         data: {
           implementationStatus: "implemented",
           implementedAt: new Date(),
-          implementationNotes: feature.notes,
+          implementationNotes: detection.evidence,
           implementedById: auth.userId,
         },
       })
-      results.push({ subject: message.subject, status: "updated" })
+      results.push({ subject: msg.subject, status: "marked_implemented" })
+      markedCount++
     } else {
-      results.push({ subject: feature.subjectMatch, status: "not_found" })
+      results.push({ subject: msg.subject, status: "no_match" })
     }
-  }
-
-  // Remove duplicate "Inbox UI/UX Improvements" messages (keep the oldest one)
-  const inboxUiMessages = await prisma.message.findMany({
-    where: {
-      subject: { contains: "Inbox UI/UX Improvements" },
-    },
-    orderBy: { createdAt: "asc" },
-  })
-
-  let duplicatesDeleted = 0
-  if (inboxUiMessages.length > 1) {
-    const duplicateIds = inboxUiMessages.slice(1).map((m) => m.id)
-    const deleteResult = await prisma.message.deleteMany({
-      where: { id: { in: duplicateIds } },
-    })
-    duplicatesDeleted += deleteResult.count
-  }
-
-  // Remove duplicate "Cannot Start New Assignment" messages (keep the oldest one)
-  const banjoDupes = await prisma.message.findMany({
-    where: { subject: { contains: "Cannot Start New Assignment" } },
-    orderBy: { createdAt: "asc" },
-  })
-  if (banjoDupes.length > 1) {
-    const duplicateIds = banjoDupes.slice(1).map((m) => m.id)
-    const deleteResult = await prisma.message.deleteMany({
-      where: { id: { in: duplicateIds } },
-    })
-    duplicatesDeleted += deleteResult.count
   }
 
   logAudit({
     userId: auth.userId,
     action: "BULK_MARK_IMPLEMENTED",
     metadata: {
-      featuresUpdated: results.filter((r) => r.status === "updated").length,
-      featuresNotFound: results.filter((r) => r.status === "not_found").length,
-      duplicatesDeleted,
-      details: results,
+      totalScanned: openMessages.length,
+      markedImplemented: markedCount,
+      details: results.filter((r) => r.status === "marked_implemented"),
     },
   })
 
   return NextResponse.json({
-    updated: results.filter((r) => r.status === "updated").length,
-    notFound: results.filter((r) => r.status === "not_found").length,
-    duplicatesDeleted,
+    totalScanned: openMessages.length,
+    markedImplemented: markedCount,
     details: results,
   })
 }
