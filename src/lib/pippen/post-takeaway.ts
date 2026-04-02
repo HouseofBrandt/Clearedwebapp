@@ -1,7 +1,7 @@
 /**
  * Stage 4: Post the top takeaway to the firm newsfeed.
  *
- * Creates a FeedPost attributed to the Pippen system user.
+ * Creates a FeedPost attributed to the first admin user (or the "Pippen" user if one exists).
  */
 
 import { prisma } from "@/lib/db"
@@ -13,71 +13,77 @@ export async function postDailyTakeaway(
   try {
     // Skip posting if there are no learnings
     if (report.learnings.length === 0 || report.topTakeaway === "No new materials today.") {
-      return { success: true, error: "No takeaway to post" }
+      return { success: true, error: "No takeaway to post — no new materials" }
     }
 
-    // Find or identify the Pippen system user
-    const pippenUser = await findPippenUser()
+    // Find a user to attribute the post to (required for feed rendering)
+    const authorId = await findAuthorId()
+    if (!authorId) {
+      return { success: false, error: "No user found to attribute the feed post to" }
+    }
 
-    // Build the post content
-    const learningSummaries = report.learnings
-      .slice(0, 3)
-      .map((l) => `- **${l.title}**: ${l.relevance}`)
-      .join("\n")
+    // Check for duplicate — don't post twice on the same day
+    const existing = await prisma.feedPost.findFirst({
+      where: {
+        content: { contains: `Pippen's Daily Takeaway` },
+        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+      },
+    }).catch(() => null)
 
+    if (existing) {
+      return { success: true, postId: existing.id, error: "Already posted today" }
+    }
+
+    // Build the post content — short, punchy, practitioner-friendly
     const content = [
-      `**Pippen's Daily Takeaway** (${report.date})`,
+      `🐕 **Pippen's Daily Takeaway** — ${report.date}`,
       "",
       report.topTakeaway,
       "",
-      report.learnings.length > 0 ? `Today's ${report.learnings.length} learning(s):` : "",
-      learningSummaries,
-      "",
-      "Full report: /pippen",
-    ]
-      .filter(Boolean)
-      .join("\n")
+      `📋 [Full daily learnings report →](/pippen)`,
+    ].join("\n")
 
-    const postData: any = {
-      authorType: "system",
-      postType: "post",
-      content,
-      sourceType: "pippen",
-      sourceId: `pippen-learnings-${report.date}`,
-    }
-
-    // Assign author if we found a user
-    if (pippenUser) {
-      postData.authorId = pippenUser.id
-    }
-
-    const post = await prisma.feedPost.create({ data: postData })
+    const post = await prisma.feedPost.create({
+      data: {
+        authorId,
+        postType: "post",
+        content,
+      },
+    })
 
     return { success: true, postId: post.id }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error("[Pippen] postDailyTakeaway failed:", message)
+    console.error("[Pippen] postDailyTakeaway failed:", message, err)
     return { success: false, error: message }
   }
 }
 
 /**
- * Find the Pippen user for feed post attribution.
- * Tries: user named "Pippen" > first ADMIN > null (system post with no author).
+ * Find a user ID for feed post attribution.
+ * Priority: user named "Pippen" > first ADMIN > first user.
  */
-async function findPippenUser(): Promise<{ id: string } | null> {
+async function findAuthorId(): Promise<string | null> {
   try {
+    // Try Pippen user
     const pippen = await prisma.user.findFirst({
       where: { name: { contains: "Pippen", mode: "insensitive" } },
       select: { id: true },
-    })
-    if (pippen) return pippen
+    }).catch(() => null)
+    if (pippen) return pippen.id
 
+    // Try first admin
     const admin = await prisma.user.findFirst({
       where: { role: "ADMIN" },
       select: { id: true },
-    })
-    return admin
+    }).catch(() => null)
+    if (admin) return admin.id
+
+    // Try any user
+    const anyUser = await prisma.user.findFirst({
+      select: { id: true },
+    }).catch(() => null)
+    return anyUser?.id ?? null
   } catch {
     return null
   }

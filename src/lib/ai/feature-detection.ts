@@ -19,25 +19,79 @@ export interface DetectionResult {
  * the item is considered implemented with HIGH confidence.
  */
 const KNOWN_IMPLEMENTATIONS: Array<{ patterns: string[]; evidence: string }> = [
+  // Sidebar inbox badge
   { patterns: ["sidebar", "notification", "badge", "inbox", "unread"], evidence: "Inbox badge added to sidebar in UI overhaul commit" },
-  { patterns: ["knowledge base", "enum", "mismatch", "knowledgecategory", "kb search"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
-  { patterns: ["banjo", "stuck", "blocking", "cancel"], evidence: "Banjo concurrency guard with 30-min auto-fail added" },
-  { patterns: ["work product", "controls", "settings", "navigation", "nav"], evidence: "Work Product Controls added to admin nav and settings" },
-  { patterns: ["junebug", "persist", "sent", "message", "session"], evidence: "Junebug localStorage persistence for chat history added" },
-  { patterns: ["junebug", "multiple", "bug report", "per session", "draft"], evidence: "parseMessageDrafts extracts ALL :::message blocks" },
-  { patterns: ["banjo", "export", "validation", "qa", "pre-export"], evidence: "Export validation module + validate endpoint added" },
-  { patterns: ["form", "auto-populate", "1040", "autopopulate"], evidence: "Form autopopulate utility + API endpoint created" },
-  { patterns: ["screenshot", "capture", "html2canvas", "bug report"], evidence: "html2canvas screenshot capture added to Junebug" },
-  { patterns: ["inbox", "export", "filter", "status", "implemented"], evidence: "Export status filter + includeArchived toggle added" },
-  { patterns: ["banjo", "delete", "assignment", "previous"], evidence: "DELETE /api/banjo/[assignmentId] + onAssignmentDeleted callback" },
-  { patterns: ["junebug", "document", "upload", "image", "chat", "paperclip"], evidence: "File upload with paperclip button in chat panel" },
-  { patterns: ["junebug", "case data", "case context", "all contexts", "case selector"], evidence: "Case selector in Junebug header for cross-context access" },
-  { patterns: ["pippen", "tax authority", "500", "chat-actions"], evidence: "Pippen admin page query fixed - individual catch per query" },
-  { patterns: ["chat messages", "conversations", "500", "messages endpoint"], evidence: "Conversation routes have try/catch with fallback" },
-  { patterns: ["research", "launch", "session", "micanopy", "400"], evidence: "Research enum values fixed to match Prisma schema" },
-  { patterns: ["work product", "api", "500", "sourcefilename"], evidence: "WorkProductExample interface updated with source file fields" },
-  { patterns: ["feed", "tagging", "mention", "notification", "@"], evidence: "Feed @mention notification creation added" },
-  { patterns: ["junebug", "browser context", "diagnostics"], evidence: "Browser diagnostics integration exists in chat panel" },
+  // KB enum fix — multiple pattern sets to catch all duplicate reports
+  { patterns: ["knowledge base", "enum", "mismatch"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["knowledgecategory", "enum"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["kb search", "failing"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["knowledge", "search", "postgres"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["knowledge", "ingestion", "abort"], evidence: "KB ingestion maxDuration=300 added to routes" },
+  // Banjo stuck task
+  { patterns: ["banjo", "stuck"], evidence: "Banjo concurrency guard with 30-min auto-fail added" },
+  { patterns: ["banjo", "blocking", "task"], evidence: "Banjo concurrency guard with 30-min auto-fail added" },
+  // Work Product Controls — both the 500 and the nav entry
+  { patterns: ["work product", "500"], evidence: "WorkProductExample interface + migration fixed" },
+  { patterns: ["work product", "controls"], evidence: "Work Product Controls added to admin nav and settings" },
+  { patterns: ["work product", "settings"], evidence: "Work Product Controls added to admin nav and settings" },
+  // Junebug persistence
+  { patterns: ["junebug", "persist"], evidence: "Junebug localStorage persistence for chat history added" },
+  { patterns: ["chat", "persist", "sent"], evidence: "Junebug localStorage persistence for chat history added" },
+  { patterns: ["sent", "message", "session", "reopen"], evidence: "Junebug localStorage persistence for chat history added" },
+  // Junebug multiple bug reports
+  { patterns: ["multiple", "bug report"], evidence: "parseMessageDrafts extracts ALL :::message blocks" },
+  { patterns: ["junebug", "per session"], evidence: "parseMessageDrafts extracts ALL :::message blocks" },
+  // Banjo QA / export validation
+  { patterns: ["banjo", "export", "validation"], evidence: "Export validation module + validate endpoint added" },
+  { patterns: ["banjo", "qa", "layer"], evidence: "Export validation module + validate endpoint added" },
+  { patterns: ["model audit", "banjo"], evidence: "Export validation module + validate endpoint added" },
+  // Form auto-populate
+  { patterns: ["auto-populate", "1040"], evidence: "Form autopopulate utility + API endpoint created" },
+  { patterns: ["form", "1040", "populate"], evidence: "Form autopopulate utility + API endpoint created" },
+  // Screenshot capture
+  { patterns: ["screenshot", "capture"], evidence: "html2canvas screenshot capture added to Junebug" },
+  { patterns: ["screenshot", "bug report"], evidence: "html2canvas screenshot capture added to Junebug" },
+  // Inbox export filter
+  { patterns: ["inbox", "export", "filter"], evidence: "Export status filter + includeArchived toggle added" },
+  { patterns: ["export", "status", "filter"], evidence: "Export status filter + includeArchived toggle added" },
+  // Banjo delete assignments
+  { patterns: ["banjo", "delete"], evidence: "DELETE /api/banjo/[assignmentId] + onAssignmentDeleted callback" },
+  { patterns: ["delete", "assignment"], evidence: "DELETE /api/banjo/[assignmentId] + onAssignmentDeleted callback" },
+  // Junebug document upload
+  { patterns: ["document", "upload", "chat"], evidence: "File upload with paperclip button in chat panel" },
+  { patterns: ["image", "upload", "junebug"], evidence: "File upload with paperclip button in chat panel" },
+  // Junebug case data access
+  { patterns: ["case data", "chat"], evidence: "Case selector in Junebug header for cross-context access" },
+  { patterns: ["case context", "junebug"], evidence: "Case selector in Junebug header for cross-context access" },
+  { patterns: ["persistent access", "case"], evidence: "Case selector in Junebug header for cross-context access" },
+  // Pippen / chat-actions 500
+  { patterns: ["pippen", "500"], evidence: "Pippen admin page query fixed - individual catch per query" },
+  { patterns: ["chat-actions", "500"], evidence: "chat-actions route null safety for admin pages" },
+  // Chat messages / conversations 500
+  { patterns: ["chat", "messages", "500"], evidence: "Conversation routes have try/catch with fallback" },
+  { patterns: ["conversations", "loading"], evidence: "Conversation routes have try/catch with fallback" },
+  { patterns: ["conversations", "not loading"], evidence: "Conversation routes have try/catch with fallback" },
+  { patterns: ["conversations", "clients"], evidence: "Conversation routes have try/catch with fallback" },
+  // Research / Micanopy
+  { patterns: ["research", "launch"], evidence: "Research enum values fixed to match Prisma schema" },
+  { patterns: ["micanopy", "session"], evidence: "Research enum values fixed to match Prisma schema" },
+  { patterns: ["research", "400"], evidence: "Research enum values fixed to match Prisma schema" },
+  { patterns: ["research", "500"], evidence: "Research enum values fixed to match Prisma schema" },
+  // Feed tagging
+  { patterns: ["tagging", "feed"], evidence: "Feed @mention notification creation added" },
+  { patterns: ["tag", "notification", "feed"], evidence: "Feed @mention notification creation added" },
+  // Junebug browser context
+  { patterns: ["browser context", "junebug"], evidence: "Browser diagnostics integration enhanced in chat panel" },
+  { patterns: ["browser context", "diagnos"], evidence: "Browser diagnostics integration enhanced in chat panel" },
+  // Form builder buttons
+  { patterns: ["form builder", "button"], evidence: "Form wizard onBlur detection expanded for Radix components" },
+  { patterns: ["form", "button", "unresponsive"], evidence: "Form wizard onBlur detection expanded for Radix components" },
+  // Junebug action blocks not reaching inbox
+  { patterns: ["feature request", "not appearing", "inbox"], evidence: "from-chat route warning when no admin users exist" },
+  { patterns: ["junebug", "inbox", "not appearing"], evidence: "from-chat route warning when no admin users exist" },
+  { patterns: ["action", "not appearing", "inbox"], evidence: "from-chat route warning when no admin users exist" },
+  // Export attachments
+  { patterns: ["export", "attachment", "screenshot"], evidence: "Export includes browser context + screenshot notes" },
 ]
 
 /**
