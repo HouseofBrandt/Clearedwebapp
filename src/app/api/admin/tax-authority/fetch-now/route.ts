@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { requireApiAuth, ADMIN_ROLES } from "@/lib/auth/api-guard"
 import { RegHarvester } from "@/lib/tax-authority/harvest/reg-harvester"
 import { IrmHarvester } from "@/lib/tax-authority/harvest/irm-harvester"
+import { runPippenPipeline } from "@/lib/pippen/pipeline"
 import type { HarvestResult } from "@/lib/tax-authority/types"
 
 export const maxDuration = 300
@@ -35,9 +36,22 @@ export async function POST() {
   const totalChanged = results.reduce((s, r) => s + r.itemsChanged, 0)
   const totalErrors = results.reduce((s, r) => s + r.errors.length, 0)
 
+  // Run the compile + ingest + post stages after harvesting
+  let pipelineResult = null
+  try {
+    pipelineResult = await runPippenPipeline()
+  } catch (err) {
+    console.error("[Admin] Pippen pipeline failed:", err)
+    pipelineResult = {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+
   return NextResponse.json({
     ok: totalErrors === 0,
     summary: { totalNew, totalChanged, totalErrors },
     results,
+    pipeline: pipelineResult,
   })
 }

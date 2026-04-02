@@ -75,6 +75,23 @@ export interface AuthorityDigestSummary {
   summary: string
 }
 
+export interface LearningItem {
+  title: string
+  summary: string
+  source: string
+  sourceUrl: string
+  relevance: string
+  actionItems?: string[]
+  publicationDate?: string
+}
+
+export interface LearningsSection {
+  available: boolean
+  date: string
+  topTakeaway: string
+  learnings: LearningItem[]
+}
+
 export interface PippenDailyReport {
   reportDate: string
   generatedAt: string
@@ -91,6 +108,9 @@ export interface PippenDailyReport {
 
   // Authority harvesting
   authorityDigest: AuthorityDigestSummary
+
+  // Compiled learnings
+  learnings: LearningsSection
 
   // Alerts
   alerts: PippenAlert[]
@@ -277,6 +297,37 @@ export async function buildDailyIntakeReport(date?: Date): Promise<PippenDailyRe
     // Authority tables may not be migrated yet — silently degrade
   }
 
+  // 6. Compiled learnings (from the Pippen pipeline)
+  let learnings: LearningsSection = {
+    available: false,
+    date: startOfDay.toISOString().split("T")[0],
+    topTakeaway: "",
+    learnings: [],
+  }
+
+  try {
+    const { compileDailyLearnings } = await import("@/lib/pippen/compile-learnings")
+    const compiled = await compileDailyLearnings(reportDate)
+    if (compiled.learnings.length > 0) {
+      learnings = {
+        available: true,
+        date: compiled.date,
+        topTakeaway: compiled.topTakeaway,
+        learnings: compiled.learnings.map((l) => ({
+          title: l.title,
+          summary: l.summary,
+          source: l.source,
+          sourceUrl: l.sourceUrl,
+          relevance: l.relevance,
+          actionItems: l.actionItems,
+          publicationDate: l.publicationDate,
+        })),
+      }
+    }
+  } catch {
+    // Compiled learnings pipeline may not be available — silently degrade
+  }
+
   return {
     reportDate: startOfDay.toISOString().split("T")[0],
     generatedAt: new Date().toISOString(),
@@ -289,6 +340,7 @@ export async function buildDailyIntakeReport(date?: Date): Promise<PippenDailyRe
     freshnessBreakdown,
     caseGroups,
     authorityDigest,
+    learnings,
     alerts,
   }
 }

@@ -14,11 +14,14 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Lightbulb,
+  ExternalLink,
+  Star,
 } from "lucide-react"
 import { PippenIcon } from "./pippen-icon"
 import { getPippenMessage, getPippenEmptyMessage, PIPPEN_EMPTY_STATE } from "@/lib/pippen/loading-messages"
 import type { PippenMood } from "./pippen-icon"
-import type { PippenDailyReport, PippenAlert, CaseDocumentGroup } from "@/lib/pippen/daily-intake-report"
+import type { PippenDailyReport, PippenAlert, CaseDocumentGroup, LearningItem, LearningsSection } from "@/lib/pippen/daily-intake-report"
 
 const GOLD = "var(--c-gold, #C49A3C)"
 
@@ -133,6 +136,65 @@ function CaseGroupCard({ group }: { group: CaseDocumentGroup }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---- Learning Item Card ----
+
+function LearningItemCard({ learning }: { learning: LearningItem }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="border border-[var(--c-gray-200)] rounded-lg bg-white overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-start gap-3 px-4 py-3 hover:bg-[var(--c-gray-50)] transition-colors text-left"
+      >
+        <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: GOLD }} />
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-medium text-[var(--c-gray-900)] block">{learning.title}</span>
+          <span className="text-xs text-[var(--c-gray-500)] block mt-0.5 truncate">{learning.source}</span>
+        </div>
+        <span className="flex items-center gap-1 text-xs text-[var(--c-gray-400)] flex-shrink-0">
+          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </span>
+      </button>
+      {expanded && (
+        <div className="border-t border-[var(--c-gray-100)] px-4 py-3 space-y-2">
+          <p className="text-sm text-[var(--c-gray-700)]">{learning.summary}</p>
+          <p className="text-sm text-[var(--c-gray-600)]">
+            <span className="font-medium">Why it matters:</span> {learning.relevance}
+          </p>
+          {learning.actionItems && learning.actionItems.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-[var(--c-gray-600)] mb-1">Action items:</p>
+              <ul className="list-disc list-inside text-sm text-[var(--c-gray-600)] space-y-0.5">
+                {learning.actionItems.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex items-center gap-3 pt-1">
+            {learning.sourceUrl && (
+              <a
+                href={learning.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                style={{ color: GOLD }}
+              >
+                <ExternalLink className="w-3 h-3" />
+                View source
+              </a>
+            )}
+            {learning.publicationDate && (
+              <span className="text-xs text-[var(--c-gray-400)]">Published: {learning.publicationDate}</span>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -275,6 +337,20 @@ export function PippenDailyReportView() {
       {/* Report Content */}
       {report && !loading && !error && !isEmpty && (
         <>
+          {/* Top Takeaway */}
+          {report.learnings?.available && report.learnings.topTakeaway && (
+            <div
+              className="rounded-[14px] border-2 p-5 flex items-start gap-3"
+              style={{ borderColor: GOLD, backgroundColor: `${GOLD}08` }}
+            >
+              <Star className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: GOLD }} />
+              <div>
+                <h2 className="text-sm font-medium text-[var(--c-gray-900)] mb-1">Top Takeaway</h2>
+                <p className="text-sm text-[var(--c-gray-700)]">{report.learnings.topTakeaway}</p>
+              </div>
+            </div>
+          )}
+
           {/* Alerts */}
           {report.alerts.length > 0 && (
             <div className="space-y-2">
@@ -359,6 +435,18 @@ export function PippenDailyReportView() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Today's Learnings */}
+          {report.learnings?.available && report.learnings.learnings.length > 0 && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-medium text-[var(--c-gray-900)]">
+                Today&apos;s Learnings
+              </h2>
+              {report.learnings.learnings.map((learning, i) => (
+                <LearningItemCard key={i} learning={learning} />
+              ))}
             </div>
           )}
 
