@@ -39,13 +39,13 @@ export type ResearchStatus =
 export interface ResearchSession {
   id: string
   mode: ResearchMode
-  question: string
+  questionText: string
   status: ResearchStatus
   caseId?: string | null
-  caseNumber?: string | null
+  case?: { tabsNumber?: string } | null
   createdAt: string
   updatedAt: string
-  creatorName?: string
+  createdBy?: { name?: string } | null
 }
 
 /* ── Mode display config ──────────────────────────────────────────── */
@@ -128,8 +128,8 @@ export function ResearchHome() {
       if (statusFilter !== "all" && s.status !== statusFilter) return false
       if (
         search &&
-        !s.question.toLowerCase().includes(search.toLowerCase()) &&
-        !(s.caseNumber ?? "").toLowerCase().includes(search.toLowerCase())
+        !s.questionText.toLowerCase().includes(search.toLowerCase()) &&
+        !(s.case?.tabsNumber ?? "").toLowerCase().includes(search.toLowerCase())
       )
         return false
       return true
@@ -241,12 +241,12 @@ export function ResearchHome() {
                     </div>
 
                     <p className="text-sm font-medium leading-snug line-clamp-2">
-                      {session.question}
+                      {session.questionText}
                     </p>
 
-                    {session.caseNumber && (
+                    {session.case?.tabsNumber && (
                       <p className="text-xs text-muted-foreground">
-                        Case: {session.caseNumber}
+                        Case: {session.case?.tabsNumber}
                       </p>
                     )}
 
@@ -257,7 +257,7 @@ export function ResearchHome() {
                           { month: "short", day: "numeric", year: "numeric" }
                         )}
                       </span>
-                      {session.creatorName && <span>{session.creatorName}</span>}
+                      {session.createdBy?.name && <span>{session.createdBy.name}</span>}
                     </div>
                   </CardContent>
                 </Card>
