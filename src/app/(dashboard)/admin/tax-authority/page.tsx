@@ -3,53 +3,35 @@ import { TaxAuthorityOverviewClient } from "./overview-client"
 
 async function loadOverviewData() {
   try {
-    const [sources, ingestionSummary, benchmarkStats, latestDigest] = await Promise.all([
-      prisma.sourceRegistry.findMany({
-        orderBy: { name: "asc" },
-        select: {
-          id: true,
-          name: true,
-          sourceId: true,
-          enabled: true,
-          lastFetchedAt: true,
-          lastSuccessAt: true,
-          lastErrorAt: true,
-          lastError: true,
-          errorCount: true,
-        },
-      }),
-      prisma.ingestionRun.aggregate({
-        where: {
-          startedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-        },
-        _sum: {
-          itemsNew: true,
-          itemsChanged: true,
-          itemsSkipped: true,
-          itemsFailed: true,
-        },
-        _count: true,
-      }),
-      prisma.benchmarkRun.aggregate({
-        where: {
-          runDate: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-        },
-        _avg: { citationPrecision: true, citationRecall: true },
-        _count: true,
-        _sum: { driftDetected: false } as any,
-      }),
-      prisma.dailyDigest.findFirst({
-        orderBy: { digestDate: "desc" },
-      }),
-    ])
-
-    // Count drifts separately
-    const driftCount = await prisma.benchmarkRun.count({
-      where: {
-        runDate: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-        driftDetected: true,
+    // Query each independently so one failure doesn't break the whole page
+    const sources = await prisma.sourceRegistry.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true, name: true, sourceId: true, enabled: true,
+        lastFetchedAt: true, lastSuccessAt: true, lastErrorAt: true,
+        lastError: true, errorCount: true,
       },
+    }).catch(() => [])
+
+    const ingestionAgg = await prisma.ingestionRun.aggregate({
+      where: { startedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+      _sum: { itemsNew: true, itemsChanged: true, itemsSkipped: true, itemsFailed: true },
+      _count: true,
+    }).catch(() => ({ _sum: { itemsNew: null, itemsChanged: null, itemsSkipped: null, itemsFailed: null }, _count: 0 }))
+
+    const benchmarkAgg = await prisma.benchmarkRun.aggregate({
+      where: { runDate: { gte: new Date(Date.now() - 7 * 86400000) } },
+      _avg: { citationPrecision: true, citationRecall: true },
+      _count: true,
+    }).catch(() => ({ _avg: { citationPrecision: null, citationRecall: null }, _count: 0 }))
+
+    const driftCount = await prisma.benchmarkRun.count({
+      where: { runDate: { gte: new Date(Date.now() - 7 * 86400000) }, driftDetected: true },
     }).catch(() => 0)
+
+    const latestDigest = await prisma.dailyDigest.findFirst({
+      orderBy: { digestDate: "desc" },
+    }).catch(() => null)
 
     return {
       sources: sources.map((s) => ({
@@ -59,16 +41,16 @@ async function loadOverviewData() {
         lastErrorAt: s.lastErrorAt?.toISOString() ?? null,
       })),
       ingestionSummary: {
-        runsToday: ingestionSummary._count,
-        newItems: ingestionSummary._sum.itemsNew ?? 0,
-        changedItems: ingestionSummary._sum.itemsChanged ?? 0,
-        skippedItems: ingestionSummary._sum.itemsSkipped ?? 0,
-        failedItems: ingestionSummary._sum.itemsFailed ?? 0,
+        runsToday: ingestionAgg._count,
+        newItems: ingestionAgg._sum.itemsNew ?? 0,
+        changedItems: ingestionAgg._sum.itemsChanged ?? 0,
+        skippedItems: ingestionAgg._sum.itemsSkipped ?? 0,
+        failedItems: ingestionAgg._sum.itemsFailed ?? 0,
       },
       benchmarkStats: {
-        avgPrecision: benchmarkStats._avg.citationPrecision ?? 0,
-        avgRecall: benchmarkStats._avg.citationRecall ?? 0,
-        totalRuns: benchmarkStats._count,
+        avgPrecision: benchmarkAgg._avg.citationPrecision ?? 0,
+        avgRecall: benchmarkAgg._avg.citationRecall ?? 0,
+        totalRuns: benchmarkAgg._count,
         driftCount,
       },
       latestDigest: latestDigest
