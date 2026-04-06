@@ -46,11 +46,11 @@ function LoginForm() {
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden" style={{ backgroundColor: "#0A1628" }}>
-      <video autoPlay muted loop playsInline onCanPlay={handleVideoLoad} className="absolute inset-0 w-full h-full object-cover" style={{ opacity: videoLoaded && mounted ? 0.6 : 0, transition: `opacity 2.5s ${ease}`, filter: "saturate(0.8)" }}>
+      <video autoPlay muted loop playsInline onCanPlay={handleVideoLoad} className="absolute inset-0 w-full h-full object-cover" style={{ opacity: videoLoaded && mounted ? 0.85 : 0, transition: `opacity 1s ${ease}`, filter: "saturate(0.85) brightness(1.05)" }}>
         <source src="/api/video/login-bg" type="video/mp4" />
       </video>
 
-      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, rgba(10,22,40,0.92) 0%, rgba(20,36,64,0.85) 40%, rgba(10,22,40,0.88) 100%), radial-gradient(ellipse at 20% 80%, rgba(42,143,168,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(196,154,60,0.04) 0%, transparent 50%)` }} />
+      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, rgba(10,22,40,0.78) 0%, rgba(20,36,64,0.65) 40%, rgba(10,22,40,0.72) 100%), radial-gradient(ellipse at 20% 80%, rgba(42,143,168,0.1) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(196,154,60,0.06) 0%, transparent 50%)` }} />
 
       <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.02, backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h60v60H0z' fill='none' stroke='%23fff' stroke-width='0.5'/%3E%3C/svg%3E")`, backgroundSize: "60px 60px" }} />
 
