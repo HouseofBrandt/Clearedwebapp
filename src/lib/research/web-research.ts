@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { prisma } from "@/lib/db"
 import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
+import { humanizeText } from "@/lib/ai/humanizer"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -83,6 +84,8 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly"
   } catch (e: any) {
     console.warn("[Reasoning] Web research pipeline error (non-blocking):", e.message)
   }
+
+  fullText = humanizeText(fullText)
 
   const result: ResearchResult = { summary, sources, fullText }
 

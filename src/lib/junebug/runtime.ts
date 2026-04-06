@@ -15,6 +15,7 @@
 import { buildSystemPrompt } from "./prompts"
 import { gatherContext, buildMessages, JunebugContext } from "./context"
 import { getAvailableTools, JunebugTool } from "./tools"
+import { humanizeText } from "@/lib/ai/humanizer"
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -228,7 +229,7 @@ export async function runJunebug(
   }
 
   return {
-    text: textContent,
+    text: humanizeText(textContent),
     actions,
     toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
     contextSources: context.sources.length > 0 ? context.sources : undefined,

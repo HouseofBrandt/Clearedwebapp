@@ -5,6 +5,7 @@
  */
 
 import { prisma } from "@/lib/db"
+import { humanizeText } from "@/lib/ai/humanizer"
 import type { CompiledReport } from "./compile-learnings"
 
 export async function postDailyTakeaway(
@@ -38,7 +39,7 @@ export async function postDailyTakeaway(
     const content = [
       `🐕 **Pippen's Daily Takeaway** — ${report.date}`,
       "",
-      report.topTakeaway,
+      humanizeText(report.topTakeaway),
       "",
       `📋 [Full daily learnings report →](/pippen)`,
     ].join("\n")

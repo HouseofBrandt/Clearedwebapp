@@ -21,6 +21,7 @@ import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
 import { createFeedEvent } from "@/lib/feed/create-event"
 import { evaluateBanjoDeliverable } from "@/lib/reasoning/wrap"
 import { getWorkProductPromptBlock } from "@/lib/work-product/prompt-merger"
+import { humanizeText } from "@/lib/ai/humanizer"
 import { EventEmitter } from "events"
 
 const TASK_TYPE_TO_PROMPT: Record<string, string> = {
@@ -397,7 +398,7 @@ export async function POST(
               judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
             }
           } else {
-            detokenized = detokenizeText(fullContent, tokenMap)
+            detokenized = humanizeText(detokenizeText(fullContent, tokenMap))
             verifyFlags = (fullContent.match(/\[VERIFY\]/g) || []).length
             judgmentFlags = (fullContent.match(/\[PRACTITIONER JUDGMENT\]/g) || []).length
           }

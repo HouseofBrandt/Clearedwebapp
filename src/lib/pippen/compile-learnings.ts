@@ -7,6 +7,7 @@
 
 import { prisma } from "@/lib/db"
 import { callClaude } from "@/lib/ai/client"
+import { humanizeText } from "@/lib/ai/humanizer"
 
 export interface DailyLearning {
   title: string
@@ -256,8 +257,8 @@ Be concise and practical. Focus on what practitioners need to know and do.`
       date: dateStr,
       title: `Pippen Daily Learnings — ${dateStr}`,
       learnings,
-      topTakeaway: parsed.topTakeaway,
-      markdownContent: mdLines.join("\n"),
+      topTakeaway: humanizeText(parsed.topTakeaway),
+      markdownContent: humanizeText(mdLines.join("\n")),
     }
   } catch (err) {
     console.error("[Pippen] Claude call failed, falling back to template:", err)
