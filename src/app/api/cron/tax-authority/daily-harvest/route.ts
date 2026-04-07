@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { RegHarvester } from '@/lib/tax-authority/harvest/reg-harvester'
 import { IrmHarvester } from '@/lib/tax-authority/harvest/irm-harvester'
+import { IrbHarvester } from '@/lib/tax-authority/harvest/irb-harvester'
+import { TaxCourtHarvester } from '@/lib/tax-authority/harvest/tax-court-harvester'
+import { WrittenDetHarvester } from '@/lib/tax-authority/harvest/written-det-harvester'
 import type { HarvestResult } from '@/lib/tax-authority/types'
 
 export const maxDuration = 300
@@ -16,7 +19,13 @@ export async function GET(request: NextRequest) {
   const results: HarvestResult[] = []
 
   // Run harvesters sequentially to respect rate limits
-  const harvesters = [new RegHarvester(), new IrmHarvester()]
+  const harvesters = [
+    new RegHarvester(),
+    new IrbHarvester(),
+    new IrmHarvester(),
+    new TaxCourtHarvester(),
+    new WrittenDetHarvester(),
+  ]
 
   for (const harvester of harvesters) {
     try {

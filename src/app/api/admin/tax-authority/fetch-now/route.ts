@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { requireApiAuth, ADMIN_ROLES } from "@/lib/auth/api-guard"
 import { RegHarvester } from "@/lib/tax-authority/harvest/reg-harvester"
 import { IrmHarvester } from "@/lib/tax-authority/harvest/irm-harvester"
+import { IrbHarvester } from "@/lib/tax-authority/harvest/irb-harvester"
+import { TaxCourtHarvester } from "@/lib/tax-authority/harvest/tax-court-harvester"
+import { WrittenDetHarvester } from "@/lib/tax-authority/harvest/written-det-harvester"
 import { runPippenPipeline } from "@/lib/pippen/pipeline"
 import type { HarvestResult } from "@/lib/tax-authority/types"
 
@@ -12,7 +15,13 @@ export async function POST() {
   if (!auth.authorized) return auth.response
 
   const results: HarvestResult[] = []
-  const harvesters = [new RegHarvester(), new IrmHarvester()]
+  const harvesters = [
+    new RegHarvester(),
+    new IrbHarvester(),
+    new IrmHarvester(),
+    new TaxCourtHarvester(),
+    new WrittenDetHarvester(),
+  ]
 
   for (const harvester of harvesters) {
     try {
