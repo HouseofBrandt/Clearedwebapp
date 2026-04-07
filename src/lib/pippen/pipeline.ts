@@ -11,6 +11,7 @@
 import { compileDailyLearnings, type CompiledReport } from "./compile-learnings"
 import { ingestDailyLearnings } from "./ingest-learnings"
 import { postDailyTakeaway } from "./post-takeaway"
+import { generateDailyNewsArticle, type DailyNewsArticle } from "./daily-news-article"
 
 export interface StageResult {
   stage: string
@@ -25,6 +26,7 @@ export interface PipelineResult {
   success: boolean
   stages: StageResult[]
   report?: CompiledReport
+  article?: DailyNewsArticle
   totalDurationMs: number
 }
 
@@ -34,6 +36,7 @@ export async function runPippenPipeline(date?: Date): Promise<PipelineResult> {
   const dateStr = reportDate.toISOString().split("T")[0]
   const stages: StageResult[] = []
   let report: CompiledReport | undefined
+  let article: DailyNewsArticle | undefined
 
   // Stage 1: Harvest — already ran via cron, just note it
   stages.push({
@@ -67,6 +70,51 @@ export async function runPippenPipeline(date?: Date): Promise<PipelineResult> {
       stages,
       totalDurationMs: Date.now() - pipelineStart,
     }
+  }
+
+  // Stage 2.5: Generate daily news article
+  const articleStart = Date.now()
+  try {
+    article = await generateDailyNewsArticle(report)
+    stages.push({
+      stage: "article",
+      success: true,
+      durationMs: Date.now() - articleStart,
+      detail: `Generated article: "${article.headline}"`,
+    })
+
+    // Store article in DailyDigest details
+    try {
+      const { prisma } = await import("@/lib/db")
+      const startOfDay = new Date(reportDate)
+      startOfDay.setHours(0, 0, 0, 0)
+      const endOfDay = new Date(reportDate)
+      endOfDay.setHours(23, 59, 59, 999)
+
+      const digest = await prisma.dailyDigest.findFirst({
+        where: { digestDate: { gte: startOfDay, lte: endOfDay } },
+      })
+
+      if (digest) {
+        const existingDetails = (digest.details as Record<string, unknown>) ?? {}
+        const updatedDetails = { ...existingDetails, newsArticle: article }
+        await prisma.dailyDigest.update({
+          where: { id: digest.id },
+          data: { details: updatedDetails as unknown as import("@prisma/client").Prisma.InputJsonValue },
+        })
+      }
+    } catch {
+      // DailyDigest caching is non-critical
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    stages.push({
+      stage: "article",
+      success: false,
+      durationMs: Date.now() - articleStart,
+      error: message,
+    })
+    // Continue — article generation failure should not block the pipeline
   }
 
   // Stage 3: Ingest
@@ -119,6 +167,7 @@ export async function runPippenPipeline(date?: Date): Promise<PipelineResult> {
     success: allSuccess,
     stages,
     report,
+    article,
     totalDurationMs: Date.now() - pipelineStart,
   }
 }

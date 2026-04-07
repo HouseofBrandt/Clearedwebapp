@@ -4,6 +4,9 @@ import { IrmHarvester } from '@/lib/tax-authority/harvest/irm-harvester'
 import { IrbHarvester } from '@/lib/tax-authority/harvest/irb-harvester'
 import { TaxCourtHarvester } from '@/lib/tax-authority/harvest/tax-court-harvester'
 import { WrittenDetHarvester } from '@/lib/tax-authority/harvest/written-det-harvester'
+import { IrsNewsHarvester } from '@/lib/tax-authority/harvest/irs-news-harvester'
+import { TreasuryNewsHarvester } from '@/lib/tax-authority/harvest/treasury-news-harvester'
+import { TasHarvester } from '@/lib/tax-authority/harvest/tas-harvester'
 import type { HarvestResult } from '@/lib/tax-authority/types'
 
 export const maxDuration = 300
@@ -25,6 +28,9 @@ export async function GET(request: NextRequest) {
     new IrmHarvester(),
     new TaxCourtHarvester(),
     new WrittenDetHarvester(),
+    new IrsNewsHarvester(),
+    new TreasuryNewsHarvester(),
+    new TasHarvester(),
   ]
 
   for (const harvester of harvesters) {

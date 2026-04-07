@@ -19,6 +19,7 @@ import {
   Microscope,
   Library,
   Dog,
+  Newspaper,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -36,6 +37,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   // MAIN section
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, description: "Daily brief and action queue", section: "MAIN" },
+  { name: "Daily News", href: "/news", icon: Newspaper, description: "Daily tax authority news briefing", section: "MAIN" },
   { name: "Cases", href: "/cases", icon: FolderOpen, description: "Active matters", section: "MAIN" },
   { name: "Review Queue", href: "/review", icon: ClipboardCheck, description: "Approve AI work product", section: "MAIN" },
   { name: "Calendar", href: "/calendar", icon: Calendar, description: "Deadlines and hearings", section: "MAIN" },
