@@ -91,18 +91,11 @@ export class RegHarvester extends BaseHarvester {
     const params = new URLSearchParams({
       'conditions[agencies][]': 'treasury-department',
       'conditions[publication_date][gte]': sinceDate,
-      'conditions[term]': 'tax resolution OR offer in compromise OR penalty abatement OR installment agreement OR trust fund recovery OR innocent spouse OR currently not collectible OR collection due process',
       per_page: '50',
       order: 'newest',
     })
 
-    // Focus on CFR Title 26 parts most relevant to tax resolution practice
-    const relevantCfrParts = [1, 20, 301, 601]
-    const cfrParams = relevantCfrParts
-      .map(part => `conditions[cfr][title]=26&conditions[cfr][part]=${part}`)
-      .join('&')
-
-    return `${FEDERAL_REGISTER_API}?${params.toString()}&conditions[type][]=RULE&conditions[type][]=PRORULE&${cfrParams}`
+    return `${FEDERAL_REGISTER_API}?${params.toString()}&conditions[type][]=RULE&conditions[type][]=PRORULE`
   }
 
   private async fetchDocumentContent(doc: FederalRegisterDocument): Promise<string | null> {

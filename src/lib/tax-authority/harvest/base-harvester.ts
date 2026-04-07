@@ -170,7 +170,8 @@ export abstract class BaseHarvester {
         const response = await fetch(url, {
           ...init,
           headers: {
-            'User-Agent': 'ClearedTaxResolution/1.0 (tax-authority-research)',
+            'User-Agent': 'Mozilla/5.0 (compatible; tax-research-bot/1.0)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             ...init?.headers,
           },
         })
