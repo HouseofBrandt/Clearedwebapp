@@ -47,17 +47,17 @@ type ResearchStatus =
 interface ResearchSessionDetail {
   id: string
   mode: ResearchMode
-  question: string
+  questionText: string
   status: ResearchStatus
   caseId?: string | null
-  caseNumber?: string | null
+  case?: { id: string; tabsNumber: string; clientName: string; caseType: string } | null
   output?: string | null
-  sourceCount?: number
+  sources?: Array<{ id: string; title: string; url?: string | null }> | null
   createdAt: string
   updatedAt: string
-  launchedAt?: string | null
+  retrievalStartedAt?: string | null
   completedAt?: string | null
-  creatorName?: string
+  createdBy?: { id: string; name: string; email: string } | null
 }
 
 /* ── Config ───────────────────────────────────────────────────────── */
@@ -177,9 +177,12 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
 
   /* ── Actions ──────────────────────────────────────────────────── */
 
-  const handleAction = async (action: "APPROVE" | "REJECT") => {
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const handleAction = async (action: "APPROVE" | "REJECT_MANUAL") => {
     if (actionLoading || !session) return
     setActionLoading(true)
+    setActionError(null)
     try {
       const res = await fetch(`/api/research/sessions/${sessionId}/review`, {
         method: "POST",
@@ -188,9 +191,12 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
       })
       if (res.ok) {
         await fetchSession()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setActionError(data.error || `Review failed (${res.status})`)
       }
     } catch {
-      // silently fail
+      setActionError("Failed to submit review. Please try again.")
     } finally {
       setActionLoading(false)
     }
@@ -286,7 +292,7 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
               {modeConfig.label}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground line-clamp-2">
-              {session.question}
+              {session.questionText}
             </p>
           </div>
         </div>
@@ -303,11 +309,11 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
             label="Created"
             value={formatDate(session.createdAt)}
           />
-          {session.launchedAt && (
+          {session.retrievalStartedAt && (
             <MetaItem
               icon={Zap}
               label="Launched"
-              value={formatDate(session.launchedAt)}
+              value={formatDate(session.retrievalStartedAt)}
             />
           )}
           {session.completedAt && (
@@ -317,25 +323,25 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
               value={formatDate(session.completedAt)}
             />
           )}
-          {session.caseNumber && (
+          {session.case?.tabsNumber && (
             <MetaItem
               icon={LinkIcon}
               label="Case"
-              value={session.caseNumber}
+              value={session.case.tabsNumber}
             />
           )}
-          {session.sourceCount !== undefined && session.sourceCount > 0 && (
+          {session.sources && session.sources.length > 0 && (
             <MetaItem
               icon={FileText}
               label="Sources Cited"
-              value={String(session.sourceCount)}
+              value={String(session.sources.length)}
             />
           )}
-          {session.creatorName && (
+          {session.createdBy?.name && (
             <MetaItem
               icon={FileText}
               label="Created By"
-              value={session.creatorName}
+              value={session.createdBy.name}
             />
           )}
         </CardContent>
@@ -391,7 +397,7 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => handleAction("REJECT")}
+                onClick={() => handleAction("REJECT_MANUAL")}
                 disabled={actionLoading}
               >
                 {actionLoading ? (
@@ -415,6 +421,13 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Review error */}
+      {actionError && (
+        <div className="rounded-[12px] px-5 py-3 text-[13px]" style={{ background: "var(--c-danger-soft)", border: "1px solid rgba(217,48,37,0.1)", color: "var(--c-danger)" }}>
+          {actionError}
+        </div>
       )}
 
       {/* Approved / Rejected state */}

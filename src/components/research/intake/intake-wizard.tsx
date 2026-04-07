@@ -207,7 +207,7 @@ export function IntakeWizard() {
           setCases(
             list.map((c: any) => ({
               id: c.id,
-              caseNumber: c.caseNumber,
+              caseNumber: c.tabsNumber || c.caseNumber || c.id,
               clientName: c.clientName ?? "Unknown",
             }))
           )
