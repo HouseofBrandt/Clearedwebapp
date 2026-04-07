@@ -45,24 +45,31 @@ export class RegHarvester extends BaseHarvester {
       ? since.toISOString().split('T')[0]
       : new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
 
-    let pageUrl: string | null = this.buildApiUrl(sinceDate)
+    const apiUrl = this.buildApiUrl(sinceDate)
+    console.log(`[RegHarvester] Fetching from: ${apiUrl}`)
 
-    while (pageUrl) {
-      const response = await this.rateLimitedFetch(pageUrl)
+    try {
+      const response = await this.rateLimitedFetch(apiUrl)
       const data: FederalRegisterResponse = await response.json()
+
+      console.log(`[RegHarvester] API returned ${data.count} total results, ${data.results?.length ?? 0} on this page`)
+
+      if (!data.results || data.results.length === 0) {
+        console.log(`[RegHarvester] No results for sinceDate=${sinceDate}`)
+        return items
+      }
 
       for (const doc of data.results) {
         try {
-          const content = await this.fetchDocumentContent(doc)
-          if (!content) continue
-
+          // Use abstract as content to avoid slow per-document fetches
+          const content = doc.abstract || doc.title
           const tier: AuthorityTier = doc.type === 'RULE' ? 'A2' : 'A3'
 
           items.push({
             sourceUrl: doc.html_url,
             title: doc.title,
             rawContent: content,
-            contentType: 'text/html',
+            contentType: 'text/plain',
             publicationDate: new Date(doc.publication_date),
             effectiveDate: doc.effective_on ? new Date(doc.effective_on) : undefined,
             authorityTier: tier,
@@ -77,36 +84,31 @@ export class RegHarvester extends BaseHarvester {
             },
           })
         } catch (e) {
-          console.error(`[RegHarvester] Failed to fetch content for ${doc.document_number}:`, e)
+          console.error(`[RegHarvester] Failed to process ${doc.document_number}:`, e)
         }
       }
 
-      pageUrl = data.next_page_url ?? null
+      console.log(`[RegHarvester] Processed ${items.length} items`)
+    } catch (e) {
+      console.error(`[RegHarvester] API fetch failed:`, e instanceof Error ? e.message : e)
     }
 
     return items
   }
 
   private buildApiUrl(sinceDate: string): string {
-    const params = new URLSearchParams({
-      'conditions[agencies][]': 'treasury-department',
-      'conditions[publication_date][gte]': sinceDate,
-      per_page: '50',
-      order: 'newest',
-    })
+    // Build URL manually — URLSearchParams over-encodes brackets
+    // which the Federal Register API doesn't accept
+    const base = FEDERAL_REGISTER_API
+    const params = [
+      `conditions[agencies][]=treasury-department`,
+      `conditions[publication_date][gte]=${sinceDate}`,
+      `conditions[type][]=RULE`,
+      `conditions[type][]=PRORULE`,
+      `per_page=20`,
+      `order=newest`,
+    ].join('&')
 
-    return `${FEDERAL_REGISTER_API}?${params.toString()}&conditions[type][]=RULE&conditions[type][]=PRORULE`
-  }
-
-  private async fetchDocumentContent(doc: FederalRegisterDocument): Promise<string | null> {
-    const contentUrl = doc.raw_text_url || doc.body_html_url
-    if (!contentUrl) return doc.abstract || null
-
-    try {
-      const response = await this.rateLimitedFetch(contentUrl)
-      return await response.text()
-    } catch {
-      return doc.abstract || null
-    }
+    return `${base}?${params}`
   }
 }
