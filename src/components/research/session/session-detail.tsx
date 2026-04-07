@@ -142,6 +142,7 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [retrying, setRetrying] = useState(false)
 
   const fetchSession = useCallback(async () => {
     try {
@@ -247,8 +248,6 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
   // Detect stuck sessions (processing for >5 minutes)
   const isStuck = isProcessing && session?.createdAt &&
     (Date.now() - new Date(session.createdAt).getTime()) > 5 * 60 * 1000
-
-  const [retrying, setRetrying] = useState(false)
 
   async function handleRetry() {
     if (!session) return
