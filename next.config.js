@@ -3,11 +3,12 @@ const { withSentryConfig } = require("@sentry/nextjs")
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    // Deploy all code even with TS errors — fix errors post-deploy
-    ignoreBuildErrors: true,
+    // CI will catch type errors. Only ignore on Vercel if explicitly opted in.
+    ignoreBuildErrors: process.env.SKIP_TYPE_CHECK === "true",
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    // CI will catch lint errors. Only ignore on Vercel if explicitly opted in.
+    ignoreDuringBuilds: process.env.SKIP_LINT === "true",
   },
   webpack: (config) => {
     config.externals.push({ 'bufferutil': 'bufferutil', 'utf-8-validate': 'utf-8-validate' })
