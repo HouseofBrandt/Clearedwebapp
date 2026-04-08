@@ -86,7 +86,9 @@ export async function GET(request: NextRequest) {
   }
 
   // Auto-scan for implemented items before export (best-effort, don't block on failure)
-  const autoScan = searchParams.get("skipScan") !== "true"
+  // Skip scan when user is filtering for unread — they want to see new items, not trigger a scan
+  // that might mark them as "implemented" before they're read
+  const autoScan = searchParams.get("skipScan") !== "true" && readFilter !== "unread"
   if (autoScan && !includeResolved && !status) {
     try {
       const { detectImplementation } = await import("@/lib/ai/feature-detection")
