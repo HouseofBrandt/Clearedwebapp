@@ -52,6 +52,7 @@ interface ResearchSessionDetail {
   caseId?: string | null
   case?: { id: string; tabsNumber: string; clientName: string; caseType: string } | null
   output?: string | null
+  executiveSummary?: string | null
   sources?: Array<{ id: string; title: string; url?: string | null }> | null
   createdAt: string
   updatedAt: string
@@ -370,17 +371,72 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
 
       {/* Output */}
       {session.output && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Research Output</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="space-y-5">
+          {/* Executive summary card */}
+          {session.executiveSummary && (
             <div
-              className="junebug-prose prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(session.output) }}
-            />
-          </CardContent>
-        </Card>
+              className="rounded-2xl px-6 py-5"
+              style={{
+                background: "linear-gradient(135deg, var(--c-navy-950) 0%, #1C2D44 100%)",
+                boxShadow: "var(--shadow-2)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="h-4 w-4 text-amber-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40">Bottom Line</span>
+              </div>
+              <p className="text-[15px] leading-relaxed text-white/90" style={{ fontFamily: "var(--font-body)" }}>
+                {session.executiveSummary}
+              </p>
+            </div>
+          )}
+
+          {/* Sources bar */}
+          {session.sources && session.sources.length > 0 && (
+            <div className="flex items-center gap-3 px-1">
+              <LinkIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--c-gray-300)" }} />
+              <div className="flex items-center gap-2 flex-wrap">
+                {session.sources.slice(0, 6).map((s, i) => (
+                  <a
+                    key={i}
+                    href={s.url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-full px-2.5 py-1 text-[10.5px] font-medium transition-colors hover:bg-[var(--c-gray-100)]"
+                    style={{ background: "var(--c-gray-50)", color: "var(--c-gray-500)", border: "1px solid var(--c-gray-100)" }}
+                    title={s.title}
+                  >
+                    {s.title.length > 30 ? s.title.slice(0, 30) + "..." : s.title}
+                  </a>
+                ))}
+                {session.sources.length > 6 && (
+                  <span className="text-[10.5px]" style={{ color: "var(--c-gray-300)" }}>+{session.sources.length - 6} more</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Full research memo */}
+          <Card style={{ borderRadius: "16px", overflow: "hidden" }}>
+            <CardHeader className="pb-0" style={{ borderBottom: "1px solid var(--c-gray-50)" }}>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-[14px]" style={{ fontWeight: 600 }}>Research Memo</CardTitle>
+                {session.completedAt && (
+                  <span className="text-[11px]" style={{ color: "var(--c-gray-300)" }}>
+                    {new Date(session.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div
+                className="junebug-prose prose prose-sm max-w-none"
+                style={{ fontSize: "14px", lineHeight: "1.75" }}
+                dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(session.output) }}
+              />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Review actions */}
