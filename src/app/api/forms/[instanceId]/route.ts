@@ -18,7 +18,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const instance = getFormInstance(params.instanceId)
+    const instance = await getFormInstance(params.instanceId)
     if (!instance) {
       return NextResponse.json({ error: "Form instance not found" }, { status: 404 })
     }
@@ -47,7 +47,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const instance = getFormInstance(params.instanceId)
+    const instance = await getFormInstance(params.instanceId)
     if (!instance) {
       return NextResponse.json({ error: "Form instance not found" }, { status: 404 })
     }
@@ -129,7 +129,7 @@ export async function PATCH(
     instance.updatedAt = new Date().toISOString()
     instance.version += 1
 
-    saveFormInstance(instance)
+    await saveFormInstance(instance)
 
     return NextResponse.json({ instance })
   } catch (error) {

@@ -203,13 +203,15 @@ export interface FieldRendererProps {
     confidence: "high" | "medium" | "low"
     sourceName: string
   }
+  /** Unique key for radio buttons in repeating groups (prevents name collisions) */
+  uniqueKey?: string
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function FieldRenderer({ field, value, onChange, error, allValues, onFieldHelp, autoPopulated }: FieldRendererProps) {
+export function FieldRenderer({ field, value, onChange, error, allValues, onFieldHelp, autoPopulated, uniqueKey }: FieldRendererProps) {
   // Check conditional visibility
   if (!evaluateConditions(field.conditionals, allValues)) return null
 
@@ -388,13 +390,14 @@ function FieldInput({
         </div>
       )
 
-    case "yes_no":
+    case "yes_no": {
+      const radioName = uniqueKey ? `${field.id}_${uniqueKey}` : field.id
       return (
         <div className="flex gap-4 pt-1">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
-              name={field.id}
+              name={radioName}
               value="yes"
               checked={value === true || value === "yes"}
               onChange={() => onChange(true)}
@@ -405,7 +408,7 @@ function FieldInput({
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
-              name={field.id}
+              name={radioName}
               value="no"
               checked={value === false || value === "no"}
               onChange={() => onChange(false)}
@@ -415,6 +418,7 @@ function FieldInput({
           </label>
         </div>
       )
+    }
 
     case "single_select":
       return (
@@ -558,6 +562,7 @@ function RepeatingGroup({
                 value={row[gf.id]}
                 onChange={(val) => updateRow(index, gf.id, val)}
                 allValues={{ ...allValues, ...row }}
+                uniqueKey={`${field.id}_${index}`}
               />
             ))}
           </div>

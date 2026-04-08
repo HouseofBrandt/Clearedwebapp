@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { getFormSchema, getAvailableForms } from "@/lib/forms/registry"
 import { FormInstance } from "@/lib/forms/types"
-import { getFormInstance, saveFormInstance, listFormInstances } from "@/lib/forms/form-store"
+import { saveFormInstance, listFormInstances } from "@/lib/forms/form-store"
 import { randomUUID } from "crypto"
 
 /**
@@ -25,12 +25,12 @@ export async function GET(request: NextRequest) {
     // If no caseId, return available form schemas and recent instances
     if (!caseId) {
       const forms = getAvailableForms()
-      const instances = listFormInstances()
+      const instances = await listFormInstances()
       return NextResponse.json({ forms, instances: instances.slice(0, 10) })
     }
 
     // Return form instances for the case
-    const instances = listFormInstances(caseId)
+    const instances = await listFormInstances(caseId)
     return NextResponse.json({ instances })
   } catch (error) {
     console.error("Error listing form instances:", error)
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       version: 1,
     }
 
-    saveFormInstance(instance)
+    await saveFormInstance(instance)
 
     return NextResponse.json({ instance }, { status: 201 })
   } catch (error) {
