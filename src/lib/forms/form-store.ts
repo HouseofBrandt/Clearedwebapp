@@ -45,6 +45,8 @@ export async function saveFormInstance(instance: FormInstance): Promise<void> {
         status: instance.status,
         values: instance.values as any,
         completedSections: instance.completedSections as any,
+        createdById: instance.createdById,
+        version: instance.version || 1,
       },
     })
   } catch (error) {
