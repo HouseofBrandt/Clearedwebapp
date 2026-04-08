@@ -37,8 +37,9 @@ export async function searchKnowledge(
   let queryEmbedding: number[] | null = null
   try {
     queryEmbedding = await generateEmbedding(query)
-  } catch {
-    // Fall back to text-only search
+  } catch (embErr: any) {
+    // Fall back to text-only search — log so degradation is visible
+    console.warn("[Knowledge Search] Embedding failed, using text-only search:", embErr?.message || "OPENAI_API_KEY may not be set")
   }
 
   // 2. Build tsquery for full-text search
@@ -131,11 +132,11 @@ export async function searchKnowledge(
     ]
     const filtered = categoryFilter.filter((c) => validCategories.includes(c))
     if (filtered.length > 0) {
-      // Use individual parameters cast to the enum type to avoid
-      // "operator does not exist: KnowledgeCategory = text" errors.
-      // Prisma's $queryRawUnsafe array binding can bypass ::text[] casts.
-      const placeholders = filtered.map((_, i) => `$${paramIndex + i}::"KnowledgeCategory"`)
-      sql += ` AND kd.category IN (${placeholders.join(", ")})`
+      // Cast the column to ::text for comparison — avoids PostgreSQL error 42883
+      // ("operator does not exist") when the enum type name has case-sensitivity
+      // mismatches between Prisma's PascalCase and PostgreSQL's internal storage.
+      const placeholders = filtered.map((_, i) => `$${paramIndex + i}::text`)
+      sql += ` AND kd.category::text IN (${placeholders.join(", ")})`
       for (const cat of filtered) {
         params.push(cat)
         paramIndex++

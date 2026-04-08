@@ -53,24 +53,24 @@ export async function hybridRetrieve(options: RetrievalOptions): Promise<Retriev
   const embedding = await generateEmbedding(query)
   const embeddingStr = `[${embedding.join(',')}]`
 
+  // Build dynamic parameter index — $1 is always the embedding vector
+  let nextParamIdx = 2
+
   // Build tier filter
-  const tierFilter = tiers && tiers.length > 0
-    ? `AND ac."authorityTier"::text = ANY($2::text[])`
-    : ''
   const tierParam = tiers && tiers.length > 0 ? tiers : null
+  const tierFilter = tierParam ? `AND ac."authorityTier"::text = ANY($${nextParamIdx}::text[])` : ''
+  if (tierParam) nextParamIdx++
 
-  // Build superseded filter
-  const supersededFilter = includeSuperseded
-    ? ''
-    : `AND ac."superseded" = false`
+  // Build superseded filter (no parameter — boolean literal)
+  const supersededFilter = includeSuperseded ? '' : `AND ac."superseded" = false`
 
-  // Build promotion layer filter with fallback
-  const layerFilter = promotionLayers && promotionLayers.length > 0
-    ? `AND ac."promotionLayer"::text = ANY($3::text[])`
-    : ''
-  const layerParam = promotionLayers && promotionLayers.length > 0
-    ? promotionLayers
-    : null
+  // Build promotion layer filter
+  const layerParam = promotionLayers && promotionLayers.length > 0 ? promotionLayers : null
+  const layerFilter = layerParam ? `AND ac."promotionLayer"::text = ANY($${nextParamIdx}::text[])` : ''
+  if (layerParam) nextParamIdx++
+
+  // The query text for ts_rank is always the next parameter
+  const queryParamIdx = nextParamIdx
 
   // Combine vector similarity and full-text ranking
   // The final score is 0.7 * cosine_similarity + 0.3 * ts_rank (normalized)
@@ -90,7 +90,7 @@ export async function hybridRetrieve(options: RetrievalOptions): Promise<Retriev
         0.3 * COALESCE(
           ts_rank(
             to_tsvector('english', ac."content"),
-            plainto_tsquery('english', ${tierParam ? '$4' : '$2'}::text)
+            plainto_tsquery('english', $${queryParamIdx}::text)
           ),
           0
         )
@@ -106,11 +106,10 @@ export async function hybridRetrieve(options: RetrievalOptions): Promise<Retriev
   `
 
   // Build parameter list based on which filters are active
-  const params: unknown[] = [embeddingStr]
-  if (tierParam) params.push(tierParam)
-  if (layerParam) params.push(layerParam)
-  // The query text parameter for ts_rank — its position depends on which filters are present
-  params.push(query)
+  const params: unknown[] = [embeddingStr]                // $1
+  if (tierParam) params.push(tierParam)                   // $2 (if present)
+  if (layerParam) params.push(layerParam)                 // $2 or $3 (if present)
+  params.push(query)                                      // last param for ts_rank
 
   try {
     const results = await prisma.$queryRawUnsafe<RetrievedChunk[]>(sql, ...params)
