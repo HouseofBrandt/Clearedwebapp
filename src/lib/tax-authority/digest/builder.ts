@@ -26,9 +26,9 @@ export async function buildDailyDigest(date?: Date): Promise<{
 }> {
   const digestDate = date ?? new Date()
   const startOfDay = new Date(digestDate)
-  startOfDay.setHours(0, 0, 0, 0)
+  startOfDay.setUTCHours(0, 0, 0, 0)
   const endOfDay = new Date(digestDate)
-  endOfDay.setHours(23, 59, 59, 999)
+  endOfDay.setUTCHours(23, 59, 59, 999)
 
   // Query today's ingestion runs
   const ingestionRuns = await prisma.ingestionRun.findMany({

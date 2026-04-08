@@ -15,8 +15,13 @@ export async function publishDailyDigest(): Promise<string> {
 
   const detailsJson = JSON.parse(JSON.stringify(digest.details))
 
+  // Normalize digestDate to start-of-day UTC so the upsert unique key
+  // matches consistently regardless of when during the day this runs
+  const normalizedDate = new Date(digest.digestDate)
+  normalizedDate.setUTCHours(0, 0, 0, 0)
+
   const record = await prisma.dailyDigest.upsert({
-    where: { digestDate: digest.digestDate },
+    where: { digestDate: normalizedDate },
     update: {
       newAuthorities: digest.newAuthorities,
       changedAuthorities: digest.changedAuthorities,
@@ -28,7 +33,7 @@ export async function publishDailyDigest(): Promise<string> {
       publishedAt: new Date(),
     },
     create: {
-      digestDate: digest.digestDate,
+      digestDate: normalizedDate,
       newAuthorities: digest.newAuthorities,
       changedAuthorities: digest.changedAuthorities,
       supersededItems: digest.supersededItems,
