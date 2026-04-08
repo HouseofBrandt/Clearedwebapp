@@ -3,6 +3,30 @@
     "src/app/api/knowledge/upload/route.ts": {
       "maxDuration": 300,
       "memory": 1024
+    },
+    "src/app/api/research/sessions/[sessionId]/launch/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/ai/analyze/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/ai/chat/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/ai/review-edit/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/banjo/[assignmentId]/execute/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/pippen/daily-news/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/cron/tax-authority/daily-digest/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/tax-authority/daily-harvest/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
