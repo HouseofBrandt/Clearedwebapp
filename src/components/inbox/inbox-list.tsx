@@ -45,6 +45,7 @@ interface MessageData {
   implementationNotes?: string | null
   implementedAt?: string | null
   implementedBy?: { name: string } | null
+  metadata?: Record<string, any> | null
   createdAt: string
 }
 
@@ -667,6 +668,60 @@ function MessageDetail({
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.body}</div>
+
+        {/* Screenshot attachment */}
+        {message.metadata?.screenshot && (
+          <div className="mt-4 rounded-lg border border-c-gray-100 overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 bg-c-gray-50 border-b border-c-gray-100">
+              <span className="text-[11px] font-medium text-c-gray-500">Screenshot</span>
+              <a
+                href={message.metadata.screenshot}
+                download={`screenshot-${message.id}.jpg`}
+                className="ml-auto text-[10px] text-c-teal hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Download
+              </a>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={message.metadata.screenshot}
+              alt="Bug report screenshot"
+              className="w-full max-h-[400px] object-contain bg-c-gray-50"
+              loading="lazy"
+            />
+          </div>
+        )}
+
+        {/* Browser context (diagnostics) */}
+        {message.metadata?.browserContext && (
+          <details className="mt-4 rounded-lg border border-c-gray-100 overflow-hidden">
+            <summary className="px-3 py-2 bg-c-gray-50 text-[11px] font-medium text-c-gray-500 cursor-pointer hover:bg-c-gray-100">
+              Browser Diagnostics
+            </summary>
+            <div className="px-3 py-2 text-[11px] font-mono text-c-gray-600 space-y-1">
+              {message.metadata.browserContext.route && (
+                <div>Route: {message.metadata.browserContext.route}</div>
+              )}
+              {message.metadata.browserContext.errors?.length > 0 && (
+                <div>
+                  <div className="font-semibold text-c-danger mt-1">Console Errors:</div>
+                  {message.metadata.browserContext.errors.map((err: any, i: number) => (
+                    <div key={i} className="pl-2 text-c-danger/80">[{err.type}] {err.message}</div>
+                  ))}
+                </div>
+              )}
+              {message.metadata.browserContext.networkFailures?.length > 0 && (
+                <div>
+                  <div className="font-semibold text-c-warning mt-1">Network Failures:</div>
+                  {message.metadata.browserContext.networkFailures.map((f: any, i: number) => (
+                    <div key={i} className="pl-2">{f.method} {f.url} → {f.status}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </details>
+        )}
 
         {/* Linked entities */}
         <div className="mt-6 space-y-2">
