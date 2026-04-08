@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -17,7 +17,14 @@ import {
   FileText,
   LinkIcon,
   RefreshCw,
+  Copy,
+  Check,
+  Printer,
+  MessageSquare,
 } from "lucide-react"
+import { marked } from "marked"
+import DOMPurify from "dompurify"
+import { highlightCitations, elevatePractitionerNotes, injectHeadingIds, type TOCItem } from "@/lib/research/citations"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -180,6 +187,43 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
   /* ── Actions ──────────────────────────────────────────────────── */
 
   const [actionError, setActionError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [activeHeading, setActiveHeading] = useState("")
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Process markdown output into styled HTML with citations and TOC
+  const processedOutput = useMemo(() => {
+    if (!session?.output) return null
+    const rawHtml = marked.parse(session.output, { breaks: true, gfm: true }) as string
+    const cleanHtml = typeof window !== "undefined" ? DOMPurify.sanitize(rawHtml, { ADD_ATTR: ["id"] }) : rawHtml
+    const { html: withIds, headings } = injectHeadingIds(cleanHtml)
+    const withCitations = highlightCitations(withIds)
+    const finalHtml = elevatePractitionerNotes(withCitations)
+    return { html: finalHtml, headings }
+  }, [session?.output])
+
+  // TOC scroll tracking via IntersectionObserver
+  useEffect(() => {
+    if (!processedOutput?.headings.length || !contentRef.current) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) setActiveHeading(entry.target.id)
+        }
+      },
+      { rootMargin: "-80px 0px -70% 0px", threshold: 0 }
+    )
+    const headingEls = contentRef.current.querySelectorAll("h2[id]")
+    headingEls.forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [processedOutput])
+
+  const handleCopyMarkdown = useCallback(() => {
+    if (!session?.output) return
+    navigator.clipboard.writeText(session.output)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [session?.output])
 
   const handleAction = async (action: "APPROVE" | "REJECT_MANUAL") => {
     if (actionLoading || !session) return
@@ -370,8 +414,8 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
       )}
 
       {/* Output */}
-      {session.output && (
-        <div className="space-y-5">
+      {session.output && processedOutput && (
+        <div className="research-output space-y-5">
           {/* Executive summary card */}
           {session.executiveSummary && (
             <div
@@ -391,12 +435,23 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
             </div>
           )}
 
+          {/* Query context bar */}
+          <div className="research-query-bar flex items-start gap-3">
+            <MessageSquare className="h-4 w-4 shrink-0 mt-0.5" style={{ color: "var(--c-gray-400)" }} />
+            <div>
+              <p className="text-overline mb-1">Research Question</p>
+              <p className="text-[13px]" style={{ color: "var(--c-gray-600)", lineHeight: 1.6, fontStyle: "italic" }}>
+                {session.questionText}
+              </p>
+            </div>
+          </div>
+
           {/* Sources bar */}
           {session.sources && session.sources.length > 0 && (
             <div className="flex items-center gap-3 px-1">
               <LinkIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--c-gray-300)" }} />
               <div className="flex items-center gap-2 flex-wrap">
-                {session.sources.slice(0, 6).map((s, i) => (
+                {session.sources.slice(0, 8).map((s, i) => (
                   <a
                     key={i}
                     href={s.url || "#"}
@@ -406,36 +461,67 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
                     style={{ background: "var(--c-gray-50)", color: "var(--c-gray-500)", border: "1px solid var(--c-gray-100)" }}
                     title={s.title}
                   >
-                    {s.title.length > 30 ? s.title.slice(0, 30) + "..." : s.title}
+                    {s.title.length > 35 ? s.title.slice(0, 35) + "..." : s.title}
                   </a>
                 ))}
-                {session.sources.length > 6 && (
-                  <span className="text-[10.5px]" style={{ color: "var(--c-gray-300)" }}>+{session.sources.length - 6} more</span>
+                {session.sources.length > 8 && (
+                  <span className="text-[10.5px]" style={{ color: "var(--c-gray-300)" }}>+{session.sources.length - 8} more</span>
                 )}
               </div>
             </div>
           )}
 
-          {/* Full research memo */}
-          <Card style={{ borderRadius: "16px", overflow: "hidden" }}>
-            <CardHeader className="pb-0" style={{ borderBottom: "1px solid var(--c-gray-50)" }}>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-[14px]" style={{ fontWeight: 600 }}>Research Memo</CardTitle>
-                {session.completedAt && (
-                  <span className="text-[11px]" style={{ color: "var(--c-gray-300)" }}>
-                    {new Date(session.completedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5">
+          {/* Action buttons */}
+          <div className="research-actions-bar flex items-center justify-end gap-2 no-print">
+            <Button variant="outline" size="sm" onClick={handleCopyMarkdown} className="text-xs">
+              {copied ? <Check className="mr-1.5 h-3.5 w-3.5" style={{ color: "var(--c-success)" }} /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()} className="text-xs">
+              <Printer className="mr-1.5 h-3.5 w-3.5" />
+              Print
+            </Button>
+          </div>
+
+          {/* Two-column layout: TOC + body */}
+          <div className="research-layout flex gap-8">
+            {/* Sticky TOC sidebar */}
+            {processedOutput.headings.length > 1 && (
+              <nav className="research-toc hidden lg:block" aria-label="Table of contents">
+                <p className="text-overline mb-3">On This Page</p>
+                <ul className="space-y-0.5">
+                  {processedOutput.headings.map((h) => (
+                    <li key={h.id}>
+                      <a
+                        href={`#${h.id}`}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          document.getElementById(h.id)?.scrollIntoView({ behavior: "smooth" })
+                        }}
+                        className="block py-1.5 pl-3 text-[12px] border-l-2 transition-all duration-150"
+                        style={{
+                          borderColor: activeHeading === h.id ? "var(--c-teal)" : "transparent",
+                          color: activeHeading === h.id ? "var(--c-teal)" : "var(--c-gray-400)",
+                          fontWeight: activeHeading === h.id ? 600 : 400,
+                        }}
+                      >
+                        {h.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+
+            {/* Research body */}
+            <div className="min-w-0 flex-1">
               <div
-                className="junebug-prose prose prose-sm max-w-none"
-                style={{ fontSize: "14px", lineHeight: "1.75" }}
-                dangerouslySetInnerHTML={{ __html: renderMarkdownToHtml(session.output) }}
+                ref={contentRef}
+                className="research-prose"
+                dangerouslySetInnerHTML={{ __html: processedOutput.html }}
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
 
@@ -585,63 +671,6 @@ function formatDate(dateStr: string): string {
 /**
  * Minimal markdown-to-HTML renderer for research output.
  * Handles headings, bold, italic, code, lists, and paragraphs.
- * For production, swap with a full markdown library.
+ * Markdown rendering now handled by `marked` library with citation post-processing.
+ * See processedOutput useMemo in SessionDetail component.
  */
-function renderMarkdownToHtml(md: string): string {
-  const lines = md.split("\n")
-  const htmlParts: string[] = []
-  let inList = false
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-
-    // Close list if needed
-    if (inList && !trimmed.startsWith("- ") && !trimmed.startsWith("* ")) {
-      htmlParts.push("</ul>")
-      inList = false
-    }
-
-    if (!trimmed) {
-      htmlParts.push("")
-      continue
-    }
-
-    // Headings
-    if (trimmed.startsWith("### ")) {
-      htmlParts.push(`<h3>${inlineFormat(trimmed.slice(4))}</h3>`)
-      continue
-    }
-    if (trimmed.startsWith("## ")) {
-      htmlParts.push(`<h2>${inlineFormat(trimmed.slice(3))}</h2>`)
-      continue
-    }
-    if (trimmed.startsWith("# ")) {
-      htmlParts.push(`<h1>${inlineFormat(trimmed.slice(2))}</h1>`)
-      continue
-    }
-
-    // List items
-    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      if (!inList) {
-        htmlParts.push("<ul>")
-        inList = true
-      }
-      htmlParts.push(`<li>${inlineFormat(trimmed.slice(2))}</li>`)
-      continue
-    }
-
-    // Paragraph
-    htmlParts.push(`<p>${inlineFormat(trimmed)}</p>`)
-  }
-
-  if (inList) htmlParts.push("</ul>")
-  return htmlParts.join("\n")
-}
-
-function inlineFormat(text: string): string {
-  return text
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-    .replace(/_([^_]+)_/g, "<em>$1</em>")
-}

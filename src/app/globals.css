@@ -445,6 +445,82 @@ a, button, [role="button"] {
 .junebug-prose a:hover { text-decoration: underline; }
 
 /* ═══════════════════════════════════════════════════════════════════
+   RESEARCH OUTPUT — Document-Grade Typography
+   ═══════════════════════════════════════════════════════════════════ */
+
+.research-prose { font-size: 15px; line-height: 1.75; color: var(--c-gray-900); }
+.research-prose > *:first-child { margin-top: 0; }
+.research-prose > *:last-child { margin-bottom: 0; }
+
+.research-prose h1 { font-family: var(--font-display); font-size: 22px; font-weight: 400; margin-bottom: 12px; color: var(--c-gray-900); letter-spacing: -0.02em; }
+.research-prose h2 { font-size: 17px; font-weight: 600; margin-top: 40px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--c-gray-100); color: var(--c-gray-900); letter-spacing: -0.01em; scroll-margin-top: 80px; }
+.research-prose h3 { font-size: 15px; font-weight: 600; margin-top: 28px; margin-bottom: 10px; color: var(--c-gray-800); }
+.research-prose h4 { font-size: 14px; font-weight: 600; margin-top: 20px; margin-bottom: 8px; color: var(--c-gray-700); }
+
+.research-prose p { margin-bottom: 16px; }
+.research-prose ul, .research-prose ol { padding-left: 1.5em; margin-bottom: 16px; }
+.research-prose li { margin-bottom: 8px; line-height: 1.65; }
+.research-prose li::marker { color: var(--c-gray-300); }
+.research-prose hr { border: none; height: 1px; background: var(--c-gray-100); margin: 32px 0; }
+
+.research-prose strong { font-weight: 600; color: var(--c-gray-900); }
+.research-prose em { font-style: italic; }
+.research-prose a { color: var(--c-teal); text-decoration: none; font-weight: 500; }
+.research-prose a:hover { text-decoration: underline; }
+
+/* Code */
+.research-prose code { background: var(--c-gray-50); border: 1px solid var(--c-gray-100); border-radius: 5px; padding: 2px 6px; font-size: 0.88em; font-family: var(--font-mono); color: var(--c-gray-700); }
+.research-prose pre { background: var(--c-navy-950); color: var(--c-gray-100); border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 20px 0; font-size: 13px; line-height: 1.6; }
+.research-prose pre code { background: none; border: none; padding: 0; color: inherit; font-size: inherit; }
+
+/* Tables — document grade */
+.research-prose table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 13.5px; border: 1px solid var(--c-gray-100); border-radius: 10px; overflow: hidden; }
+.research-prose thead { background: var(--c-gray-50); }
+.research-prose th { font-weight: 600; text-align: left; padding: 10px 14px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--c-gray-500); border-bottom: 1.5px solid var(--c-gray-200); white-space: nowrap; }
+.research-prose td { padding: 10px 14px; border-bottom: 1px solid var(--c-gray-50); vertical-align: top; line-height: 1.55; color: var(--c-gray-700); }
+.research-prose tbody tr:last-child td { border-bottom: none; }
+.research-prose tr:hover td { background: rgba(42,143,168,0.02); }
+.research-prose td strong { font-weight: 600; color: var(--c-gray-900); }
+
+/* Blockquotes — court opinions and IRM quotes */
+.research-prose blockquote { border-left: 3px solid var(--c-teal); padding: 14px 20px; margin: 24px 0; background: var(--c-teal-soft); border-radius: 0 10px 10px 0; font-style: italic; font-size: 14px; line-height: 1.7; color: var(--c-gray-600); }
+.research-prose blockquote p:last-child { margin-bottom: 0; }
+.research-prose blockquote cite, .research-prose blockquote strong:last-child { display: block; margin-top: 8px; font-style: normal; font-size: 12px; font-weight: 600; color: var(--c-gray-800); }
+
+/* Citations */
+.citation-case { font-style: italic; color: var(--c-navy-700, #1e3a5f); border-bottom: 1px dotted var(--c-gray-200); cursor: default; }
+.citation-ref { font-family: var(--font-mono); font-size: 0.88em; background: var(--c-gray-50); border: 1px solid var(--c-gray-100); border-radius: 4px; padding: 1px 6px; white-space: nowrap; color: var(--c-gray-700); }
+
+/* Practitioner Notes callout */
+.research-practitioner-callout { background: linear-gradient(135deg, var(--c-teal-soft) 0%, rgba(42,143,168,0.03) 100%); border-left: 3px solid var(--c-teal); border-radius: 0 14px 14px 0; padding: 24px 28px; margin: 36px 0; }
+.research-practitioner-callout h2 { border-bottom: none !important; margin-top: 0 !important; color: var(--c-teal) !important; font-size: 15px !important; }
+.research-practitioner-callout ol { counter-reset: strategy; list-style: none; padding: 0; }
+.research-practitioner-callout ol > li { counter-increment: strategy; position: relative; padding-left: 36px; margin-bottom: 20px; }
+.research-practitioner-callout ol > li::before { content: counter(strategy); position: absolute; left: 0; top: 2px; width: 24px; height: 24px; border-radius: 50%; background: var(--c-teal); color: white; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+.research-practitioner-callout ol > li::marker { content: none; }
+
+/* Sticky TOC */
+.research-toc { position: sticky; top: 80px; align-self: start; max-height: calc(100vh - 120px); overflow-y: auto; width: 200px; flex-shrink: 0; }
+
+/* Query context bar */
+.research-query-bar { background: var(--c-gray-50); border: 1px solid var(--c-gray-100); border-radius: 12px; padding: 14px 18px; }
+
+/* Print */
+@media print {
+  .research-toc, .research-actions-bar, .no-print { display: none !important; }
+  .research-layout { display: block !important; }
+  .research-prose { font-family: 'Times New Roman', Georgia, serif !important; font-size: 12pt !important; line-height: 1.6 !important; }
+  .research-prose h2 { font-size: 14pt !important; page-break-after: avoid; }
+  .research-practitioner-callout { border: 1px solid #ccc; background: #f9f9f9 !important; }
+  @page { size: letter; margin: 0.75in; }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .research-toc { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    REVIEW DOCUMENT RENDERING
    ═══════════════════════════════════════════════════════════════════ */
 
