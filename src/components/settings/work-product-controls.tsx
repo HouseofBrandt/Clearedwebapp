@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
@@ -20,6 +20,9 @@ import {
   X,
   ToggleLeft,
   ToggleRight,
+  Upload,
+  Download,
+  Loader2,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -60,6 +63,9 @@ interface WorkProductExample {
   content: string
   type: "good" | "anti"
   notes: string
+  sourceFileName?: string | null
+  sourceFileType?: string | null
+  sourceFilePath?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +134,10 @@ export function WorkProductControls() {
   // Example form state
   const [showAddExample, setShowAddExample] = useState(false)
   const [newExample, setNewExample] = useState({ label: "", content: "", type: "good" as "good" | "anti", notes: "" })
+  const [exampleFile, setExampleFile] = useState<File | null>(null)
+  const [exampleUploading, setExampleUploading] = useState(false)
+  const [exampleDragOver, setExampleDragOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Preview modal
   const [previewText, setPreviewText] = useState<string | null>(null)
@@ -241,20 +251,51 @@ export function WorkProductControls() {
   }
 
   async function handleAddExample() {
-    if (!selectedType || !newExample.label || !newExample.content) return
+    if (!selectedType) return
+
+    // Need either file or pasted content
+    if (!exampleFile && !newExample.content) return
+
+    setExampleUploading(true)
     try {
-      await fetch(`/api/work-product/${selectedType}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ addExample: newExample }),
-      })
+      if (exampleFile) {
+        // File upload path
+        const formData = new FormData()
+        formData.append("file", exampleFile)
+        if (newExample.label) formData.append("label", newExample.label)
+        formData.append("isGoodExample", String(newExample.type === "good"))
+        if (newExample.notes) formData.append("notes", newExample.notes)
+
+        const res = await fetch(`/api/work-product/${selectedType}/examples`, {
+          method: "POST",
+          body: formData,
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Upload failed" }))
+          alert(err.error || "Upload failed")
+          setExampleUploading(false)
+          return
+        }
+      } else {
+        // Paste path (existing)
+        if (!newExample.label) return
+        await fetch(`/api/work-product/${selectedType}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ addExample: newExample }),
+        })
+      }
+
       const detRes = await fetch(`/api/work-product/${selectedType}`)
       const detData = await detRes.json()
       setDetail(detData)
       setNewExample({ label: "", content: "", type: "good", notes: "" })
+      setExampleFile(null)
       setShowAddExample(false)
     } catch {
       // silent
+    } finally {
+      setExampleUploading(false)
     }
   }
 
@@ -419,11 +460,19 @@ export function WorkProductControls() {
               <div className="space-y-3">
                 {detail.examples.map((ex) => (
                   <div key={ex.id} className="flex items-start gap-3 p-3 rounded-lg bg-c-gray-50">
-                    <Badge variant={ex.type === "good" ? "success" : "danger"} className="mt-0.5 shrink-0">
+                    <Badge variant={ex.type === "good" ? "success" : "destructive"} className="mt-0.5 shrink-0">
                       {ex.type === "good" ? "Good" : "Anti"}
                     </Badge>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-medium text-c-gray-800">{ex.label}</p>
+                      {ex.sourceFileName ? (
+                        <p className="text-[11px] text-c-gray-400 mt-0.5 flex items-center gap-1">
+                          <FileText className="h-3 w-3" />
+                          {ex.sourceFileName}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-c-gray-400 mt-0.5">Pasted text</p>
+                      )}
                       <p className="text-[12px] text-c-gray-500 mt-0.5 line-clamp-2">
                         {ex.content.slice(0, 200)}
                         {ex.content.length > 200 && "..."}
@@ -431,6 +480,24 @@ export function WorkProductControls() {
                       {ex.notes && (
                         <p className="text-[11px] text-c-gray-400 mt-1 italic">{ex.notes}</p>
                       )}
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={() => setPreviewText(ex.content)}
+                          className="text-[11px] text-c-teal hover:underline flex items-center gap-1"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Preview
+                        </button>
+                        {ex.sourceFileName && selectedType && (
+                          <a
+                            href={`/api/work-product/${selectedType}/examples/download?id=${ex.id}`}
+                            className="text-[11px] text-c-teal hover:underline flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download Original
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <button
                       onClick={() => handleDeleteExample(ex.id)}
@@ -445,6 +512,95 @@ export function WorkProductControls() {
               {/* Add example form */}
               {showAddExample && (
                 <div className="mt-4 p-4 rounded-lg border border-c-gray-200 space-y-3">
+                  {/* File upload zone */}
+                  <div>
+                    <label className="block text-[13px] font-medium text-c-gray-700 mb-1">Upload Example</label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".docx,.pdf,.doc"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) {
+                          setExampleFile(f)
+                          setNewExample((v) => ({ ...v, content: "" }))
+                          if (!newExample.label) {
+                            setNewExample((v) => ({ ...v, label: f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ") }))
+                          }
+                        }
+                      }}
+                    />
+                    {exampleFile ? (
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-c-teal-soft border border-c-teal/20">
+                        <FileText className="h-5 w-5 text-c-teal shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium text-c-gray-800 truncate">{exampleFile.name}</p>
+                          <p className="text-[11px] text-c-gray-500">{(exampleFile.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setExampleFile(null); if (fileInputRef.current) fileInputRef.current.value = "" }}
+                          className="text-c-gray-400 hover:text-c-danger transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onDragOver={(e) => { e.preventDefault(); setExampleDragOver(true) }}
+                        onDragLeave={() => setExampleDragOver(false)}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          setExampleDragOver(false)
+                          const f = e.dataTransfer.files?.[0]
+                          if (f && /\.(docx?|pdf)$/i.test(f.name)) {
+                            setExampleFile(f)
+                            setNewExample((v) => ({ ...v, content: "" }))
+                            if (!newExample.label) {
+                              setNewExample((v) => ({ ...v, label: f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ") }))
+                            }
+                          }
+                        }}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex flex-col items-center gap-2 p-6 rounded-lg border-2 border-dashed cursor-pointer transition-colors ${
+                          exampleDragOver
+                            ? "border-c-teal bg-c-teal-soft"
+                            : newExample.content
+                              ? "border-c-gray-100 bg-c-gray-25 opacity-50"
+                              : "border-c-gray-200 bg-white hover:border-c-gray-300"
+                        }`}
+                      >
+                        <Upload className="h-5 w-5 text-c-gray-400" />
+                        <p className="text-[12px] text-c-gray-500">Drop a DOCX or PDF here, or click to browse</p>
+                        <p className="text-[10px] text-c-gray-400">Accepted: .docx, .pdf &middot; Max 10MB</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Separator */}
+                  {!exampleFile && (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-c-gray-200" />
+                        <span className="text-[11px] text-c-gray-400">or paste text</span>
+                        <div className="flex-1 h-px bg-c-gray-200" />
+                      </div>
+
+                      {/* Paste textarea */}
+                      <div>
+                        <textarea
+                          value={newExample.content}
+                          onChange={(e) => setNewExample((v) => ({ ...v, content: e.target.value }))}
+                          placeholder="Paste a representative example of this work product..."
+                          rows={5}
+                          className="w-full rounded-lg border border-c-gray-200 bg-white px-3 py-2 text-[13px] text-c-gray-800 placeholder:text-c-gray-400 focus:border-c-teal/30 focus:outline-none focus:ring-2 focus:ring-c-teal/10 transition-colors resize-y"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Label */}
                   <div>
                     <label className="block text-[13px] font-medium text-c-gray-700 mb-1">Label</label>
                     <input
@@ -455,20 +611,13 @@ export function WorkProductControls() {
                       className="w-full rounded-lg border border-c-gray-200 bg-white px-3 py-2 text-[13px] text-c-gray-800 placeholder:text-c-gray-400 focus:border-c-teal/30 focus:outline-none focus:ring-2 focus:ring-c-teal/10 transition-colors"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[13px] font-medium text-c-gray-700 mb-1">Content</label>
-                    <textarea
-                      value={newExample.content}
-                      onChange={(e) => setNewExample((v) => ({ ...v, content: e.target.value }))}
-                      placeholder="Paste a representative example of this work product..."
-                      rows={5}
-                      className="w-full rounded-lg border border-c-gray-200 bg-white px-3 py-2 text-[13px] text-c-gray-800 placeholder:text-c-gray-400 focus:border-c-teal/30 focus:outline-none focus:ring-2 focus:ring-c-teal/10 transition-colors resize-y"
-                    />
-                  </div>
+
+                  {/* Good / Anti toggle */}
                   <div className="flex items-center gap-4">
                     <label className="block text-[13px] font-medium text-c-gray-700">Type</label>
                     <div className="flex items-center gap-3">
                       <button
+                        type="button"
                         onClick={() => setNewExample((v) => ({ ...v, type: "good" }))}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
                           newExample.type === "good"
@@ -477,9 +626,10 @@ export function WorkProductControls() {
                         }`}
                       >
                         <Check className="h-3 w-3" />
-                        Good
+                        Good example
                       </button>
                       <button
+                        type="button"
                         onClick={() => setNewExample((v) => ({ ...v, type: "anti" }))}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
                           newExample.type === "anti"
@@ -488,10 +638,12 @@ export function WorkProductControls() {
                         }`}
                       >
                         <X className="h-3 w-3" />
-                        Anti
+                        Anti-example
                       </button>
                     </div>
                   </div>
+
+                  {/* Notes */}
                   <div>
                     <label className="block text-[13px] font-medium text-c-gray-700 mb-1">Notes</label>
                     <textarea
@@ -502,10 +654,26 @@ export function WorkProductControls() {
                       className="w-full rounded-lg border border-c-gray-200 bg-white px-3 py-2 text-[13px] text-c-gray-800 placeholder:text-c-gray-400 focus:border-c-teal/30 focus:outline-none focus:ring-2 focus:ring-c-teal/10 transition-colors resize-y"
                     />
                   </div>
+
+                  {/* Submit / Cancel */}
                   <div className="flex items-center gap-2 pt-1">
-                    <Button onClick={handleAddExample} size="sm" className="gap-1.5 text-[12px]">
-                      <Plus className="h-3.5 w-3.5" />
-                      Add Example
+                    <Button
+                      onClick={handleAddExample}
+                      size="sm"
+                      className="gap-1.5 text-[12px]"
+                      disabled={exampleUploading || (!exampleFile && !newExample.content) || (!exampleFile && !newExample.label)}
+                    >
+                      {exampleUploading ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5" />
+                          {exampleFile ? "Upload Example" : "Add Example"}
+                        </>
+                      )}
                     </Button>
                     <Button
                       variant="outline"
@@ -513,8 +681,10 @@ export function WorkProductControls() {
                       onClick={() => {
                         setShowAddExample(false)
                         setNewExample({ label: "", content: "", type: "good", notes: "" })
+                        setExampleFile(null)
                       }}
                       className="text-[12px]"
+                      disabled={exampleUploading}
                     >
                       Cancel
                     </Button>
@@ -613,7 +783,7 @@ export function WorkProductControls() {
                             </p>
                             <div className="flex items-center gap-2 mt-1.5">
                               {t.surfaces.map((s) => (
-                                <Badge key={s} variant="neutral" className="text-[10px]">
+                                <Badge key={s} variant="default" className="text-[10px]">
                                   {s}
                                 </Badge>
                               ))}

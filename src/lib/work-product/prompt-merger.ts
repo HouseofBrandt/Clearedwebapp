@@ -7,7 +7,8 @@
 
 import { prisma } from "@/lib/db"
 
-const MAX_EXAMPLE_LENGTH = 2000
+const MAX_EXAMPLE_LENGTH = 8000
+const MAX_TOTAL_EXAMPLES_LENGTH = 30000
 
 /**
  * Build the practitioner-preference prompt block for a given user and task type.
@@ -61,22 +62,32 @@ export async function getWorkProductPromptBlock(
     lines.push("")
   }
 
+  // Track cumulative example length to prevent context overflow
+  let totalExampleLength = 0
+
   // Good examples
   const goodExamples = override.examples.filter((e) => e.isGoodExample)
   if (goodExamples.length > 0) {
     lines.push("MODEL EXAMPLES")
     lines.push("The practitioner considers the following examples to represent the quality and style they want:")
     lines.push("")
+    let included = 0
     for (const ex of goodExamples) {
-      lines.push(`--- Example: ${ex.label} ---`)
       const content = ex.content.length > MAX_EXAMPLE_LENGTH
         ? ex.content.slice(0, MAX_EXAMPLE_LENGTH) + "\n[...truncated]"
         : ex.content
+      if (totalExampleLength + content.length > MAX_TOTAL_EXAMPLES_LENGTH) {
+        lines.push(`[${goodExamples.length - included} more example(s) omitted to fit context window]`)
+        break
+      }
+      lines.push(`--- Example: ${ex.label} ---`)
       lines.push(content)
       if (ex.notes) {
         lines.push(`Practitioner note: ${ex.notes}`)
       }
       lines.push("")
+      totalExampleLength += content.length
+      included++
     }
   }
 
@@ -86,16 +97,23 @@ export async function getWorkProductPromptBlock(
     lines.push("AVOID PRODUCING OUTPUT LIKE THIS")
     lines.push("The practitioner considers the following examples to represent output they do NOT want:")
     lines.push("")
+    let included = 0
     for (const ex of antiExamples) {
-      lines.push(`--- Anti-example: ${ex.label} ---`)
       const content = ex.content.length > MAX_EXAMPLE_LENGTH
         ? ex.content.slice(0, MAX_EXAMPLE_LENGTH) + "\n[...truncated]"
         : ex.content
+      if (totalExampleLength + content.length > MAX_TOTAL_EXAMPLES_LENGTH) {
+        lines.push(`[${antiExamples.length - included} more anti-example(s) omitted to fit context window]`)
+        break
+      }
+      lines.push(`--- Anti-example: ${ex.label} ---`)
       lines.push(content)
       if (ex.notes) {
         lines.push(`Practitioner note: ${ex.notes}`)
       }
       lines.push("")
+      totalExampleLength += content.length
+      included++
     }
   }
 

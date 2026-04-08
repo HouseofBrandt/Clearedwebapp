@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: "OIC Modeler | Cleared" }
 export default async function OICModelerPage() {
   await requireAuth()
 
-  return <OICModeler />
+  return <div className="page-enter"><OICModeler /></div>
 }

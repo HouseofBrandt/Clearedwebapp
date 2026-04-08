@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: "Compliance Automation | Cleared" }
 export default async function ComplianceAutomationPage() {
   await requireRole(["ADMIN"])
 
-  return <AutomationDashboard />
+  return <div className="page-enter"><AutomationDashboard /></div>
 }

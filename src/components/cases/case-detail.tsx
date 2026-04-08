@@ -47,6 +47,7 @@ import { FeedPage } from "@/components/feed/feed-page"
 import { NotesPanel } from "@/components/notes/notes-panel"
 import { ConversationsPanel } from "@/components/conversations/conversations-panel"
 import { CaseIntelligenceReport } from "@/components/cases/case-intelligence-report"
+import { CaseResearchList } from "@/components/research/case-research-list"
 import { DEADLINE_PRIORITY_DOTS } from "@/types"
 import { CASE_TYPE_LABELS, CASE_STATUS_LABELS, FILING_STATUS_LABELS, TASK_TYPE_LABELS } from "@/types"
 
@@ -103,7 +104,7 @@ interface CaseDetailProps {
   currentUser?: any
 }
 
-const WORKSPACES = ["documents", "banjo", "deliverables", "deadlines", "activity", "notes", "conversations", "intel-report", "settings"] as const
+const WORKSPACES = ["documents", "banjo", "deliverables", "deadlines", "activity", "notes", "conversations", "research", "intel-report", "settings"] as const
 type Workspace = typeof WORKSPACES[number]
 
 export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [], feedPosts = [], currentUser }: CaseDetailProps) {
@@ -346,6 +347,9 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             <WorkspaceTab active={workspace === "conversations"} onClick={() => handleWorkspaceChange("conversations")} count={caseData.conversationCount}>
               Conversations
             </WorkspaceTab>
+            <WorkspaceTab active={workspace === "research"} onClick={() => handleWorkspaceChange("research")}>
+              Research
+            </WorkspaceTab>
             <WorkspaceTab active={workspace === "intel-report"} onClick={() => handleWorkspaceChange("intel-report")}>
               Intelligence Report
             </WorkspaceTab>
@@ -555,6 +559,25 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
                 currentUserId={currentUser.id}
                 currentUserRole={currentUser.role}
               />
+            )}
+
+            {/* ── Research ── */}
+            {workspace === "research" && (
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-medium">Research Sessions</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Legal research bound to this case</p>
+                  </div>
+                  <a
+                    href={`/research/new?caseId=${caseData.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    New Research
+                  </a>
+                </div>
+                <CaseResearchList caseId={caseData.id} />
+              </div>
             )}
 
             {/* ── Intelligence Report ── */}

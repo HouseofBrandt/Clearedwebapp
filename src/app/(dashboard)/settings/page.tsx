@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
-import { User, Shield, Activity, Sparkles, ChevronRight } from "lucide-react"
+import { User, Shield, Activity, SlidersHorizontal, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import Link from "next/link"
 
@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const isAdmin = user.role === "ADMIN"
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div>
         <h1 className="text-display-md">Settings</h1>
         <p className="text-sm text-muted-foreground">Manage your account and workspace preferences</p>
@@ -54,12 +54,12 @@ export default async function SettingsPage() {
             <Card className="p-4 hover:border-c-teal/30 transition-colors cursor-pointer">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-c-teal-soft shrink-0">
-                  <Sparkles className="h-4.5 w-4.5 text-c-teal" />
+                  <SlidersHorizontal className="h-4.5 w-4.5 text-c-teal" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-[13.5px] font-medium text-c-gray-800">AI Work Product</h3>
+                  <h3 className="text-[13.5px] font-medium text-c-gray-800">Work Product Controls</h3>
                   <p className="text-[12px] text-c-gray-500 mt-0.5">
-                    Control how the AI writes each type of deliverable
+                    Teach the AI how you write &mdash; configure tone, structure, and upload example deliverables for each work product type
                   </p>
                 </div>
                 <ChevronRight className="h-4 w-4 text-c-gray-400 shrink-0" />

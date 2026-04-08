@@ -174,8 +174,8 @@ Return ONLY valid JSON with no markdown formatting, no backticks, no code blocks
     })
 
     const responseText = response.content
-      .filter((b): b is { type: "text"; text: string } => b.type === "text")
-      .map(b => b.text)
+      .filter(b => b.type === "text")
+      .map(b => (b as { type: "text"; text: string }).text)
       .join("")
 
     // Clean up any markdown code block formatting the model might include despite instructions

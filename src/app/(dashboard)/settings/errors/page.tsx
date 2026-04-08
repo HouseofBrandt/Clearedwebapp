@@ -24,7 +24,7 @@ export default async function ErrorsPage() {
   }).catch(() => {})
 
   return (
-    <div className="space-y-6">
+    <div className="page-enter space-y-6">
       <div>
         <h1 className="text-display-md">Error Log</h1>
         <p className="text-sm text-muted-foreground">Recent application errors (last 30 days)</p>

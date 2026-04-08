@@ -15,6 +15,7 @@
 import { buildSystemPrompt } from "./prompts"
 import { gatherContext, buildMessages, JunebugContext } from "./context"
 import { getAvailableTools, JunebugTool } from "./tools"
+import { humanizeText } from "@/lib/ai/humanizer"
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export async function runJunebug(
   const toolDefinitions = tools.map((t) => ({
     name: t.name,
     description: t.description,
-    input_schema: t.inputSchema as Anthropic.Tool["input_schema"],
+    input_schema: t.inputSchema as { type: "object"; [key: string]: unknown },
   }))
 
   // Initial API call
@@ -228,7 +229,7 @@ export async function runJunebug(
   }
 
   return {
-    text: textContent,
+    text: humanizeText(textContent),
     actions,
     toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined,
     contextSources: context.sources.length > 0 ? context.sources : undefined,

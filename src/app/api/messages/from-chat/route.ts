@@ -100,6 +100,10 @@ export async function POST(request: NextRequest) {
 
       if (results.length === 0) {
         console.warn(`[from-chat] WARNING: No admins received the ${data.type}. Check that users with role=ADMIN exist in the database.`)
+        return NextResponse.json(
+          { sent: 0, type: data.type, warning: "No admin users found — report was not delivered. Contact your system administrator." },
+          { status: 200 }
+        )
       }
 
       return NextResponse.json({ sent: results.length, type: data.type })

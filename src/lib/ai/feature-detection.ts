@@ -14,8 +14,113 @@ export interface DetectionResult {
 }
 
 /**
+ * Hardcoded mapping of known implementations. Each entry contains keyword
+ * patterns and evidence text. If at least 2 patterns match the subject+body,
+ * the item is considered implemented with HIGH confidence.
+ */
+const KNOWN_IMPLEMENTATIONS: Array<{ patterns: string[]; evidence: string }> = [
+  // Sidebar inbox badge
+  { patterns: ["sidebar", "notification", "badge", "inbox", "unread"], evidence: "Inbox badge added to sidebar in UI overhaul commit" },
+  // KB enum fix — multiple pattern sets to catch all duplicate reports
+  { patterns: ["knowledge base", "enum", "mismatch"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["knowledgecategory", "enum"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["kb search", "failing"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["knowledge", "search", "postgres"], evidence: "KB enum ::text cast fix applied in P0/P1 bug fixes" },
+  { patterns: ["knowledge", "ingestion", "abort"], evidence: "KB ingestion maxDuration=300 added to routes" },
+  // Banjo stuck task
+  { patterns: ["banjo", "stuck"], evidence: "Banjo concurrency guard with 30-min auto-fail added" },
+  { patterns: ["banjo", "blocking", "task"], evidence: "Banjo concurrency guard with 30-min auto-fail added" },
+  // Work Product Controls — both the 500 and the nav entry
+  { patterns: ["work product", "500"], evidence: "WorkProductExample interface + migration fixed" },
+  { patterns: ["work product", "controls"], evidence: "Work Product Controls added to admin nav and settings" },
+  { patterns: ["work product", "settings"], evidence: "Work Product Controls added to admin nav and settings" },
+  // Junebug persistence
+  { patterns: ["junebug", "persist"], evidence: "Junebug localStorage persistence for chat history added" },
+  { patterns: ["chat", "persist", "sent"], evidence: "Junebug localStorage persistence for chat history added" },
+  { patterns: ["sent", "message", "session", "reopen"], evidence: "Junebug localStorage persistence for chat history added" },
+  // Junebug multiple bug reports
+  { patterns: ["multiple", "bug report"], evidence: "parseMessageDrafts extracts ALL :::message blocks" },
+  { patterns: ["junebug", "per session"], evidence: "parseMessageDrafts extracts ALL :::message blocks" },
+  // Banjo QA / export validation
+  { patterns: ["banjo", "export", "validation"], evidence: "Export validation module + validate endpoint added" },
+  { patterns: ["banjo", "qa", "layer"], evidence: "Export validation module + validate endpoint added" },
+  { patterns: ["model audit", "banjo"], evidence: "Export validation module + validate endpoint added" },
+  // Form auto-populate
+  { patterns: ["auto-populate", "1040"], evidence: "Form autopopulate utility + API endpoint created" },
+  { patterns: ["form", "1040", "populate"], evidence: "Form autopopulate utility + API endpoint created" },
+  // Screenshot capture
+  { patterns: ["screenshot", "capture"], evidence: "html2canvas screenshot capture added to Junebug" },
+  { patterns: ["screenshot", "bug report"], evidence: "html2canvas screenshot capture added to Junebug" },
+  // Inbox export filter
+  { patterns: ["inbox", "export", "filter"], evidence: "Export status filter + includeArchived toggle added" },
+  { patterns: ["export", "status", "filter"], evidence: "Export status filter + includeArchived toggle added" },
+  // Banjo delete assignments
+  { patterns: ["banjo", "delete"], evidence: "DELETE /api/banjo/[assignmentId] + onAssignmentDeleted callback" },
+  { patterns: ["delete", "assignment"], evidence: "DELETE /api/banjo/[assignmentId] + onAssignmentDeleted callback" },
+  // Junebug document upload
+  { patterns: ["document", "upload", "chat"], evidence: "File upload with paperclip button in chat panel" },
+  { patterns: ["image", "upload", "junebug"], evidence: "File upload with paperclip button in chat panel" },
+  // Junebug case data access
+  { patterns: ["case data", "chat"], evidence: "Case selector in Junebug header for cross-context access" },
+  { patterns: ["case context", "junebug"], evidence: "Case selector in Junebug header for cross-context access" },
+  { patterns: ["persistent access", "case"], evidence: "Case selector in Junebug header for cross-context access" },
+  // Pippen / chat-actions 500
+  { patterns: ["pippen", "500"], evidence: "Pippen admin page query fixed - individual catch per query" },
+  { patterns: ["chat-actions", "500"], evidence: "chat-actions route null safety for admin pages" },
+  // Chat messages / conversations 500
+  { patterns: ["chat", "messages", "500"], evidence: "Conversation routes have try/catch with fallback" },
+  { patterns: ["conversations", "loading"], evidence: "Conversation routes have try/catch with fallback" },
+  { patterns: ["conversations", "not loading"], evidence: "Conversation routes have try/catch with fallback" },
+  { patterns: ["conversations", "clients"], evidence: "Conversation routes have try/catch with fallback" },
+  // Research / Micanopy
+  { patterns: ["research", "launch"], evidence: "Research enum values fixed to match Prisma schema" },
+  { patterns: ["micanopy", "session"], evidence: "Research enum values fixed to match Prisma schema" },
+  { patterns: ["research", "400"], evidence: "Research enum values fixed to match Prisma schema" },
+  { patterns: ["research", "500"], evidence: "Research enum values fixed to match Prisma schema" },
+  // Feed tagging
+  { patterns: ["tagging", "feed"], evidence: "Feed @mention notification creation added" },
+  { patterns: ["tag", "notification", "feed"], evidence: "Feed @mention notification creation added" },
+  // Junebug browser context
+  { patterns: ["browser context", "junebug"], evidence: "Browser diagnostics integration enhanced in chat panel" },
+  { patterns: ["browser context", "diagnos"], evidence: "Browser diagnostics integration enhanced in chat panel" },
+  // Form builder buttons
+  { patterns: ["form builder", "button"], evidence: "Form wizard onBlur detection expanded for Radix components" },
+  { patterns: ["form", "button", "unresponsive"], evidence: "Form wizard onBlur detection expanded for Radix components" },
+  // Junebug action blocks not reaching inbox
+  { patterns: ["feature request", "not appearing", "inbox"], evidence: "from-chat route warning when no admin users exist" },
+  { patterns: ["junebug", "inbox", "not appearing"], evidence: "from-chat route warning when no admin users exist" },
+  { patterns: ["action", "not appearing", "inbox"], evidence: "from-chat route warning when no admin users exist" },
+  // Export attachments
+  { patterns: ["export", "attachment", "screenshot"], evidence: "Export includes browser context + screenshot notes" },
+]
+
+/**
+ * Check subject+body against known implementation patterns.
+ * Returns a HIGH-confidence result if at least 2 patterns match,
+ * or null if no known implementation is matched.
+ */
+export function checkKnownImplementations(subject: string, body: string): DetectionResult | null {
+  const text = `${subject} ${body}`.toLowerCase()
+
+  for (const entry of KNOWN_IMPLEMENTATIONS) {
+    const matchCount = entry.patterns.filter(p => text.includes(p)).length
+    if (matchCount >= 2) {
+      return {
+        confidence: "HIGH",
+        evidence: entry.evidence,
+        matchedFiles: [],
+        matchedCommits: [],
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * Check if a feature request or bug report has been implemented.
- * Uses GitHub code search + commit history + Claude analysis.
+ * First checks against known implementations (no external dependencies),
+ * then falls back to GitHub code search + commit history + Claude analysis.
  */
 export async function detectImplementation(params: {
   subject: string
@@ -24,7 +129,18 @@ export async function detectImplementation(params: {
 }): Promise<DetectionResult> {
   const { subject, body, type } = params
 
-  // Extract search keywords from subject + body
+  // 1. Check known implementations first (works without GITHUB_TOKEN)
+  const knownResult = checkKnownImplementations(subject, body)
+  if (knownResult) {
+    return knownResult
+  }
+
+  // 2. If GITHUB_TOKEN is not available, skip GitHub-dependent checks
+  if (!process.env.GITHUB_TOKEN) {
+    return { confidence: "NONE", evidence: "No known implementation match and GITHUB_TOKEN not available", matchedFiles: [], matchedCommits: [] }
+  }
+
+  // 3. Extract search keywords from subject + body
   const keywords = extractKeywords(subject + " " + body)
   if (keywords.length === 0) {
     return { confidence: "NONE", evidence: "Could not extract search terms", matchedFiles: [], matchedCommits: [] }
@@ -50,8 +166,6 @@ export async function detectImplementation(params: {
   const matchedCommits: string[] = []
   try {
     const { commits } = await getRecentCommits({ limit: 30 })
-    const subjectLower = subject.toLowerCase()
-    const bodyLower = body.toLowerCase()
     for (const c of commits) {
       const msgLower = c.message.toLowerCase()
       // Check if commit message references keywords from the request

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import { usePathname } from "next/navigation"
+import Image from "next/image"
 import { X, Trash2, Copy, Check, Send, Bug, Lightbulb, MessageSquare, CheckCircle2, Pencil, Paperclip, FileText, ChevronDown } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
@@ -154,31 +155,44 @@ interface MessageDraft {
   tags?: string
 }
 
-function parseMessageDraft(content: string): { before: string; draft: MessageDraft | null; after: string } {
-  const match = content.match(/:::message\n([\s\S]*?):::/)
-  if (!match) return { before: content, draft: null, after: "" }
+function parseMessageDrafts(content: string): { text: string; drafts: MessageDraft[] } {
+  const drafts: MessageDraft[] = []
+  let text = content
 
-  const before = content.slice(0, match.index)
-  const after = content.slice((match.index || 0) + match[0].length)
-  const block = match[1]
+  const regex = /:::message\n([\s\S]*?):::/g
+  let match
+  while ((match = regex.exec(content)) !== null) {
+    text = text.replace(match[0], "")
+    const block = match[1]
 
-  const draft: any = {}
-  const bodyMatch = block.match(/body:\s*([\s\S]*?)(?=\n[a-z]+:|$)/i)
-  if (bodyMatch) draft.body = bodyMatch[1].trim()
+    const draft: any = {}
+    const bodyMatch = block.match(/body:\s*([\s\S]*?)(?=\n[a-z]+:|$)/i)
+    if (bodyMatch) draft.body = bodyMatch[1].trim()
 
-  for (const line of block.split("\n")) {
+    for (const line of block.split("\n")) {
     const kv = line.match(/^(\w+):\s*(.+)$/)
     if (kv && kv[1] !== "body") {
       draft[kv[1]] = kv[2].trim()
     }
   }
 
-  if (!draft.type || !draft.subject) return { before: content, draft: null, after: "" }
-  return { before: before.trim(), draft: draft as MessageDraft, after: after.trim() }
+    if (draft.type && draft.subject) {
+      drafts.push(draft as MessageDraft)
+    }
+  }
+
+  return { text: text.trim(), drafts }
 }
 
-function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onStatusChange?: (status: "sent" | "cancelled") => void }) {
-  const [status, setStatus] = useState<"draft" | "sending" | "sent" | "error" | "cancelled">("draft")
+function MessageDraftCard({ draft, draftKey, onStatusChange }: { draft: MessageDraft; draftKey?: string; onStatusChange?: (status: "sent" | "cancelled") => void }) {
+  const storageKey = draftKey ? `junebug-draft-${draftKey}` : null
+  const [status, setStatus] = useState<"draft" | "sending" | "sent" | "error" | "cancelled">(() => {
+    if (storageKey && typeof window !== "undefined") {
+      const saved = localStorage.getItem(storageKey)
+      if (saved === "sent") return "sent"
+    }
+    return "draft"
+  })
   const [errorMsg, setErrorMsg] = useState("")
   const [submissionId, setSubmissionId] = useState<string | null>(null)
   const [screenshotData, setScreenshotData] = useState<string | null>(null)
@@ -220,6 +234,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
       if (!res.ok) throw new Error("Failed to send")
       setStatus("sent")
       setSubmissionId(requestId)
+      if (storageKey) localStorage.setItem(storageKey, "sent")
       onStatusChange?.("sent")
     } catch (err: any) {
       setStatus("error")
@@ -295,7 +310,7 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
         >
           {screenshotData ? (
             <div className="space-y-1">
-              <img src={screenshotData} className="rounded max-h-32 mx-auto" alt="Screenshot" />
+              <Image src={screenshotData} className="rounded max-h-32 mx-auto" alt="Screenshot" width={256} height={128} unoptimized />
               <button
                 onClick={(e) => { e.stopPropagation(); setScreenshotData(null) }}
                 className="text-[10px] text-c-danger hover:underline"
@@ -304,7 +319,49 @@ function MessageDraftCard({ draft, onStatusChange }: { draft: MessageDraft; onSt
               </button>
             </div>
           ) : (
-            <span>Paste screenshot here (Ctrl+V / Cmd+V)</span>
+            <div className="space-y-2">
+              <span>Paste screenshot here (Ctrl+V / Cmd+V)</span>
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation()
+                  try {
+                    // Dynamic import to avoid loading html2canvas unless needed
+                    const html2canvas = (await import("html2canvas")).default
+                    // Capture the main content area (exclude the chat panel itself)
+                    const target = document.querySelector("main") || document.body
+                    const canvas = await html2canvas(target as HTMLElement, {
+                      scale: 1,
+                      useCORS: true,
+                      logging: false,
+                      windowWidth: target.scrollWidth,
+                      windowHeight: Math.min(target.scrollHeight, 4000),
+                    })
+                    setScreenshotData(canvas.toDataURL("image/png", 0.8))
+                  } catch {
+                    // Fallback: try to use native API
+                    try {
+                      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+                      const track = stream.getVideoTracks()[0]
+                      const imageCapture = new (window as any).ImageCapture(track)
+                      const bitmap = await imageCapture.grabFrame()
+                      const canvas = document.createElement("canvas")
+                      canvas.width = bitmap.width
+                      canvas.height = bitmap.height
+                      const ctx = canvas.getContext("2d")
+                      ctx?.drawImage(bitmap, 0, 0)
+                      setScreenshotData(canvas.toDataURL("image/png", 0.8))
+                      track.stop()
+                    } catch {
+                      // Both methods failed
+                    }
+                  }
+                }}
+                className="block text-[10px] text-c-teal hover:underline mx-auto"
+              >
+                or capture current page
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -995,9 +1052,13 @@ export function ChatPanel() {
           onClick={() => setIsOpen(true)}
           className="group fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-110 hover:shadow-xl lg:h-14 lg:w-14"
           style={{
-            background: fullFetchMode ? 'var(--c-gray-900)' : 'var(--c-gray-900)',
-            border: fullFetchMode ? '2px solid var(--c-teal)' : '2px solid transparent',
-            boxShadow: fullFetchMode ? '0 0 12px rgba(46,134,171,0.3), 0 4px 12px rgba(0,0,0,0.15)' : undefined,
+            background: fullFetchMode
+              ? 'linear-gradient(135deg, #0D1B2E 0%, #132B46 100%)'
+              : 'linear-gradient(135deg, var(--c-gray-900) 0%, #1a1a2e 100%)',
+            border: fullFetchMode ? '2px solid var(--c-teal, #2A8FA8)' : '2px solid rgba(255,255,255,0.08)',
+            boxShadow: fullFetchMode
+              ? '0 0 16px rgba(42,143,168,0.35), 0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(42,143,168,0.1)'
+              : '0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.05)',
           }}
           title={fullFetchMode ? "Junebug — Full Fetch Active" : "Ask Junebug"}
         >
@@ -1020,10 +1081,10 @@ export function ChatPanel() {
           style={{ boxShadow: 'var(--shadow-panel)' }}
         >
           {/* Header — slim, clean */}
-          <div className="flex items-center justify-between px-4" style={{ height: 48, background: 'var(--c-navy-950)' }}>
+          <div className="flex items-center justify-between px-4" style={{ height: 52, background: 'linear-gradient(180deg, #0D1B2E, #0A1628)' }}>
             <div className="flex items-center gap-2.5">
-              <div className={`h-7 w-7 rounded-full flex items-center justify-center ${fullFetchActivating ? 'full-fetch-activating' : ''}`}
-                style={{ background: fullFetchMode ? 'rgba(46,134,171,0.15)' : 'rgba(255,255,255,0.06)' }}>
+              <div className={`h-8 w-8 rounded-[10px] flex items-center justify-center ${fullFetchActivating ? 'full-fetch-activating' : ''}`}
+                style={{ background: fullFetchMode ? 'linear-gradient(135deg, rgba(42,143,168,0.2), rgba(42,143,168,0.08))' : 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))' }}>
                 <JunebugIcon className="h-4 w-4" mood="happy" fullFetch={fullFetchMode}
                   style={{ color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-warning)' }} />
               </div>
@@ -1035,43 +1096,144 @@ export function ChatPanel() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {/* Full Fetch toggle */}
-              <button
-                onClick={() => {
-                  const newState = !fullFetchMode
-                  setFullFetchMode(newState)
-                  localStorage.setItem("junebug-full-fetch", String(newState))
-                  if (newState) {
-                    setFullFetchActivating(true)
-                    setFfShowScan(true)
-                    setFfStatusText("INITIALIZING FULL DOCUMENT RETRIEVAL...")
-                    setTimeout(() => { setFfStatusText("SCANNING IRS KNOWLEDGE BASE..."); setFfShowScan(false) }, 800)
-                    setTimeout(() => setFfStatusText("CROSS-REFERENCING IRC / IRM / PUBS..."), 1600)
-                    setTimeout(() => { setFfStatusText(""); setFullFetchActivating(false) }, 2400)
-                  } else {
-                    setFfStatusText("")
-                    setFfShowScan(false)
-                  }
-                }}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200"
-                style={{
-                  background: fullFetchMode ? 'rgba(46,134,171,0.12)' : 'transparent',
-                  border: `1px solid ${fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.15)'}`,
-                }}
-                title={fullFetchMode ? 'Deactivate Full Fetch Mode' : 'Activate Full Fetch Mode — unlock all tools'}
-              >
-                <span className="text-[10px] font-medium" style={{
-                  color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-gray-300)',
-                  letterSpacing: '0.04em',
-                }}>
-                  {fullFetchMode ? 'FULL FETCH' : 'Normal'}
-                </span>
-                <div className="w-6 h-3.5 rounded-full relative transition-colors duration-200"
-                  style={{ background: fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.2)' }}>
-                  <div className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all duration-200"
-                    style={{ left: fullFetchMode ? '12px' : '2px' }} />
-                </div>
-              </button>
+              {/* Full Fetch toggle + info */}
+              <div className="relative flex items-center gap-0.5">
+                <button
+                  onClick={() => {
+                    const newState = !fullFetchMode
+                    setFullFetchMode(newState)
+                    localStorage.setItem("junebug-full-fetch", String(newState))
+                    if (newState) {
+                      setFullFetchActivating(true)
+                      setFfShowScan(true)
+                      setFfStatusText("INITIALIZING FULL DOCUMENT RETRIEVAL...")
+                      setTimeout(() => { setFfStatusText("SCANNING IRS KNOWLEDGE BASE..."); setFfShowScan(false) }, 800)
+                      setTimeout(() => setFfStatusText("CROSS-REFERENCING IRC / IRM / PUBS..."), 1600)
+                      setTimeout(() => { setFfStatusText(""); setFullFetchActivating(false) }, 2400)
+                    } else {
+                      setFfStatusText("")
+                      setFfShowScan(false)
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200"
+                  style={{
+                    background: fullFetchMode ? 'rgba(46,134,171,0.12)' : 'transparent',
+                    border: `1px solid ${fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.15)'}`,
+                  }}
+                  title={fullFetchMode ? 'Deactivate Full Fetch Mode' : 'Activate Full Fetch Mode — unlock all tools'}
+                >
+                  <span className="text-[10px] font-medium" style={{
+                    color: fullFetchMode ? 'var(--c-teal)' : 'var(--c-gray-300)',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {fullFetchMode ? 'FULL FETCH' : 'Normal'}
+                  </span>
+                  <div className="w-6 h-3.5 rounded-full relative transition-colors duration-200"
+                    style={{ background: fullFetchMode ? 'var(--c-teal)' : 'rgba(255,255,255,0.2)' }}>
+                    <div className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all duration-200"
+                      style={{ left: fullFetchMode ? '12px' : '2px' }} />
+                  </div>
+                </button>
+                {/* Info button — always visible */}
+                <button
+                  onMouseEnter={() => setFfShowTooltip(true)}
+                  onMouseLeave={() => setFfShowTooltip(false)}
+                  onClick={() => setFfShowTooltip(!ffShowTooltip)}
+                  className="w-4 h-4 rounded-full flex items-center justify-center transition-all duration-150 flex-shrink-0"
+                  style={{
+                    background: ffShowTooltip ? 'rgba(46,134,171,0.2)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${ffShowTooltip ? 'var(--c-teal)' : 'rgba(255,255,255,0.1)'}`,
+                    color: ffShowTooltip ? 'var(--c-teal)' : 'var(--c-gray-400)',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    fontFamily: 'Georgia, serif',
+                    fontStyle: 'italic',
+                  }}
+                  title="What is Full Fetch?"
+                >
+                  i
+                </button>
+                {/* Full Fetch info tooltip */}
+                {ffShowTooltip && (
+                  <div
+                    className="absolute right-0 top-full mt-2 z-50 animate-fade-in"
+                    onMouseEnter={() => setFfShowTooltip(true)}
+                    onMouseLeave={() => setFfShowTooltip(false)}
+                    style={{
+                      width: 320,
+                      background: 'linear-gradient(135deg, #151d2e 0%, #111827 100%)',
+                      border: '1px solid rgba(46,134,171,0.2)',
+                      borderRadius: 10,
+                      padding: '14px 16px',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(46,134,171,0.1)',
+                    }}
+                  >
+                    {/* Title */}
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        Normal vs. Full Fetch
+                      </span>
+                    </div>
+
+                    {/* Comparison table */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+                      {/* Normal column */}
+                      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-gray-400)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Normal</div>
+                        <div style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.5 }}>
+                          Junebug searches for <strong style={{ color: 'var(--c-gray-100)' }}>relevant excerpts</strong> from your case documents. Fast, focused answers for everyday questions.
+                        </div>
+                      </div>
+                      {/* Full Fetch column */}
+                      <div style={{ background: 'rgba(46,134,171,0.06)', borderRadius: 6, padding: '8px 10px', border: '1px solid rgba(46,134,171,0.15)' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Full Fetch</div>
+                        <div style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.5 }}>
+                          Junebug loads <strong style={{ color: '#fff' }}>every document, deadline, and AI task</strong> for the case. Deep analysis with nothing missed.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* When to turn it on */}
+                    <div style={{ background: 'rgba(46,134,171,0.06)', borderRadius: 6, padding: '8px 10px', marginBottom: 10, borderLeft: '2px solid var(--c-teal)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Turn on Full Fetch when you need to...</div>
+                      {[
+                        'Draft a penalty abatement letter citing specific IRC/IRM sections',
+                        'Evaluate OIC viability across all financials and liabilities',
+                        'Cross-reference multiple notices or transcripts in one question',
+                        'Build a case strategy memo that accounts for everything on file',
+                      ].map((t, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: i < 3 ? 4 : 0 }}>
+                          <span style={{ color: 'var(--c-teal)', fontSize: 8, marginTop: 3, flexShrink: 0 }}>▸</span>
+                          <span style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.4 }}>{t}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Keep Normal when... */}
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 6, padding: '8px 10px', marginBottom: 10, borderLeft: '2px solid rgba(255,255,255,0.15)' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-gray-400)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Keep Normal for...</div>
+                      {[
+                        'Quick lookups — "What\'s the filing status?" or "When is the deadline?"',
+                        'General tax questions not tied to a specific case',
+                        'Simple clarifications on a single document',
+                      ].map((t, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: i < 2 ? 4 : 0 }}>
+                          <span style={{ color: 'var(--c-gray-400)', fontSize: 8, marginTop: 3, flexShrink: 0 }}>▸</span>
+                          <span style={{ fontSize: 11, color: 'var(--c-gray-400)', lineHeight: 1.4 }}>{t}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Cost caveat */}
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 8px', background: 'rgba(217,119,6,0.08)', borderRadius: 5, border: '1px solid rgba(217,119,6,0.15)' }}>
+                      <span style={{ fontSize: 10, flexShrink: 0 }}>⏱</span>
+                      <span style={{ fontSize: 10, color: 'var(--c-warning)', lineHeight: 1.3 }}>
+                        Full Fetch uses more processing time and tokens. Use it when accuracy matters most.
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* New conversation */}
               <button
@@ -1095,7 +1257,7 @@ export function ChatPanel() {
 
           {/* Full Fetch indicator with activation sequence */}
           {(fullFetchMode || fullFetchActivating) && (
-            <div className="relative overflow-hidden" style={{ background: 'rgba(46,134,171,0.04)', borderBottom: '1px solid rgba(46,134,171,0.1)' }}>
+            <div className="relative overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(42,143,168,0.06), rgba(42,143,168,0.02))', borderBottom: '1px solid rgba(42,143,168,0.1)', borderTop: '1px solid rgba(42,143,168,0.06)' }}>
               {/* Scan lines during activation */}
               {ffShowScan && (
                 <>
@@ -1121,69 +1283,9 @@ export function ChatPanel() {
                         Full Fetch Active
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span style={{ fontSize: 10, color: 'var(--c-gray-300)', letterSpacing: '0.02em' }}>
-                        All data &middot; All documents
-                      </span>
-                      {/* Info tooltip trigger */}
-                      <div className="relative">
-                        <button
-                          onMouseEnter={() => setFfShowTooltip(true)}
-                          onMouseLeave={() => setFfShowTooltip(false)}
-                          onClick={() => setFfShowTooltip(!ffShowTooltip)}
-                          className="w-4 h-4 rounded-full flex items-center justify-center transition-all duration-150"
-                          style={{
-                            background: ffShowTooltip ? 'rgba(46,134,171,0.2)' : 'rgba(255,255,255,0.06)',
-                            border: `1px solid ${ffShowTooltip ? 'var(--c-teal)' : 'rgba(255,255,255,0.1)'}`,
-                            color: ffShowTooltip ? 'var(--c-teal)' : 'var(--c-gray-300)',
-                            fontSize: 9,
-                            fontWeight: 700,
-                            fontFamily: 'Georgia, serif',
-                            fontStyle: 'italic',
-                          }}
-                        >
-                          i
-                        </button>
-                        {/* Tooltip */}
-                        {ffShowTooltip && (
-                          <div
-                            className="absolute right-0 top-full mt-2 z-50 animate-fade-in"
-                            style={{
-                              width: 300,
-                              background: 'linear-gradient(135deg, #151d2e 0%, #111827 100%)',
-                              border: '1px solid rgba(46,134,171,0.2)',
-                              borderRadius: 10,
-                              padding: '14px 16px',
-                              boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(46,134,171,0.1)',
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                                Full Fetch Mode
-                              </span>
-                            </div>
-                            <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--c-gray-300)', margin: '0 0 10px 0' }}>
-                              Retrieves <strong style={{ color: '#fff' }}>complete documents</strong> from the case file and knowledge base instead of excerpts. Junebug reads the full text.
-                            </p>
-                            <div style={{ background: 'rgba(46,134,171,0.06)', borderRadius: 6, padding: '8px 10px', marginBottom: 10, borderLeft: '2px solid var(--c-teal)' }}>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--c-teal)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>When to use</div>
-                              {['Complex penalty abatement with multiple IRC sections', 'OIC viability requiring full IRM 5.8 context', 'Cross-referencing procedural requirements', 'Building comprehensive case strategy memos'].map((t, i) => (
-                                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
-                                  <span style={{ color: 'var(--c-teal)', fontSize: 8, marginTop: 3 }}>▸</span>
-                                  <span style={{ fontSize: 11, color: 'var(--c-gray-300)', lineHeight: 1.4 }}>{t}</span>
-                                </div>
-                              ))}
-                            </div>
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', padding: '6px 8px', background: 'rgba(217,119,6,0.08)', borderRadius: 5, border: '1px solid rgba(217,119,6,0.15)' }}>
-                              <span style={{ fontSize: 10 }}>⏱</span>
-                              <span style={{ fontSize: 10, color: 'var(--c-warning)', lineHeight: 1.3 }}>
-                                Uses more tokens. Best for high-stakes deliverables.
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <span style={{ fontSize: 10, color: 'var(--c-gray-300)', letterSpacing: '0.02em' }}>
+                      All data &middot; All documents
+                    </span>
                   </>
                 )}
               </div>
@@ -1193,7 +1295,7 @@ export function ChatPanel() {
           {/* Case context pill or case selector */}
           {caseContext ? (
             <div className="flex items-center gap-2 border-b border-c-gray-100 bg-c-gray-50 px-4 py-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-c-info-soft px-3 py-1 text-xs font-medium text-c-teal">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium" style={{ background: 'rgba(42,143,168,0.08)', color: 'var(--c-teal, #2A8FA8)', border: '1px solid rgba(42,143,168,0.12)' }}>
                 {caseContext.tabsNumber} &middot; {caseContext.caseType}
                 {caseContext.totalLiability != null && (
                   <> &middot; ${Number(caseContext.totalLiability).toLocaleString()}</>
@@ -1299,7 +1401,7 @@ export function ChatPanel() {
             ) : (
               /* Messages */
               <div className="flex flex-col gap-5">
-                {messages.map((msg) => {
+                {messages.map((msg, msgIndex) => {
                   // Skip rendering empty assistant bubbles (no content, not actively streaming)
                   const isLastMsg = msg === messages[messages.length - 1]
                   if (msg.role === "assistant" && !msg.content && !(isStreaming && isLastMsg)) {
@@ -1328,20 +1430,20 @@ export function ChatPanel() {
                         <>
                           {msg.content ? (
                             (() => {
-                              // Parse action blocks first
+                              // Parse action blocks and message drafts
                               const { text: textWithoutActions, actions } = parseActionBlocks(msg.content)
-                              const { before, draft, after } = parseMessageDraft(textWithoutActions)
-                              const hasSpecialContent = draft || actions.length > 0
+                              const { text: cleanText, drafts } = parseMessageDrafts(textWithoutActions)
+                              const hasSpecialContent = drafts.length > 0 || actions.length > 0
 
                               if (hasSpecialContent) {
-                                const textContent = draft ? before : textWithoutActions
                                 return (
                                   <div className="space-y-2">
-                                    {textContent && renderMarkdown(textContent)}
-                                    {draft && <MessageDraftCard draft={draft} />}
-                                    {draft && after && renderMarkdown(after)}
+                                    {cleanText && renderMarkdown(cleanText)}
+                                    {drafts.map((draft, idx) => (
+                                      <MessageDraftCard key={`draft-${msgIndex}-${idx}`} draft={draft} draftKey={`${msgIndex}-${idx}`} />
+                                    ))}
                                     {actions.map((action, idx) => (
-                                      <ActionCard key={idx} action={action} caseContext={caseContext} messageText={textWithoutActions} />
+                                      <ActionCard key={`action-${idx}`} action={action} caseContext={caseContext} messageText={cleanText} />
                                     ))}
                                   </div>
                                 )
@@ -1384,7 +1486,7 @@ export function ChatPanel() {
                 {attachedFiles.map((file, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 rounded-md border border-c-gray-200 bg-c-gray-50 px-2 py-1 text-xs">
                     {file.type.startsWith("image/") ? (
-                      <img src={file.dataUrl} className="h-8 w-8 rounded object-cover" alt={file.name} />
+                      <Image src={file.dataUrl} className="h-8 w-8 rounded object-cover" alt={file.name} width={32} height={32} unoptimized />
                     ) : (
                       <FileText className="h-4 w-4 text-c-gray-400" />
                     )}

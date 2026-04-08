@@ -8,6 +8,13 @@ import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
 import { searchKnowledge } from "@/lib/knowledge/search"
 import { canAccessCase } from "@/lib/auth/case-access"
 
+const VALID_KB_CATEGORIES = [
+  "IRC_STATUTE", "TREASURY_REGULATION", "IRM_SECTION", "REVENUE_PROCEDURE",
+  "REVENUE_RULING", "CASE_LAW", "TREATISE", "FIRM_TEMPLATE", "WORK_PRODUCT",
+  "APPROVED_OUTPUT", "FIRM_PROCEDURE", "TRAINING_MATERIAL", "CLIENT_GUIDE", "CUSTOM",
+] as const
+type KnowledgeCategory = typeof VALID_KB_CATEGORIES[number]
+
 const actionSchema = z.object({
   action: z.enum([
     "GENERATE_DOCUMENT_REQUEST",
@@ -27,7 +34,13 @@ export async function POST(request: NextRequest) {
   const auth = await requireApiAuth(PRACTITIONER_ROLES)
   if (!auth.authorized) return auth.response
 
-  const body = await request.json()
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
+
   const parsed = actionSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 })
@@ -42,14 +55,33 @@ export async function POST(request: NextRequest) {
   ]
 
   if (CASE_REQUIRED_ACTIONS.includes(action)) {
-    if (!caseId) {
-      return NextResponse.json({ error: "caseId is required for this action" }, { status: 400 })
+    if (!caseId || caseId.trim() === "") {
+      return NextResponse.json(
+        { error: "caseId is required for this action", action },
+        { status: 400 }
+      )
     }
-    const caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true } })
+
+    let caseExists
+    try {
+      caseExists = await prisma.case.findUnique({ where: { id: caseId }, select: { id: true } })
+    } catch (dbError: any) {
+      console.error("[ChatActions] DB error looking up case:", dbError.message)
+      return NextResponse.json({ error: "Invalid case ID" }, { status: 400 })
+    }
+
     if (!caseExists) {
       return NextResponse.json({ error: "Case not found" }, { status: 404 })
     }
-    const hasAccess = await canAccessCase(auth.userId, caseId)
+
+    let hasAccess = false
+    try {
+      hasAccess = await canAccessCase(auth.userId, caseId)
+    } catch (accessError: any) {
+      console.error("[ChatActions] Access check failed:", accessError.message)
+      return NextResponse.json({ error: "Access check failed" }, { status: 500 })
+    }
+
     if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
@@ -286,7 +318,7 @@ export async function POST(request: NextRequest) {
         const doc = await prisma.knowledgeDocument.create({
           data: {
             title: title || "Untitled KB Entry",
-            category: (category || "CUSTOM") as any,
+            category: (VALID_KB_CATEGORIES.includes(category as KnowledgeCategory) ? category : "CUSTOM") as KnowledgeCategory,
             sourceText: scrubbed,
             sourceType: "JUNEBUG_CURATED",
             tags: tags || [],
@@ -327,7 +359,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unknown action" }, { status: 400 })
     }
   } catch (error: any) {
-    console.error("[ChatActions] Error:", error.message)
-    return NextResponse.json({ error: "Action failed" }, { status: 500 })
+    console.error("[ChatActions] Error executing action:", action, {
+      message: error.message,
+      caseId: caseId || "(none)",
+      stack: error.stack?.split("\n").slice(0, 3).join("\n"),
+    })
+    return NextResponse.json(
+      { error: `Action "${action}" failed: ${error.message || "Unknown error"}` },
+      { status: 500 }
+    )
   }
 }

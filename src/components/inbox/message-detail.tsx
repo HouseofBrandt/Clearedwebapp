@@ -20,6 +20,8 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
   const [days, setDays] = useState("30")
   const [format, setFormat] = useState<"markdown" | "json">("markdown")
   const [includeResolved, setIncludeResolved] = useState(false)
+  const [includeArchived, setIncludeArchived] = useState(false)
+  const [readFilter, setReadFilter] = useState<"all" | "read" | "unread">("all")
   const [downloading, setDownloading] = useState(false)
 
   const handleDownload = async () => {
@@ -30,6 +32,8 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
       if (days !== "0") params.set("days", days)
       params.set("format", format)
       if (includeResolved) params.set("includeResolved", "true")
+      if (includeArchived) params.set("includeArchived", "true")
+      if (readFilter !== "all") params.set("readFilter", readFilter)
 
       const res = await fetch(`/api/messages/export?${params.toString()}`)
       if (!res.ok) throw new Error("Export failed")
@@ -129,8 +133,34 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
             </div>
           </div>
 
+          {/* Read/Unread filter */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Message status</label>
+            <div className="flex gap-1.5">
+              {(
+                [
+                  { key: "all", label: "All" },
+                  { key: "unread", label: "Unread" },
+                  { key: "read", label: "Read" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setReadFilter(opt.key)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    readFilter === opt.key
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Include resolved */}
-          <div className="space-y-1">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -140,12 +170,21 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
                 className="accent-primary"
               />
               <label htmlFor="includeResolved" className="text-sm">
-                Include resolved items
+                Include implemented / resolved items
               </label>
             </div>
-            <p className="text-xs text-muted-foreground pl-6">
-              When unchecked, excludes Implemented, Won&apos;t Fix, Duplicate, and archived items
-            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="includeArchived"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+                className="accent-primary"
+              />
+              <label htmlFor="includeArchived" className="text-sm">
+                Include archived items
+              </label>
+            </div>
           </div>
         </div>
 

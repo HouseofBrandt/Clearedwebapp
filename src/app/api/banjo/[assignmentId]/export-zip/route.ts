@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import JSZip from "jszip"
 import { generateDocx } from "@/lib/documents/docx"
 import { generateOICWorkingPapersExcel } from "@/lib/documents/oic-excel"
+import { validateForExport } from "@/lib/banjo/export-validation"
 import { decryptField } from "@/lib/encryption"
 
 const SPREADSHEET_TASKS = ["WORKING_PAPERS"]
@@ -37,43 +38,55 @@ export async function GET(
     return NextResponse.json({ error: "No approved deliverables to export" }, { status: 400 })
   }
 
-  // ── Pre-export validation ─────────────────────────────────────
-  const validationErrors: string[] = []
-  for (const task of assignment.tasks) {
-    const rawOutput = task.detokenizedOutput || task.tokenizedOutput
-    if (!rawOutput || rawOutput.trim() === "") {
-      validationErrors.push(
-        `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Missing output content`
-      )
-      continue
+  // ── Pre-export validation (C8) ─────────────────────────────────
+  const skipValidation = request.nextUrl.searchParams.get("skipValidation") === "true"
+  if (!skipValidation) {
+    // Run structured validation via export-validation module
+    const validation = validateForExport(assignment.tasks)
+    if (!validation.valid) {
+      return NextResponse.json({
+        error: "Export blocked: deliverables failed validation",
+        validation,
+      }, { status: 422 })
     }
-    const output = task.detokenizedOutput ? decryptField(task.detokenizedOutput) : rawOutput
-    if (!output || output.trim() === "") {
-      validationErrors.push(
-        `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Output decryption produced empty content`
-      )
-      continue
-    }
-    // Validate structured output can be parsed when expected
-    if (SPREADSHEET_TASKS.includes(task.taskType)) {
-      try {
-        const parsed = JSON.parse(output)
-        if (parsed._type === "oic_working_papers_v1" && (!parsed.merged || !parsed.extracted)) {
-          validationErrors.push(
-            `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Output format invalid — missing required fields (merged/extracted)`
-          )
+
+    // Additional server-side checks (decryption, content presence)
+    const validationErrors: string[] = []
+    for (const task of assignment.tasks) {
+      const rawOutput = task.detokenizedOutput || task.tokenizedOutput
+      if (!rawOutput || rawOutput.trim() === "") {
+        validationErrors.push(
+          `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Missing output content`
+        )
+        continue
+      }
+      const output = task.detokenizedOutput ? decryptField(task.detokenizedOutput) : rawOutput
+      if (!output || output.trim() === "") {
+        validationErrors.push(
+          `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Output decryption produced empty content`
+        )
+        continue
+      }
+      if (SPREADSHEET_TASKS.includes(task.taskType)) {
+        try {
+          const parsed = JSON.parse(output)
+          if (parsed._type === "oic_working_papers_v1" && (!parsed.merged || !parsed.extracted)) {
+            validationErrors.push(
+              `Step ${task.banjoStepNumber || "?"} "${task.banjoStepLabel || task.taskType}": Output format invalid — missing required fields (merged/extracted)`
+            )
+          }
+        } catch {
+          // Not JSON is acceptable — will fall through to docx generation
         }
-      } catch {
-        // Not JSON is acceptable — will fall through to docx generation
       }
     }
-  }
 
-  if (validationErrors.length > 0) {
-    return NextResponse.json(
-      { error: "Export validation failed", details: validationErrors },
-      { status: 422 }
-    )
+    if (validationErrors.length > 0) {
+      return NextResponse.json(
+        { error: "Export validation failed", details: validationErrors },
+        { status: 422 }
+      )
+    }
   }
 
   const zip = new JSZip()

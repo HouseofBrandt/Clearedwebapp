@@ -180,14 +180,16 @@ export default async function CaseDetailPage({
   }))
 
   return (
-    <CaseDetail
-      caseData={{ ...decryptCasePII(caseData), noteCount, conversationCount }}
-      practitioners={practitioners}
-      deadlines={serializedDeadlines}
-      intelligence={serializedIntelligence}
-      activities={serializedActivities}
-      feedPosts={serializedFeedPosts}
-      currentUser={session.user}
-    />
+    <div className="page-enter">
+      <CaseDetail
+        caseData={{ ...decryptCasePII(caseData), noteCount, conversationCount }}
+        practitioners={practitioners}
+        deadlines={serializedDeadlines}
+        intelligence={serializedIntelligence}
+        activities={serializedActivities}
+        feedPosts={serializedFeedPosts}
+        currentUser={session.user}
+      />
+    </div>
   )
 }

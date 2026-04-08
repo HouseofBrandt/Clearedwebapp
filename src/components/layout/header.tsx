@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import { Menu, X, LogOut } from "lucide-react"
+import { Menu, X, LogOut, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -43,77 +43,149 @@ export function Header({
   const pathname = usePathname()
   const page = getPageContext(pathname, user.role)
 
+  const segments = pathname.split("/").filter(Boolean)
+  const showBreadcrumb = segments.length > 1
+
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl dark:bg-c-gray-900/80" style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-        <div className="flex h-12 items-center gap-3 px-4 sm:px-6">
-          {/* Mobile menu trigger */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0 lg:hidden"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Open navigation"
-          >
-            <Menu className="h-4 w-4" />
-          </Button>
+      <header
+        className="app-header sticky top-0 z-30"
+        style={{
+          height: "56px",
+          display: "flex",
+          alignItems: "center",
+          padding: "0 24px",
+          background: "rgba(250,251,252,0.78)",
+          backdropFilter: "blur(20px) saturate(1.4)",
+          WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+          borderBottom: "1px solid var(--c-gray-100)",
+        }}
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 lg:hidden mr-3"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open navigation"
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
 
-          {/* Page title */}
-          <h1 className="min-w-0 flex-1 truncate text-[15px] font-medium text-c-gray-900 dark:text-c-gray-100">
+        <div className="min-w-0 flex-1 flex items-center gap-1.5">
+          {showBreadcrumb && (
+            <>
+              <span
+                className="text-[13px] hidden sm:inline"
+                style={{ color: "var(--c-gray-300)", fontWeight: 400 }}
+              >
+                {segments[0].charAt(0).toUpperCase() + segments[0].slice(1)}
+              </span>
+              <ChevronRight
+                className="h-3 w-3 hidden sm:inline"
+                style={{ color: "var(--c-gray-300)" }}
+              />
+            </>
+          )}
+          <h1
+            className="truncate"
+            style={{
+              fontFamily: "var(--font-body)",
+              fontSize: "15px",
+              fontWeight: 600,
+              color: "var(--c-gray-900)",
+              letterSpacing: "-0.01em",
+            }}
+          >
             {page.name}
           </h1>
-
-          {/* User menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-c-snow dark:hover:bg-c-gray-900/50">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-c-gray-100 text-[11px] font-medium text-c-gray-500 dark:bg-c-gray-900 dark:text-c-gray-300">
-                  {getInitials(user.name)}
-                </div>
-                <span className="hidden text-[13px] font-medium text-c-gray-700 sm:inline dark:text-c-gray-300">
-                  {user.name}
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-                {user.role}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
-                <LogOut className="mr-2 h-3.5 w-3.5" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm transition-all duration-150"
+              style={{ background: "transparent" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--c-gray-50)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+            >
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-[8px] text-[11px]"
+                style={{
+                  background: "linear-gradient(135deg, var(--c-gray-100), var(--c-gray-50))",
+                  border: "1px solid var(--c-gray-200)",
+                  fontWeight: 600,
+                  color: "var(--c-gray-500)",
+                }}
+              >
+                {getInitials(user.name)}
+              </div>
+              <span
+                className="hidden text-[13px] sm:inline"
+                style={{ fontWeight: 500, color: "var(--c-gray-700)" }}
+              >
+                {user.name}
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56" style={{ borderRadius: "12px" }}>
+            <DropdownMenuLabel className="font-normal">
+              <p className="text-sm font-medium">{user.name}</p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+              {user.role}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
+              <LogOut className="mr-2 h-3.5 w-3.5" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </header>
 
-      {/* Mobile navigation drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="fixed inset-0 bg-black/30 backdrop-blur-[2px]"
+            className="fixed inset-0"
+            style={{ background: "rgba(10,22,40,0.4)", backdropFilter: "blur(4px)" }}
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 left-0 flex w-[min(85vw,18rem)] flex-col border-r border-c-gray-100 bg-white shadow-xl dark:border-c-gray-900 dark:bg-c-gray-900">
-            <div className="flex items-center justify-between border-b border-c-gray-100 px-4 py-3 dark:border-c-gray-900">
+          <div
+            className="fixed inset-y-0 left-0 flex w-[min(85vw,18rem)] flex-col"
+            style={{ boxShadow: "var(--shadow-panel)" }}
+          >
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{
+                background: "var(--c-navy-950)",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+              }}
+            >
               <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-c-gray-900 text-white">
-                  <span className="text-xs font-medium">C</span>
+                <div
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-white"
+                  style={{
+                    background: "linear-gradient(135deg, #2A8FA8, #1E6E82)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                  }}
+                >
+                  C
                 </div>
-                <span className="text-sm font-medium">Cleared</span>
+                <span
+                  className="text-sm text-white"
+                  style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}
+                >
+                  Cleared
+                </span>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setMobileMenuOpen(false)}
-                className="h-8 w-8"
+                className="h-8 w-8 text-white/50 hover:text-white/80"
                 aria-label="Close navigation"
               >
                 <X className="h-4 w-4" />

@@ -829,7 +829,7 @@ async function generateFilledPDF(formNumber: string, values: Record<string, any>
 
     const filledPdfBytes = await pdfDoc.save()
 
-    return new NextResponse(filledPdfBytes, {
+    return new NextResponse(Buffer.from(filledPdfBytes), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="preview-${formNumber}.pdf"`,

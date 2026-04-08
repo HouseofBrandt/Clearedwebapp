@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: "Form Builder | Cleared" }
 export default async function FormsPage() {
   const session = await requireAuth()
 
-  return <FormBuilderHub currentUser={session.user} />
+  return <div className="page-enter"><FormBuilderHub currentUser={session.user} /></div>
 }

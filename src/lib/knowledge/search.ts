@@ -131,9 +131,15 @@ export async function searchKnowledge(
     ]
     const filtered = categoryFilter.filter((c) => validCategories.includes(c))
     if (filtered.length > 0) {
-      sql += ` AND kd.category::text = ANY($${paramIndex}::text[])`
-      params.push(filtered)
-      paramIndex++
+      // Use individual parameters cast to the enum type to avoid
+      // "operator does not exist: KnowledgeCategory = text" errors.
+      // Prisma's $queryRawUnsafe array binding can bypass ::text[] casts.
+      const placeholders = filtered.map((_, i) => `$${paramIndex + i}::"KnowledgeCategory"`)
+      sql += ` AND kd.category IN (${placeholders.join(", ")})`
+      for (const cat of filtered) {
+        params.push(cat)
+        paramIndex++
+      }
     }
   }
 

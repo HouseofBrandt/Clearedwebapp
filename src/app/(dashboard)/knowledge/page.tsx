@@ -48,5 +48,5 @@ export default async function KnowledgePage() {
     topDocuments,
   }
 
-  return <KnowledgeList documents={documents} stats={stats} embeddingCounts={embeddingCounts} />
+  return <div className="page-enter"><KnowledgeList documents={documents} stats={stats} embeddingCounts={embeddingCounts} /></div>
 }

@@ -20,6 +20,7 @@ interface HistoryTask {
 
 interface BanjoHistoryProps {
   tasks: HistoryTask[]
+  onAssignmentDeleted?: () => void
 }
 
 const statusStyles: Record<string, string> = {
@@ -51,7 +52,7 @@ function timeAgo(dateStr: string): string {
   return "just now"
 }
 
-export function BanjoHistory({ tasks }: BanjoHistoryProps) {
+export function BanjoHistory({ tasks, onAssignmentDeleted }: BanjoHistoryProps) {
   const router = useRouter()
   const { addToast } = useToast()
   const [archivingId, setArchivingId] = useState<string | null>(null)
@@ -72,6 +73,7 @@ export function BanjoHistory({ tasks }: BanjoHistoryProps) {
         throw new Error(data.error || "Failed to archive")
       }
       addToast({ title: "Assignment archived" })
+      onAssignmentDeleted?.()
       router.refresh()
     } catch (err: any) {
       addToast({ title: "Error", description: err.message, variant: "destructive" })

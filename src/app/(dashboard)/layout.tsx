@@ -47,9 +47,15 @@ export default async function DashboardLayout({
     <>
       <div className="flex h-screen overflow-hidden">
         <Sidebar user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} unreadMessageCount={unreadMessageCount} />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div
+          className="flex flex-1 flex-col overflow-hidden"
+          style={{ background: "var(--c-snow)" }}
+        >
           <Header user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} unreadMessageCount={unreadMessageCount} />
-          <main className="flex-1 overflow-y-auto p-6">
+          <main
+            className="flex-1 overflow-y-auto"
+            style={{ padding: "28px 32px 48px" }}
+          >
             {children}
           </main>
         </div>

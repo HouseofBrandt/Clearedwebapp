@@ -98,6 +98,11 @@ enum AITaskType {
   CASE_SUMMARY
   RISK_ASSESSMENT
   WEB_RESEARCH
+  RESEARCH_QUICK_ANSWER
+  RESEARCH_ISSUE_BRIEF
+  RESEARCH_MEMORANDUM
+  RESEARCH_AUTHORITY_SURVEY
+  RESEARCH_COUNTERARGUMENT
 }
 
 // ─── Client Notes & Conversations ───
@@ -297,97 +302,101 @@ enum DeadlineStatus {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String
-  passwordHash   String
-  role           Role      @default(PRACTITIONER)
-  licenseType    LicenseType?
-  licenseNumber  String?
-  mfaEnabled     Boolean   @default(false)
-  mfaSecret      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String
+  passwordHash  String
+  role          Role         @default(PRACTITIONER)
+  licenseType   LicenseType?
+  licenseNumber String?
+  mfaEnabled    Boolean      @default(false)
+  mfaSecret     String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  assignedCases       Case[]         @relation("AssignedPractitioner")
-  uploadedDocs        Document[]
-  reviewActions       ReviewAction[]
-  auditLogs           AuditLog[]
-  aiTasks             AITask[]
-  completedDeadlines  Deadline[]     @relation("CompletedDeadlines")
-  assignedDeadlines   Deadline[]     @relation("AssignedDeadlines")
-  createdDeadlines    Deadline[]     @relation("CreatedDeadlines")
-  uploadedKnowledge   KnowledgeDocument[] @relation("UploadedKnowledge")
-  sentMessages        Message[]          @relation("SentMessages")
-  receivedMessages    Message[]          @relation("ReceivedMessages")
-  appErrors           AppError[]         @relation("UserErrors")
-  implementedMessages Message[]          @relation("ImplementedMessages")
-  caseActivities      CaseActivity[]     @relation("CaseActivities")
-  banjoAssignments    BanjoAssignment[]
-  feedPosts           FeedPost[]         @relation("FeedPosts")
-  feedReplies         FeedReply[]        @relation("FeedReplies")
-  feedLikes           FeedLike[]         @relation("FeedLikes")
-  assignedFeedTasks   FeedPost[]         @relation("AssignedFeedTasks")
-  feedReactions       FeedReaction[]     @relation("FeedReactions")
-  feedMentions        FeedMention[]      @relation("FeedMentions")
-  createdTasks        Task[]             @relation("CreatedTasks")
-  assignedTasks       Task[]             @relation("AssignedTasks")
-  completedTasks      Task[]             @relation("CompletedTasks")
-  clientNotes         ClientNote[]       @relation("NoteAuthor")
-  startedConversations Conversation[]    @relation("ConversationStarter")
-  resolvedConversations Conversation[]   @relation("ConversationResolver")
-  conversationMessages ConversationMsg[] @relation("MessageAuthor")
+  assignedCases         Case[]              @relation("AssignedPractitioner")
+  uploadedDocs          Document[]
+  reviewActions         ReviewAction[]
+  auditLogs             AuditLog[]
+  aiTasks               AITask[]
+  completedDeadlines    Deadline[]          @relation("CompletedDeadlines")
+  assignedDeadlines     Deadline[]          @relation("AssignedDeadlines")
+  createdDeadlines      Deadline[]          @relation("CreatedDeadlines")
+  uploadedKnowledge     KnowledgeDocument[] @relation("UploadedKnowledge")
+  sentMessages          Message[]           @relation("SentMessages")
+  receivedMessages      Message[]           @relation("ReceivedMessages")
+  appErrors             AppError[]          @relation("UserErrors")
+  implementedMessages   Message[]           @relation("ImplementedMessages")
+  caseActivities        CaseActivity[]      @relation("CaseActivities")
+  banjoAssignments      BanjoAssignment[]
+  feedPosts             FeedPost[]          @relation("FeedPosts")
+  feedReplies           FeedReply[]         @relation("FeedReplies")
+  feedLikes             FeedLike[]          @relation("FeedLikes")
+  assignedFeedTasks     FeedPost[]          @relation("AssignedFeedTasks")
+  feedReactions         FeedReaction[]      @relation("FeedReactions")
+  feedMentions          FeedMention[]       @relation("FeedMentions")
+  createdTasks          Task[]              @relation("CreatedTasks")
+  assignedTasks         Task[]              @relation("AssignedTasks")
+  completedTasks        Task[]              @relation("CompletedTasks")
+  clientNotes           ClientNote[]        @relation("NoteAuthor")
+  startedConversations  Conversation[]      @relation("ConversationStarter")
+  resolvedConversations Conversation[]      @relation("ConversationResolver")
+  conversationMessages  ConversationMsg[]   @relation("MessageAuthor")
 
   // SOC 2 Policy Acknowledgment Gate
-  policyAcknowledgments PolicyAcknowledgment[] @relation("PolicyAcknowledgments")
-  securityTrainings     SecurityTraining[]     @relation("SecurityTrainings")
-  backgroundChecks      BackgroundCheck[]      @relation("BackgroundChecks")
-  backgroundCheckEntries BackgroundCheck[]     @relation("BackgroundCheckEntries")
-  policiesCreated       CompliancePolicy[]     @relation("PolicyCreator")
-  governanceMeetings    GovernanceMeeting[]    @relation("GovernanceMeetings")
-  incidentsAssigned     IncidentRecord[]       @relation("IncidentAssignee")
-  disposalsConfirmed    DataDisposalRecord[]   @relation("DisposalConfirmer")
-  dsrAssigned           DataSubjectRequest[]   @relation("DSRAssignee")
-  formInstances         FormInstance[]         @relation("FormInstances")
-  workProductOverrides  WorkProductOverride[]  @relation("WorkProductOverrides")
+  policyAcknowledgments  PolicyAcknowledgment[] @relation("PolicyAcknowledgments")
+  securityTrainings      SecurityTraining[]     @relation("SecurityTrainings")
+  backgroundChecks       BackgroundCheck[]      @relation("BackgroundChecks")
+  backgroundCheckEntries BackgroundCheck[]      @relation("BackgroundCheckEntries")
+  policiesCreated        CompliancePolicy[]     @relation("PolicyCreator")
+  governanceMeetings     GovernanceMeeting[]    @relation("GovernanceMeetings")
+  incidentsAssigned      IncidentRecord[]       @relation("IncidentAssignee")
+  disposalsConfirmed     DataDisposalRecord[]   @relation("DisposalConfirmer")
+  dsrAssigned            DataSubjectRequest[]   @relation("DSRAssignee")
+  formInstances          FormInstance[]         @relation("FormInstances")
+  workProductOverrides   WorkProductOverride[]  @relation("WorkProductOverrides")
+  researchSessions       ResearchSession[]      @relation("UserResearch")
+  researchReviews        ResearchReview[]       @relation("UserResearchReviews")
+  researchPreference     ResearchPreference?
 
   @@map("users")
 }
 
 model Case {
-  id                    String     @id @default(cuid())
-  tabsNumber            String     @unique
-  clientName            String
-  clientNameEncrypted   String?
-  status                CaseStatus @default(INTAKE)
-  caseType              CaseType   @default(OTHER)
-  filingStatus          FilingStatus?
-  clientEmail           String?
-  clientPhone           String?
-  totalLiability        Decimal?
+  id                     String        @id @default(cuid())
+  tabsNumber             String        @unique
+  clientName             String
+  clientNameEncrypted    String?
+  status                 CaseStatus    @default(INTAKE)
+  caseType               CaseType      @default(OTHER)
+  filingStatus           FilingStatus?
+  clientEmail            String?
+  clientPhone            String?
+  totalLiability         Decimal?
   assignedPractitionerId String?
-  assignedPractitioner  User?      @relation("AssignedPractitioner", fields: [assignedPractitionerId], references: [id])
-  notes                 String?
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  assignedPractitioner   User?         @relation("AssignedPractitioner", fields: [assignedPractitionerId], references: [id])
+  notes                  String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
-  documents          Document[]
-  aiTasks            AITask[]
-  tokenMaps          TokenMap[]
-  auditLogs          AuditLog[]
-  liabilityPeriods   LiabilityPeriod[]
-  deadlines          Deadline[]
-  messages           Message[]
-  intelligence       CaseIntelligence?
-  activities         CaseActivity[]
-  banjoAssignments   BanjoAssignment[]
-  feedPosts          FeedPost[]
-  feedPostCases      FeedPostCase[]     @relation("FeedPostCases")
-  tasks              Task[]
-  clientNotes        ClientNote[]
-  conversations      Conversation[]
-  formInstances      FormInstance[]
-  reasoningLogs      ReasoningPipelineLog[]
+  documents        Document[]
+  aiTasks          AITask[]
+  tokenMaps        TokenMap[]
+  auditLogs        AuditLog[]
+  liabilityPeriods LiabilityPeriod[]
+  deadlines        Deadline[]
+  messages         Message[]
+  intelligence     CaseIntelligence?
+  activities       CaseActivity[]
+  banjoAssignments BanjoAssignment[]
+  feedPosts        FeedPost[]
+  feedPostCases    FeedPostCase[]         @relation("FeedPostCases")
+  tasks            Task[]
+  clientNotes      ClientNote[]
+  conversations    Conversation[]
+  formInstances    FormInstance[]
+  reasoningLogs    ReasoningPipelineLog[]
+  researchSessions ResearchSession[]
 
   @@index([tabsNumber])
   @@map("cases")
@@ -405,7 +414,7 @@ model Document {
   extractedText    String?
   statementDate    DateTime?
   expiresAt        DateTime?
-  freshnessStatus  String?          // "fresh" | "expiring_soon" | "expired"
+  freshnessStatus  String? // "fresh" | "expiring_soon" | "expired"
   uploadedById     String
   uploadedBy       User             @relation(fields: [uploadedById], references: [id])
   uploadedAt       DateTime         @default(now())
@@ -427,7 +436,7 @@ model AITask {
   temperature         Float?
   systemPromptVersion String?
   verifyFlagCount     Int          @default(0)
-  judgmentFlagCount    Int          @default(0)
+  judgmentFlagCount   Int          @default(0)
   requestId           String       @unique @default(uuid())
   metadata            Json?
   casePosture         Json?
@@ -440,10 +449,10 @@ model AITask {
   auditLogs     AuditLog[]
 
   // Banjo assignment grouping (null for legacy standalone tasks)
-  banjoAssignmentId  String?
-  banjoAssignment    BanjoAssignment?  @relation(fields: [banjoAssignmentId], references: [id])
-  banjoStepNumber    Int?
-  banjoStepLabel     String?
+  banjoAssignmentId String?
+  banjoAssignment   BanjoAssignment? @relation(fields: [banjoAssignmentId], references: [id])
+  banjoStepNumber   Int?
+  banjoStepLabel    String?
 
   @@index([caseId])
   @@index([status])
@@ -451,17 +460,17 @@ model AITask {
 }
 
 model ReviewAction {
-  id               String           @id @default(cuid())
-  aiTaskId         String
-  aiTask           AITask           @relation(fields: [aiTaskId], references: [id], onDelete: Cascade)
-  practitionerId   String
-  practitioner     User             @relation(fields: [practitionerId], references: [id])
-  action           ReviewActionType
-  editedOutput     String?          @db.Text
-  reviewNotes      String?
+  id                String           @id @default(cuid())
+  aiTaskId          String
+  aiTask            AITask           @relation(fields: [aiTaskId], references: [id], onDelete: Cascade)
+  practitionerId    String
+  practitioner      User             @relation(fields: [practitionerId], references: [id])
+  action            ReviewActionType
+  editedOutput      String?          @db.Text
+  reviewNotes       String?
   reviewStartedAt   DateTime
-  reviewCompletedAt  DateTime?
-  flagsAcknowledged  Boolean   @default(false)
+  reviewCompletedAt DateTime?
+  flagsAcknowledged Boolean          @default(false)
 
   @@index([aiTaskId])
   @@map("review_actions")
@@ -489,25 +498,25 @@ model LiabilityPeriod {
   caseId             String
   case               Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
   taxYear            Int
-  formType           String    // "1040", "941", etc.
+  formType           String // "1040", "941", etc.
   originalAssessment Decimal?
   penalties          Decimal?
   interest           Decimal?
   totalBalance       Decimal?
   assessmentDate     DateTime?
   csedDate           DateTime?
-  status             String?   // "assessed", "paid", etc.
+  status             String? // "assessed", "paid", etc.
 
   @@index([caseId])
   @@map("liability_periods")
 }
 
 model TokenMap {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   caseId    String
-  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  tokenMap  String   @db.Text
-  createdAt DateTime @default(now())
+  case      Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  tokenMap  String    @db.Text
+  createdAt DateTime  @default(now())
   expiresAt DateTime?
 
   @@map("token_maps")
@@ -548,41 +557,41 @@ model Deadline {
 }
 
 model KnowledgeDocument {
-  id              String            @id @default(cuid())
-  title           String
-  description     String?
-  category        KnowledgeCategory
-  fileName        String?
-  filePath        String?
-  fileSize        Int?
-  s3Key           String?
-  processingStatus String           @default("ready") // uploading | processing | ready | failed
-  processingError String?
-  sourceText      String            @db.Text @default("")
-  tags            String[]
-  isActive        Boolean           @default(true)
-  chunkCount      Int               @default(0)
-  hitCount        Int               @default(0)
-  uploadedById    String
-  uploadedBy      User              @relation("UploadedKnowledge", fields: [uploadedById], references: [id])
-  sourceTaskId    String?
-  sourceCaseId    String?
+  id               String            @id @default(cuid())
+  title            String
+  description      String?
+  category         KnowledgeCategory
+  fileName         String?
+  filePath         String?
+  fileSize         Int?
+  s3Key            String?
+  processingStatus String            @default("ready") // uploading | processing | ready | failed
+  processingError  String?
+  sourceText       String            @default("") @db.Text
+  tags             String[]
+  isActive         Boolean           @default(true)
+  chunkCount       Int               @default(0)
+  hitCount         Int               @default(0)
+  uploadedById     String
+  uploadedBy       User              @relation("UploadedKnowledge", fields: [uploadedById], references: [id])
+  sourceTaskId     String?
+  sourceCaseId     String?
 
   // Provenance
-  sourceType        String            @default("MANUAL_UPLOAD")
-  lastReferencedAt  DateTime?
+  sourceType       String    @default("MANUAL_UPLOAD")
+  lastReferencedAt DateTime?
 
   // V2: Outcome tagging (populated when source case is resolved)
-  outcomeTag        String?           // OIC_ACCEPTED, OIC_REJECTED, IA_APPROVED, etc.
-  outcomeAmount     Decimal?          // Final accepted amount (for OIC)
+  outcomeTag    String? // OIC_ACCEPTED, OIC_REJECTED, IA_APPROVED, etc.
+  outcomeAmount Decimal? // Final accepted amount (for OIC)
 
   // V2: Freshness scoring
-  freshnessScore    Float             @default(1.0) // 0.0 (stale) to 1.0 (fresh)
+  freshnessScore Float @default(1.0) // 0.0 (stale) to 1.0 (fresh)
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  chunks          KnowledgeChunk[]
+  chunks KnowledgeChunk[]
 
   @@index([category])
   @@index([isActive])
@@ -591,19 +600,19 @@ model KnowledgeDocument {
 }
 
 model KnowledgeChunk {
-  id              String            @id @default(cuid())
-  documentId      String
-  document        KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  chunkIndex      Int
-  content         String            @db.Text
-  sectionHeader   String?
-  tokenCount      Int?
-  hitCount        Int               @default(0)
-  metadata        Json?
-  createdAt       DateTime          @default(now())
+  id            String            @id @default(cuid())
+  documentId    String
+  document      KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex    Int
+  content       String            @db.Text
+  sectionHeader String?
+  tokenCount    Int?
+  hitCount      Int               @default(0)
+  metadata      Json?
+  createdAt     DateTime          @default(now())
 
   // Managed via raw SQL in vector-setup.ts (pgvector extension)
-  embedding       Unsupported("vector(1536)")?
+  embedding Unsupported("vector(1536)")?
   // search_vector is a GENERATED ALWAYS AS ... STORED tsvector column.
   // It cannot be declared here because Prisma tries to ALTER generated columns.
   // It is dropped before `prisma db push` and recreated by setup-vector.mjs.
@@ -613,18 +622,18 @@ model KnowledgeChunk {
 }
 
 model AppError {
-  id            String   @id @default(cuid())
-  route         String
-  method        String
-  errorMessage  String   @db.Text
-  errorStack    String?  @db.Text
-  statusCode    Int?
-  userId        String?
-  user          User?    @relation("UserErrors", fields: [userId], references: [id])
-  caseId        String?
-  aiTaskId      String?
-  metadata      Json?
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  route        String
+  method       String
+  errorMessage String   @db.Text
+  errorStack   String?  @db.Text
+  statusCode   Int?
+  userId       String?
+  user         User?    @relation("UserErrors", fields: [userId], references: [id])
+  caseId       String?
+  aiTaskId     String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
 
   @@index([route])
   @@index([userId])
@@ -633,44 +642,44 @@ model AppError {
 }
 
 model Message {
-  id            String          @id @default(cuid())
-  type          MessageType
-  priority      MessagePriority @default(NORMAL)
-  subject       String
-  body          String          @db.Text
+  id       String          @id @default(cuid())
+  type     MessageType
+  priority MessagePriority @default(NORMAL)
+  subject  String
+  body     String          @db.Text
 
-  senderId      String?
-  sender        User?           @relation("SentMessages", fields: [senderId], references: [id])
-  senderName    String?
+  senderId   String?
+  sender     User?   @relation("SentMessages", fields: [senderId], references: [id])
+  senderName String?
 
-  recipientId   String
-  recipient     User            @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  recipientId String
+  recipient   User   @relation("ReceivedMessages", fields: [recipientId], references: [id])
 
-  read          Boolean         @default(false)
-  readAt        DateTime?
-  archived      Boolean         @default(false)
+  read     Boolean   @default(false)
+  readAt   DateTime?
+  archived Boolean   @default(false)
 
-  caseId        String?
-  case          Case?           @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  deadlineId    String?
-  aiTaskId      String?
+  caseId     String?
+  case       Case?   @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  deadlineId String?
+  aiTaskId   String?
 
-  parentId      String?
-  parent        Message?        @relation("Replies", fields: [parentId], references: [id], onDelete: SetNull)
-  replies       Message[]       @relation("Replies")
+  parentId String?
+  parent   Message?  @relation("Replies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies  Message[] @relation("Replies")
 
-  tags          String[]
-  metadata      Json?
+  tags     String[]
+  metadata Json?
 
   // Implementation tracking (for BUG_REPORT and FEATURE_REQUEST)
-  implementationStatus  String?
-  implementationNotes   String?   @db.Text
-  implementedAt         DateTime?
-  implementedById       String?
-  implementedBy         User?     @relation("ImplementedMessages", fields: [implementedById], references: [id])
+  implementationStatus String?
+  implementationNotes  String?   @db.Text
+  implementedAt        DateTime?
+  implementedById      String?
+  implementedBy        User?     @relation("ImplementedMessages", fields: [implementedById], references: [id])
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([recipientId, read])
   @@index([recipientId, type])
@@ -680,13 +689,13 @@ model Message {
 }
 
 model CaseIntelligence {
-  id                    String    @id @default(cuid())
-  caseId                String    @unique
-  case                  Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   // Resolution tracking
-  resolutionType        String?
-  resolutionPhase       String    @default("GATHERING_DOCUMENTS")
+  resolutionType  String?
+  resolutionPhase String  @default("GATHERING_DOCUMENTS")
 
   // IRS position tracking
   irsLastAction         String?
@@ -697,145 +706,145 @@ model CaseIntelligence {
   irsEmployeeId         String?
 
   // Document completeness
-  docsRequired          Json      @default("[]")
-  docsReceivedCount     Int       @default(0)
-  docsRequiredCount     Int       @default(0)
-  docCompleteness       Float     @default(0)
+  docsRequired      Json  @default("[]")
+  docsReceivedCount Int   @default(0)
+  docsRequiredCount Int   @default(0)
+  docCompleteness   Float @default(0)
 
   // Financial readiness
-  financialsComplete    Boolean   @default(false)
-  rpcEstimate           Decimal?
-  offerAmount           Decimal?
+  financialsComplete Boolean  @default(false)
+  rpcEstimate        Decimal?
+  offerAmount        Decimal?
 
   // Compliance status
-  allReturnsFiled       Boolean   @default(false)
-  currentOnEstimates    Boolean   @default(false)
-  poaOnFile             Boolean   @default(false)
-  poaExpirationDate     DateTime?
+  allReturnsFiled    Boolean   @default(false)
+  currentOnEstimates Boolean   @default(false)
+  poaOnFile          Boolean   @default(false)
+  poaExpirationDate  DateTime?
 
   // Risk indicators
-  levyThreatActive      Boolean   @default(false)
-  liensFiledActive      Boolean   @default(false)
-  csedEarliest          DateTime?
-  csedLatest            DateTime?
+  levyThreatActive Boolean   @default(false)
+  liensFiledActive Boolean   @default(false)
+  csedEarliest     DateTime?
+  csedLatest       DateTime?
 
   // Last AI assessment
   lastAssessmentDate    DateTime?
   lastAssessmentSummary String?   @db.Text
 
   // Activity
-  lastActivityDate      DateTime  @default(now())
-  lastActivityBy        String?
-  lastActivityAction    String?
+  lastActivityDate   DateTime @default(now())
+  lastActivityBy     String?
+  lastActivityAction String?
 
   // === V2: Case Graph Engine ===
 
   // Case Digest — precomputed natural language summary
-  digest                String?   @db.Text
-  digestUpdatedAt       DateTime?
+  digest          String?   @db.Text
+  digestUpdatedAt DateTime?
 
   // Next Steps — structured, prioritized recommendations
   // Array of { priority: "critical"|"high"|"normal", action, reason, type, blockedBy?, suggestedBanjoBundle? }
-  nextSteps             Json?
-  nextStepsUpdatedAt    DateTime?
+  nextSteps          Json?
+  nextStepsUpdatedAt DateTime?
 
   // Bundle Readiness — what Banjo can produce right now
   // { oicPacket: "ready"|"blocked"|"partial", ... }
-  bundleReadiness       Json?
+  bundleReadiness Json?
 
   // Risk Score — 0-100, higher = more urgent
-  riskScore             Int       @default(0)
-  riskFactors           Json?
+  riskScore   Int   @default(0)
+  riskFactors Json?
 
   // Staleness
-  daysSinceActivity     Int       @default(0)
-  isStale               Boolean   @default(false)
+  daysSinceActivity Int     @default(0)
+  isStale           Boolean @default(false)
 
   // Confidence — how reliable is the intelligence?
-  confidenceScore       Int       @default(0)
-  confidenceFlags       Json?
+  confidenceScore Int   @default(0)
+  confidenceFlags Json?
 
   // Prior Similar Cases — for precedent matching
-  similarCaseIds        Json?
+  similarCaseIds Json?
 
   // Case Outcome — recorded when case reaches RESOLVED/CLOSED
-  outcomeType           String?   // ACCEPTED, REJECTED, SETTLED, WITHDRAWN, EXPIRED
-  outcomeAmount         Decimal?  // Final accepted/settled amount
-  outcomeDate           DateTime?
-  outcomeNotes          String?   @db.Text
+  outcomeType   String? // ACCEPTED, REJECTED, SETTLED, WITHDRAWN, EXPIRED
+  outcomeAmount Decimal? // Final accepted/settled amount
+  outcomeDate   DateTime?
+  outcomeNotes  String?   @db.Text
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("case_intelligence")
 }
 
 model CaseActivity {
-  id          String   @id @default(cuid())
-  caseId      String
-  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  userId      String?
-  user        User?    @relation("CaseActivities", fields: [userId], references: [id])
+  id     String  @id @default(cuid())
+  caseId String
+  case   Case    @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?   @relation("CaseActivities", fields: [userId], references: [id])
 
   action      String
   description String
   metadata    Json?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([caseId, createdAt])
   @@map("case_activities")
 }
 
 model BanjoAssignment {
-  id                String            @id @default(cuid())
-  caseId            String
-  case              Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   // The practitioner's original assignment text
-  assignmentText    String            @db.Text
+  assignmentText String @db.Text
 
   // Orchestrator output
-  clarifications    Json?
-  plan              Json
-  assumptions       Json?
+  clarifications Json?
+  plan           Json
+  assumptions    Json?
 
   // Execution state
-  status            BanjoStatus       @default(PLANNING)
-  currentStep       Int               @default(0)
-  totalSteps        Int               @default(0)
+  status      BanjoStatus @default(PLANNING)
+  currentStep Int         @default(0)
+  totalSteps  Int         @default(0)
 
   // Revision pass
-  revisionRan       Boolean           @default(false)
-  revisionResult    String?           @db.Text
-  revisedTaskIds    Json?
-  skipRevision      Boolean           @default(false)
+  revisionRan    Boolean @default(false)
+  revisionResult String? @db.Text
+  revisedTaskIds Json?
+  skipRevision   Boolean @default(false)
 
   // Metadata
-  model             String            @default("claude-opus-4-6")
-  createdById       String
-  createdBy         User              @relation(fields: [createdById], references: [id])
-  startedAt         DateTime?
-  completedAt       DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  model       String    @default("claude-opus-4-6")
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
-  tasks             AITask[]
+  tasks AITask[]
 
   @@index([caseId])
   @@map("banjo_assignments")
 }
 
 model EditHistory {
-  id              String   @id @default(cuid())
-  aiTaskId        String
-  caseType        String
-  taskType        String
-  originalOutput  String   @db.Text
-  editedOutput    String   @db.Text
-  practitionerId  String
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  aiTaskId       String
+  caseType       String
+  taskType       String
+  originalOutput String   @db.Text
+  editedOutput   String   @db.Text
+  practitionerId String
+  createdAt      DateTime @default(now())
 
   @@index([caseType, taskType])
   @@map("edit_history")
@@ -855,25 +864,25 @@ model RejectionFeedback {
 }
 
 model Task {
-  id              String    @id @default(cuid())
-  title           String
-  description     String?   @db.Text
-  createdById     String
-  createdBy       User      @relation("CreatedTasks", fields: [createdById], references: [id])
-  assigneeId      String?
-  assignee        User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  dueDate         DateTime?
-  completedAt     DateTime?
-  completedById   String?
-  completedBy     User?     @relation("CompletedTasks", fields: [completedById], references: [id])
-  status          String    @default("open")
-  priority        String    @default("normal")
-  caseId          String?
-  case            Case?     @relation(fields: [caseId], references: [id])
-  deadlineId      String?
-  feedPosts       FeedPost[] @relation("TaskFeedPosts")
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id            String     @id @default(cuid())
+  title         String
+  description   String?    @db.Text
+  createdById   String
+  createdBy     User       @relation("CreatedTasks", fields: [createdById], references: [id])
+  assigneeId    String?
+  assignee      User?      @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  dueDate       DateTime?
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?      @relation("CompletedTasks", fields: [completedById], references: [id])
+  status        String     @default("open")
+  priority      String     @default("normal")
+  caseId        String?
+  case          Case?      @relation(fields: [caseId], references: [id])
+  deadlineId    String?
+  feedPosts     FeedPost[] @relation("TaskFeedPosts")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   @@index([assigneeId, status])
   @@index([caseId])
@@ -882,63 +891,63 @@ model Task {
 }
 
 model FeedPost {
-  id          String       @id @default(cuid())
+  id String @id @default(cuid())
 
   // Author
-  authorId    String?      // null for system events and Junebug
-  author      User?        @relation("FeedPosts", fields: [authorId], references: [id])
-  authorType  String       @default("user")  // "user", "system", "junebug"
+  authorId   String? // null for system events and Junebug
+  author     User?   @relation("FeedPosts", fields: [authorId], references: [id])
+  authorType String  @default("user") // "user", "system", "junebug"
 
   // Source linkage (V2 — what generated this post)
-  sourceType  String?      // "task", "banjo", "deadline", "review", "document", null=user-authored
-  sourceId    String?      // ID of the source entity
-  taskId      String?      // Direct FK to Task (when sourceType = "task")
-  task        Task?        @relation("TaskFeedPosts", fields: [taskId], references: [id])
+  sourceType String? // "task", "banjo", "deadline", "review", "document", null=user-authored
+  sourceId   String? // ID of the source entity
+  taskId     String? // Direct FK to Task (when sourceType = "task")
+  task       Task?   @relation("TaskFeedPosts", fields: [taskId], references: [id])
 
   // Content
-  postType    String       // "post", "task", "task_created", "task_completed", "system_event", "file_share", "junebug_insight"
-  content     String?      @db.Text  // The text body (markdown supported)
+  postType String // "post", "task", "task_created", "task_completed", "system_event", "file_share", "junebug_insight"
+  content  String? @db.Text // The text body (markdown supported)
 
   // Case tagging (legacy — primary case)
-  caseId      String?      // Primary case this post is about
-  case        Case?        @relation(fields: [caseId], references: [id])
+  caseId String? // Primary case this post is about
+  case   Case?   @relation(fields: [caseId], references: [id])
 
   // Task-specific fields (legacy compat — kept for existing queries)
-  taskTitle       String?
-  taskAssigneeId  String?
-  taskAssignee    User?     @relation("AssignedFeedTasks", fields: [taskAssigneeId], references: [id])
-  taskDueDate     DateTime?
-  taskCompleted   Boolean   @default(false)
-  taskCompletedAt DateTime?
+  taskTitle         String?
+  taskAssigneeId    String?
+  taskAssignee      User?     @relation("AssignedFeedTasks", fields: [taskAssigneeId], references: [id])
+  taskDueDate       DateTime?
+  taskCompleted     Boolean   @default(false)
+  taskCompletedAt   DateTime?
   taskCompletedById String?
 
   // File attachment fields (legacy — use FeedAttachment for new posts)
-  attachments  Json?       // Array of { fileName, fileUrl, fileType, fileSize }
+  attachments Json? // Array of { fileName, fileUrl, fileType, fileSize }
 
   // System event metadata
-  eventType    String?     // "banjo_complete", "document_upload", "deadline_warning", "review_approved", etc.
-  eventData    Json?       // Structured data for rendering system events
+  eventType String? // "banjo_complete", "document_upload", "deadline_warning", "review_approved", etc.
+  eventData Json? // Structured data for rendering system events
 
   // Engagement
-  replyCount   Int         @default(0)
-  likeCount    Int         @default(0)
+  replyCount Int @default(0)
+  likeCount  Int @default(0)
 
   // Mentions (legacy — use FeedMention for new posts)
-  mentions     Json?       // Array of { type: "user"|"junebug"|"case", id: string, display: string }
+  mentions Json? // Array of { type: "user"|"junebug"|"case", id: string, display: string }
 
   // Visibility
-  pinned       Boolean     @default(false)
-  archived     Boolean     @default(false)
+  pinned   Boolean @default(false)
+  archived Boolean @default(false)
 
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  replies      FeedReply[]
-  likes        FeedLike[]
-  reactions    FeedReaction[]
-  feedMentions FeedMention[]
-  cases        FeedPostCase[]
+  replies         FeedReply[]
+  likes           FeedLike[]
+  reactions       FeedReaction[]
+  feedMentions    FeedMention[]
+  cases           FeedPostCase[]
   feedAttachments FeedAttachment[]
 
   @@index([createdAt])
@@ -951,28 +960,28 @@ model FeedPost {
 }
 
 model FeedReply {
-  id        String    @id @default(cuid())
-  postId    String
-  post      FeedPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id     String   @id @default(cuid())
+  postId String
+  post   FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  authorId    String?
-  author      User?   @relation("FeedReplies", fields: [authorId], references: [id])
-  authorType  String  @default("user")  // "user", "junebug"
+  authorId   String?
+  author     User?   @relation("FeedReplies", fields: [authorId], references: [id])
+  authorType String  @default("user") // "user", "junebug"
 
-  content   String?   @db.Text
+  content String? @db.Text
 
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([postId, createdAt])
   @@map("feed_replies")
 }
 
 model FeedLike {
-  id      String   @id @default(cuid())
-  postId  String
-  post    FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId  String
-  user    User     @relation("FeedLikes", fields: [userId], references: [id])
+  id     String   @id @default(cuid())
+  postId String
+  post   FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User     @relation("FeedLikes", fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
 
@@ -994,11 +1003,11 @@ model FeedReaction {
 }
 
 model FeedPostCase {
-  id      String   @id @default(cuid())
-  postId  String
-  post    FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  caseId  String
-  case    Case     @relation("FeedPostCases", fields: [caseId], references: [id])
+  id     String   @id @default(cuid())
+  postId String
+  post   FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  caseId String
+  case   Case     @relation("FeedPostCases", fields: [caseId], references: [id])
 
   @@unique([postId, caseId])
   @@index([caseId])
@@ -1006,12 +1015,12 @@ model FeedPostCase {
 }
 
 model FeedMention {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   postId      String
-  post        FeedPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post        FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   mentionType String
   userId      String?
-  user        User?     @relation("FeedMentions", fields: [userId], references: [id])
+  user        User?    @relation("FeedMentions", fields: [userId], references: [id])
   display     String
 
   @@index([userId])
@@ -1037,34 +1046,34 @@ model FeedAttachment {
 // ═══════════════════════════════════════════════════════════════
 
 model ClientNote {
-  id              String         @id @default(cuid())
-  caseId          String
-  case            Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  authorId        String
-  author          User           @relation("NoteAuthor", fields: [authorId], references: [id])
-  noteType        NoteType       @default(GENERAL)
-  title           String?
-  content         String         @db.Text
-  taxYears        Int[]          @default([])
-  relatedFeature  FeatureArea?
-  pinned          Boolean        @default(false)
-  visibility      NoteVisibility @default(ALL_PRACTITIONERS)
-  isDeleted       Boolean        @default(false)
-  isPrivileged    Boolean        @default(false)
+  id               String           @id @default(cuid())
+  caseId           String
+  case             Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId         String
+  author           User             @relation("NoteAuthor", fields: [authorId], references: [id])
+  noteType         NoteType         @default(GENERAL)
+  title            String?
+  content          String           @db.Text
+  taxYears         Int[]            @default([])
+  relatedFeature   FeatureArea?
+  pinned           Boolean          @default(false)
+  visibility       NoteVisibility   @default(ALL_PRACTITIONERS)
+  isDeleted        Boolean          @default(false)
+  isPrivileged     Boolean          @default(false)
   // Call log fields
-  callDate        DateTime?
-  callDuration    Int?           // minutes
+  callDate         DateTime?
+  callDuration     Int? // minutes
   callParticipants String?
-  callType        String?        // inbound, outbound
-  callDisposition String?
+  callType         String? // inbound, outbound
+  callDisposition  String?
   // IRS contact fields
-  irsEmployeeName String?
-  irsEmployeeId   String?
-  irsDepartment   String?
-  irsContactMethod String?      // phone, fax, mail, in-person
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  attachments     NoteAttachment[]
+  irsEmployeeName  String?
+  irsEmployeeId    String?
+  irsDepartment    String?
+  irsContactMethod String? // phone, fax, mail, in-person
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  attachments      NoteAttachment[]
 
   @@index([caseId, createdAt])
   @@index([authorId])
@@ -1088,23 +1097,23 @@ model NoteAttachment {
 }
 
 model Conversation {
-  id               String               @id @default(cuid())
-  caseId           String
-  case             Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
-  startedById      String
-  startedBy        User                 @relation("ConversationStarter", fields: [startedById], references: [id])
-  subject          String
-  status           ConversationStatus   @default(OPEN)
-  priority         ConversationPriority @default(NORMAL)
-  relatedTaxYears  Int[]                @default([])
-  relatedFeature   FeatureArea?
-  participants     String[]             @default([])
-  resolvedAt       DateTime?
-  resolvedById     String?
-  resolvedBy       User?                @relation("ConversationResolver", fields: [resolvedById], references: [id])
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  messages         ConversationMsg[]
+  id              String               @id @default(cuid())
+  caseId          String
+  case            Case                 @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  startedById     String
+  startedBy       User                 @relation("ConversationStarter", fields: [startedById], references: [id])
+  subject         String
+  status          ConversationStatus   @default(OPEN)
+  priority        ConversationPriority @default(NORMAL)
+  relatedTaxYears Int[]                @default([])
+  relatedFeature  FeatureArea?
+  participants    String[]             @default([])
+  resolvedAt      DateTime?
+  resolvedById    String?
+  resolvedBy      User?                @relation("ConversationResolver", fields: [resolvedById], references: [id])
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  messages        ConversationMsg[]
 
   @@index([caseId, status])
   @@index([startedById])
@@ -1112,17 +1121,17 @@ model Conversation {
 }
 
 model ConversationMsg {
-  id              String       @id @default(cuid())
-  conversationId  String
-  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  authorId        String
-  author          User         @relation("MessageAuthor", fields: [authorId], references: [id])
-  content         String       @db.Text
-  isEdited        Boolean      @default(false)
-  isDeleted       Boolean      @default(false)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  attachments     ConversationMsgAttachment[]
+  id             String                      @id @default(cuid())
+  conversationId String
+  conversation   Conversation                @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User                        @relation("MessageAuthor", fields: [authorId], references: [id])
+  content        String                      @db.Text
+  isEdited       Boolean                     @default(false)
+  isDeleted      Boolean                     @default(false)
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  attachments    ConversationMsgAttachment[]
 
   @@index([conversationId, createdAt])
   @@map("conversation_messages")
@@ -1147,24 +1156,24 @@ model ConversationMsgAttachment {
 // ═══════════════════════════════════════════════════════════════
 
 model ComplianceControl {
-  id                   String           @id @default(cuid())
-  controlId            String           @unique // CC1.1, A1.1, PI1.1, etc.
-  tsc                  TSC
-  controlFamily        String           // CC1, CC2, A1, PI1, C1, P1, etc.
-  description          String           @db.Text
-  monitoringMethod     MonitoringMethod @default(MANUAL)
-  status               ControlStatus    @default(NOT_ASSESSED)
-  whatSoc2Requires     String           @db.Text
-  howClearedMeetsIt    String           @db.Text
-  whyItMatters         String           @db.Text
-  ownerId              String?
+  id                    String            @id @default(cuid())
+  controlId             String            @unique // CC1.1, A1.1, PI1.1, etc.
+  tsc                   TSC
+  controlFamily         String // CC1, CC2, A1, PI1, C1, P1, etc.
+  description           String            @db.Text
+  monitoringMethod      MonitoringMethod  @default(MANUAL)
+  status                ControlStatus     @default(NOT_ASSESSED)
+  whatSoc2Requires      String            @db.Text
+  howClearedMeetsIt     String            @db.Text
+  whyItMatters          String            @db.Text
+  ownerId               String?
   lastEvidenceCollected DateTime?
-  nextReviewDate       DateTime?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
-  healthChecks         HealthCheck[]
-  issues               ComplianceIssue[]
-  evidence             EvidenceItem[]
+  nextReviewDate        DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  healthChecks          HealthCheck[]
+  issues                ComplianceIssue[]
+  evidence              EvidenceItem[]
 
   @@index([tsc])
   @@index([controlFamily])
@@ -1173,16 +1182,16 @@ model ComplianceControl {
 }
 
 model HealthCheck {
-  id          String            @id @default(cuid())
-  controlId   String
-  control     ComplianceControl @relation(fields: [controlId], references: [id], onDelete: Cascade)
-  checkType   String            // automated, manual
-  interval    String            // 15m, 1h, daily, weekly
-  lastRun     DateTime?
-  lastResult  String?           // pass, fail, warning
-  nextRun     DateTime?
-  createdAt   DateTime          @default(now())
-  results     HealthCheckResult[]
+  id         String              @id @default(cuid())
+  controlId  String
+  control    ComplianceControl   @relation(fields: [controlId], references: [id], onDelete: Cascade)
+  checkType  String // automated, manual
+  interval   String // 15m, 1h, daily, weekly
+  lastRun    DateTime?
+  lastResult String? // pass, fail, warning
+  nextRun    DateTime?
+  createdAt  DateTime            @default(now())
+  results    HealthCheckResult[]
 
   @@index([controlId])
   @@map("health_checks")
@@ -1193,7 +1202,7 @@ model HealthCheckResult {
   healthCheckId    String
   healthCheck      HealthCheck @relation(fields: [healthCheckId], references: [id], onDelete: Cascade)
   timestamp        DateTime    @default(now())
-  status           String      // pass, fail, warning
+  status           String // pass, fail, warning
   details          Json?
   evidenceSnapshot Json?
 
@@ -1227,7 +1236,7 @@ model EvidenceItem {
   evidenceType  EvidenceType
   collectedAt   DateTime          @default(now())
   contentOrPath String            @db.Text
-  collector     String            // "system" or userId
+  collector     String // "system" or userId
   validUntil    DateTime?
   createdAt     DateTime          @default(now())
 
@@ -1253,32 +1262,32 @@ model AuditMilestone {
 // ═══════════════════════════════════════════════════════════════
 
 model CompliancePolicy {
-  id            String   @id @default(cuid())
-  slug          String   @unique // "code-of-conduct", "security-policy", "data-handling", "acceptable-use", "incident-response"
-  title         String
-  content       String   @db.Text // The policy content (markdown)
-  version       Int      @default(1)
-  effectiveDate DateTime @default(now())
-  createdById   String
-  createdBy     User     @relation("PolicyCreator", fields: [createdById], references: [id])
-  isActive      Boolean  @default(true)
+  id              String                 @id @default(cuid())
+  slug            String                 @unique // "code-of-conduct", "security-policy", "data-handling", "acceptable-use", "incident-response"
+  title           String
+  content         String                 @db.Text // The policy content (markdown)
+  version         Int                    @default(1)
+  effectiveDate   DateTime               @default(now())
+  createdById     String
+  createdBy       User                   @relation("PolicyCreator", fields: [createdById], references: [id])
+  isActive        Boolean                @default(true)
   acknowledgments PolicyAcknowledgment[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
   @@index([slug, version])
   @@map("compliance_policies")
 }
 
 model PolicyAcknowledgment {
-  id         String   @id @default(cuid())
-  policyId   String
-  policy     CompliancePolicy @relation(fields: [policyId], references: [id])
-  userId     String
-  user       User     @relation("PolicyAcknowledgments", fields: [userId], references: [id])
-  version    Int      // The version they acknowledged
-  acknowledgedAt DateTime @default(now())
-  ipAddress  String?
+  id             String           @id @default(cuid())
+  policyId       String
+  policy         CompliancePolicy @relation(fields: [policyId], references: [id])
+  userId         String
+  user           User             @relation("PolicyAcknowledgments", fields: [userId], references: [id])
+  version        Int // The version they acknowledged
+  acknowledgedAt DateTime         @default(now())
+  ipAddress      String?
 
   @@unique([policyId, userId, version])
   @@index([userId])
@@ -1286,15 +1295,15 @@ model PolicyAcknowledgment {
 }
 
 model SecurityTraining {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation("SecurityTrainings", fields: [userId], references: [id])
-  moduleId      String   // "data-handling", "phishing", "incident-reporting", "client-confidentiality"
-  moduleName    String
-  version       Int      @default(1)
-  score         Int?     // Quiz score (0-100)
-  passed        Boolean  @default(false)
-  completedAt   DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("SecurityTrainings", fields: [userId], references: [id])
+  moduleId    String // "data-handling", "phishing", "incident-reporting", "client-confidentiality"
+  moduleName  String
+  version     Int      @default(1)
+  score       Int? // Quiz score (0-100)
+  passed      Boolean  @default(false)
+  completedAt DateTime @default(now())
 
   @@unique([userId, moduleId, version])
   @@index([userId])
@@ -1302,17 +1311,17 @@ model SecurityTraining {
 }
 
 model BackgroundCheck {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation("BackgroundChecks", fields: [userId], references: [id])
-  provider     String   // "Sterling", "Checkr", etc.
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation("BackgroundChecks", fields: [userId], references: [id])
+  provider      String // "Sterling", "Checkr", etc.
   dateCompleted DateTime
-  result       String   // "CLEAR", "FLAGGED", "PENDING"
+  result        String // "CLEAR", "FLAGGED", "PENDING"
   nextCheckDate DateTime?
-  notes        String?  @db.Text
-  enteredById  String
-  enteredBy    User     @relation("BackgroundCheckEntries", fields: [enteredById], references: [id])
-  createdAt    DateTime @default(now())
+  notes         String?   @db.Text
+  enteredById   String
+  enteredBy     User      @relation("BackgroundCheckEntries", fields: [enteredById], references: [id])
+  createdAt     DateTime  @default(now())
 
   @@index([userId])
   @@map("background_checks")
@@ -1324,8 +1333,8 @@ model GovernanceMeeting {
   attendeeIds String[] // User IDs
   agenda      String   @db.Text
   decisions   String   @db.Text
-  actionItems Json     // Array of { description, assigneeId, dueDate, status }
-  quarter     String   // "2026-Q1"
+  actionItems Json // Array of { description, assigneeId, dueDate, status }
+  quarter     String // "2026-Q1"
   createdById String
   createdBy   User     @relation("GovernanceMeetings", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
@@ -1335,43 +1344,43 @@ model GovernanceMeeting {
 }
 
 model VendorRecord {
-  id                String   @id @default(cuid())
-  name              String   @unique
-  service           String   // What service they provide
-  dataShared        String   // What data is shared with them
-  integrationType   String   // "API", "SDK", "Cloud Infrastructure", "SaaS"
-  soc2ReportDate    DateTime? // When their SOC 2 report was issued
-  soc2ExpiryDate    DateTime? // When it expires
-  dpaStatus         String   @default("NOT_STARTED") // "NOT_STARTED", "IN_PROGRESS", "SIGNED"
+  id                 String    @id @default(cuid())
+  name               String    @unique
+  service            String // What service they provide
+  dataShared         String // What data is shared with them
+  integrationType    String // "API", "SDK", "Cloud Infrastructure", "SaaS"
+  soc2ReportDate     DateTime? // When their SOC 2 report was issued
+  soc2ExpiryDate     DateTime? // When it expires
+  dpaStatus          String    @default("NOT_STARTED") // "NOT_STARTED", "IN_PROGRESS", "SIGNED"
   lastAssessmentDate DateTime?
-  riskLevel         String   @default("MEDIUM") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
-  notes             String?  @db.Text
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  riskLevel          String    @default("MEDIUM") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  notes              String?   @db.Text
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@map("vendor_records")
 }
 
 model IncidentRecord {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   title           String
-  severity        String   // "CRITICAL", "HIGH", "MEDIUM", "LOW"
-  status          String   @default("DETECTED") // "DETECTED", "CLASSIFIED", "RESPONDING", "RESOLVED", "POST_MORTEM"
-  classification  String?  // "unauthorized_access", "data_breach", "configuration_drift", "anomalous_export", etc.
-  description     String   @db.Text
-  detectedAt      DateTime @default(now())
-  detectedBy      String   // "system" or userId
+  severity        String // "CRITICAL", "HIGH", "MEDIUM", "LOW"
+  status          String    @default("DETECTED") // "DETECTED", "CLASSIFIED", "RESPONDING", "RESOLVED", "POST_MORTEM"
+  classification  String? // "unauthorized_access", "data_breach", "configuration_drift", "anomalous_export", etc.
+  description     String    @db.Text
+  detectedAt      DateTime  @default(now())
+  detectedBy      String // "system" or userId
   assignedToId    String?
-  assignedTo      User?    @relation("IncidentAssignee", fields: [assignedToId], references: [id])
+  assignedTo      User?     @relation("IncidentAssignee", fields: [assignedToId], references: [id])
   resolvedAt      DateTime?
   resolvedById    String?
-  postMortemNotes String?  @db.Text
-  rootCause       String?  @db.Text
-  affectedClients Int      @default(0)
+  postMortemNotes String?   @db.Text
+  rootCause       String?   @db.Text
+  affectedClients Int       @default(0)
   affectedStates  String[] // For breach notification
-  playbookSteps   Json?    // Array of { step, assignee, status, completedAt }
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  playbookSteps   Json? // Array of { step, assignee, status, completedAt }
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([status])
   @@index([severity])
@@ -1379,39 +1388,39 @@ model IncidentRecord {
 }
 
 model DataDisposalRecord {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   clientCount   Int
   recordCount   Int
-  method        String   @default("CRYPTO_SHRED") // "CRYPTO_SHRED", "PHYSICAL_DESTRUCTION"
-  status        String   @default("QUEUED") // "QUEUED", "CONFIRMED", "EXECUTED", "CERTIFIED"
-  queuedAt      DateTime @default(now())
+  method        String    @default("CRYPTO_SHRED") // "CRYPTO_SHRED", "PHYSICAL_DESTRUCTION"
+  status        String    @default("QUEUED") // "QUEUED", "CONFIRMED", "EXECUTED", "CERTIFIED"
+  queuedAt      DateTime  @default(now())
   confirmedById String?
-  confirmedBy   User?    @relation("DisposalConfirmer", fields: [confirmedById], references: [id])
+  confirmedBy   User?     @relation("DisposalConfirmer", fields: [confirmedById], references: [id])
   confirmedAt   DateTime?
   executedAt    DateTime?
-  certificateId String?  // Reference to generated certificate
-  details       Json     // Array of { clientId, clientName, dataTypes, retentionExpiry }
-  createdAt     DateTime @default(now())
+  certificateId String? // Reference to generated certificate
+  details       Json // Array of { clientId, clientName, dataTypes, retentionExpiry }
+  createdAt     DateTime  @default(now())
 
   @@map("data_disposal_records")
 }
 
 model DataSubjectRequest {
-  id            String   @id @default(cuid())
-  requestType   String   // "ACCESS", "CORRECTION", "DELETION"
+  id            String    @id @default(cuid())
+  requestType   String // "ACCESS", "CORRECTION", "DELETION"
   subjectName   String
   subjectEmail  String
-  description   String   @db.Text
-  status        String   @default("RECEIVED") // "RECEIVED", "IN_PROGRESS", "COMPLETED", "DENIED"
+  description   String    @db.Text
+  status        String    @default("RECEIVED") // "RECEIVED", "IN_PROGRESS", "COMPLETED", "DENIED"
   slaDeadline   DateTime // 30 days from receipt
   assignedToId  String?
-  assignedTo    User?    @relation("DSRAssignee", fields: [assignedToId], references: [id])
-  responseData  Json?    // Auto-compiled data package for access requests
+  assignedTo    User?     @relation("DSRAssignee", fields: [assignedToId], references: [id])
+  responseData  Json? // Auto-compiled data package for access requests
   completedAt   DateTime?
   completedById String?
-  notes         String?  @db.Text
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([status])
   @@map("data_subject_requests")
@@ -1431,8 +1440,8 @@ model FormInstance {
   updatedAt         DateTime @updatedAt
   createdById       String
 
-  case              Case     @relation(fields: [caseId], references: [id])
-  createdBy         User     @relation("FormInstances", fields: [createdById], references: [id])
+  case      Case @relation(fields: [caseId], references: [id])
+  createdBy User @relation("FormInstances", fields: [createdById], references: [id])
 
   @@index([caseId])
   @@index([createdById])
@@ -1442,18 +1451,18 @@ model FormInstance {
 // ─── Junebug Feedback Pipeline ───
 
 model JunebugObservation {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   type          String
-  severity      String   @default("LOW")
+  severity      String    @default("LOW")
   title         String
-  description   String   @db.Text
+  description   String    @db.Text
   route         String?
   caseId        String?
   userId        String?
   metadata      Json?
-  syncedToTasks Boolean  @default(false)
+  syncedToTasks Boolean   @default(false)
   syncedAt      DateTime?
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
 
   @@index([type])
   @@index([syncedToTasks, createdAt])
@@ -1478,18 +1487,18 @@ model ReasoningPipelineLog {
   secondEvaluation      Json?
   firstThinkingContent  String    @db.Text
   secondThinkingContent String?   @db.Text
-  decision              String    // 'pass' | 'revise' | 'human_review'
+  decision              String // 'pass' | 'revise' | 'human_review'
   overallScore          Int
   revisionAttempted     Boolean   @default(false)
   deliveredToUser       Boolean   @default(false)
   totalLatencyMs        Int
   humanReviewedBy       String?
   humanReviewedAt       DateTime?
-  humanReviewAction     String?   // 'approved' | 'rejected' | 'edited'
+  humanReviewAction     String? // 'approved' | 'rejected' | 'edited'
   humanReviewNotes      String?   @db.Text
   createdAt             DateTime  @default(now())
 
-  case                  Case?     @relation(fields: [caseId], references: [id])
+  case Case? @relation(fields: [caseId], references: [id])
 
   @@index([caseId])
   @@index([taskType])
@@ -1502,21 +1511,21 @@ model ReasoningPipelineLog {
 // Per-user, per-task-type AI output customization.
 
 model WorkProductOverride {
-  id                  String    @id @default(cuid())
-  userId              String
-  user                User      @relation("WorkProductOverrides", fields: [userId], references: [id], onDelete: Cascade)
-  taskType            String
-  isEnabled           Boolean   @default(true)
-  toneDirective       String?   @db.Text
-  structureDirective  String?   @db.Text
-  lengthDirective     String?   @db.Text
-  emphasisAreas       String?   @db.Text
-  avoidances          String?   @db.Text
-  customInstructions  String?   @db.Text
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation("WorkProductOverrides", fields: [userId], references: [id], onDelete: Cascade)
+  taskType           String
+  isEnabled          Boolean  @default(true)
+  toneDirective      String?  @db.Text
+  structureDirective String?  @db.Text
+  lengthDirective    String?  @db.Text
+  emphasisAreas      String?  @db.Text
+  avoidances         String?  @db.Text
+  customInstructions String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  examples            WorkProductExample[]
+  examples WorkProductExample[]
 
   @@unique([userId, taskType])
   @@index([userId])
@@ -1524,15 +1533,556 @@ model WorkProductOverride {
 }
 
 model WorkProductExample {
-  id              String    @id @default(cuid())
-  overrideId      String
-  override        WorkProductOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
-  label           String
-  content         String    @db.Text
-  isGoodExample   Boolean   @default(true)
-  notes           String?   @db.Text
-  createdAt       DateTime  @default(now())
+  id             String              @id @default(cuid())
+  overrideId     String
+  override       WorkProductOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+  label          String
+  content        String              @db.Text
+  isGoodExample  Boolean             @default(true)
+  notes          String?             @db.Text
+  sourceFileName String?
+  sourceFileType String?
+  sourceFilePath String?
+  createdAt      DateTime            @default(now())
 
   @@index([overrideId])
   @@map("work_product_examples")
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MICANOPY RESEARCH CENTER
+// ═══════════════════════════════════════════════════════════════
+
+enum ResearchMode {
+  QUICK_ANSWER
+  ISSUE_BRIEF
+  RESEARCH_MEMORANDUM
+  AUTHORITY_SURVEY
+  COUNTERARGUMENT_PREP
+}
+
+enum ResearchStatus {
+  INTAKE
+  PRESCOPING
+  RETRIEVING
+  COMPOSING
+  EVALUATING
+  READY_FOR_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum ResearchSourceType {
+  KB_INTERNAL
+  IRC_STATUTE
+  TREASURY_REGULATION
+  IRM_SECTION
+  REVENUE_PROCEDURE
+  REVENUE_RULING
+  TAX_COURT
+  CIRCUIT_COURT
+  SUPREME_COURT
+  PLR_CCA
+  IRS_PUBLICATION
+  TREATISE
+  WEB_GENERAL
+  FIRM_WORK_PRODUCT
+}
+
+model ResearchSession {
+  id String @id @default(cuid())
+
+  // Intake data
+  mode              ResearchMode
+  questionText      String       @db.Text
+  factsText         String?      @db.Text
+  proceduralPosture String?
+  intendedAudience  String?      @default("Internal case file")
+  knownAuthorities  String?      @db.Text
+  specificQuestions String?      @db.Text
+  prescopeResult    Json?
+  sourcePriorities  Json?
+  excludedSources   String[]
+  recencyBias       Int          @default(50)
+
+  // Case binding
+  caseId              String?
+  case                Case?   @relation(fields: [caseId], references: [id])
+  caseContextSnapshot Json?
+
+  // Execution state
+  status               ResearchStatus @default(INTAKE)
+  retrievalStartedAt   DateTime?
+  compositionStartedAt DateTime?
+  completedAt          DateTime?
+
+  // Output
+  output           String? @db.Text
+  outputFormat     String?
+  executiveSummary String? @db.Text
+
+  // Source tracking
+  sourcesUsed         Json?
+  kbResultCount       Int   @default(0)
+  webResultCount      Int   @default(0)
+  primarySourceCount  Int   @default(0)
+  citationCount       Int   @default(0)
+  unverifiedCitations Int   @default(0)
+
+  // Quality
+  reasoningScore    Float?
+  reasoningVerdict  String?
+  verifyFlagCount   Int     @default(0)
+  judgmentFlagCount Int     @default(0)
+
+  // Metadata
+  model           String @default("claude-opus-4-6")
+  totalTokensUsed Int?
+  totalDurationMs Int?
+  createdById     String
+  createdBy       User   @relation("UserResearch", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sources       ResearchSource[]
+  reviewActions ResearchReview[]
+
+  @@index([caseId])
+  @@index([createdById])
+  @@index([status])
+  @@index([mode])
+  @@index([createdAt])
+  @@map("research_sessions")
+}
+
+model ResearchSource {
+  id        String          @id @default(cuid())
+  sessionId String
+  session   ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  sourceType ResearchSourceType
+  citation   String
+  title      String
+  url        String?
+  fullText   String?            @db.Text
+  snippet    String?            @db.Text
+
+  authorityScore  Float     @default(0.5)
+  relevanceScore  Float     @default(0.5)
+  isVerified      Boolean   @default(false)
+  dateOfAuthority DateTime?
+
+  knowledgeDocId   String?
+  knowledgeChunkId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([sourceType])
+  @@map("research_sources")
+}
+
+model ResearchReview {
+  id        String          @id @default(cuid())
+  sessionId String
+  session   ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  practitionerId String
+  practitioner   User             @relation("UserResearchReviews", fields: [practitionerId], references: [id])
+  action         ReviewActionType
+  editedOutput   String?          @db.Text
+  reviewNotes    String?          @db.Text
+
+  reviewStartedAt   DateTime
+  reviewCompletedAt DateTime?
+
+  @@index([sessionId])
+  @@index([practitionerId])
+  @@map("research_reviews")
+}
+
+model ResearchPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  defaultMode             ResearchMode?
+  defaultSourcePriorities Json?
+  defaultExcludedSources  String[]
+  defaultRecencyBias      Int           @default(50)
+  defaultAudience         String?
+  templates               Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("research_preferences")
+}
+
+// ============================================================
+// TAX AUTHORITY CONVEYOR — Schema additions
+// ============================================================
+
+enum AuthorityTier {
+  A1
+  A2
+  A3
+  A4
+  A5
+  B1
+  B2
+  C1
+  C2
+  D1
+  X
+}
+
+enum AuthorityStatus {
+  CURRENT
+  PROPOSED
+  WITHDRAWN
+  SUPERSEDED
+  ARCHIVED
+  PENDING_REVIEW
+}
+
+enum PrecedentialStatus {
+  BINDING
+  AUTHORITATIVE
+  PRECEDENTIAL
+  NONPRECEDENTIAL
+  INFORMATIONAL
+  INTERNAL
+}
+
+enum SourceRightsProfile {
+  PUBLIC_INGEST_OK
+  PUBLIC_LINK_ONLY
+  LICENSE_REQUIRED
+  NO_AUTOMATION
+  HUMAN_SUMMARY_ONLY
+}
+
+enum ChangeSeverity {
+  CRITICAL
+  HIGH
+  MODERATE
+  LOW
+  INFORMATIONAL_CHANGE
+}
+
+enum IngestionStatus {
+  PENDING
+  FETCHING
+  PARSING
+  CHUNKING
+  EMBEDDING
+  COMPLETE
+  FAILED
+  SKIPPED
+}
+
+enum PromotionLayer {
+  RAW
+  CURATED
+  DISTILLED
+}
+
+model SourceRegistry {
+  id            String              @id @default(cuid())
+  sourceId      String              @unique
+  name          String
+  description   String?
+  endpoint      String
+  altEndpoint   String?
+  format        String
+  cadence       String
+  rightsProfile SourceRightsProfile
+  defaultTier   AuthorityTier
+  parserKey     String
+  enabled       Boolean             @default(true)
+  rateLimitMs   Int                 @default(1000)
+  lastFetchedAt DateTime?
+  lastSuccessAt DateTime?
+  lastErrorAt   DateTime?
+  lastError     String?
+  fetchCount    Int                 @default(0)
+  errorCount    Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  artifacts     SourceArtifact[]
+  ingestionRuns IngestionRun[]
+
+  @@map("source_registry")
+}
+
+model SourceArtifact {
+  id              String              @id @default(cuid())
+  sourceId        String
+  source          SourceRegistry      @relation(fields: [sourceId], references: [sourceId])
+  sourceUrl       String
+  fetchedAt       DateTime            @default(now())
+  normalizedTitle String
+  publicationDate DateTime?
+  effectiveDate   DateTime?
+  sourceHash      String
+  rawContent      Bytes?
+  rawContentPath  String?
+  contentType     String
+  parserStatus    IngestionStatus     @default(PENDING)
+  parserError     String?
+  rightsProfile   SourceRightsProfile
+  authorityTier   AuthorityTier
+  jurisdiction    String?
+  metadata        Json?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  authorities    CanonicalAuthority[]
+  ingestionRunId String?
+  ingestionRun   IngestionRun?        @relation(fields: [ingestionRunId], references: [id])
+
+  @@index([sourceId, sourceHash])
+  @@index([sourceId, publicationDate])
+  @@map("source_artifacts")
+}
+
+model IngestionRun {
+  id           String          @id @default(cuid())
+  sourceId     String
+  source       SourceRegistry  @relation(fields: [sourceId], references: [sourceId])
+  status       IngestionStatus @default(PENDING)
+  startedAt    DateTime        @default(now())
+  completedAt  DateTime?
+  itemsFetched Int             @default(0)
+  itemsNew     Int             @default(0)
+  itemsChanged Int             @default(0)
+  itemsSkipped Int             @default(0)
+  itemsFailed  Int             @default(0)
+  errorLog     String?
+  metadata     Json?
+  createdAt    DateTime        @default(now())
+
+  artifacts SourceArtifact[]
+
+  @@index([sourceId, startedAt])
+  @@map("ingestion_runs")
+}
+
+model CanonicalAuthority {
+  id                 String               @id @default(cuid())
+  citationString     String               @unique
+  normalizedCitation String
+  title              String
+  authorityTier      AuthorityTier
+  authorityStatus    AuthorityStatus      @default(CURRENT)
+  precedentialStatus PrecedentialStatus
+  jurisdiction       String?
+  effectiveDate      DateTime?
+  publicationDate    DateTime?
+  lastVerifiedAt     DateTime?
+  supersededById     String?
+  supersededBy       CanonicalAuthority?  @relation("Supersession", fields: [supersededById], references: [id])
+  supersedes         CanonicalAuthority[] @relation("Supersession")
+  promotionLayer     PromotionLayer       @default(RAW)
+  metadata           Json?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  artifactId     String?
+  artifact       SourceArtifact?         @relation(fields: [artifactId], references: [id])
+  versions       AuthorityVersion[]
+  outgoingEdges  AuthorityEdge[]         @relation("EdgeFrom")
+  incomingEdges  AuthorityEdge[]         @relation("EdgeTo")
+  chunks         AuthorityChunk[]
+  issueClusters  IssueClusterAuthority[]
+  knowledgeCards KnowledgeCard[]
+
+  @@index([normalizedCitation])
+  @@index([authorityTier, authorityStatus])
+  @@index([promotionLayer])
+  @@map("canonical_authorities")
+}
+
+model AuthorityVersion {
+  id              String             @id @default(cuid())
+  authorityId     String
+  authority       CanonicalAuthority @relation(fields: [authorityId], references: [id])
+  versionNumber   Int
+  contentHash     String
+  content         String
+  effectiveDate   DateTime?
+  publicationDate DateTime?
+  changeSeverity  ChangeSeverity
+  changeSummary   String?
+  createdAt       DateTime           @default(now())
+
+  @@unique([authorityId, versionNumber])
+  @@index([authorityId, effectiveDate])
+  @@map("authority_versions")
+}
+
+model AuthorityEdge {
+  id           String             @id @default(cuid())
+  fromId       String
+  from         CanonicalAuthority @relation("EdgeFrom", fields: [fromId], references: [id])
+  toId         String
+  to           CanonicalAuthority @relation("EdgeTo", fields: [toId], references: [id])
+  relationship String
+  confidence   Float              @default(1.0)
+  metadata     Json?
+  createdAt    DateTime           @default(now())
+
+  @@unique([fromId, toId, relationship])
+  @@index([fromId, relationship])
+  @@index([toId, relationship])
+  @@map("authority_edges")
+}
+
+model AuthorityChunk {
+  id                 String                       @id @default(cuid())
+  authorityId        String
+  authority          CanonicalAuthority           @relation(fields: [authorityId], references: [id])
+  chunkType          String
+  chunkIndex         Int
+  content            String
+  tokenCount         Int
+  authorityTier      AuthorityTier
+  authorityStatus    AuthorityStatus
+  precedentialStatus PrecedentialStatus
+  publicationDate    DateTime?
+  effectiveDate      DateTime?
+  citationString     String
+  parentCitation     String?
+  jurisdiction       String?
+  issueTags          String[]
+  sourceUrl          String?
+  contentHash        String
+  superseded         Boolean                      @default(false)
+  embedding          Unsupported("vector(1536)")?
+  promotionLayer     PromotionLayer               @default(RAW)
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  @@index([authorityTier, authorityStatus, superseded])
+  @@index([chunkType])
+  @@index([promotionLayer])
+  @@map("authority_chunks")
+}
+
+model KnowledgeCard {
+  id              String              @id @default(cuid())
+  title           String
+  issueArea       String
+  summary         String
+  controllingAuth String[]
+  persuasiveAuth  String[]
+  practicalNotes  String?
+  caveats         String?
+  lastRebuiltAt   DateTime
+  benchmarkScore  Float?
+  authorityId     String?
+  authority       CanonicalAuthority? @relation(fields: [authorityId], references: [id])
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([issueArea])
+  @@map("knowledge_cards")
+}
+
+model IssueCluster {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  displayName      String
+  description      String?
+  issueCategory    String
+  preferredSources String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  authorities IssueClusterAuthority[]
+  benchmarks  BenchmarkQuestion[]
+
+  @@map("issue_clusters")
+}
+
+model IssueClusterAuthority {
+  id             String             @id @default(cuid())
+  clusterId      String
+  cluster        IssueCluster       @relation(fields: [clusterId], references: [id])
+  authorityId    String
+  authority      CanonicalAuthority @relation(fields: [authorityId], references: [id])
+  relevanceScore Float              @default(1.0)
+  createdAt      DateTime           @default(now())
+
+  @@unique([clusterId, authorityId])
+  @@map("issue_cluster_authorities")
+}
+
+model BenchmarkQuestion {
+  id                String         @id @default(cuid())
+  question          String
+  expectedCitations String[]
+  expectedTier      AuthorityTier?
+  issueClusterId    String?
+  issueCluster      IssueCluster?  @relation(fields: [issueClusterId], references: [id])
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  runs BenchmarkRun[]
+
+  @@map("benchmark_questions")
+}
+
+model BenchmarkRun {
+  id                 String            @id @default(cuid())
+  questionId         String
+  question           BenchmarkQuestion @relation(fields: [questionId], references: [id])
+  runDate            DateTime          @default(now())
+  retrievedCitations String[]
+  citationPrecision  Float
+  citationRecall     Float
+  topTierMatch       Boolean
+  answerQuality      Float?
+  driftDetected      Boolean           @default(false)
+  rawResponse        String?
+  metadata           Json?
+
+  @@index([questionId, runDate])
+  @@map("benchmark_runs")
+}
+
+model LicensePolicy {
+  id            String              @id @default(cuid())
+  sourceDomain  String              @unique
+  displayName   String
+  rightsProfile SourceRightsProfile
+  notes         String?
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@map("license_policies")
+}
+
+model DailyDigest {
+  id                 String    @id @default(cuid())
+  digestDate         DateTime  @unique
+  newAuthorities     Int       @default(0)
+  changedAuthorities Int       @default(0)
+  supersededItems    Int       @default(0)
+  benchmarkDrifts    Int       @default(0)
+  knowledgeGaps      Int       @default(0)
+  summary            String
+  details            Json
+  publishedAt        DateTime?
+  createdAt          DateTime  @default(now())
+
+  @@map("daily_digests")
 }

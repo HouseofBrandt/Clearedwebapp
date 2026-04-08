@@ -1,3 +1,5 @@
+export const maxDuration = 300 // 5 minutes for large document ingestion
+
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
@@ -52,7 +54,15 @@ export async function GET(request: NextRequest) {
   const search = url.get("search")
 
   const where: any = {}
-  if (category) where.category = category
+  if (category) {
+    if (!VALID_CATEGORIES.includes(category as any)) {
+      return NextResponse.json(
+        { error: `Invalid category '${category}'. Valid values: ${VALID_CATEGORIES.join(", ")}` },
+        { status: 400 }
+      )
+    }
+    where.category = category
+  }
   if (search) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
@@ -61,16 +71,24 @@ export async function GET(request: NextRequest) {
     ]
   }
 
-  const documents = await prisma.knowledgeDocument.findMany({
-    where,
-    include: {
-      uploadedBy: { select: { id: true, name: true } },
-      _count: { select: { chunks: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-  })
+  try {
+    const documents = await prisma.knowledgeDocument.findMany({
+      where,
+      include: {
+        uploadedBy: { select: { id: true, name: true } },
+        _count: { select: { chunks: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    })
 
-  return NextResponse.json(documents)
+    return NextResponse.json(documents)
+  } catch (error) {
+    console.error("[Knowledge API] GET failed:", error instanceof Error ? error.message : String(error))
+    return NextResponse.json(
+      { error: "Failed to load knowledge documents." },
+      { status: 500 }
+    )
+  }
 }
 
 export async function POST(request: NextRequest) {

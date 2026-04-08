@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: "Return Compliance Calculator | Clear
 export default async function RCCPage() {
   await requireAuth()
 
-  return <ClearedRCC />
+  return <div className="page-enter"><ClearedRCC /></div>
 }
