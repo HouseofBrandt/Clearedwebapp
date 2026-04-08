@@ -9,25 +9,32 @@ export default async function CalendarPage() {
   const session = await requireAuth()
   const userId = (session.user as any).id
 
-  const [deadlines, users, cases] = await Promise.all([
-    prisma.deadline.findMany({
-      include: {
-        case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
-        assignedTo: { select: { id: true, name: true } },
-        completedBy: { select: { id: true, name: true } },
-      },
-      orderBy: { dueDate: "asc" },
-    }),
-    prisma.user.findMany({
-      select: { id: true, name: true, role: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.case.findMany({
-      select: { id: true, tabsNumber: true, clientName: true },
-      where: { status: { notIn: ["CLOSED"] } },
-      orderBy: { tabsNumber: "asc" },
-    }),
-  ])
+  let deadlines: any[] = []
+  let users: any[] = []
+  let cases: any[] = []
+  try {
+    ;[deadlines, users, cases] = await Promise.all([
+      prisma.deadline.findMany({
+        include: {
+          case: { select: { id: true, tabsNumber: true, clientName: true, caseType: true } },
+          assignedTo: { select: { id: true, name: true } },
+          completedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { dueDate: "asc" },
+      }),
+      prisma.user.findMany({
+        select: { id: true, name: true, role: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.case.findMany({
+        select: { id: true, tabsNumber: true, clientName: true },
+        where: { status: { notIn: ["CLOSED"] } },
+        orderBy: { tabsNumber: "asc" },
+      }),
+    ])
+  } catch (err) {
+    console.error("[Calendar] Failed to load data:", err)
+  }
 
   const now = new Date()
 

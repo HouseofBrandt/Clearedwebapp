@@ -19,6 +19,9 @@ export async function getFormInstance(id: string): Promise<FormInstance | null> 
       completedSections: typeof row.completedSections === "string"
         ? JSON.parse(row.completedSections)
         : (row.completedSections as string[]) || [],
+      validationErrors: {},
+      createdById: row.createdById,
+      version: row.version,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }
@@ -36,6 +39,7 @@ export async function saveFormInstance(instance: FormInstance): Promise<void> {
         values: instance.values as any,
         completedSections: instance.completedSections as any,
         status: instance.status,
+        version: instance.version || 1,
         updatedAt: new Date(),
       },
       create: {
@@ -70,6 +74,9 @@ export async function listFormInstances(caseId?: string): Promise<FormInstance[]
       completedSections: typeof row.completedSections === "string"
         ? JSON.parse(row.completedSections)
         : (row.completedSections as string[]) || [],
+      validationErrors: {},
+      createdById: row.createdById,
+      version: row.version,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
     }))

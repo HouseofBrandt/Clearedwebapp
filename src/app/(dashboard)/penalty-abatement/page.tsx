@@ -12,32 +12,37 @@ export default async function PenaltyAbatementPage() {
   const accessFilter = await caseAccessFilter(session.user.id)
 
   // Fetch cases that have liability periods with penalties > 0
-  const cases = await prisma.case.findMany({
-    where: {
-      ...accessFilter,
-      status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] },
-      liabilityPeriods: {
-        some: {
-          penalties: { gt: 0 },
+  let cases: any[] = []
+  try {
+    cases = await prisma.case.findMany({
+      where: {
+        ...accessFilter,
+        status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] },
+        liabilityPeriods: {
+          some: {
+            penalties: { gt: 0 },
+          },
         },
       },
-    },
-    include: {
-      liabilityPeriods: {
-        orderBy: { taxYear: "asc" },
-      },
-      intelligence: {
-        select: {
-          allReturnsFiled: true,
-          currentOnEstimates: true,
+      include: {
+        liabilityPeriods: {
+          orderBy: { taxYear: "asc" },
+        },
+        intelligence: {
+          select: {
+            allReturnsFiled: true,
+            currentOnEstimates: true,
+          },
+        },
+        assignedPractitioner: {
+          select: { id: true, name: true, licenseType: true },
         },
       },
-      assignedPractitioner: {
-        select: { id: true, name: true, licenseType: true },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  })
+      orderBy: { updatedAt: "desc" },
+    })
+  } catch (err) {
+    console.error("[PenaltyAbatement] Failed to load cases:", err)
+  }
 
   const decrypted = cases.map(decryptCasePII)
 

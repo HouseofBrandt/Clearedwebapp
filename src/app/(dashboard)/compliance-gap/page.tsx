@@ -11,27 +11,32 @@ export default async function ComplianceGapPage() {
   const session = await requireAuth()
   const accessFilter = await caseAccessFilter(session.user.id)
 
-  const cases = await prisma.case.findMany({
-    where: {
-      ...accessFilter,
-      status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] },
-    },
-    include: {
-      liabilityPeriods: {
-        orderBy: { taxYear: "asc" },
+  let cases: any[] = []
+  try {
+    cases = await prisma.case.findMany({
+      where: {
+        ...accessFilter,
+        status: { in: ["INTAKE", "ANALYSIS", "REVIEW", "ACTIVE"] },
       },
-      intelligence: {
-        select: {
-          allReturnsFiled: true,
-          currentOnEstimates: true,
+      include: {
+        liabilityPeriods: {
+          orderBy: { taxYear: "asc" },
+        },
+        intelligence: {
+          select: {
+            allReturnsFiled: true,
+            currentOnEstimates: true,
+          },
+        },
+        assignedPractitioner: {
+          select: { name: true },
         },
       },
-      assignedPractitioner: {
-        select: { name: true },
-      },
-    },
-    orderBy: { updatedAt: "desc" },
-  })
+      orderBy: { updatedAt: "desc" },
+    })
+  } catch (err) {
+    console.error("[ComplianceGap] Failed to load cases:", err)
+  }
 
   const decrypted = cases.map(decryptCasePII)
 
