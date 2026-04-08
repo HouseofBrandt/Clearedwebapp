@@ -257,7 +257,7 @@ export function FieldRenderer({ field, value, onChange, error, allValues, onFiel
       </div>
 
       {/* Field input */}
-      <FieldInput field={field} value={value} onChange={onChange} allValues={allValues} />
+      <FieldInput field={field} value={value} onChange={onChange} allValues={allValues} uniqueKey={uniqueKey} />
 
       {/* Help text */}
       {field.helpText && (
@@ -281,11 +281,13 @@ function FieldInput({
   value,
   onChange,
   allValues,
+  uniqueKey,
 }: {
   field: FieldDef
   value: any
   onChange: (value: any) => void
   allValues: Record<string, any>
+  uniqueKey?: string
 }) {
   const [isFocused, setIsFocused] = useState(false)
 

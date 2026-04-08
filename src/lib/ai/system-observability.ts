@@ -94,7 +94,7 @@ export async function getAITaskMetrics(): Promise<string> {
   const lines: string[] = ["AI TASK PIPELINE:"]
 
   try {
-    const [byStatus, recentTasks, avgReviewTime] = await Promise.all([
+    const [byStatus, recentTasks, reviewCount] = await Promise.all([
       prisma.aITask.groupBy({
         by: ["status"],
         _count: true,
@@ -111,12 +111,7 @@ export async function getAITaskMetrics(): Promise<string> {
           case: { select: { tabsNumber: true } },
         },
       }),
-      prisma.reviewAction.aggregate({
-        _avg: {
-          // Can't compute duration directly — but we can count
-        },
-        _count: true,
-      }).catch(() => ({ _count: 0 })),
+      prisma.reviewAction.count().catch(() => 0),
     ])
 
     lines.push(`  Status breakdown: ${byStatus.map(s => `${s.status}: ${s._count}`).join(", ")}`)
@@ -126,7 +121,7 @@ export async function getAITaskMetrics(): Promise<string> {
       lines.push(`  ⚠ ${processing._count} task(s) currently PROCESSING`)
     }
 
-    lines.push(`  Total reviews completed: ${avgReviewTime._count}`)
+    lines.push(`  Total reviews completed: ${reviewCount}`)
 
     if (recentTasks.length > 0) {
       lines.push(`  Recent tasks:`)
@@ -150,22 +145,21 @@ export async function getErrorTrends(): Promise<string> {
   try {
     const since = new Date(Date.now() - 86400000)
 
-    const [recentErrors, byCategory] = await Promise.all([
+    const [recentErrors, byRoute] = await Promise.all([
       prisma.appError.findMany({
-        where: { timestamp: { gte: since } },
-        orderBy: { timestamp: "desc" },
+        where: { createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" },
         take: 10,
         select: {
-          message: true,
-          category: true,
+          errorMessage: true,
           route: true,
-          timestamp: true,
-          resolved: true,
+          statusCode: true,
+          createdAt: true,
         },
       }),
       prisma.appError.groupBy({
-        by: ["category"],
-        where: { timestamp: { gte: since } },
+        by: ["route"],
+        where: { createdAt: { gte: since } },
         _count: true,
       }),
     ])
@@ -174,13 +168,13 @@ export async function getErrorTrends(): Promise<string> {
       lines.push("  ✓ No errors in the last 24 hours")
     } else {
       lines.push(`  Total: ${recentErrors.length} error(s)`)
-      if (byCategory.length > 0) {
-        lines.push(`  By category: ${byCategory.map(c => `${c.category}: ${c._count}`).join(", ")}`)
+      if (byRoute.length > 0) {
+        lines.push(`  By route: ${byRoute.map(c => `${c.route}: ${c._count}`).join(", ")}`)
       }
       lines.push(`  Recent:`)
       for (const e of recentErrors.slice(0, 5)) {
-        const ago = Math.floor((Date.now() - e.timestamp.getTime()) / 60000)
-        lines.push(`    - [${e.category}] ${e.message.slice(0, 100)} (${e.route || "unknown"}, ${ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`} ago${e.resolved ? ", resolved" : ""})`)
+        const ago = Math.floor((Date.now() - e.createdAt.getTime()) / 60000)
+        lines.push(`    - [${e.statusCode || "ERR"}] ${e.errorMessage.slice(0, 100)} (${e.route}, ${ago < 60 ? `${ago}m` : `${Math.floor(ago / 60)}h`} ago)`)
       }
     }
   } catch (err: any) {
@@ -213,7 +207,7 @@ export async function getRecentActivity(): Promise<string> {
         const ago = Math.floor((Date.now() - p.createdAt.getTime()) / 3600000)
         const caseRef = p.case?.tabsNumber ? ` [${p.case.tabsNumber}]` : ""
         const engagement = (p._count.replies + p._count.likes) > 0 ? ` (${p._count.replies} replies, ${p._count.likes} likes)` : ""
-        lines.push(`  - [${p.postType}] ${p.author?.name || "System"}${caseRef}: ${p.content.slice(0, 80)}... (${ago < 1 ? "just now" : `${ago}h ago`})${engagement}`)
+        lines.push(`  - [${p.postType}] ${p.author?.name || "System"}${caseRef}: ${(p.content || "").slice(0, 80)}... (${ago < 1 ? "just now" : `${ago}h ago`})${engagement}`)
       }
     }
   } catch (err: any) {
@@ -324,26 +318,26 @@ export async function getCronHealth(): Promise<string> {
 
     // Check data retention cron
     const latestDisposal = await prisma.dataDisposalRecord.findFirst({
-      orderBy: { disposedAt: "desc" },
-      select: { disposedAt: true },
+      orderBy: { executedAt: "desc" },
+      select: { executedAt: true, status: true },
     }).catch(() => null)
 
-    if (latestDisposal) {
-      const daysAgo = Math.floor((Date.now() - latestDisposal.disposedAt.getTime()) / 86400000)
-      lines.push(`  Data Retention: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`}`)
+    if (latestDisposal?.executedAt) {
+      const daysAgo = Math.floor((Date.now() - latestDisposal.executedAt.getTime()) / 86400000)
+      lines.push(`  Data Retention: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`} (${latestDisposal.status})`)
     } else {
-      lines.push(`  Data Retention: no disposal records found`)
+      lines.push(`  Data Retention: no executed disposal records found`)
     }
 
     // Check compliance automation
     const latestHealthCheck = await prisma.healthCheck.findFirst({
-      orderBy: { executedAt: "desc" },
-      select: { executedAt: true, passed: true },
+      orderBy: { lastRun: "desc" },
+      select: { lastRun: true, lastResult: true },
     }).catch(() => null)
 
-    if (latestHealthCheck) {
-      const daysAgo = Math.floor((Date.now() - latestHealthCheck.executedAt.getTime()) / 86400000)
-      lines.push(`  Compliance Health Check: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`} (${latestHealthCheck.passed ? "passed" : "FAILED"})`)
+    if (latestHealthCheck?.lastRun) {
+      const daysAgo = Math.floor((Date.now() - latestHealthCheck.lastRun.getTime()) / 86400000)
+      lines.push(`  Compliance Health Check: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`} (${latestHealthCheck.lastResult || "unknown"})`)
     } else {
       lines.push(`  Compliance Health Check: no records`)
     }
