@@ -693,7 +693,7 @@ export async function GET(
   let values: Record<string, any> = {}
   let formNumber = "433-A"
 
-  const instance = getFormInstance(instanceId)
+  const instance = await getFormInstance(instanceId)
   if (instance) {
     values = instance.values || {}
     formNumber = instance.formNumber || "433-A"

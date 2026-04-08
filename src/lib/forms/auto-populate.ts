@@ -1,52 +1,21 @@
 // ---------------------------------------------------------------------------
-// Auto-Population Engine — AI-Powered Document Extraction
+// Auto-Population Engine v2 — Multi-Source Data Gathering
 //
-// Reads EVERY document in the case file and uses Claude to extract
-// form-relevant data. This is the core differentiator — practitioners
-// should never manually re-enter data that exists in uploaded documents.
+// Pulls from EVERY available data source in priority order:
+// 1. Case record (name, phone, email, filing status)
+// 2. CaseIntelligence (IRS contact, RPC, compliance status)
+// 3. LiabilityPeriods (per-year breakdowns)
+// 4. Existing form instances for the same case (form-to-form sharing)
+// 5. Approved AI task outputs (reviewed working papers)
+// 6. Client notes / call logs
+// 7. Document text (categorized, with intelligent truncation)
+//
+// Structured fields are populated directly with HIGH confidence.
+// Claude AI is used only for what can't be determined structurally.
 // ---------------------------------------------------------------------------
 
 import type { FormSchema } from "./types"
 import { getFormSchema } from "./registry"
-
-/**
- * Build an extraction prompt dynamically from any FormSchema.
- * This replaces hardcoded prompts and supports any form in the registry.
- */
-export function buildExtractionPrompt(schema: FormSchema): string {
-  const fieldList = schema.sections.flatMap(s =>
-    s.fields
-      .filter(f => f.type !== "computed")
-      .map(f => {
-        let line = `- ${f.label} (field ID: ${f.id}, type: ${f.type})`
-        if (f.irsReference) line += ` [${f.irsReference}]`
-        if (f.type === "repeating_group" && f.groupFields) {
-          const subFields = f.groupFields.map(gf => `    - ${gf.label} (${gf.id}, ${gf.type})`).join("\n")
-          line += `\n${subFields}`
-        }
-        return line
-      })
-  ).join("\n")
-
-  return `You are extracting data from IRS case documents to auto-populate Form ${schema.formNumber} — ${schema.formTitle} (Rev. ${schema.revisionDate}).
-
-Analyze ALL the document text provided and extract EVERY piece of information that maps to a field in this form. Be thorough.
-
-FORM FIELDS TO EXTRACT:
-${fieldList}
-
-RULES:
-- Extract from ALL documents, not just the first one
-- Convert annual income to monthly (divide by 12)
-- For W-2 wages, use gross wages / 12 for monthly
-- For bank accounts, use the most recent balance
-- Include EVERY account, property, and vehicle found
-- If a document is a tax return, extract filing status, dependents, and all income
-- If a document is an IRS transcript, extract balances, TC codes, and filing info
-- For repeating groups (employers, bank_accounts, etc.), return arrays of objects
-- Use null for fields you cannot find
-- Return ONLY a JSON object mapping field IDs to extracted values, no markdown, no backticks, no explanation`
-}
 
 export interface AutoPopulatedField {
   fieldId: string
@@ -64,395 +33,543 @@ export interface AutoPopulationResult {
   documentsUsed: string[]
 }
 
-// The prompt that tells Claude exactly what to extract for Form 433-A
-const EXTRACTION_PROMPT = `You are extracting financial data from IRS case documents to auto-populate Form 433-A (Collection Information Statement).
+// ── Source 1: Case record (always high confidence) ──
 
-Analyze ALL the document text provided and extract EVERY piece of information that maps to a Form 433-A field. Be thorough — look for:
+async function gatherFromCaseRecord(caseId: string): Promise<AutoPopulatedField[]> {
+  const { prisma } = await import("@/lib/db")
+  const { decryptField } = await import("@/lib/encryption")
 
-PERSONAL INFO:
-- Full legal name(s), SSN (last 4 only), date of birth
-- Street address, city, state, ZIP code, county
-- Marital/filing status, spouse name and SSN
-- Dependents (names, DOB, relationship)
-- Phone numbers
+  const caseData = await prisma.case.findUnique({
+    where: { id: caseId },
+    select: {
+      clientName: true,
+      clientEmail: true,
+      clientPhone: true,
+      filingStatus: true,
+      totalLiability: true,
+      caseType: true,
+      tabsNumber: true,
+    },
+  })
 
-EMPLOYMENT (Section 2):
-- Employer names, addresses, EIN
-- Gross monthly pay, net monthly pay, pay frequency
-- Self-employment business name, type, gross receipts, expenses
-- Multiple employers should each be separate entries
+  if (!caseData) return []
 
-BANK ACCOUNTS (Section 3):
-- Bank/institution name, account type (checking/savings/money market)
-- Current balance for each account
-- Include ALL accounts found across all documents
+  const fields: AutoPopulatedField[] = []
+  const src = { documentId: "case-record", documentName: "Case Record", documentType: "CASE" }
 
-INVESTMENTS & RETIREMENT (Section 3):
-- Brokerage accounts, mutual funds, stocks
-- 401(k), IRA, Roth IRA, pension accounts
-- Current values and any outstanding loans
+  // Client name
+  try {
+    const name = decryptField(caseData.clientName)
+    if (name && name.length > 1) {
+      fields.push({ fieldId: "taxpayer_name", value: name, confidence: "high", source: src, extractedFrom: "Case record — client name" })
+      // Try to split into first/last for forms that need it
+      const parts = name.trim().split(/\s+/)
+      if (parts.length >= 2) {
+        fields.push({ fieldId: "taxpayer_first_name", value: parts[0], confidence: "high", source: src, extractedFrom: "Case record" })
+        fields.push({ fieldId: "taxpayer_last_name", value: parts.slice(1).join(" "), confidence: "high", source: src, extractedFrom: "Case record" })
+      }
+    }
+  } catch { /* decryption failed */ }
 
-REAL PROPERTY (Section 3):
-- Property addresses and descriptions
-- Fair market values, mortgage/loan balances
-- Monthly payments, lender names
+  // Contact info
+  try {
+    const email = caseData.clientEmail ? decryptField(caseData.clientEmail) : null
+    if (email) fields.push({ fieldId: "email", value: email, confidence: "high", source: src, extractedFrom: "Case record — email" })
+  } catch {}
 
-VEHICLES (Section 3):
-- Year, make, model, mileage
-- Fair market value, loan balance
-- Monthly payment, lender
+  try {
+    const phone = caseData.clientPhone ? decryptField(caseData.clientPhone) : null
+    if (phone) {
+      fields.push({ fieldId: "home_phone", value: phone, confidence: "high", source: src, extractedFrom: "Case record — phone" })
+      fields.push({ fieldId: "cell_phone", value: phone, confidence: "medium", source: src, extractedFrom: "Case record — phone (may be home or cell)" })
+    }
+  } catch {}
 
-MONTHLY INCOME (Section 4):
-- Wages/salary (convert annual to monthly by dividing by 12)
-- Social Security benefits
-- Pension/annuity income
-- Self-employment net income
-- Rental income, interest, dividends
-- Child support, alimony received
-- Any other income sources
+  // Filing status → marital status mapping
+  if (caseData.filingStatus) {
+    const map: Record<string, string> = {
+      SINGLE: "single", MFJ: "married", MFS: "married",
+      HOH: "single", QW: "widowed", MARRIED: "married",
+    }
+    const mapped = map[caseData.filingStatus]
+    if (mapped) {
+      fields.push({ fieldId: "marital_status", value: mapped, confidence: "high", source: src, extractedFrom: `Filing status: ${caseData.filingStatus}` })
+      fields.push({ fieldId: "filing_status", value: caseData.filingStatus, confidence: "high", source: src, extractedFrom: "Case record" })
+    }
+  }
 
-MONTHLY EXPENSES (Section 5):
-- Housing (rent/mortgage + utilities)
-- Vehicle payments and operating costs
-- Health insurance premiums
-- Medical/dental out-of-pocket
-- Child care costs
-- Court-ordered payments
-- Life insurance premiums
-- Current tax payments
+  // Total liability
+  if (caseData.totalLiability) {
+    const total = Number(caseData.totalLiability)
+    if (total > 0) {
+      fields.push({ fieldId: "total_liability", value: total, confidence: "high", source: src, extractedFrom: "Case record — total liability" })
+    }
+  }
 
-OTHER INFO (Section 6):
-- Bankruptcy history
-- Pending lawsuits
-- Asset transfers in last 10 years
-- Trust or estate interests
-- Safe deposit boxes
-
-Return a JSON object with this EXACT structure. Use null for fields you can't find. For repeating groups (employers, bank_accounts, etc.), return arrays. Convert all annual amounts to MONTHLY by dividing by 12.
-
-{
-  "taxpayer_name": "string or null",
-  "ssn_last4": "string or null",
-  "dob": "YYYY-MM-DD or null",
-  "address_street": "string or null",
-  "address_city": "string or null",
-  "address_state": "2-letter code or null",
-  "address_zip": "string or null",
-  "county": "string or null",
-  "marital_status": "single|married|separated|divorced|widowed or null",
-  "home_phone": "string or null",
-  "cell_phone": "string or null",
-  "spouse_name": "string or null",
-  "spouse_ssn_last4": "string or null",
-  "spouse_dob": "YYYY-MM-DD or null",
-  "dependents": [{"dep_name":"string","dep_dob":"YYYY-MM-DD","dep_relationship":"child|parent|other"}],
-  "employment_type": "wage_earner|self_employed|both|neither or null",
-  "employers": [{"emp_name":"string","emp_address":"string","emp_ein":"string","emp_gross_monthly":0,"emp_net_monthly":0,"emp_pay_frequency":"weekly|biweekly|semimonthly|monthly"}],
-  "business_name": "string or null",
-  "business_type": "string or null",
-  "business_gross_monthly": 0,
-  "business_expenses_monthly": 0,
-  "bank_accounts": [{"bank_name":"string","bank_account_type":"checking|savings|money_market|cd","bank_balance":0}],
-  "investments": [{"inv_institution":"string","inv_type":"brokerage|mutual_fund|stocks|other","inv_balance":0,"inv_loan":0}],
-  "real_property": [{"prop_description":"string","prop_address":"string","prop_fmv":0,"prop_loan":0,"prop_monthly_payment":0,"prop_lender":"string"}],
-  "vehicles": [{"veh_year":"string","veh_make":"string","veh_model":"string","veh_mileage":"string","veh_fmv":0,"veh_loan":0,"veh_monthly_payment":0,"veh_lender":"string"}],
-  "retirement_accounts": [{"ret_institution":"string","ret_type":"401k|ira|roth|pension|other","ret_balance":0,"ret_loan":0}],
-  "life_insurance_csv": 0,
-  "has_safe_deposit": false,
-  "income_wages": 0,
-  "income_ss": 0,
-  "income_pension": 0,
-  "income_self_employment": 0,
-  "income_rental": 0,
-  "income_interest_dividends": 0,
-  "income_distributions": 0,
-  "income_child_support": 0,
-  "income_alimony": 0,
-  "income_other": 0,
-  "expense_food_clothing": 0,
-  "expense_housing": 0,
-  "expense_vehicle_ownership": 0,
-  "expense_vehicle_operating": 0,
-  "expense_health_insurance": 0,
-  "expense_medical": 0,
-  "expense_court_ordered": 0,
-  "expense_child_care": 0,
-  "expense_life_insurance": 0,
-  "expense_taxes": 0,
-  "expense_secured_debts": 0,
-  "filed_bankruptcy": false,
-  "involved_lawsuit": false,
-  "transferred_assets": false,
-  "total_liability": 0
+  return fields
 }
 
-IMPORTANT:
-- Extract from ALL documents, not just the first one
-- Convert annual income to monthly (divide by 12)
-- For W-2 wages, use gross wages / 12 for monthly
-- For bank accounts, use the most recent balance
-- Include EVERY account, property, and vehicle found
-- If a document is a tax return, extract filing status, dependents, and all income
-- If a document is an IRS transcript, extract balances, TC codes, and filing info
-- Return ONLY the JSON object, no markdown, no backticks, no explanation`
+// ── Source 2: Case Intelligence (IRS contact, compliance) ──
 
-/**
- * AI-powered auto-population that reads every document in the case
- * and uses Claude to extract all form-relevant data.
- */
+async function gatherFromIntelligence(caseId: string): Promise<AutoPopulatedField[]> {
+  const { prisma } = await import("@/lib/db")
+
+  const intel = await prisma.caseIntelligence.findUnique({
+    where: { caseId },
+  }).catch(() => null)
+
+  if (!intel) return []
+
+  const fields: AutoPopulatedField[] = []
+  const src = { documentId: "case-intelligence", documentName: "Case Intelligence", documentType: "INTELLIGENCE" }
+
+  // IRS contact info (critical for Form 911)
+  if (intel.irsAssignedEmployee)
+    fields.push({ fieldId: "irs_employee_name", value: intel.irsAssignedEmployee, confidence: "high", source: src, extractedFrom: "Case intelligence — IRS assigned employee" })
+  if (intel.irsEmployeeId)
+    fields.push({ fieldId: "irs_employee_id", value: intel.irsEmployeeId, confidence: "high", source: src, extractedFrom: "Case intelligence — IRS employee ID" })
+  if (intel.irsAssignedUnit)
+    fields.push({ fieldId: "irs_unit", value: intel.irsAssignedUnit, confidence: "high", source: src, extractedFrom: "Case intelligence — IRS unit" })
+
+  // RCP estimate (for OIC forms)
+  if (intel.rpcEstimate) {
+    const rpc = Number(intel.rpcEstimate)
+    if (rpc > 0) {
+      fields.push({ fieldId: "rcp_estimate", value: rpc, confidence: "medium", source: src, extractedFrom: "Case intelligence — RCP estimate" })
+    }
+  }
+
+  // POA status
+  if (intel.poaOnFile) {
+    fields.push({ fieldId: "poa_on_file", value: true, confidence: "high", source: src, extractedFrom: "Case intelligence — POA on file" })
+  }
+
+  return fields
+}
+
+// ── Source 3: Liability Periods (per-year tax data) ──
+
+async function gatherFromLiabilityPeriods(caseId: string): Promise<AutoPopulatedField[]> {
+  const { prisma } = await import("@/lib/db")
+
+  const periods = await prisma.liabilityPeriod.findMany({
+    where: { caseId },
+    orderBy: { taxYear: "asc" },
+  })
+
+  if (periods.length === 0) return []
+
+  const fields: AutoPopulatedField[] = []
+  const src = { documentId: "liability-periods", documentName: "Liability Periods", documentType: "LIABILITY" }
+
+  // Total liability from all periods
+  const totalBalance = periods.reduce((s, lp) => s + (Number(lp.totalBalance) || 0), 0)
+  const totalPenalties = periods.reduce((s, lp) => s + (Number(lp.penalties) || 0), 0)
+  const totalInterest = periods.reduce((s, lp) => s + (Number(lp.interest) || 0), 0)
+
+  if (totalBalance > 0)
+    fields.push({ fieldId: "total_liability", value: totalBalance, confidence: "high", source: src, extractedFrom: `Sum of ${periods.length} liability periods` })
+  if (totalPenalties > 0)
+    fields.push({ fieldId: "total_penalties", value: totalPenalties, confidence: "high", source: src, extractedFrom: "Liability periods — penalties" })
+  if (totalInterest > 0)
+    fields.push({ fieldId: "total_interest", value: totalInterest, confidence: "high", source: src, extractedFrom: "Liability periods — interest" })
+
+  // Tax periods as a repeating group (for Form 12153 and 433-A)
+  const taxPeriods = periods.map((lp) => ({
+    tax_year: lp.taxYear,
+    form_type: lp.formType,
+    balance: Number(lp.totalBalance) || 0,
+    penalty: Number(lp.penalties) || 0,
+    interest: Number(lp.interest) || 0,
+    assessment_date: lp.assessmentDate?.toISOString().split("T")[0] || null,
+    csed_date: lp.csedDate?.toISOString().split("T")[0] || null,
+    status: lp.status,
+  }))
+
+  if (taxPeriods.length > 0) {
+    fields.push({ fieldId: "tax_periods", value: taxPeriods, confidence: "high", source: src, extractedFrom: `${taxPeriods.length} tax period(s) from liability records` })
+  }
+
+  // Tax years string
+  const years = periods.map(lp => lp.taxYear).join(", ")
+  fields.push({ fieldId: "tax_years", value: years, confidence: "high", source: src, extractedFrom: "Liability periods" })
+
+  return fields
+}
+
+// ── Source 4: Existing form instances for the same case ──
+
+async function gatherFromExistingForms(caseId: string, currentFormNumber: string): Promise<AutoPopulatedField[]> {
+  const { prisma } = await import("@/lib/db")
+
+  // Look for completed/in-progress form instances for this case
+  const existingForms = await prisma.formInstance.findMany({
+    where: { caseId, status: { in: ["in_progress", "complete"] } },
+    orderBy: { updatedAt: "desc" },
+  }).catch(() => [] as any[])
+
+  if (existingForms.length === 0) return []
+
+  const fields: AutoPopulatedField[] = []
+
+  // Shared field IDs that transfer between forms
+  const transferableFields = [
+    "taxpayer_name", "taxpayer_first_name", "taxpayer_last_name",
+    "ssn", "ssn_last4", "dob", "address_street", "address_city",
+    "address_state", "address_zip", "county", "home_phone", "cell_phone",
+    "email", "marital_status", "filing_status", "spouse_name", "spouse_ssn",
+    "spouse_dob", "employment_type", "dependents",
+    "employers", "bank_accounts", "real_property", "vehicles",
+    "income_wages", "income_ss", "income_pension", "income_self_employment",
+    "expense_housing", "expense_food_clothing", "expense_vehicle_ownership",
+    "expense_health_insurance", "total_liability",
+  ]
+
+  for (const form of existingForms) {
+    if (form.formNumber === currentFormNumber) continue // Don't copy from self
+    const values = typeof form.values === "string" ? JSON.parse(form.values) : (form.values || {})
+    const src = {
+      documentId: `form-${form.id}`,
+      documentName: `Form ${form.formNumber} (${form.status})`,
+      documentType: "FORM_INSTANCE",
+    }
+
+    for (const fieldId of transferableFields) {
+      const val = values[fieldId]
+      if (val !== null && val !== undefined && val !== "" && val !== 0) {
+        // Skip if already populated (first form wins)
+        if (fields.some(f => f.fieldId === fieldId)) continue
+        fields.push({
+          fieldId,
+          value: val,
+          confidence: "high",
+          source: src,
+          extractedFrom: `Previously filled Form ${form.formNumber}`,
+        })
+      }
+    }
+  }
+
+  return fields
+}
+
+// ── Source 5: Approved AI task outputs ──
+
+async function gatherFromAIOutputs(caseId: string): Promise<{ fields: AutoPopulatedField[]; context: string }> {
+  const { prisma } = await import("@/lib/db")
+  const { decryptField } = await import("@/lib/encryption")
+
+  const tasks = await prisma.aITask.findMany({
+    where: { caseId, status: "APPROVED" },
+    select: { id: true, taskType: true, detokenizedOutput: true, banjoStepLabel: true },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  })
+
+  let context = ""
+  for (const task of tasks) {
+    if (!task.detokenizedOutput) continue
+    try {
+      const output = decryptField(task.detokenizedOutput)
+      if (output && output.length > 50) {
+        // Truncate intelligently — keep first 4000 chars of each approved output
+        const label = task.banjoStepLabel || task.taskType
+        context += `\n=== APPROVED AI OUTPUT: ${label} ===\n`
+        context += output.slice(0, 4000)
+        if (output.length > 4000) context += "\n[... truncated]"
+        context += "\n"
+      }
+    } catch { /* decryption failed */ }
+  }
+
+  return { fields: [], context }
+}
+
+// ── Source 6: Client notes (call logs, practitioner observations) ──
+
+async function gatherFromNotes(caseId: string): Promise<string> {
+  const { prisma } = await import("@/lib/db")
+
+  const notes = await prisma.clientNote.findMany({
+    where: { caseId, isDeleted: false },
+    select: { content: true, noteType: true, title: true, callParticipants: true },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  })
+
+  if (notes.length === 0) return ""
+
+  let context = "\n=== CLIENT NOTES & CALL LOGS ===\n"
+  for (const note of notes) {
+    if (note.content && note.content.length > 10) {
+      context += `[${note.noteType}] ${note.title || ""}`
+      if (note.callParticipants) context += ` (Participants: ${note.callParticipants})`
+      context += `\n${note.content.slice(0, 1500)}\n\n`
+    }
+  }
+  return context
+}
+
+// ── Source 7: Documents (categorized, with smart truncation) ──
+
+interface CategorizedDocs {
+  transcripts: string
+  taxReturns: string
+  bankStatements: string
+  payroll: string
+  other: string
+  docNames: string[]
+}
+
+async function gatherDocumentText(caseId: string): Promise<CategorizedDocs> {
+  const { prisma } = await import("@/lib/db")
+
+  const docs = await prisma.document.findMany({
+    where: { caseId },
+    select: {
+      fileName: true,
+      documentCategory: true,
+      extractedText: true,
+      statementDate: true,
+    },
+    orderBy: { uploadedAt: "desc" },
+  })
+
+  const result: CategorizedDocs = { transcripts: "", taxReturns: "", bankStatements: "", payroll: "", other: "", docNames: [] }
+
+  // Category-specific limits (transcripts get more space, they're dense with data)
+  const limits: Record<string, number> = {
+    IRS_NOTICE: 6000,   // IRS transcripts/notices — rich data, give them space
+    TAX_RETURN: 6000,   // Tax returns — income, deductions, all the numbers
+    BANK_STATEMENT: 4000, // Bank statements — balances, account numbers
+    PAYROLL: 3000,       // W-2s, pay stubs
+    OTHER: 2000,         // Everything else
+  }
+
+  for (const doc of docs) {
+    if (!doc.extractedText || doc.extractedText.length < 10) continue
+    result.docNames.push(doc.fileName)
+
+    const limit = limits[doc.documentCategory] || limits.OTHER
+    const text = doc.extractedText.length > limit
+      ? doc.extractedText.slice(0, limit) + "\n[... truncated]"
+      : doc.extractedText
+
+    const header = `--- ${doc.fileName} [${doc.documentCategory}]${doc.statementDate ? ` (dated ${doc.statementDate.toISOString().split("T")[0]})` : ""} ---\n`
+
+    switch (doc.documentCategory) {
+      case "IRS_NOTICE":
+        result.transcripts += header + text + "\n\n"
+        break
+      case "TAX_RETURN":
+        result.taxReturns += header + text + "\n\n"
+        break
+      case "BANK_STATEMENT":
+        result.bankStatements += header + text + "\n\n"
+        break
+      case "PAYROLL":
+        result.payroll += header + text + "\n\n"
+        break
+      default:
+        result.other += header + text + "\n\n"
+    }
+  }
+
+  return result
+}
+
+// ── Build extraction prompt for Claude ──
+
+function buildExtractionPrompt(schema: FormSchema): string {
+  const fieldList = schema.sections.flatMap(s =>
+    s.fields
+      .filter(f => f.type !== "computed" && f.type !== "heading" && f.type !== "divider")
+      .map(f => {
+        let line = `- ${f.label} (field: "${f.id}", type: ${f.type})`
+        if (f.irsReference) line += ` [${f.irsReference}]`
+        if (f.type === "repeating_group" && f.groupFields) {
+          const subFields = f.groupFields.map(gf => `    - ${gf.label} ("${gf.id}", ${gf.type})`).join("\n")
+          line += `\n${subFields}`
+        }
+        return line
+      })
+  ).join("\n")
+
+  return `You are extracting financial data from IRS case documents to auto-populate Form ${schema.formNumber} — ${schema.formTitle}.
+
+You have been given:
+- STRUCTURED DATA: Facts already known about this case (high confidence)
+- DOCUMENT TEXT: Categorized documents to search for additional data
+
+Your job: Extract EVERY remaining piece of information from the documents that maps to a form field. The structured data section tells you what we already know — focus on finding what's MISSING.
+
+FORM FIELDS TO EXTRACT:
+${fieldList}
+
+EXTRACTION RULES:
+1. Extract from ALL documents — search every section
+2. Convert annual income to monthly (÷ 12). W-2 gross wages ÷ 12 = monthly wages
+3. For bank accounts, use the MOST RECENT balance (check statement dates)
+4. Include EVERY account, property, vehicle, and employer found
+5. For IRS transcripts, extract: TC codes, assessment dates, filing dates, penalties, status
+6. For tax returns: AGI, filing status, dependents, all income types, all deductions
+7. For bank statements: institution, account type, current balance
+8. For repeating groups, return arrays of objects matching the sub-field structure
+9. Use null for fields you genuinely cannot find
+10. Do NOT re-extract fields listed in STRUCTURED DATA — they're already populated
+
+Return ONLY a JSON object mapping field IDs to extracted values. No markdown fences, no explanation.`
+}
+
+// ── Main entry point ──
+
 export async function autoPopulateForm(
   caseId: string,
   formNumber: string
 ): Promise<AutoPopulationResult> {
   try {
-    const { prisma } = await import("@/lib/db")
+    // Phase 1: Gather structured data from all sources (no AI needed)
+    const [caseFields, intelFields, liabilityFields, formFields] = await Promise.all([
+      gatherFromCaseRecord(caseId).catch(() => [] as AutoPopulatedField[]),
+      gatherFromIntelligence(caseId).catch(() => [] as AutoPopulatedField[]),
+      gatherFromLiabilityPeriods(caseId).catch(() => [] as AutoPopulatedField[]),
+      gatherFromExistingForms(caseId, formNumber).catch(() => [] as AutoPopulatedField[]),
+    ])
 
-    // 1. Fetch ALL documents for this case with their extracted text
-    const documents = await prisma.document.findMany({
-      where: { caseId },
-      select: {
-        id: true,
-        fileName: true,
-        documentCategory: true,
-        extractedText: true,
-        fileType: true,
-      },
-      orderBy: { uploadedAt: "desc" },
-    })
+    // Merge structured fields (first source wins for each field ID)
+    const structuredFields = new Map<string, AutoPopulatedField>()
 
-    if (!documents.length) {
-      return { fields: [], highConfidence: 0, needsReview: 0, totalFound: 0, documentsUsed: [] }
-    }
+    // Priority order: existing forms > case record > intelligence > liability
+    for (const f of formFields) if (!structuredFields.has(f.fieldId)) structuredFields.set(f.fieldId, f)
+    for (const f of caseFields) if (!structuredFields.has(f.fieldId)) structuredFields.set(f.fieldId, f)
+    for (const f of intelFields) if (!structuredFields.has(f.fieldId)) structuredFields.set(f.fieldId, f)
+    for (const f of liabilityFields) if (!structuredFields.has(f.fieldId)) structuredFields.set(f.fieldId, f)
 
-    // 2. Also fetch case metadata
-    const caseData = await prisma.case.findUnique({
-      where: { id: caseId },
-      select: {
-        clientName: true,
-        filingStatus: true,
-        tabsNumber: true,
-        liabilityPeriods: {
-          select: { taxYear: true, totalBalance: true, penalties: true, interest: true },
-        },
-      },
-    })
+    // Phase 2: Gather context for AI extraction
+    const [aiOutputs, notesContext, docText] = await Promise.all([
+      gatherFromAIOutputs(caseId).catch(() => ({ fields: [] as AutoPopulatedField[], context: "" })),
+      gatherFromNotes(caseId).catch(() => ""),
+      gatherDocumentText(caseId).catch(() => ({
+        transcripts: "", taxReturns: "", bankStatements: "",
+        payroll: "", other: "", docNames: [] as string[],
+      })),
+    ])
 
-    // 3. Build a comprehensive document text package for Claude
-    const docTexts: string[] = []
-    const docsWithText: typeof documents = []
+    const documentsUsed = new Set<string>(docText.docNames)
+    if (structuredFields.size > 0) documentsUsed.add("Case Record")
 
-    for (const doc of documents) {
-      if (doc.extractedText && doc.extractedText.length > 10) {
-        // Limit each doc to 3000 chars to fit in context window
-        const truncated = doc.extractedText.length > 3000
-          ? doc.extractedText.slice(0, 3000) + "\n[... truncated]"
-          : doc.extractedText
-        docTexts.push(`=== DOCUMENT: ${doc.fileName} (Category: ${doc.documentCategory}) ===\n${truncated}\n`)
-        docsWithText.push(doc)
+    // Phase 3: AI extraction for financial data
+    const hasDocuments = docText.transcripts || docText.taxReturns || docText.bankStatements || docText.payroll || docText.other
+
+    if (hasDocuments) {
+      const schema = getFormSchema(formNumber)
+      const systemPrompt = schema
+        ? buildExtractionPrompt(schema)
+        : buildExtractionPrompt(getFormSchema("433-A")!) // Fallback to 433-A
+
+      // Build the user message with all available context
+      let userMessage = ""
+
+      // Include what we already know (so AI doesn't waste effort re-extracting)
+      const knownData = Array.from(structuredFields.values())
+      if (knownData.length > 0) {
+        userMessage += "STRUCTURED DATA (already populated — do not re-extract):\n"
+        for (const f of knownData) {
+          const displayVal = typeof f.value === "object" ? JSON.stringify(f.value).slice(0, 200) : String(f.value)
+          userMessage += `  ${f.fieldId}: ${displayVal}\n`
+        }
+        userMessage += "\n"
       }
-    }
 
-    if (docTexts.length === 0) {
-      // No documents with extracted text — fall back to case data only
-      return buildResultFromCaseData(caseData)
-    }
+      // Add categorized documents
+      userMessage += "DOCUMENTS TO ANALYZE:\n\n"
+      if (docText.transcripts) userMessage += "── IRS TRANSCRIPTS & NOTICES ──\n" + docText.transcripts
+      if (docText.taxReturns) userMessage += "── TAX RETURNS ──\n" + docText.taxReturns
+      if (docText.bankStatements) userMessage += "── BANK STATEMENTS ──\n" + docText.bankStatements
+      if (docText.payroll) userMessage += "── PAYROLL / W-2s ──\n" + docText.payroll
+      if (docText.other) userMessage += "── OTHER DOCUMENTS ──\n" + docText.other
 
-    // 4. Add case metadata context
-    let caseContext = ""
-    if (caseData) {
+      // Add approved AI outputs and notes as supplementary context
+      if (aiOutputs.context) userMessage += "\n── REVIEWED AI WORK PRODUCTS ──\n" + aiOutputs.context
+      if (notesContext) userMessage += "\n" + notesContext
+
       try {
-        const { decryptField } = await import("@/lib/encryption")
-        const name = decryptField(caseData.clientName)
-        if (name && !name.includes(":")) caseContext += `Client Name: ${name}\n`
-      } catch { /* ignore */ }
-      if (caseData.filingStatus) caseContext += `Filing Status: ${caseData.filingStatus}\n`
-      if (caseData.liabilityPeriods?.length) {
-        const total = caseData.liabilityPeriods.reduce((s: number, lp: any) => s + (Number(lp.totalBalance) || 0), 0)
-        caseContext += `Total Liability: $${total.toLocaleString()}\n`
-        caseContext += `Tax Years: ${caseData.liabilityPeriods.map((lp: any) => lp.taxYear).join(", ")}\n`
-      }
-    }
+        const Anthropic = (await import("@anthropic-ai/sdk")).default
+        const client = new Anthropic()
 
-    // 5. Call Claude to extract data from all documents
-    const fullPrompt = `${caseContext ? `CASE CONTEXT:\n${caseContext}\n` : ""}DOCUMENTS TO ANALYZE (${docTexts.length} total):\n\n${docTexts.join("\n")}`
-
-    // Use schema-driven prompt if form schema is available, otherwise fall back to hardcoded prompt
-    const schema = getFormSchema(formNumber)
-    const systemPrompt = schema ? buildExtractionPrompt(schema) : EXTRACTION_PROMPT
-
-    let extractedData: Record<string, any> = {}
-    try {
-      const Anthropic = (await import("@anthropic-ai/sdk")).default
-      const client = new Anthropic()
-
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        temperature: 0,
-        system: systemPrompt,
-        messages: [{ role: "user", content: fullPrompt }],
-      })
-
-      const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("")
-      const clean = text.replace(/```json\n?|```\n?/g, "").trim()
-      extractedData = JSON.parse(clean)
-    } catch (error) {
-      console.error("AI extraction error:", error)
-      // Fall back to case data if AI fails
-      return buildResultFromCaseData(caseData)
-    }
-
-    // 6. Convert extracted data to AutoPopulatedField array
-    const allFields: AutoPopulatedField[] = []
-    const documentsUsed = new Set<string>()
-    docsWithText.forEach(d => documentsUsed.add(d.fileName))
-
-    const sourceInfo = {
-      documentId: "ai-extraction",
-      documentName: `${docsWithText.length} documents analyzed`,
-      documentType: "AI_EXTRACTION",
-    }
-
-    // Simple fields
-    const simpleFields: [string, string, "high" | "medium"][] = [
-      ["taxpayer_name", "taxpayer_name", "high"],
-      ["address_street", "address_street", "medium"],
-      ["address_city", "address_city", "medium"],
-      ["address_state", "address_state", "medium"],
-      ["address_zip", "address_zip", "medium"],
-      ["county", "county", "medium"],
-      ["marital_status", "marital_status", "high"],
-      ["home_phone", "home_phone", "medium"],
-      ["cell_phone", "cell_phone", "medium"],
-      ["spouse_name", "spouse_name", "medium"],
-      ["dob", "dob", "medium"],
-      ["spouse_dob", "spouse_dob", "medium"],
-      ["employment_type", "employment_type", "medium"],
-      ["business_name", "business_name", "medium"],
-      ["business_type", "business_type", "medium"],
-      ["business_gross_monthly", "business_gross_monthly", "medium"],
-      ["business_expenses_monthly", "business_expenses_monthly", "medium"],
-      ["life_insurance_csv", "life_insurance_csv", "medium"],
-      ["has_safe_deposit", "has_safe_deposit", "medium"],
-      ["income_wages", "income_wages", "medium"],
-      ["income_ss", "income_ss", "medium"],
-      ["income_pension", "income_pension", "medium"],
-      ["income_self_employment", "income_self_employment", "medium"],
-      ["income_rental", "income_rental", "medium"],
-      ["income_interest_dividends", "income_interest_dividends", "medium"],
-      ["income_distributions", "income_distributions", "medium"],
-      ["income_child_support", "income_child_support", "medium"],
-      ["income_alimony", "income_alimony", "medium"],
-      ["income_other", "income_other", "medium"],
-      ["expense_food_clothing", "expense_food_clothing", "medium"],
-      ["expense_housing", "expense_housing", "medium"],
-      ["expense_vehicle_ownership", "expense_vehicle_ownership", "medium"],
-      ["expense_vehicle_operating", "expense_vehicle_operating", "medium"],
-      ["expense_health_insurance", "expense_health_insurance", "medium"],
-      ["expense_medical", "expense_medical", "medium"],
-      ["expense_court_ordered", "expense_court_ordered", "medium"],
-      ["expense_child_care", "expense_child_care", "medium"],
-      ["expense_life_insurance", "expense_life_insurance", "medium"],
-      ["expense_taxes", "expense_taxes", "medium"],
-      ["expense_secured_debts", "expense_secured_debts", "medium"],
-      ["filed_bankruptcy", "filed_bankruptcy", "medium"],
-      ["involved_lawsuit", "involved_lawsuit", "medium"],
-      ["transferred_assets", "transferred_assets", "medium"],
-      ["total_liability", "total_liability", "high"],
-    ]
-
-    for (const [fieldId, dataKey, confidence] of simpleFields) {
-      const value = extractedData[dataKey]
-      if (value !== null && value !== undefined && value !== "" && value !== 0) {
-        allFields.push({
-          fieldId,
-          value,
-          confidence,
-          source: sourceInfo,
-          extractedFrom: `AI extracted from ${docsWithText.length} documents`,
+        const response = await client.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 8192,
+          temperature: 0,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userMessage }],
         })
+
+        const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("")
+        const clean = text.replace(/```json\n?|```\n?/g, "").trim()
+
+        // Parse — try direct, then strip to first { ... last }
+        let extractedData: Record<string, any> = {}
+        try {
+          extractedData = JSON.parse(clean)
+        } catch {
+          const firstBrace = clean.indexOf("{")
+          const lastBrace = clean.lastIndexOf("}")
+          if (firstBrace !== -1 && lastBrace > firstBrace) {
+            try { extractedData = JSON.parse(clean.slice(firstBrace, lastBrace + 1)) } catch {}
+          }
+        }
+
+        // Add AI-extracted fields (only for fields not already in structured data)
+        const aiSrc = {
+          documentId: "ai-extraction",
+          documentName: `AI analyzed ${docText.docNames.length} documents`,
+          documentType: "AI_EXTRACTION",
+        }
+
+        for (const [fieldId, value] of Object.entries(extractedData)) {
+          if (structuredFields.has(fieldId)) continue // Skip — structured data wins
+          if (value === null || value === undefined || value === "" || (typeof value === "number" && value === 0)) continue
+
+          // Determine confidence based on document category support
+          let confidence: "high" | "medium" | "low" = "medium"
+
+          // Financial fields from tax returns/transcripts get higher confidence
+          if ((docText.taxReturns || docText.transcripts) &&
+            (fieldId.startsWith("income_") || fieldId.startsWith("expense_") || fieldId === "total_liability")) {
+            confidence = "high"
+          }
+          // Bank data from bank statements gets higher confidence
+          if (docText.bankStatements && fieldId === "bank_accounts") {
+            confidence = "high"
+          }
+          // Employment from W-2s/payroll gets higher confidence
+          if (docText.payroll && fieldId === "employers") {
+            confidence = "high"
+          }
+          // Identity fields without doc support stay medium
+          if (fieldId.startsWith("address_") || fieldId === "dob" || fieldId === "ssn_last4") {
+            confidence = docText.taxReturns ? "medium" : "low"
+          }
+
+          structuredFields.set(fieldId, {
+            fieldId,
+            value,
+            confidence,
+            source: aiSrc,
+            extractedFrom: `AI extracted from ${docText.docNames.length} document(s)`,
+          })
+        }
+      } catch (error: any) {
+        console.error("[Auto-populate] AI extraction failed:", error?.message)
+        // Continue with just structured data — don't fail entirely
       }
     }
 
-    // Repeating groups — bank accounts
-    if (Array.isArray(extractedData.bank_accounts) && extractedData.bank_accounts.length > 0) {
-      allFields.push({
-        fieldId: "bank_accounts",
-        value: extractedData.bank_accounts,
-        confidence: "medium",
-        source: sourceInfo,
-        extractedFrom: `${extractedData.bank_accounts.length} bank account(s) found across documents`,
-      })
-    }
-
-    // Repeating groups — employers
-    if (Array.isArray(extractedData.employers) && extractedData.employers.length > 0) {
-      allFields.push({
-        fieldId: "employers",
-        value: extractedData.employers,
-        confidence: "medium",
-        source: sourceInfo,
-        extractedFrom: `${extractedData.employers.length} employer(s) found`,
-      })
-    }
-
-    // Repeating groups — investments
-    if (Array.isArray(extractedData.investments) && extractedData.investments.length > 0) {
-      allFields.push({
-        fieldId: "investments",
-        value: extractedData.investments,
-        confidence: "medium",
-        source: sourceInfo,
-        extractedFrom: `${extractedData.investments.length} investment account(s) found`,
-      })
-    }
-
-    // Repeating groups — real property
-    if (Array.isArray(extractedData.real_property) && extractedData.real_property.length > 0) {
-      allFields.push({
-        fieldId: "real_property",
-        value: extractedData.real_property,
-        confidence: "medium",
-        source: sourceInfo,
-        extractedFrom: `${extractedData.real_property.length} properties found`,
-      })
-    }
-
-    // Repeating groups — vehicles
-    if (Array.isArray(extractedData.vehicles) && extractedData.vehicles.length > 0) {
-      allFields.push({
-        fieldId: "vehicles",
-        value: extractedData.vehicles,
-        confidence: "medium",
-        source: sourceInfo,
-        extractedFrom: `${extractedData.vehicles.length} vehicle(s) found`,
-      })
-    }
-
-    // Repeating groups — retirement
-    if (Array.isArray(extractedData.retirement_accounts) && extractedData.retirement_accounts.length > 0) {
-      allFields.push({
-        fieldId: "retirement_accounts",
-        value: extractedData.retirement_accounts,
-        confidence: "medium",
-        source: sourceInfo,
-        extractedFrom: `${extractedData.retirement_accounts.length} retirement account(s) found`,
-      })
-    }
-
-    // Repeating groups — dependents
-    if (Array.isArray(extractedData.dependents) && extractedData.dependents.length > 0) {
-      allFields.push({
-        fieldId: "dependents",
-        value: extractedData.dependents,
-        confidence: "medium",
-        source: sourceInfo,
-        extractedFrom: `${extractedData.dependents.length} dependent(s) found`,
-      })
-    }
-
+    // Phase 4: Build final result
+    const allFields = Array.from(structuredFields.values())
     const highCount = allFields.filter(f => f.confidence === "high").length
-    const reviewCount = allFields.filter(f => f.confidence === "medium" || f.confidence === "low").length
+    const reviewCount = allFields.filter(f => f.confidence !== "high").length
 
     return {
       fields: allFields,
@@ -462,91 +579,7 @@ export async function autoPopulateForm(
       documentsUsed: Array.from(documentsUsed),
     }
   } catch (error) {
-    console.error("Auto-populate error:", error)
+    console.error("[Auto-populate] Fatal error:", error)
     return { fields: [], highConfidence: 0, needsReview: 0, totalFound: 0, documentsUsed: [] }
   }
-}
-
-/**
- * Fallback when AI extraction is not available — use case data only
- */
-function buildResultFromCaseData(caseData: any): AutoPopulationResult {
-  const fields: AutoPopulatedField[] = []
-  const source = { documentId: "case-record", documentName: "Case Record", documentType: "CASE" }
-
-  if (caseData) {
-    try {
-      const { decryptField } = require("@/lib/encryption")
-      const name = decryptField(caseData.clientName)
-      if (name && !name.includes(":")) {
-        fields.push({ fieldId: "taxpayer_name", value: name, confidence: "high", source, extractedFrom: "Case record" })
-      }
-    } catch { /* ignore */ }
-
-    if (caseData.filingStatus) {
-      const map: Record<string, string> = { SINGLE: "single", MFJ: "married", MFS: "married", HOH: "single", QW: "widowed" }
-      const mapped = map[caseData.filingStatus]
-      if (mapped) fields.push({ fieldId: "marital_status", value: mapped, confidence: "medium", source, extractedFrom: `Filing status: ${caseData.filingStatus}` })
-    }
-
-    if (caseData.liabilityPeriods?.length) {
-      const total = caseData.liabilityPeriods.reduce((s: number, lp: any) => s + (Number(lp.totalBalance) || 0), 0)
-      if (total > 0) fields.push({ fieldId: "total_liability", value: total, confidence: "high", source, extractedFrom: `Sum of ${caseData.liabilityPeriods.length} liability periods` })
-    }
-  }
-
-  return {
-    fields,
-    highConfidence: fields.filter(f => f.confidence === "high").length,
-    needsReview: fields.filter(f => f.confidence !== "high").length,
-    totalFound: fields.length,
-    documentsUsed: fields.length > 0 ? ["Case Record"] : [],
-  }
-}
-
-/**
- * Match a single document's structured data against field mappings.
- * Kept for backward compatibility with direct extraction.
- */
-export function matchDocumentToFields(
-  documentId: string,
-  documentName: string,
-  documentType: string,
-  extractedData: Record<string, any>
-): AutoPopulatedField[] {
-  const results: AutoPopulatedField[] = []
-  const FIELD_MAPPINGS: Record<string, { formField: string; extractPath: string; confidence: "high" | "medium" }[]> = {
-    "W-2": [
-      { formField: "employers.emp_name", extractPath: "payer", confidence: "high" },
-      { formField: "employers.emp_ein", extractPath: "fields.ein", confidence: "high" },
-      { formField: "employers.emp_gross_monthly", extractPath: "fields.wages", confidence: "medium" },
-    ],
-    "SSA-1099": [{ formField: "income_ss", extractPath: "fields.net_benefits", confidence: "high" }],
-    "1099-R": [{ formField: "income_pension", extractPath: "fields.gross_distribution", confidence: "medium" }],
-    "1099-INT": [{ formField: "income_interest_dividends", extractPath: "fields.interest", confidence: "high" }],
-  }
-
-  const mappings = FIELD_MAPPINGS[documentType]
-  if (!mappings) return []
-
-  for (const mapping of mappings) {
-    const parts = mapping.extractPath.split(".")
-    let current: any = extractedData
-    for (const part of parts) {
-      if (current == null) break
-      current = current[part]
-    }
-    if (current !== undefined && current !== null && current !== "") {
-      const value = typeof current === "number" ? Math.round(current / 12 * 100) / 100 : current
-      results.push({
-        fieldId: mapping.formField,
-        value,
-        confidence: mapping.confidence,
-        source: { documentId, documentName, documentType },
-        extractedFrom: `${documentType} — ${mapping.extractPath}`,
-      })
-    }
-  }
-
-  return results
 }
