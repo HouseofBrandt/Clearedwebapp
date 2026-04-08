@@ -337,8 +337,8 @@ export function FormBuilderHub({ currentUser }: FormBuilderHubProps) {
                   const statusLabel = FORM_STATUS_LABELS[inst.status as FormInstanceUIStatus] || inst.status
                   const statusStyle = FORM_STATUS_STYLES[inst.status as FormInstanceUIStatus] || "bg-c-gray-100 text-c-gray-700"
                   const completedCount = inst.completedSections?.length || 0
-                  const formSchema = availableForms.find((f: any) => f.formNumber === inst.formNumber)
-                  const totalSections = formSchema?.sections?.length || 6
+                  const formSchema = availableForms.find((f) => f.formNumber === inst.formNumber)
+                  const totalSections = formSchema?.sectionCount || 6
                   const progressPct = completedCount > 0 ? Math.round((completedCount / totalSections) * 100) : 0
                   return (
                     <TableRow

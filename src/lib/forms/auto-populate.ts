@@ -383,7 +383,7 @@ async function gatherDocumentText(caseId: string): Promise<CategorizedDocs> {
 function buildExtractionPrompt(schema: FormSchema): string {
   const fieldList = schema.sections.flatMap(s =>
     s.fields
-      .filter(f => f.type !== "computed" && f.type !== "heading" && f.type !== "divider")
+      .filter(f => f.type !== "computed" && (f.type as string) !== "heading" && (f.type as string) !== "divider")
       .map(f => {
         let line = `- ${f.label} (field: "${f.id}", type: ${f.type})`
         if (f.irsReference) line += ` [${f.irsReference}]`

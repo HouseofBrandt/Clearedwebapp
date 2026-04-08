@@ -207,7 +207,7 @@ export async function getRecentActivity(): Promise<string> {
         const ago = Math.floor((Date.now() - p.createdAt.getTime()) / 3600000)
         const caseRef = p.case?.tabsNumber ? ` [${p.case.tabsNumber}]` : ""
         const engagement = (p._count.replies + p._count.likes) > 0 ? ` (${p._count.replies} replies, ${p._count.likes} likes)` : ""
-        lines.push(`  - [${p.postType}] ${p.author?.name || "System"}${caseRef}: ${p.content.slice(0, 80)}... (${ago < 1 ? "just now" : `${ago}h ago`})${engagement}`)
+        lines.push(`  - [${p.postType}] ${p.author?.name || "System"}${caseRef}: ${(p.content || "").slice(0, 80)}... (${ago < 1 ? "just now" : `${ago}h ago`})${engagement}`)
       }
     }
   } catch (err: any) {
@@ -318,26 +318,26 @@ export async function getCronHealth(): Promise<string> {
 
     // Check data retention cron
     const latestDisposal = await prisma.dataDisposalRecord.findFirst({
-      orderBy: { disposedAt: "desc" },
-      select: { disposedAt: true },
+      orderBy: { executedAt: "desc" },
+      select: { executedAt: true, status: true },
     }).catch(() => null)
 
-    if (latestDisposal) {
-      const daysAgo = Math.floor((Date.now() - latestDisposal.disposedAt.getTime()) / 86400000)
-      lines.push(`  Data Retention: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`}`)
+    if (latestDisposal?.executedAt) {
+      const daysAgo = Math.floor((Date.now() - latestDisposal.executedAt.getTime()) / 86400000)
+      lines.push(`  Data Retention: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`} (${latestDisposal.status})`)
     } else {
-      lines.push(`  Data Retention: no disposal records found`)
+      lines.push(`  Data Retention: no executed disposal records found`)
     }
 
     // Check compliance automation
     const latestHealthCheck = await prisma.healthCheck.findFirst({
-      orderBy: { executedAt: "desc" },
-      select: { executedAt: true, passed: true },
+      orderBy: { lastRun: "desc" },
+      select: { lastRun: true, lastResult: true },
     }).catch(() => null)
 
-    if (latestHealthCheck) {
-      const daysAgo = Math.floor((Date.now() - latestHealthCheck.executedAt.getTime()) / 86400000)
-      lines.push(`  Compliance Health Check: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`} (${latestHealthCheck.passed ? "passed" : "FAILED"})`)
+    if (latestHealthCheck?.lastRun) {
+      const daysAgo = Math.floor((Date.now() - latestHealthCheck.lastRun.getTime()) / 86400000)
+      lines.push(`  Compliance Health Check: last ran ${daysAgo === 0 ? "today" : `${daysAgo}d ago`} (${latestHealthCheck.lastResult || "unknown"})`)
     } else {
       lines.push(`  Compliance Health Check: no records`)
     }
