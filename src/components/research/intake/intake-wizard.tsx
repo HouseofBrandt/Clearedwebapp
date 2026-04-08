@@ -175,6 +175,8 @@ export function IntakeWizard() {
   const router = useRouter()
   const [step, setStep] = useState<WizardStep>(1)
   const [launching, setLaunching] = useState(false)
+  const [launchError, setLaunchError] = useState<string | null>(null)
+  const [launchStatus, setLaunchStatus] = useState<string | null>(null)
   const [cases, setCases] = useState<CaseOption[]>([])
   const [casesLoading, setCasesLoading] = useState(false)
 
@@ -249,6 +251,8 @@ export function IntakeWizard() {
   const handleLaunch = async () => {
     if (launching) return
     setLaunching(true)
+    setLaunchError(null)
+    setLaunchStatus("Creating research session...")
 
     try {
       // Step 1: Create session
@@ -271,20 +275,62 @@ export function IntakeWizard() {
         }),
       })
 
-      if (!createRes.ok) throw new Error("Failed to create session")
+      if (!createRes.ok) {
+        const errData = await createRes.json().catch(() => ({ error: "Unknown error" }))
+        throw new Error(errData.error || `Server error (${createRes.status})`)
+      }
+
       const session = await createRes.json()
       const sessionId = session.id
 
-      // Step 2: Launch analysis
-      await fetch(`/api/research/sessions/${sessionId}/launch`, {
+      // Step 2: Launch analysis via SSE — stays alive until research completes
+      setLaunchStatus("Researching — searching sources and composing analysis...")
+
+      const launchRes = await fetch(`/api/research/sessions/${sessionId}/launch`, {
         method: "POST",
       })
 
-      // Step 3: Redirect
+      if (!launchRes.ok) {
+        throw new Error(`Research launch failed (${launchRes.status})`)
+      }
+
+      // Read SSE stream for status updates
+      const reader = launchRes.body?.getReader()
+      if (reader) {
+        const decoder = new TextDecoder()
+        let done = false
+        while (!done) {
+          const { value, done: streamDone } = await reader.read()
+          done = streamDone
+          if (value) {
+            const text = decoder.decode(value)
+            const lines = text.split("\n").filter(l => l.startsWith("data: "))
+            for (const line of lines) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                if (data.message) setLaunchStatus(data.message)
+                if (data.error) {
+                  setLaunchError(data.error)
+                  setLaunching(false)
+                  return
+                }
+                if (data.status === "READY_FOR_REVIEW") {
+                  router.push(`/research/${sessionId}`)
+                  return
+                }
+              } catch { /* skip unparseable lines */ }
+            }
+          }
+        }
+      }
+
+      // Fallback: if stream ended without READY_FOR_REVIEW, redirect anyway
       router.push(`/research/${sessionId}`)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Launch failed:", err)
+      setLaunchError(err.message || "Research launch failed. Please try again.")
       setLaunching(false)
+      setLaunchStatus(null)
     }
   }
 
@@ -369,11 +415,27 @@ export function IntakeWizard() {
       </div>
 
       {/* Navigation */}
+      {/* Error display */}
+      {launchError && (
+        <div className="rounded-lg px-4 py-3 text-sm" style={{ background: "var(--c-danger-soft, #FEF2F2)", color: "var(--c-danger, #EF4444)", border: "1px solid rgba(239,68,68,0.15)" }}>
+          <strong>Research failed:</strong> {launchError}
+        </div>
+      )}
+
+      {/* Status display */}
+      {launchStatus && !launchError && (
+        <div className="rounded-lg px-4 py-3 text-sm flex items-center gap-2" style={{ background: "var(--c-teal-soft, #EFF8FA)", color: "var(--c-teal, #2A8FA8)", border: "1px solid rgba(42,143,168,0.15)" }}>
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          {launchStatus}
+        </div>
+      )}
+
+      {/* Navigation */}
       <div className="flex items-center justify-between border-t pt-6">
         <Button
           variant="outline"
           onClick={goBack}
-          disabled={step === 1}
+          disabled={step === 1 || launching}
         >
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back
@@ -389,7 +451,7 @@ export function IntakeWizard() {
             {launching ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Launching...
+                Researching...
               </>
             ) : (
               <>
