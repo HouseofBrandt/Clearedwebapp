@@ -152,7 +152,7 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-5xl mx-auto">
       {/* Stat Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="rounded-xl border border-[var(--c-gray-100)] p-5 bg-white hover:border-[var(--c-gray-200)] transition-all duration-150" style={{ boxShadow: 'var(--shadow-1)' }}>
           <div className="text-overline" style={{ color: 'var(--c-danger)' }}>Awaiting Review</div>
           <div className="stat-number mt-1.5" style={{ color: pendingReviews > 0 ? 'var(--c-danger)' : 'var(--c-gray-700)' }}>{pendingReviews}</div>

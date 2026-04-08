@@ -59,9 +59,10 @@ const statusColors: Record<string, string> = {
 interface CasesListProps {
   initialCases: any[]
   practitioners: { id: string; name: string; role: string }[]
+  totalCount?: number
 }
 
-export function CasesList({ initialCases, practitioners }: CasesListProps) {
+export function CasesList({ initialCases, practitioners, totalCount }: CasesListProps) {
   const [cases, setCases] = useState(initialCases)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")

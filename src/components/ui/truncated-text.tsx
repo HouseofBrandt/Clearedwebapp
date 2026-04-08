@@ -45,7 +45,7 @@ export function TruncatedText({ children, lines = 3, className = "" }: Truncated
               left: 0,
               right: 0,
               height: "20px",
-              background: "linear-gradient(transparent, white)",
+              background: "linear-gradient(transparent, var(--background, white))",
               pointerEvents: "none",
             }}
           />

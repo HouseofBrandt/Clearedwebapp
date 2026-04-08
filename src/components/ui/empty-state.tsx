@@ -21,12 +21,12 @@ export function EmptyState({ icon: Icon, title, description, actionLabel, action
         <p className="mt-1 text-sm text-c-gray-500">{description}</p>
       </div>
       {actionLabel && actionHref && (
-        <Link href={actionHref} className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-900 transition-colors">
+        <Link href={actionHref} className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-700 transition-colors">
           {actionLabel}
         </Link>
       )}
       {actionLabel && actionOnClick && !actionHref && (
-        <button onClick={actionOnClick} className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-900 transition-colors">
+        <button onClick={actionOnClick} className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-700 transition-colors">
           {actionLabel}
         </button>
       )}
