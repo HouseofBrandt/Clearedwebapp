@@ -139,10 +139,46 @@ export async function runPippenPipeline(date?: Date): Promise<PipelineResult> {
     // Continue to post stage even if ingest fails
   }
 
-  // Stage 4: Post
+  // Stage 4: Post — use the compiled report OR fall back to DailyDigest data
   const postStart = Date.now()
   try {
-    const postResult = await postDailyTakeaway(report)
+    let postResult = await postDailyTakeaway(report)
+
+    // If no takeaway was posted (no SourceArtifact learnings), try posting from DailyDigest
+    if (postResult.error?.includes("No takeaway to post")) {
+      try {
+        const { prisma } = await import("@/lib/db")
+        const startOfDay = new Date(reportDate)
+        startOfDay.setHours(0, 0, 0, 0)
+        const endOfDay = new Date(reportDate)
+        endOfDay.setHours(23, 59, 59, 999)
+
+        const digest = await prisma.dailyDigest.findFirst({
+          where: { digestDate: { gte: startOfDay, lte: endOfDay }, publishedAt: { not: null } },
+        })
+
+        if (digest && digest.summary) {
+          // Build a report-like structure from the DailyDigest
+          const digestReport: CompiledReport = {
+            date: dateStr,
+            title: `Daily Digest — ${dateStr}`,
+            learnings: [{
+              title: "Daily Tax Authority Digest",
+              summary: digest.summary,
+              source: "Tax Authority Monitor",
+              sourceUrl: "/admin/tax-authority",
+              relevance: "Review for client impact",
+            }],
+            topTakeaway: digest.summary,
+            markdownContent: digest.summary,
+          }
+          postResult = await postDailyTakeaway(digestReport)
+        }
+      } catch (digestErr) {
+        console.warn("[Pippen] DailyDigest fallback failed:", digestErr)
+      }
+    }
+
     stages.push({
       stage: "post",
       success: postResult.success,

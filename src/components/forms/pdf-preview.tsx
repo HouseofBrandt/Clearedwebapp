@@ -57,10 +57,13 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
   // POST values to generate filled PDF
   useEffect(() => {
     if (filledCount === 0) {
+      // Revoke any existing blob and reset to blank PDF
+      if (blobRef.current) { URL.revokeObjectURL(blobRef.current); blobRef.current = "" }
       setPdfBlobUrl("")
       return
     }
     setGenerating(true)
+    let cancelled = false
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/forms/${instanceId}/preview-pdf`, {
@@ -68,17 +71,31 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ formNumber, values }),
         })
+        if (cancelled) return
         if (res.ok) {
           const blob = await res.blob()
+          // Validate the blob is a real PDF (not empty or error HTML)
+          if (blob.size < 100 || blob.type === "application/json") {
+            console.warn("[PDF Preview] Received empty or invalid blob, falling back to blank form")
+            return
+          }
           const url = URL.createObjectURL(blob)
-          if (blobRef.current) URL.revokeObjectURL(blobRef.current)
+          // Revoke old blob AFTER creating the new one (prevents race condition)
+          const oldUrl = blobRef.current
           blobRef.current = url
           setPdfBlobUrl(url)
+          // Defer revocation to next tick so the render effect has time to start
+          if (oldUrl) setTimeout(() => URL.revokeObjectURL(oldUrl), 100)
+        } else {
+          console.warn("[PDF Preview] Server returned", res.status, "— using blank form")
         }
-      } catch {}
-      finally { setGenerating(false) }
+      } catch (err) {
+        console.error("[PDF Preview] Fetch error:", err)
+      } finally {
+        if (!cancelled) setGenerating(false)
+      }
     }, 1500)
-    return () => { clearTimeout(timer); setGenerating(false) }
+    return () => { cancelled = true; clearTimeout(timer); setGenerating(false) }
   }, [values, formNumber, instanceId, filledCount])
 
   const renderPage = useCallback(async (pdf: any, num: number) => {
@@ -114,8 +131,24 @@ export function PDFFormPreview({ formNumber, instanceId, values, currentPage = 1
       setTotalPages(pdf.numPages)
       setPageNum(1)
       await renderPage(pdf, 1)
-    } catch (err) {
-      console.error("PDF render error:", err)
+    } catch (err: any) {
+      // If the blob URL was revoked or is invalid, fall back to blank form
+      const msg = err?.message || String(err)
+      if (msg.includes("Unexpected server response") || msg.includes("Missing PDF")) {
+        console.warn("[PDF Preview] Blob URL invalid, falling back to blank form")
+        if (blankPdfUrl && url !== blankPdfUrl) {
+          try {
+            const pdfjsLib2 = await loadPDFJS()
+            const fallbackPdf = await pdfjsLib2.getDocument(blankPdfUrl).promise
+            pdfDocRef.current = fallbackPdf
+            setTotalPages(fallbackPdf.numPages)
+            setPageNum(1)
+            await renderPage(fallbackPdf, 1)
+          } catch { /* blank form also failed — nothing we can do */ }
+        }
+      } else {
+        console.error("[PDF Preview] Render error:", msg)
+      }
     } finally {
       setRendering(false)
     }
