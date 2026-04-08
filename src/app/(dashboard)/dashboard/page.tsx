@@ -1,10 +1,13 @@
 import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
+import { decryptField } from "@/lib/encryption"
 import { getCommandCenterData } from "@/lib/dashboard/command-center"
-import { DailyBrief } from "@/components/dashboard/command-center"
 import { FeedPage } from "@/components/feed/feed-page"
 import { StatCards } from "@/components/dashboard/stat-cards"
+import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { ActionItems } from "@/components/dashboard/action-items"
+import { RightSidebar } from "@/components/dashboard/right-sidebar"
 
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
 
@@ -92,34 +95,86 @@ export default async function DashboardPage() {
     console.error("Feed data error:", error?.message)
   }
 
+  // Build right sidebar data
+  const team = users.map((u: any) => ({ id: u.id, name: u.name, role: "Practitioner" }))
+
+  const deadlines = (commandData?.deadlines || []).slice(0, 5).map((d: any) => ({
+    id: d.id,
+    title: d.title,
+    caseId: d.case?.id || d.caseId,
+    caseRef: d.case?.tabsNumber || "",
+    dueDate: typeof d.dueDate === "string" ? d.dueDate : new Date(d.dueDate).toISOString(),
+  }))
+
+  // Compute case progress from active cases (document count as rough progress proxy)
+  let caseProgress: { id: string; name: string; tabsNumber: string; percent: number }[] = []
+  try {
+    const progressCases = await prisma.case.findMany({
+      where: { status: { in: ["ANALYSIS", "REVIEW", "ACTIVE"] } },
+      select: { id: true, clientName: true, tabsNumber: true, status: true, _count: { select: { documents: true, aiTasks: true } } },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+    })
+    caseProgress = progressCases.map((c) => {
+      let name = c.tabsNumber || "Unknown"
+      try { name = decryptField(c.clientName) } catch {}
+      // Rough progress: ANALYSIS=30%, REVIEW=60%, ACTIVE=80%, + bonus for docs/tasks
+      const baseProgress = c.status === "ANALYSIS" ? 30 : c.status === "REVIEW" ? 60 : 80
+      const docBonus = Math.min(c._count.documents * 5, 15)
+      const taskBonus = Math.min(c._count.aiTasks * 3, 10)
+      return { id: c.id, name, tabsNumber: c.tabsNumber || "", percent: Math.min(baseProgress + docBonus + taskBonus, 95) }
+    })
+  } catch {}
+
+  // Build action items from command center data
+  const actionItems = (commandData?.actionQueue || []).slice(0, 6).map((item: any, i: number) => ({
+    id: `action-${item.caseId}-${i}`,
+    ...item,
+  }))
+
   const currentUser = { id: userId, name: session.user.name || "User", role: session.user.role || "PRACTITIONER" }
-  const hasUrgentItems = commandData && (commandData.actionQueue.length > 0 || commandData.deadlines.length > 0 || commandData.pendingReviews > 0)
 
   return (
-    <div className="max-w-5xl mx-auto page-enter">
-      <StatCards pendingReviews={pendingReviews} deadlinesThisWeek={deadlinesThisWeek} activeCases={activeCases} openTasks={openTasks} />
+    <div className="flex page-enter" style={{ minHeight: 0 }}>
+      {/* Main content */}
+      <div className="flex-1 min-w-0 max-w-4xl mx-auto">
+        <DashboardHeader
+          userName={session.user.name || "there"}
+          actionItemCount={actionItems.length}
+        />
 
-      {commandData ? (
-        hasUrgentItems ? (
-          <DailyBrief data={commandData} userName={session.user.name || "there"} />
-        ) : (
-          <div className="rounded-[14px] px-6 py-5 flex items-center gap-3.5" style={{ background: "var(--c-success-soft)", border: "1px solid rgba(11,138,94,0.1)", boxShadow: "var(--shadow-xs)" }}>
-            <div className="flex h-8 w-8 items-center justify-center rounded-[9px]" style={{ background: "rgba(11,138,94,0.08)", border: "1px solid rgba(11,138,94,0.1)" }}>
-              <span style={{ color: "var(--c-success)", fontSize: "16px" }}>&#10003;</span>
-            </div>
-            <span className="text-[13.5px]" style={{ color: "var(--c-gray-600)" }}>All clear &mdash; no items need attention right now.</span>
-          </div>
-        )
-      ) : (
-        <div className="text-center py-16" style={{ color: 'var(--c-gray-300)' }}><p className="text-sm">Unable to load dashboard data. Please try refreshing.</p></div>
-      )}
+        <StatCards
+          pendingReviews={pendingReviews}
+          deadlinesThisWeek={deadlinesThisWeek}
+          activeCases={activeCases}
+          openTasks={openTasks}
+        />
 
-      <div className="flex items-center gap-4 mt-10 mb-5">
-        <div className="text-overline" style={{ color: "var(--c-gray-300)" }}>Activity</div>
-        <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--c-gray-100), transparent)" }} />
+        <ActionItems items={actionItems} />
+
+        {/* Activity divider */}
+        <div className="flex items-center gap-4 mb-5">
+          <div className="text-overline" style={{ color: "var(--c-gray-300)" }}>Activity</div>
+          <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, var(--c-gray-100), transparent)" }} />
+        </div>
+
+        <FeedPage
+          currentUser={currentUser}
+          initialPosts={initialPosts}
+          myTaskCount={myTaskCount}
+          pinnedPosts={pinnedPosts}
+          cases={cases}
+          users={users}
+        />
       </div>
 
-      <FeedPage currentUser={currentUser} initialPosts={initialPosts} myTaskCount={myTaskCount} pinnedPosts={pinnedPosts} cases={cases} users={users} />
+      {/* Right sidebar */}
+      <RightSidebar
+        deadlines={deadlines}
+        team={team}
+        pendingReviews={pendingReviews}
+        activeCases={caseProgress}
+      />
     </div>
   )
 }

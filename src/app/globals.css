@@ -249,6 +249,73 @@ a, button, [role="button"] {
 }
 .animate-pulse-subtle { animation: pulse-subtle 2s ease-in-out infinite; }
 
+/* ── Dashboard redesign ── */
+
+.header-enter { animation: cardIn 500ms var(--ease-out-expo) both; }
+.action-items-enter { animation: cardIn 500ms var(--ease-out-expo) 200ms both; }
+
+/* Timeline spine */
+.feed-timeline {
+  position: relative;
+  padding-left: 28px;
+}
+.feed-timeline::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: linear-gradient(180deg, var(--c-gray-100) 0%, var(--c-gray-50) 100%);
+}
+
+/* Timeline date markers */
+.timeline-date {
+  position: relative;
+  padding: 12px 0 8px;
+}
+.timeline-date::before {
+  content: '';
+  position: absolute;
+  left: -21px;
+  top: 16px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c-white);
+  border: 2px solid var(--c-gray-200);
+  z-index: 1;
+}
+
+/* Timeline event dots by type */
+.timeline-event {
+  position: relative;
+}
+.timeline-event::before {
+  content: '';
+  position: absolute;
+  left: -23.5px;
+  top: 20px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c-gray-200);
+  z-index: 1;
+}
+.timeline-event.ev-sys::before { background: #10B981; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+.timeline-event.ev-file::before { background: #8B5CF6; box-shadow: 0 0 0 3px rgba(139,92,246,0.12); }
+.timeline-event.ev-note::before { background: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+.timeline-event.ev-task::before { background: #D97B1E; box-shadow: 0 0 0 3px rgba(217,123,30,0.12); }
+
+/* Feed card slide-in */
+@keyframes feedSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.feed-card-enter {
+  animation: feedSlideIn 400ms var(--ease-out-expo) both;
+}
+
 @keyframes progress-indeterminate {
   0% { transform: translateX(-100%); } 100% { transform: translateX(350%); }
 }

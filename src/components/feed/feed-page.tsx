@@ -275,34 +275,34 @@ function DayGroupedFeed({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="feed-timeline space-y-1">
       {dayGroups.map(group => {
         const isCollapsed = collapsed.has(group.key)
         return (
           <div key={group.key}>
-            {/* Day header */}
+            {/* Day header with timeline dot */}
             <button
               onClick={() => toggle(group.key)}
-              className="flex items-center gap-2 w-full py-2 px-1 group cursor-pointer"
+              className="timeline-date flex items-center gap-2 w-full py-2 px-1 group cursor-pointer"
             >
               {isCollapsed ? (
                 <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--c-gray-300)' }} />
               ) : (
                 <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--c-gray-300)' }} />
               )}
-              <span className="text-sm font-medium" style={{ color: 'var(--c-gray-700)' }}>
+              <span className="text-[13px] font-semibold" style={{ color: 'var(--c-gray-700)' }}>
                 {group.label}
               </span>
               <span
-                className="text-xs px-2 py-0.5 rounded-full font-mono"
-                style={{ background: 'var(--c-gray-50)', color: 'var(--c-gray-500)' }}
+                className="text-[10px] px-2 py-0.5 rounded-full font-mono"
+                style={{ background: 'var(--c-gray-50)', color: 'var(--c-gray-400)' }}
               >
                 {group.posts.length}
               </span>
               <div className="flex-1 h-px" style={{ background: 'var(--c-gray-100)' }} />
             </button>
 
-            {/* Posts — animate open/close */}
+            {/* Posts with timeline event dots */}
             <div
               style={{
                 maxHeight: isCollapsed ? 0 : `${group.posts.length * 600}px`,
@@ -310,15 +310,23 @@ function DayGroupedFeed({
                 transition: "max-height 350ms cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              {group.posts.map((post: any) => (
-                <FeedCard
-                  key={post.id}
-                  post={post}
-                  currentUser={currentUser}
-                  onRefresh={onRefresh}
-                  onCaseFilter={onCaseFilter}
-                />
-              ))}
+              {group.posts.map((post: any, i: number) => {
+                // Determine event type class for timeline dot color
+                const evClass = post.postType === "system_event" ? "ev-sys"
+                  : post.postType === "file_upload" ? "ev-file"
+                  : post.postType === "task" || post.postType === "task_created" ? "ev-task"
+                  : "ev-note"
+                return (
+                  <div key={post.id} className={`timeline-event ${evClass} feed-card-enter`} style={{ animationDelay: `${i * 50}ms` }}>
+                    <FeedCard
+                      post={post}
+                      currentUser={currentUser}
+                      onRefresh={onRefresh}
+                      onCaseFilter={onCaseFilter}
+                    />
+                  </div>
+                )
+              })}
             </div>
           </div>
         )
