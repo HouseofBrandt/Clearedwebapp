@@ -19,8 +19,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Tokenize the output before sending to Claude (PII protection)
+    // Tokenize both the output and the instruction before sending to Claude (PII protection)
     const { tokenizedText, tokenMap } = tokenizeText(currentOutput, [])
+    const { tokenizedText: tokenizedInstruction, tokenMap: instrTokenMap } = tokenizeText(instruction, [])
+    // Merge instruction tokens so detokenization catches everything
+    Object.assign(tokenMap, instrTokenMap)
 
     // Get case context for smarter edits (non-blocking — falls back gracefully)
     let caseCtx = ""
@@ -53,7 +56,7 @@ Apply the change precisely — modify only what was requested. Preserve everythi
 Do not add preamble, commentary, or explanation. Return only the updated document.`,
       messages: [{
         role: "user",
-        content: `CURRENT DOCUMENT:\n${tokenizedText}\n\nPRACTITIONER INSTRUCTION:\n${instruction}\n\nReturn the complete updated document.`,
+        content: `CURRENT DOCUMENT:\n${tokenizedText}\n\nPRACTITIONER INSTRUCTION:\n${tokenizedInstruction}\n\nReturn the complete updated document.`,
       }],
     })
 

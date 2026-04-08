@@ -28,16 +28,11 @@ export async function GET(
   }
 
   try {
-    // Use raw SQL since outcome fields may not be in Prisma client yet
-    const rows = await prisma.$queryRaw`
-      SELECT "outcomeType", "outcomeAmount", "outcomeDate", "outcomeNotes"
-      FROM "case_intelligence"
-      WHERE "caseId" = ${params.caseId}
-      LIMIT 1
-    `.catch(() => [])
-
-    const row = (rows as any[])?.[0] || null
-    return NextResponse.json({ outcome: row })
+    const intelligence = await prisma.caseIntelligence.findUnique({
+      where: { caseId: params.caseId },
+      select: { outcomeType: true, outcomeAmount: true, outcomeDate: true, outcomeNotes: true },
+    })
+    return NextResponse.json({ outcome: intelligence || null })
   } catch {
     return NextResponse.json({ outcome: null })
   }
@@ -67,49 +62,23 @@ export async function PATCH(
     const { outcomeType, outcomeAmount, outcomeDate, outcomeNotes } = parsed.data
     const parsedDate = outcomeDate ? new Date(outcomeDate) : null
 
-    // Ensure columns exist (idempotent migration)
-    await prisma.$executeRaw`
-      ALTER TABLE "case_intelligence" ADD COLUMN IF NOT EXISTS "outcomeType" TEXT
-    `.catch(() => {})
-    await prisma.$executeRaw`
-      ALTER TABLE "case_intelligence" ADD COLUMN IF NOT EXISTS "outcomeAmount" DECIMAL(65,30)
-    `.catch(() => {})
-    await prisma.$executeRaw`
-      ALTER TABLE "case_intelligence" ADD COLUMN IF NOT EXISTS "outcomeDate" TIMESTAMP(3)
-    `.catch(() => {})
-    await prisma.$executeRaw`
-      ALTER TABLE "case_intelligence" ADD COLUMN IF NOT EXISTS "outcomeNotes" TEXT
-    `.catch(() => {})
-
     // Upsert the case intelligence record with outcome data
-    const existing = await prisma.caseIntelligence.findUnique({
+    await prisma.caseIntelligence.upsert({
       where: { caseId: params.caseId },
-    }).catch(() => null)
-
-    if (existing) {
-      await prisma.$executeRaw`
-        UPDATE "case_intelligence"
-        SET "outcomeType" = ${outcomeType},
-            "outcomeAmount" = ${outcomeAmount ?? null}::decimal,
-            "outcomeDate" = ${parsedDate},
-            "outcomeNotes" = ${outcomeNotes ?? null},
-            "updatedAt" = NOW()
-        WHERE "caseId" = ${params.caseId}
-      `
-    } else {
-      // Create the intelligence record first, then update outcome via raw SQL
-      await prisma.caseIntelligence.create({
-        data: { caseId: params.caseId },
-      })
-      await prisma.$executeRaw`
-        UPDATE "case_intelligence"
-        SET "outcomeType" = ${outcomeType},
-            "outcomeAmount" = ${outcomeAmount ?? null}::decimal,
-            "outcomeDate" = ${parsedDate},
-            "outcomeNotes" = ${outcomeNotes ?? null}
-        WHERE "caseId" = ${params.caseId}
-      `
-    }
+      update: {
+        outcomeType,
+        outcomeAmount: outcomeAmount ?? null,
+        outcomeDate: parsedDate,
+        outcomeNotes: outcomeNotes ?? null,
+      },
+      create: {
+        caseId: params.caseId,
+        outcomeType,
+        outcomeAmount: outcomeAmount ?? null,
+        outcomeDate: parsedDate,
+        outcomeNotes: outcomeNotes ?? null,
+      },
+    })
 
     // Update KnowledgeDocuments linked to this case's approved AI tasks
     const outcomeTag = buildOutcomeTag(params.caseId, outcomeType)

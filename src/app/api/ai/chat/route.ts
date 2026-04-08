@@ -154,6 +154,10 @@ When the user asks about a bug or error:
 4. Offer to file a bug report with the diagnostic data attached`
   }
 
+  // Tokenization state — hoisted so Full Fetch can contribute tokens before message tokenization
+  const knownNames: string[] = caseContext?.clientName ? [caseContext.clientName] : []
+  const sessionTokenMap: Record<string, string> = {}
+
   // Full Fetch Mode: detect case references and load live data
   if (fullFetch) {
     let fullFetchCaseId = caseContext?.caseId || null
@@ -173,11 +177,17 @@ When the user asks about a bug or error:
 
     if (fullFetchCaseId) {
       try {
-        const fullFetchData = await loadFullFetchCaseData(fullFetchCaseId)
+        const { data: fullFetchData, knownNames: fetchNames } = await loadFullFetchCaseData(fullFetchCaseId)
         if (fullFetchData) {
-          systemPrompt += fullFetchData
+          // Tokenize the Full Fetch data before injecting into system prompt — PII protection
+          const { tokenizedText: tokenizedFetchData, tokenMap: fetchTokenMap } = tokenizeText(
+            fullFetchData,
+            fetchNames,
+          )
+          Object.assign(sessionTokenMap, fetchTokenMap)
+          systemPrompt += tokenizedFetchData
           contextAvailable = true
-          console.log(`[Full Fetch] Successfully loaded case data (${fullFetchData.length} chars)`)
+          console.log(`[Full Fetch] Successfully loaded case data (${fullFetchData.length} chars, tokenized)`)
         } else {
           console.warn("[Full Fetch] loadFullFetchCaseData returned null")
         }
@@ -217,10 +227,6 @@ RESPONSE RULES:
   // a text-only streaming handler. Non-streaming lets the SDK handle the full
   // tool execution loop, then we extract and forward the final text.
   try {
-    // Tokenize user messages to prevent PII from reaching the Anthropic API
-    const knownNames: string[] = caseContext?.clientName ? [caseContext.clientName] : []
-    const sessionTokenMap: Record<string, string> = {}
-
     const apiMessages = messages.map((m: { role: string; content: string }, idx: number) => {
       if (m.role === "user") {
         const { tokenizedText, tokenMap: msgTokenMap } = tokenizeText(m.content, knownNames)
@@ -419,7 +425,7 @@ async function findCaseByName(
  * Load comprehensive case data for Full Fetch mode.
  * Returns a formatted string to inject into the system prompt.
  */
-async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
+async function loadFullFetchCaseData(caseId: string): Promise<{ data: string | null; knownNames: string[] }> {
   // Load case base data first (minimal query)
   const caseData = await prisma.case.findUnique({
     where: { id: caseId },
@@ -428,7 +434,7 @@ async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
     },
   })
 
-  if (!caseData) return null
+  if (!caseData) return { data: null, knownNames: [] }
 
   let clientName: string
   try {
@@ -436,6 +442,9 @@ async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
   } catch {
     clientName = caseData.tabsNumber || "Unknown Client"
   }
+
+  // Collect names for tokenization by the caller
+  const collectedNames: string[] = [clientName]
 
   let ctx = `\n\n=== FULL FETCH: LIVE CASE DATA FOR ${clientName} (${caseData.tabsNumber}) ===\n`
   ctx += `Case Type: ${caseData.caseType} | Status: ${caseData.status}`
@@ -576,5 +585,5 @@ async function loadFullFetchCaseData(caseId: string): Promise<string | null> {
 
   ctx += `\n=== END FULL FETCH DATA ===\n`
 
-  return ctx
+  return { data: ctx, knownNames: collectedNames }
 }

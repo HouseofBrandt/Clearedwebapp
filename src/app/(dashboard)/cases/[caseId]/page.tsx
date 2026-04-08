@@ -57,6 +57,13 @@ export default async function CaseDetailPage({
       where: { id: { in: zombieIds } },
       data: { status: "REJECTED" },
     })
+    // Log zombie cleanup for compliance audit trail
+    logAudit({
+      userId: (session.user as any).id,
+      action: "ZOMBIE_TASK_CLEANUP",
+      caseId: params.caseId,
+      metadata: { zombieTaskIds: zombieIds, reason: "PROCESSING for >10 minutes" },
+    }).catch(() => {})
     caseData = await prisma.case.findUnique({
       where: { id: params.caseId },
       include: caseInclude,

@@ -16,7 +16,7 @@ export function ErrorFallback({ error, reset }: { error: Error & { digest?: stri
       </div>
       <button
         onClick={reset}
-        className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-900 transition-colors"
+        className="rounded-lg bg-c-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-c-gray-700 transition-colors"
       >
         Try again
       </button>

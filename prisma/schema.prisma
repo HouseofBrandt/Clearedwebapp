@@ -419,6 +419,7 @@ model Document {
   uploadedBy       User             @relation(fields: [uploadedById], references: [id])
   uploadedAt       DateTime         @default(now())
 
+  @@index([caseId])
   @@map("documents")
 }
 
@@ -453,6 +454,8 @@ model AITask {
   banjoStepNumber   Int?
   banjoStepLabel    String?
 
+  @@index([caseId])
+  @@index([status])
   @@map("ai_tasks")
 }
 
@@ -469,6 +472,7 @@ model ReviewAction {
   reviewCompletedAt DateTime?
   flagsAcknowledged Boolean          @default(false)
 
+  @@index([aiTaskId])
   @@map("review_actions")
 }
 
@@ -484,6 +488,8 @@ model AuditLog {
   metadata       Json?
   timestamp      DateTime @default(now())
 
+  @@index([caseId])
+  @@index([timestamp])
   @@map("audit_logs")
 }
 
@@ -501,6 +507,7 @@ model LiabilityPeriod {
   csedDate           DateTime?
   status             String? // "assessed", "paid", etc.
 
+  @@index([caseId])
   @@map("liability_periods")
 }
 

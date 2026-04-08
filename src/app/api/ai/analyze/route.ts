@@ -18,6 +18,7 @@ import { trackError } from "@/lib/error-tracking"
 import { getAppealsContext } from "@/lib/knowledge/appeals-context"
 import { canAccessCase } from "@/lib/auth/case-access"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
+import { getWorkProductPromptBlock } from "@/lib/work-product/prompt-merger"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -493,6 +494,14 @@ export async function POST(request: NextRequest) {
             systemPrompt += "\n\n" + formatContextForPrompt(packet)
           }
         } catch { /* non-fatal */ }
+
+        // Inject per-user work product preferences (tone, structure, length, examples)
+        try {
+          const workProductBlock = await getWorkProductPromptBlock(auth.userId, taskType)
+          if (workProductBlock) {
+            systemPrompt += "\n" + workProductBlock
+          }
+        } catch { /* non-fatal — analysis works without preferences */ }
 
         // Build user message
         let userMessage = ""
