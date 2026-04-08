@@ -27,6 +27,13 @@ interface DataQuery {
   infrastructure?: boolean
   codebase?: boolean
   banjoData?: boolean
+  // Jarvis Mode — system observability
+  pippenStatus?: boolean
+  aiTaskMetrics?: boolean
+  cronHealth?: boolean
+  feedActivity?: boolean
+  formBuilderStatus?: boolean
+  systemDiagnostics?: boolean
 }
 
 function decryptName(val: string | null | undefined): string {
@@ -118,6 +125,32 @@ export function detectDataNeeds(message: string): DataQuery {
 
   if (m.match(/error|bug|fail|broke|crash|not working|issue|problem/)) {
     query.errors = true
+  }
+
+  // ── Jarvis Mode: system observability ──
+  if (m.match(/pippen|daily news|news feed|daily digest|fetch.*content|pipeline.*status/)) {
+    query.pippenStatus = true
+  }
+
+  if (m.match(/ai task|generation|processing.*task|ai.*status|ai.*metrics|how many.*task|task.*pipeline|model.*usage/)) {
+    query.aiTaskMetrics = true
+  }
+
+  if (m.match(/cron|scheduled|job.*status|automation.*status|what.*ran|last.*run|health.*check/)) {
+    query.cronHealth = true
+  }
+
+  if (m.match(/feed|activity|what.*happening|recent.*post|team.*activity|who.*posted|what.*everyone/)) {
+    query.feedActivity = true
+  }
+
+  if (m.match(/form|form builder|433|911|12153|oic form/)) {
+    query.formBuilderStatus = true
+  }
+
+  // System diagnostics — when user asks "why didn't X happen" or "diagnose"
+  if (m.match(/why.*didn|diagnos|trace|what went wrong|investigate|root cause|troubleshoot|system.*status|platform.*health|everything.*ok|status report|full.*check/)) {
+    query.systemDiagnostics = true
   }
 
   return query
@@ -1083,6 +1116,50 @@ export async function fetchPlatformData(
     }
 
     sections.push(text)
+  }
+
+  // ── Jarvis Mode: system observability ──
+
+  if (query.pippenStatus) {
+    try {
+      const { getPippenStatus } = await import("@/lib/ai/system-observability")
+      sections.push(await getPippenStatus())
+    } catch {}
+  }
+
+  if (query.aiTaskMetrics) {
+    try {
+      const { getAITaskMetrics } = await import("@/lib/ai/system-observability")
+      sections.push(await getAITaskMetrics())
+    } catch {}
+  }
+
+  if (query.cronHealth) {
+    try {
+      const { getCronHealth } = await import("@/lib/ai/system-observability")
+      sections.push(await getCronHealth())
+    } catch {}
+  }
+
+  if (query.feedActivity) {
+    try {
+      const { getRecentActivity } = await import("@/lib/ai/system-observability")
+      sections.push(await getRecentActivity())
+    } catch {}
+  }
+
+  if (query.formBuilderStatus) {
+    try {
+      const { getFormBuilderStatus } = await import("@/lib/ai/system-observability")
+      sections.push(await getFormBuilderStatus())
+    } catch {}
+  }
+
+  if (query.systemDiagnostics) {
+    try {
+      const { tracePipelineIssue } = await import("@/lib/ai/system-observability")
+      sections.push(await tracePipelineIssue(resolvedUserMessage))
+    } catch {}
   }
 
   if (sections.length === 0) return ""
