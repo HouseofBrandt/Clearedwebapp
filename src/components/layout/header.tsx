@@ -4,6 +4,7 @@ import { useState } from "react"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { Menu, X, LogOut, ChevronRight } from "lucide-react"
+import { NotificationsCenter } from "@/components/layout/notifications-center"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -100,6 +101,11 @@ export function Header({
           </h1>
         </div>
 
+        <div className="flex items-center gap-1.5">
+        <NotificationsCenter initialUnreadCount={
+          (pendingReviewCount || 0) + (overdueDeadlineCount || 0) + (unreadMessageCount || 0)
+        } />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -143,6 +149,7 @@ export function Header({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </header>
 
       {mobileMenuOpen && (
