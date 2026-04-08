@@ -13,7 +13,7 @@
 import { BaseHarvester, type FetchedItem, type HarvesterConfig } from './base-harvester'
 import type { AuthorityTier } from '../types'
 
-const IRB_INDEX_URL = 'https://www.irs.gov/irbs'
+const IRB_INDEX_URL = 'https://www.irs.gov/irb'
 const IRB_BULLETIN_BASE = 'https://www.irs.gov/irb'
 
 /** Regex to match bulletin links like "2025-01_IRB" or "2024-52_IRB" */

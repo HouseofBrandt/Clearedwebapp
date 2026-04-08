@@ -14,7 +14,11 @@
 import { BaseHarvester, type FetchedItem, type HarvesterConfig } from './base-harvester'
 import { TAX_COURT_WEIGHTS } from '../constants'
 
-const TAX_COURT_URL = 'https://www.ustaxcourt.gov/public-case-information/opinions'
+// The old URL (/public-case-information/opinions) 404s. The current opinions page
+// (/find-an-opinion/) just redirects to DAWSON (a JS SPA we can't scrape).
+// Use the Tax Court's today-opinions page which lists recent opinions in static HTML.
+const TAX_COURT_URL = 'https://www.ustaxcourt.gov/todays-opinions'
+const TAX_COURT_SEARCH_URL = 'https://www.ustaxcourt.gov/find-an-opinion/'
 
 /**
  * Opinion types as they appear on the Tax Court website.
@@ -134,13 +138,56 @@ export class TaxCourtHarvester extends BaseHarvester {
   protected async fetchItems(since: Date | null): Promise<FetchedItem[]> {
     const items: FetchedItem[] = []
 
-    // Fetch the main opinions listing page
-    const response = await this.rateLimitedFetch(TAX_COURT_URL, {
-      headers: { Accept: 'text/html' },
-    })
-    const html = await response.text()
+    // Try the today's opinions page first (static HTML)
+    let html = ''
+    try {
+      const response = await this.rateLimitedFetch(TAX_COURT_URL, {
+        headers: { Accept: 'text/html' },
+      })
+      if (response.ok) {
+        html = await response.text()
+      } else {
+        console.warn(`[TaxCourtHarvester] Today's opinions returned ${response.status}, trying alt URL`)
+        // Fallback: try the search page
+        const altResponse = await this.rateLimitedFetch(TAX_COURT_SEARCH_URL, {
+          headers: { Accept: 'text/html' },
+        })
+        if (altResponse.ok) {
+          html = await altResponse.text()
+        }
+      }
+    } catch (e) {
+      console.error('[TaxCourtHarvester] Both URLs failed:', e instanceof Error ? e.message : e)
+      return items
+    }
+
+    if (!html) return items
 
     const opinions = parseOpinionListings(html)
+    console.log(`[TaxCourtHarvester] Parsed ${opinions.length} opinion(s) from HTML`)
+
+    // If HTML parsing found nothing, try extracting any PDF links as a fallback
+    if (opinions.length === 0) {
+      const pdfLinks = html.match(/href="([^"]*\.pdf)"/gi) || []
+      console.log(`[TaxCourtHarvester] No table rows found. Found ${pdfLinks.length} PDF link(s) as fallback.`)
+      for (const link of pdfLinks.slice(0, 10)) {
+        const href = link.match(/href="([^"]*\.pdf)"/i)?.[1]
+        if (!href) continue
+        const fullUrl = href.startsWith('http') ? href : `https://www.ustaxcourt.gov${href}`
+        const filename = href.split('/').pop()?.replace('.pdf', '') || 'Unknown Opinion'
+        items.push({
+          sourceUrl: fullUrl,
+          title: filename.replace(/-/g, ' '),
+          rawContent: `Tax Court opinion: ${filename}`,
+          contentType: 'application/pdf',
+          publicationDate: new Date(),
+          authorityTier: 'A5',
+          jurisdiction: 'federal',
+          metadata: { pdfUrl: fullUrl, source: 'pdf_link_fallback' },
+        })
+      }
+      return items
+    }
 
     for (const opinion of opinions) {
       try {
