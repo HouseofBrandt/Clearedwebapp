@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Type check
+        run: npx tsc --noEmit
+        continue-on-error: true  # Report but don't block until existing errors are cleaned up
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true  # Report but don't block until existing warnings are cleaned up
+
+      - name: Build
+        run: npx next build
+        env:
+          # Minimal env vars needed for build (no real secrets)
+          DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+          NEXTAUTH_SECRET: "ci-build-secret-not-for-production"
+          NEXTAUTH_URL: "http://localhost:3000"
+          ENCRYPTION_KEY: "ci-build-key-32-chars-not-for-prod!"
