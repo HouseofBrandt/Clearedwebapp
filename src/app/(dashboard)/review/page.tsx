@@ -11,47 +11,54 @@ export default async function ReviewPage() {
   const session = await requireAuth()
   const accessFilter = await caseAccessFilter((session.user as any).id)
 
-  const [pendingTasks, allPractitioners] = await Promise.all([
-    prisma.aITask.findMany({
-      where: { status: "READY_FOR_REVIEW", case: accessFilter },
-      select: {
-        id: true,
-        taskType: true,
-        createdAt: true,
-        createdById: true,
-        verifyFlagCount: true,
-        judgmentFlagCount: true,
-        banjoAssignmentId: true,
-        banjoStepNumber: true,
-        banjoStepLabel: true,
-        case: {
-          select: {
-            id: true,
-            tabsNumber: true,
-            clientName: true,
-            caseType: true,
-            assignedPractitionerId: true,
+  let pendingTasks: any[] = []
+  let allPractitioners: any[] = []
+  try {
+    ;[pendingTasks, allPractitioners] = await Promise.all([
+      prisma.aITask.findMany({
+        where: { status: "READY_FOR_REVIEW", case: accessFilter },
+        select: {
+          id: true,
+          taskType: true,
+          createdAt: true,
+          createdById: true,
+          verifyFlagCount: true,
+          judgmentFlagCount: true,
+          banjoAssignmentId: true,
+          banjoStepNumber: true,
+          banjoStepLabel: true,
+          case: {
+            select: {
+              id: true,
+              tabsNumber: true,
+              clientName: true,
+              caseType: true,
+              assignedPractitionerId: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.user.findMany({
-      where: { role: { in: ["PRACTITIONER", "SENIOR", "ADMIN"] } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-  ])
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.user.findMany({
+        where: { role: { in: ["PRACTITIONER", "SENIOR", "ADMIN"] } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+    ])
+  } catch (err) {
+    console.error("[Review] Failed to load data:", err)
+  }
 
   // Serialize dates and decrypt client names for client component
-  const serializedTasks = pendingTasks.map((t) => ({
-    ...t,
-    createdAt: t.createdAt.toISOString(),
-    case: {
-      ...t.case,
-      clientName: decryptField(t.case.clientName),
-    },
-  }))
+  const serializedTasks = pendingTasks.map((t) => {
+    let clientName = t.case?.tabsNumber || "Unknown"
+    try { clientName = decryptField(t.case.clientName) } catch {}
+    return {
+      ...t,
+      createdAt: t.createdAt.toISOString(),
+      case: { ...t.case, clientName },
+    }
+  })
 
   return (
     <div className="page-enter space-y-6">

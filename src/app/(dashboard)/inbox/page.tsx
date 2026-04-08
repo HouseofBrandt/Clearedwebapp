@@ -6,32 +6,40 @@ export default async function InboxPage() {
   const session = await requireAuth()
   const userId = session.user.id
 
-  const [messages, unreadCount, users] = await Promise.all([
-    prisma.message.findMany({
-      where: { recipientId: userId, archived: false },
-      include: {
-        sender: { select: { id: true, name: true } },
-        case: { select: { id: true, tabsNumber: true } },
-        implementedBy: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
-    prisma.message.count({
-      where: { recipientId: userId, read: false, archived: false },
-    }),
-    prisma.user.findMany({
-      select: { id: true, name: true, role: true },
-      orderBy: { name: "asc" },
-    }),
-  ])
+  let messages: any[] = []
+  let unreadCount = 0
+  let users: any[] = []
+  let cases: any[] = []
 
-  // Fetch cases for compose dialog
-  const cases = await prisma.case.findMany({
-    select: { id: true, tabsNumber: true, clientName: true },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  })
+  try {
+    ;[messages, unreadCount, users] = await Promise.all([
+      prisma.message.findMany({
+        where: { recipientId: userId, archived: false },
+        include: {
+          sender: { select: { id: true, name: true } },
+          case: { select: { id: true, tabsNumber: true } },
+          implementedBy: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      prisma.message.count({
+        where: { recipientId: userId, read: false, archived: false },
+      }),
+      prisma.user.findMany({
+        select: { id: true, name: true, role: true },
+        orderBy: { name: "asc" },
+      }),
+    ])
+
+    cases = await prisma.case.findMany({
+      select: { id: true, tabsNumber: true, clientName: true },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    })
+  } catch (err) {
+    console.error("[Inbox] Failed to load data:", err)
+  }
 
   return (
     <div className="page-enter">
