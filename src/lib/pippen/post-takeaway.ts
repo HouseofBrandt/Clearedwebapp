@@ -27,7 +27,7 @@ export async function postDailyTakeaway(
     const existing = await prisma.feedPost.findFirst({
       where: {
         content: { contains: `Pippen's Daily Takeaway` },
-        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        createdAt: { gte: new Date(new Date().setUTCHours(0, 0, 0, 0)) },
       },
     }).catch(() => null)
 

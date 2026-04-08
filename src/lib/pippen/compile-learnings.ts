@@ -79,9 +79,9 @@ function buildFallbackReport(
 export async function compileDailyLearnings(date?: Date): Promise<CompiledReport> {
   const reportDate = date ?? new Date()
   const startOfDay = new Date(reportDate)
-  startOfDay.setHours(0, 0, 0, 0)
+  startOfDay.setUTCHours(0, 0, 0, 0)
   const endOfDay = new Date(reportDate)
-  endOfDay.setHours(23, 59, 59, 999)
+  endOfDay.setUTCHours(23, 59, 59, 999)
   const dateStr = startOfDay.toISOString().split("T")[0]
 
   // Query today's SourceArtifact records
