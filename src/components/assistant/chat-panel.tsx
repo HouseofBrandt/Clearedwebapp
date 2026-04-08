@@ -326,35 +326,30 @@ function MessageDraftCard({ draft, draftKey, onStatusChange }: { draft: MessageD
                 onClick={async (e) => {
                   e.stopPropagation()
                   try {
-                    // Dynamic import to avoid loading html2canvas unless needed
-                    const html2canvas = (await import("html2canvas")).default
+                    // Use html2canvas-pro (maintained fork with better rendering)
+                    const html2canvas = (await import("html2canvas-pro")).default
                     // Capture the main content area (exclude the chat panel itself)
                     const target = document.querySelector("main") || document.body
                     const canvas = await html2canvas(target as HTMLElement, {
-                      scale: 1,
+                      scale: 0.75, // Lower scale = smaller data URL, faster capture
                       useCORS: true,
                       logging: false,
                       windowWidth: target.scrollWidth,
-                      windowHeight: Math.min(target.scrollHeight, 4000),
+                      windowHeight: Math.min(target.scrollHeight, 3000),
+                      ignoreElements: (el) => {
+                        // Skip the chat panel itself and any fixed overlays
+                        return el.classList?.contains("chat-panel") || el.classList?.contains("junebug-panel") || false
+                      },
                     })
-                    setScreenshotData(canvas.toDataURL("image/png", 0.8))
-                  } catch {
-                    // Fallback: try to use native API
-                    try {
-                      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
-                      const track = stream.getVideoTracks()[0]
-                      const imageCapture = new (window as any).ImageCapture(track)
-                      const bitmap = await imageCapture.grabFrame()
-                      const canvas = document.createElement("canvas")
-                      canvas.width = bitmap.width
-                      canvas.height = bitmap.height
-                      const ctx = canvas.getContext("2d")
-                      ctx?.drawImage(bitmap, 0, 0)
-                      setScreenshotData(canvas.toDataURL("image/png", 0.8))
-                      track.stop()
-                    } catch {
-                      // Both methods failed
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.6) // JPEG is much smaller than PNG
+                    if (dataUrl && dataUrl.length > 100) {
+                      setScreenshotData(dataUrl)
+                    } else {
+                      console.warn("[Screenshot] Capture produced empty result")
                     }
+                  } catch (captureErr) {
+                    console.warn("[Screenshot] html2canvas failed:", captureErr)
+                    // No silent failure — don't try getDisplayMedia (requires user permission prompt, bad UX)
                   }
                 }}
                 className="block text-[10px] text-c-teal hover:underline mx-auto"
