@@ -39,15 +39,31 @@ RESEARCH STANDARDS:
 - If you find conflicting information, present both sides with citations
 - Be thorough but focused — the practitioners are experts who need precision, not explanations of basics
 
+CRITICAL — OUTPUT RULES:
+- Start IMMEDIATELY with the research memo. NO preamble. NO "I'll research this..." or "Let me search..." or "Let me compile..." — those are internal thoughts, not output.
+- Do NOT narrate your search process. The user sees your searches separately. Just produce the memo.
+- Write in a clear, professional but readable tone — not dry academic writing. Use short paragraphs, bold key terms, and plain English where possible.
+- Address the practitioner directly when relevant ("In your client's case..." or "The strongest argument here is...")
+
 OUTPUT FORMAT:
 Provide your findings as a structured research memo:
-1. SUMMARY (2-3 sentences of the key finding)
-2. CURRENT GUIDANCE (the authoritative answer with full citations)
-3. RECENT CHANGES (any updates in the last 12 months, if applicable)
-4. SOURCES (list of URLs and documents consulted)
-5. PRACTITIONER NOTES (any caveats, open questions, or areas of uncertainty)
 
-If the topic is ${request.scope === "narrow" ? "specific — answer it directly" : "broad — survey the landscape and identify key authorities"}.`
+## Summary
+2-3 sentences answering the question directly. Lead with the bottom line.
+
+## Current Guidance
+The authoritative answer with full citations. Use subsections (### headings) for distinct authorities.
+
+## Recent Changes
+Any updates in the last 12 months. If none, say so briefly.
+
+## Practitioner Notes
+Strategic considerations, caveats, open questions. This is where you add real value — not just what the law says, but what a practitioner should *do* about it.
+
+## Sources
+List of authorities and URLs consulted.
+
+If the topic is ${request.scope === "narrow" ? "specific — answer it directly and concisely" : "broad — survey the landscape and identify key authorities"}.`
 
   const userMessage = request.context
     ? `Research the following for a ${request.context} case:\n\n${request.topic}`
@@ -55,7 +71,7 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly"
 
   const response = await anthropic.messages.create({
     model: "claude-opus-4-6",
-    max_tokens: 4096,
+    max_tokens: 16384,
     system: systemPrompt,
     tools: [{ type: "web_search_20250305", name: "web_search" }],
     messages: [{ role: "user", content: userMessage }],
@@ -63,6 +79,9 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly"
 
   const textBlocks = response.content.filter((b: any) => b.type === "text")
   let fullText = textBlocks.map((b: any) => b.text).join("\n\n")
+
+  // Strip preamble — remove any "I'll research...", "Let me search..." lines before the actual memo
+  fullText = stripPreamble(fullText)
 
   const sources = extractSourcesFromResponse(response)
   const summary = extractSummaryFromText(fullText)
@@ -142,7 +161,46 @@ function extractSourcesFromResponse(response: any): Array<{ title: string; url: 
 }
 
 function extractSummaryFromText(text: string): string {
+  // Try ## Summary heading first (new format)
+  const h2Match = text.match(/##\s*Summary\s*\n+([\s\S]*?)(?:\n##|\n---)/i)
+  if (h2Match) return h2Match[1].trim().substring(0, 500)
+
+  // Fall back to numbered format
   const summaryMatch = text.match(/(?:SUMMARY|Summary)[:\s]*\n?([\s\S]*?)(?:\n\n|\n\d\.|\nCURRENT)/i)
   if (summaryMatch) return summaryMatch[1].trim().substring(0, 500)
   return text.substring(0, 300).trim()
+}
+
+/**
+ * Strip Claude's self-narration preamble from the output.
+ * Removes lines like "I'll research this...", "Let me search...",
+ * "I now have comprehensive research..." that appear before the actual memo.
+ */
+function stripPreamble(text: string): string {
+  const lines = text.split("\n")
+  let startIdx = 0
+
+  for (let i = 0; i < Math.min(lines.length, 15); i++) {
+    const line = lines[i].trim()
+    // Skip empty lines at the top
+    if (!line) { startIdx = i + 1; continue }
+    // Skip common preamble patterns
+    if (
+      line.match(/^I'll |^I will |^Let me |^I now have |^I've found |^Now let me |^Let's |^I need to |^First,? let me |^I should |^Here are |^Based on /i) ||
+      line.match(/^I('ll| will) (research|search|look|find|analyze|compile|investigate|examine)/i) ||
+      line.match(/^(Searching|Looking|Analyzing|Compiling|Researching)/i)
+    ) {
+      startIdx = i + 1
+      continue
+    }
+    // Found real content — stop stripping
+    break
+  }
+
+  // Also strip leading "---" separators after preamble
+  while (startIdx < lines.length && (lines[startIdx].trim() === "---" || lines[startIdx].trim() === "")) {
+    startIdx++
+  }
+
+  return lines.slice(startIdx).join("\n").trim()
 }
