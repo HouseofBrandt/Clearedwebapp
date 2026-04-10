@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { SystemEventCard } from "./system-event-card"
+import { PippenTakeawayCard } from "./pippen-takeaway-card"
 import { FormattedText } from "./formatted-text"
 import { TaskCard } from "./task-card"
 import { FeedReplyList, ReplyInput } from "./feed-reply"
@@ -183,6 +184,17 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
   // System events get compact rendering
   if (post.postType === "system_event") {
     return <SystemEventCard post={post} />
+  }
+
+  // Pippen's daily brief is a system-generated digest — route it to a
+  // dedicated card with proper markdown rendering and a quiet, compact
+  // layout instead of the full feed-post chrome. Match by postType
+  // (new posts) or by content prefix (legacy posts still in the DB).
+  const isPippenTakeaway =
+    post.postType === "pippen_digest" ||
+    (typeof post.content === "string" && post.content.includes("Pippen's Daily Takeaway"))
+  if (isPippenTakeaway) {
+    return <PippenTakeawayCard post={post} />
   }
 
   const isJunebug = post.authorType === "junebug"
