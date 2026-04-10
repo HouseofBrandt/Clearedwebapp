@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { caseAccessFilter } from "@/lib/auth/case-access"
-import { Sidebar } from "@/components/layout/sidebar"
+import { Rail } from "@/components/layout/rail"
 import { Header } from "@/components/layout/header"
 import { ChatPanel } from "@/components/assistant/chat-panel"
 import { IdleTimeout } from "@/components/layout/idle-timeout"
@@ -46,15 +46,25 @@ export default async function DashboardLayout({
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        <Sidebar user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} unreadMessageCount={unreadMessageCount} />
+        <Rail
+          user={session.user}
+          pendingReviewCount={pendingReviewCount}
+          overdueDeadlineCount={overdueDeadlineCount}
+          unreadMessageCount={unreadMessageCount}
+        />
         <div
           className="flex flex-1 flex-col overflow-hidden"
           style={{ background: "var(--c-snow)" }}
         >
-          <Header user={session.user} pendingReviewCount={pendingReviewCount} overdueDeadlineCount={overdueDeadlineCount} unreadMessageCount={unreadMessageCount} />
+          <Header
+            user={session.user}
+            pendingReviewCount={pendingReviewCount}
+            overdueDeadlineCount={overdueDeadlineCount}
+            unreadMessageCount={unreadMessageCount}
+          />
           <main
             className="flex-1 overflow-y-auto"
-            style={{ padding: "28px 32px 48px" }}
+            style={{ padding: "24px 40px 64px" }}
           >
             {children}
           </main>

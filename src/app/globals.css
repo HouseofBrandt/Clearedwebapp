@@ -757,3 +757,7 @@ a, button, [role="button"] {
 }
 .dash-rail-icon-active { color: var(--c-rail-icon-active); }
 .dash-rail-link:hover .dash-rail-icon { color: var(--c-rail-icon-active); }
+
+/* Hide webkit scrollbar on the rail nav so overflow doesn't add a gutter */
+.rail-nav::-webkit-scrollbar { display: none; width: 0; }
+.rail-nav { scrollbar-width: none; -ms-overflow-style: none; }
