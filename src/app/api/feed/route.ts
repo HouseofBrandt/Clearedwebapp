@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   const where: any = { archived: false }
   if (caseId) where.caseId = caseId
   if (authorId) where.authorId = authorId
-  if (postType === "post") where.postType = { in: ["post", "file_share", "junebug_insight"] }
+  if (postType === "post") where.postType = { in: ["post", "file_share", "junebug_insight", "pippen_digest"] }
   else if (postType === "task") where.postType = { in: ["task", "task_created", "task_completed"] }
   else if (postType === "my_tasks") {
     where.postType = { in: ["task", "task_created"] }

@@ -312,7 +312,7 @@ function DayGroupedFeed({
             >
               {group.posts.map((post: any, i: number) => {
                 // Determine event type class for timeline dot color
-                const evClass = post.postType === "system_event" ? "ev-sys"
+                const evClass = post.postType === "system_event" || post.postType === "pippen_digest" ? "ev-sys"
                   : post.postType === "file_upload" ? "ev-file"
                   : post.postType === "task" || post.postType === "task_created" ? "ev-task"
                   : "ev-note"

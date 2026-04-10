@@ -44,10 +44,15 @@ export async function postDailyTakeaway(
       `📋 [Full daily learnings report →](/pippen)`,
     ].join("\n")
 
+    // Mark as a distinct postType so the feed card router sends it to
+    // PippenTakeawayCard (compact layout + real markdown rendering) instead
+    // of the full user-post chrome. Also flag sourceType for future analytics.
     const post = await prisma.feedPost.create({
       data: {
         authorId,
-        postType: "post",
+        authorType: "system",
+        postType: "pippen_digest",
+        sourceType: "pippen",
         content,
       },
     })
