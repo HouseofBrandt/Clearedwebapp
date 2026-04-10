@@ -155,18 +155,46 @@ export function FeedComposer({
         }
       } else {
         const postType = attachments.length > 0 ? "file_share" : "post"
+        const trimmedContent = content.trim()
+        const postMentions = mentions.length > 0 ? mentions : undefined
         const res = await fetch("/api/feed", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             postType,
-            content: content.trim(),
+            content: trimmedContent,
             caseId: caseId || undefined,
-            mentions: mentions.length > 0 ? mentions : undefined,
+            mentions: postMentions,
             attachments: attachments.length > 0 ? attachments : undefined,
           }),
         })
         if (res.ok) {
+          const data = await res.json().catch(() => null)
+
+          // If the post tagged @Junebug, the server created a placeholder
+          // reply and returned its ID. We now fire a SEPARATE request to
+          // /api/feed/[postId]/junebug-complete to run the AI in its own
+          // lambda (which has maxDuration = 60). This is fire-and-forget
+          // from the client's perspective but synchronous server-side —
+          // the fresh lambda instance gets its full time budget and
+          // reliably finishes the Anthropic call.
+          if (data?.id && data?.junebugPlaceholderId) {
+            fetch(`/api/feed/${data.id}/junebug-complete`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                placeholderId: data.junebugPlaceholderId,
+                message: trimmedContent,
+                caseId: caseId || null,
+              }),
+            }).catch((err) => {
+              // Client-side failure is non-fatal — the stale placeholder
+              // sweeper on the feed GET will clear it if the server never
+              // receives this trigger.
+              console.error("[Junebug] trigger failed:", err)
+            })
+          }
+
           reset()
           onPostCreated?.()
         }
