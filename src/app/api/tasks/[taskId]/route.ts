@@ -39,8 +39,22 @@ export async function PATCH(
     if (parsed.data.description !== undefined) data.description = parsed.data.description
     if (parsed.data.assigneeId !== undefined) data.assigneeId = parsed.data.assigneeId
     if (parsed.data.dueDate !== undefined) data.dueDate = parsed.data.dueDate ? new Date(parsed.data.dueDate) : null
-    if (parsed.data.status !== undefined) data.status = parsed.data.status
     if (parsed.data.priority !== undefined) data.priority = parsed.data.priority
+    if (parsed.data.status !== undefined) {
+      data.status = parsed.data.status
+      // When marking complete, stamp completedAt + completedById so the
+      // task center can sort completed tasks chronologically and show who
+      // finished them.
+      if (parsed.data.status === "completed" && existing.status !== "completed") {
+        data.completedAt = new Date()
+        data.completedById = auth.userId
+      }
+      // Reopening a completed task clears the completion metadata.
+      if (parsed.data.status !== "completed" && existing.status === "completed") {
+        data.completedAt = null
+        data.completedById = null
+      }
+    }
 
     const task = await prisma.task.update({
       where: { id: params.taskId },
