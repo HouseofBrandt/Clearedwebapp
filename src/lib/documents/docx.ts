@@ -18,10 +18,14 @@ import {
   TableLayoutType,
   LevelFormat,
   PageBreak,
+  FootnoteReferenceRun,
   convertInchesToTwip,
 } from "docx"
 import { marked, type Token, type Tokens } from "marked"
 import { formatDate } from "@/lib/date-utils"
+
+// Any run type that can be a child of a Paragraph (text or a footnote ref).
+type ParagraphRun = TextRun | FootnoteReferenceRun
 
 // ── Brand constants ─────────────────────────────────────────
 const FONT = "Times New Roman"
@@ -42,8 +46,9 @@ const TABLE_BORDER = "B0C4D8"
 const H1_SIZE = 32  // 16pt
 const H2_SIZE = 26  // 13pt
 const H3_SIZE = 22  // 11pt
-const BODY_SIZE = 22  // 11pt
+const BODY_SIZE = 22  // 11pt (also 12pt max — body follows Bluebook "readable")
 const TABLE_SIZE = 20  // 10pt
+const FOOTNOTE_SIZE = 20  // 10pt — matches Bluebook footnote convention
 const SMALL_SIZE = 16  // 8pt
 const COVER_TITLE_SIZE = 56  // 28pt
 const COVER_SUBTITLE_SIZE = 28  // 14pt
@@ -59,6 +64,96 @@ const CELL_MARGINS = {
   right: 120,
 }
 
+// ── Footnote extraction (Bluebook legal citations) ─────────
+
+/**
+ * Result of pulling footnote definitions out of a markdown document.
+ *
+ * `body` is the markdown with:
+ *   - Footnote definitions (`[^label]: content` lines) removed
+ *   - Inline references (`[^label]`) rewritten to numeric IDs (`[^1]`, `[^2]`, ...)
+ *
+ * `footnotes` maps the numeric ID to the plain-text footnote content. The IDs
+ * are assigned in order of *first reference* in the body — matching Bluebook
+ * and Word's expected footnote ordering.
+ */
+export interface FootnoteExtraction {
+  body: string
+  footnotes: Map<number, string>
+}
+
+/**
+ * Extract markdown-style footnotes from research deliverables.
+ *
+ * Input format (standard markdown footnote extension):
+ *
+ *   The taxpayer qualifies for first-time abate.[^fta]
+ *
+ *   [^fta]: Rev. Proc. 2003-71, 2003-2 C.B. 517.
+ *
+ * Labels can be alphanumeric (`[^fta]`, `[^1]`, `[^smith2004]`) or numeric.
+ * The label only controls matching; output is always sequentially numbered
+ * starting at 1 so Word footnotes stay clean.
+ */
+export function extractFootnotes(markdown: string): FootnoteExtraction {
+  // 1. Grab every definition line: `[^label]: content` possibly continuing on
+  //    indented lines. We keep it simple: single-line definitions only, which
+  //    is what the AI prompt instructs. Multi-line footnotes are rare in tax
+  //    citations (they're legal authorities, not explanatory notes).
+  const defRegex = /^\[\^([^\]]+)\]:\s*(.+)$/gm
+  const rawDefs = new Map<string, string>()
+  let match: RegExpExecArray | null
+  while ((match = defRegex.exec(markdown)) !== null) {
+    const label = match[1].trim()
+    const content = match[2].trim()
+    if (!rawDefs.has(label)) {
+      rawDefs.set(label, content)
+    }
+  }
+
+  // If no footnotes, short-circuit.
+  if (rawDefs.size === 0) {
+    return { body: markdown, footnotes: new Map() }
+  }
+
+  // 2. Strip definition lines from the body.
+  let body = markdown.replace(defRegex, "").replace(/\n{3,}/g, "\n\n")
+
+  // 3. Assign sequential numeric IDs in order of first inline reference.
+  const refRegex = /\[\^([^\]]+)\]/g
+  const labelToId = new Map<string, number>()
+  let nextId = 1
+
+  // First pass: scan body in order and assign IDs.
+  const seen = new Set<string>()
+  let scanMatch: RegExpExecArray | null
+  refRegex.lastIndex = 0
+  while ((scanMatch = refRegex.exec(body)) !== null) {
+    const label = scanMatch[1].trim()
+    if (!rawDefs.has(label)) continue // orphan ref — leave as-is
+    if (!seen.has(label)) {
+      seen.add(label)
+      labelToId.set(label, nextId++)
+    }
+  }
+
+  // 4. Rewrite inline references to use numeric IDs.
+  body = body.replace(refRegex, (full, rawLabel) => {
+    const label = String(rawLabel).trim()
+    const id = labelToId.get(label)
+    return id != null ? `[^${id}]` : full
+  })
+
+  // 5. Build final footnotes map keyed by numeric ID.
+  const footnotes = new Map<number, string>()
+  for (const [label, id] of labelToId.entries()) {
+    const content = rawDefs.get(label)
+    if (content) footnotes.set(id, content)
+  }
+
+  return { body: body.trim(), footnotes }
+}
+
 // ── Inline text parsing ─────────────────────────────────────
 
 interface InlineSegment {
@@ -68,11 +163,14 @@ interface InlineSegment {
   code?: boolean
   highlight?: "yellow" | "orange" | "red"
   color?: string
+  footnoteId?: number // if set, this segment is a footnote reference marker
 }
 
 function parseInlineSegments(text: string): InlineSegment[] {
   const segments: InlineSegment[] = []
-  const pattern = /\[PRACTITIONER JUDGMENT\]|\[VERIFY\]|\[MISSING\]|\[[ x]\]|\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`/g
+  // Order matters: put the more specific patterns first. `[^N]` (footnote ref)
+  // is handled before the generic bracketed markup.
+  const pattern = /\[\^(\d+)\]|\[PRACTITIONER JUDGMENT\]|\[VERIFY\]|\[MISSING\]|\[[ x]\]|\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`/g
   let lastIndex = 0
   let match: RegExpExecArray | null
 
@@ -82,7 +180,13 @@ function parseInlineSegments(text: string): InlineSegment[] {
     }
 
     const full = match[0]
-    if (full === "[VERIFY]") {
+    // match[1] is the footnote numeric ID (if matched)
+    if (match[1] !== undefined) {
+      const id = parseInt(match[1], 10)
+      if (!Number.isNaN(id) && id > 0) {
+        segments.push({ text: "", footnoteId: id })
+      }
+    } else if (full === "[VERIFY]") {
       segments.push({ text: "[VERIFY]", bold: true, highlight: "yellow", color: "CC0000" })
     } else if (full === "[PRACTITIONER JUDGMENT]") {
       segments.push({ text: "[PRACTITIONER JUDGMENT]", bold: true, highlight: "orange", color: "E65100" })
@@ -92,12 +196,12 @@ function parseInlineSegments(text: string): InlineSegment[] {
       segments.push({ text: "\u2610 " })  // ☐
     } else if (full === "[x]") {
       segments.push({ text: "\u2611 " })  // ☑
-    } else if (match[1] !== undefined) {
-      segments.push({ text: match[1], bold: true })
     } else if (match[2] !== undefined) {
-      segments.push({ text: match[2], italics: true })
+      segments.push({ text: match[2], bold: true })
     } else if (match[3] !== undefined) {
-      segments.push({ text: match[3], code: true })
+      segments.push({ text: match[3], italics: true })
+    } else if (match[4] !== undefined) {
+      segments.push({ text: match[4], code: true })
     }
 
     lastIndex = match.index + full.length
@@ -110,9 +214,12 @@ function parseInlineSegments(text: string): InlineSegment[] {
   return segments.length > 0 ? segments : [{ text }]
 }
 
-function segmentsToRuns(segments: InlineSegment[], size?: number): TextRun[] {
+function segmentsToRuns(segments: InlineSegment[], size?: number): ParagraphRun[] {
   const sz = size ?? BODY_SIZE
-  return segments.map((seg) => {
+  return segments.map((seg): ParagraphRun => {
+    if (seg.footnoteId != null) {
+      return new FootnoteReferenceRun(seg.footnoteId)
+    }
     const shading = seg.highlight
       ? {
           type: ShadingType.CLEAR,
@@ -134,7 +241,7 @@ function segmentsToRuns(segments: InlineSegment[], size?: number): TextRun[] {
   })
 }
 
-function inlineRuns(text: string, size?: number): TextRun[] {
+function inlineRuns(text: string, size?: number): ParagraphRun[] {
   return segmentsToRuns(parseInlineSegments(text), size)
 }
 
@@ -574,12 +681,43 @@ function buildFooter(): Footer {
 
 // ── Shared document builder ─────────────────────────────────
 
+/**
+ * Convert our footnote map (numeric ID → plain-text citation) into the
+ * shape the docx library expects: `{ [id]: { children: Paragraph[] } }`.
+ *
+ * Each footnote paragraph uses Times New Roman 10pt to match professional
+ * legal/tax document conventions. Italics handling for case names is left to
+ * the AI: if a citation contains markdown `*...*`, we still go through the
+ * inline parser so it gets italicized in the footnote too.
+ */
+function buildFootnotesMap(
+  footnotes: Map<number, string>
+): { [id: number]: { children: Paragraph[] } } | undefined {
+  if (footnotes.size === 0) return undefined
+  const out: { [id: number]: { children: Paragraph[] } } = {}
+  for (const [id, content] of footnotes.entries()) {
+    out[id] = {
+      children: [
+        new Paragraph({
+          children: inlineRuns(content, FOOTNOTE_SIZE), // 10pt Times New Roman
+          spacing: { line: 240 },
+        }),
+      ],
+    }
+  }
+  return out
+}
+
 function buildDocument(
   coverBlock: DocChild[],
   bodyElements: DocChild[],
-  tabsNumber: string
+  tabsNumber: string,
+  footnotes?: Map<number, string>
 ): Document {
+  const footnotesMap = footnotes ? buildFootnotesMap(footnotes) : undefined
+
   return new Document({
+    ...(footnotesMap ? { footnotes: footnotesMap } : {}),
     styles: {
       default: {
         document: {
@@ -650,11 +788,15 @@ function buildDocument(
  * Generate a professional Word document from AI markdown output.
  *
  * Pipeline:
- * 1. Parse markdown to AST using `marked`
- * 2. Walk AST and render each node as proper Word elements
- * 3. Wrap in professional template with cover block, headers, footers
+ * 1. Extract Bluebook footnote definitions (if any) from the markdown
+ * 2. Parse markdown to AST using `marked`
+ * 3. Walk AST and render each node as proper Word elements
+ * 4. Build Word footnotes from the extracted definitions
+ * 5. Wrap in professional template with cover block, headers, footers
  *
- * All text uses Times New Roman (firm-wide standard).
+ * All text uses Times New Roman (firm-wide standard). Footnotes render at 10pt
+ * with real Word `FootnoteReferenceRun` entries — not fake superscript text —
+ * so practitioners can edit them in Word before filing.
  */
 export async function generateDocx(
   content: string,
@@ -662,10 +804,13 @@ export async function generateDocx(
   clientName: string,
   taskType: string
 ): Promise<Buffer> {
-  const tokens = marked.lexer(content)
+  // 1. Pull footnote definitions out and normalize IDs to sequential integers.
+  const { body, footnotes } = extractFootnotes(content)
+  // 2. Parse the footnote-stripped body as markdown.
+  const tokens = marked.lexer(body)
   const coverBlock = buildCoverBlock(tabsNumber, clientName, taskType)
   const bodyElements = renderTokens(tokens)
-  const doc = buildDocument(coverBlock, bodyElements, tabsNumber)
+  const doc = buildDocument(coverBlock, bodyElements, tabsNumber, footnotes)
   const buffer = await Packer.toBuffer(doc)
   return Buffer.from(buffer)
 }

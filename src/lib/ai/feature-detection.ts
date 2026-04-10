@@ -92,6 +92,18 @@ const KNOWN_IMPLEMENTATIONS: Array<{ patterns: string[]; evidence: string }> = [
   { patterns: ["action", "not appearing", "inbox"], evidence: "from-chat route warning when no admin users exist" },
   // Export attachments
   { patterns: ["export", "attachment", "screenshot"], evidence: "Export includes browser context + screenshot notes" },
+  // Form Builder PDF preview — empty blob / server response error
+  { patterns: ["pdf preview", "blob"], evidence: "PDF preview now validates blob.size and type before creating object URL; revokes old blob AFTER creating new one (prevents race condition); catches 'Unexpected server response' and falls back to blank form (pdf-preview.tsx)" },
+  { patterns: ["form builder", "pdf preview"], evidence: "PDF preview in Form Builder validates blob response, handles revocation correctly, and falls back to blank form on error (pdf-preview.tsx)" },
+  { patterns: ["pdf preview", "empty"], evidence: "PDF preview checks blob.size < 100 and blob.type === 'application/json' to catch empty/error responses (pdf-preview.tsx)" },
+  { patterns: ["pdf preview", "server response"], evidence: "PDF preview catches 'Unexpected server response' errors and falls back to blank form rendering (pdf-preview.tsx)" },
+  { patterns: ["form builder", "preview", "empty"], evidence: "PDF preview validates blob size and handles empty server responses (pdf-preview.tsx)" },
+  // Dashboard search bar — non-functional
+  { patterns: ["dashboard", "search bar"], evidence: "Dashboard header has a real <input> search bar with debounced query to /api/cases?search=, '/' keyboard shortcut, arrow-key navigation, and result linking (dashboard-header.tsx)" },
+  { patterns: ["search bar", "non-functional"], evidence: "Dashboard search bar is fully wired — real input, onChange handler, debounced search, keyboard + click handlers (dashboard-header.tsx)" },
+  { patterns: ["search bar", "not working"], evidence: "Dashboard search bar is fully functional: debounced API call, keyboard nav, click-to-navigate (dashboard-header.tsx)" },
+  { patterns: ["dashboard", "search", "functional"], evidence: "Dashboard search bar wired to /api/cases?search= with full keyboard and mouse interaction (dashboard-header.tsx)" },
+  { patterns: ["dashboard", "command palette"], evidence: "Dashboard search bar opens on click or '/' shortcut and acts as a command palette for cases (dashboard-header.tsx)" },
 ]
 
 /**
