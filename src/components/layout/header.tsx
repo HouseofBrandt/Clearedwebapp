@@ -2,36 +2,34 @@
 
 import { useState } from "react"
 import { usePathname } from "next/navigation"
-import { signOut } from "next-auth/react"
-import { Menu, X, LogOut, ChevronRight } from "lucide-react"
-import { NotificationsCenter } from "@/components/layout/notifications-center"
+import { Menu, X, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { getPageContext } from "@/components/layout/navigation"
 import { SidebarContent } from "@/components/layout/sidebar"
+
+/**
+ * Header — simplified for the dashboard redesign.
+ *
+ * What used to live here:
+ *   - Search bar          — moved to the Rail (search modal, Cmd+K)
+ *   - Notifications bell  — moved to the Rail
+ *   - User avatar menu    — moved to the Rail footer
+ *
+ * What's left:
+ *   - Mobile menu trigger (hamburger) — still needed for the drawer
+ *   - Breadcrumb + page title         — kept for context on every route
+ *
+ * On desktop the Rail holds all navigation and personal actions, so the
+ * header is a thin 48px strip that only shows "Cleared / {page name}".
+ * On mobile the hamburger opens the full SidebarContent drawer because
+ * the Rail is hidden below the `lg` breakpoint.
+ */
 
 interface HeaderProps {
   user: { name?: string | null; email?: string | null; role: string }
   pendingReviewCount?: number
   overdueDeadlineCount?: number
   unreadMessageCount?: number
-}
-
-function getInitials(name?: string | null) {
-  if (!name) return "U"
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("")
 }
 
 export function Header({
@@ -50,16 +48,16 @@ export function Header({
   return (
     <>
       <header
-        className="app-header sticky top-0 z-30"
+        className="sticky top-0 z-30"
         style={{
-          height: "56px",
+          height: 48,
           display: "flex",
           alignItems: "center",
           padding: "0 24px",
-          background: "rgba(250,251,252,0.78)",
+          background: "rgba(250,251,252,0.85)",
           backdropFilter: "blur(20px) saturate(1.4)",
           WebkitBackdropFilter: "blur(20px) saturate(1.4)",
-          borderBottom: "1px solid var(--c-gray-100)",
+          borderBottom: "0.5px solid var(--border-tertiary)",
         }}
       >
         <Button
@@ -76,79 +74,36 @@ export function Header({
           {showBreadcrumb && (
             <>
               <span
-                className="text-[13px] hidden sm:inline"
-                style={{ color: "var(--c-gray-300)", fontWeight: 400 }}
+                className="hidden sm:inline"
+                style={{
+                  fontFamily: "var(--font-dm)",
+                  fontSize: 11,
+                  fontWeight: 400,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.12em",
+                  color: "var(--c-gray-300)",
+                }}
               >
-                {segments[0].charAt(0).toUpperCase() + segments[0].slice(1)}
+                {segments[0]}
               </span>
               <ChevronRight
                 className="h-3 w-3 hidden sm:inline"
-                style={{ color: "var(--c-gray-300)" }}
+                style={{ color: "var(--c-gray-200)" }}
               />
             </>
           )}
           <h1
             className="truncate"
             style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "15px",
-              fontWeight: 600,
-              color: "var(--c-gray-900)",
-              letterSpacing: "-0.01em",
+              fontFamily: "var(--font-dm)",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "var(--c-gray-800)",
+              letterSpacing: "-0.005em",
             }}
           >
             {page.name}
           </h1>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-        <NotificationsCenter initialUnreadCount={
-          (pendingReviewCount || 0) + (overdueDeadlineCount || 0) + (unreadMessageCount || 0)
-        } />
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-sm transition-all duration-150"
-              style={{ background: "transparent" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--c-gray-50)" }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-            >
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-[8px] text-[11px]"
-                style={{
-                  background: "linear-gradient(135deg, var(--c-gray-100), var(--c-gray-50))",
-                  border: "1px solid var(--c-gray-200)",
-                  fontWeight: 600,
-                  color: "var(--c-gray-500)",
-                }}
-              >
-                {getInitials(user.name)}
-              </div>
-              <span
-                className="hidden text-[13px] sm:inline"
-                style={{ fontWeight: 500, color: "var(--c-gray-700)" }}
-              >
-                {user.name}
-              </span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56" style={{ borderRadius: "12px" }}>
-            <DropdownMenuLabel className="font-normal">
-              <p className="text-sm font-medium">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-              {user.role}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/login" })}>
-              <LogOut className="mr-2 h-3.5 w-3.5" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
         </div>
       </header>
 
@@ -166,7 +121,7 @@ export function Header({
             <div
               className="flex items-center justify-between px-4 py-3"
               style={{
-                background: "var(--c-navy-950)",
+                background: "var(--c-rail-bg)",
                 borderBottom: "1px solid rgba(255,255,255,0.06)",
               }}
             >
@@ -174,7 +129,7 @@ export function Header({
                 <div
                   className="flex h-7 w-7 items-center justify-center rounded-lg text-white"
                   style={{
-                    background: "linear-gradient(135deg, #2A8FA8, #1E6E82)",
+                    background: "linear-gradient(135deg, var(--c-cleared-green), #178560)",
                     fontSize: "12px",
                     fontWeight: 600,
                   }}

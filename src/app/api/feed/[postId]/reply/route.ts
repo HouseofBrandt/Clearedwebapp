@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
-import { generateJunebugReply } from "@/lib/feed/junebug-reply"
+import { createJunebugPlaceholder } from "@/lib/feed/junebug-reply"
 import { z } from "zod"
 
 const replySchema = z.object({
@@ -60,15 +60,24 @@ export async function POST(
       data: { replyCount: { increment: 1 } },
     })
 
-    // If @Junebug is mentioned in the reply, trigger async response
+    // If @Junebug is mentioned, create the placeholder synchronously and
+    // return its ID so the client can invoke POST
+    // /api/feed/[postId]/junebug-complete in its own lambda (with
+    // maxDuration = 60). See junebug-reply.ts for the split rationale.
     const hasJunebugMention = mentions?.some((m) => m.type === "junebug")
+    let junebugPlaceholderId: string | null = null
     if (hasJunebugMention) {
-      generateJunebugReply(params.postId, content, post.caseId).catch((err) => {
-        console.error("[Feed] Junebug reply failed:", err.message)
-      })
+      try {
+        junebugPlaceholderId = await createJunebugPlaceholder(params.postId)
+      } catch (err: any) {
+        console.error("[Feed] Failed to create Junebug placeholder:", err?.message)
+      }
     }
 
-    return NextResponse.json(reply, { status: 201 })
+    return NextResponse.json(
+      { ...reply, junebugPlaceholderId },
+      { status: 201 }
+    )
   } catch (error: any) {
     console.error("[Feed] Reply failed:", error.message)
     return NextResponse.json({ error: "Failed to add reply" }, { status: 500 })

@@ -37,10 +37,16 @@ interface FeedReplyListProps {
   onReplyAdded?: () => void
 }
 
-export function FeedReplyList({ replies, totalReplyCount, postId, onReplyAdded }: FeedReplyListProps) {
+export function FeedReplyList({ replies, totalReplyCount, postId, onReplyAdded: _onReplyAdded }: FeedReplyListProps) {
   const [allReplies, setAllReplies] = useState(replies)
   const [showAll, setShowAll] = useState(false)
   const [loadingAll, setLoadingAll] = useState(false)
+
+  // Keep local state in sync when the server-provided `replies` prop
+  // changes (e.g. after a refetch following a new reply).
+  useEffect(() => {
+    setAllReplies(replies)
+  }, [replies])
 
   async function loadAllReplies() {
     setLoadingAll(true)
@@ -57,6 +63,50 @@ export function FeedReplyList({ replies, totalReplyCount, postId, onReplyAdded }
   }
 
   const displayReplies = showAll ? allReplies : replies
+
+  // Poll for Junebug placeholder completion. If any visible reply is a
+  // Junebug placeholder (authorType=junebug, content=null), poll the
+  // replies endpoint every 3 seconds until the placeholder is filled in
+  // or we hit the 20-poll cap (60 seconds total). This covers the case
+  // where the junebug-complete lambda is still running when the feed
+  // first renders — without polling the user would have to manually
+  // refresh to see Junebug's answer.
+  const hasThinkingJunebug = displayReplies.some(
+    (r: any) => r.authorType === "junebug" && r.content === null
+  )
+  useEffect(() => {
+    if (!hasThinkingJunebug) return
+    let cancelled = false
+    let pollsRemaining = 20
+    const poll = async () => {
+      if (cancelled || pollsRemaining <= 0) return
+      pollsRemaining -= 1
+      try {
+        const res = await fetch(`/api/feed/${postId}/reply`)
+        if (res.ok) {
+          const data = await res.json()
+          if (cancelled) return
+          const nextReplies = data.replies || []
+          setAllReplies(nextReplies)
+          // Stop polling once every junebug placeholder has content.
+          const stillThinking = nextReplies.some(
+            (r: any) => r.authorType === "junebug" && r.content === null
+          )
+          if (!stillThinking) return
+        }
+      } catch {
+        /* network hiccup — try again */
+      }
+      if (!cancelled) setTimeout(poll, 3000)
+    }
+    // First poll after 3s so the completion lambda has time to start.
+    const starter = setTimeout(poll, 3000)
+    return () => {
+      cancelled = true
+      clearTimeout(starter)
+    }
+  }, [hasThinkingJunebug, postId])
+
   const hasMore = totalReplyCount > replies.length && !showAll
 
   if (displayReplies.length === 0) return null
@@ -223,14 +273,38 @@ export function ReplyInput({ postId, onReplyAdded }: ReplyInputProps) {
     try {
       // Detect @Junebug mention
       const hasJunebug = /@junebug/i.test(content)
-      const mentions = hasJunebug ? [{ type: "junebug" as const, display: "@Junebug" }] : undefined
+      const mentions = hasJunebug
+        ? [{ type: "junebug" as const, display: "@Junebug" }]
+        : undefined
+      const trimmed = content.trim()
 
       const res = await fetch(`/api/feed/${postId}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: content.trim(), mentions }),
+        body: JSON.stringify({ content: trimmed, mentions }),
       })
       if (res.ok) {
+        const data = await res.json().catch(() => null)
+
+        // If Junebug was tagged in this reply, the server created a
+        // placeholder and returned its ID. Fire the completion request
+        // in a separate lambda (maxDuration = 60) so the AI call actually
+        // gets time to finish. Fire-and-forget from the client — the
+        // stale sweeper covers us if the network call drops.
+        if (data?.junebugPlaceholderId) {
+          fetch(`/api/feed/${postId}/junebug-complete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              placeholderId: data.junebugPlaceholderId,
+              message: trimmed,
+              caseId: null,
+            }),
+          }).catch((err) => {
+            console.error("[Junebug] reply trigger failed:", err)
+          })
+        }
+
         setContent("")
         onReplyAdded()
       }

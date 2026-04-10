@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
-import { generateJunebugReply } from "@/lib/feed/junebug-reply"
+import {
+  createJunebugPlaceholder,
+  sweepStalePlaceholders,
+} from "@/lib/feed/junebug-reply"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
 
@@ -67,6 +70,19 @@ export async function GET(request: NextRequest) {
 
   if (cursor) {
     where.createdAt = { ...(where.createdAt || {}), lt: new Date(cursor) }
+  }
+
+  // Best-effort: clear any Junebug placeholders that have been stuck in
+  // "thinking" state for more than a few minutes. This handles the case
+  // where the junebug-complete lambda failed silently (network error,
+  // cold start failure, etc) and the placeholder would otherwise loop
+  // forever on the client. The sweep is a single indexed UPDATE so the
+  // perf cost is negligible (<10ms), but we still swallow any errors so
+  // a sweep hiccup never fails the feed load.
+  try {
+    await sweepStalePlaceholders()
+  } catch {
+    /* swallowed by design */
   }
 
   try {
@@ -222,15 +238,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If @Junebug is mentioned, trigger async reply
+    // If @Junebug is mentioned, create the placeholder reply SYNCHRONOUSLY
+    // so the UI shows "thinking" immediately. The actual AI generation runs
+    // in its own lambda via POST /api/feed/[postId]/junebug-complete, which
+    // the client invokes right after this response returns. That endpoint
+    // has maxDuration = 60 so the slow AI call actually gets to finish.
     const hasJunebugMention = mentions?.some((m) => m.type === "junebug")
+    let junebugPlaceholderId: string | null = null
     if (hasJunebugMention) {
-      generateJunebugReply(post.id, content, caseId).catch((err) => {
-        console.error("[Feed] Junebug reply failed:", err.message)
-      })
+      try {
+        junebugPlaceholderId = await createJunebugPlaceholder(post.id)
+      } catch (err: any) {
+        console.error("[Feed] Failed to create Junebug placeholder:", err?.message)
+      }
     }
 
-    return NextResponse.json(post, { status: 201 })
+    return NextResponse.json(
+      { ...post, junebugPlaceholderId },
+      { status: 201 }
+    )
   } catch (error: any) {
     console.error("[Feed] Create post failed:", error.message)
     return NextResponse.json({ error: "Failed to create post" }, { status: 500 })
