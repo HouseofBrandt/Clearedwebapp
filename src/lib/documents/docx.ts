@@ -145,11 +145,14 @@ export function extractFootnotes(markdown: string): FootnoteExtraction {
   })
 
   // 5. Build final footnotes map keyed by numeric ID.
+  // NOTE: we wrap map iterators in Array.from because tsconfig has no
+  // downlevelIteration and no ES2015+ target, so Map.entries() cannot be
+  // iterated directly with for...of.
   const footnotes = new Map<number, string>()
-  for (const [label, id] of labelToId.entries()) {
+  Array.from(labelToId.entries()).forEach(([label, id]) => {
     const content = rawDefs.get(label)
     if (content) footnotes.set(id, content)
-  }
+  })
 
   return { body: body.trim(), footnotes }
 }
@@ -695,7 +698,8 @@ function buildFootnotesMap(
 ): { [id: number]: { children: Paragraph[] } } | undefined {
   if (footnotes.size === 0) return undefined
   const out: { [id: number]: { children: Paragraph[] } } = {}
-  for (const [id, content] of footnotes.entries()) {
+  // Array.from avoids the iterator constraint — see note in extractFootnotes.
+  Array.from(footnotes.entries()).forEach(([id, content]) => {
     out[id] = {
       children: [
         new Paragraph({
@@ -704,7 +708,7 @@ function buildFootnotesMap(
         }),
       ],
     }
-  }
+  })
   return out
 }
 
