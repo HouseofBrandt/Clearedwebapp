@@ -96,6 +96,40 @@
     --font-display: 'Instrument Serif', Georgia, serif;
     --font-body: var(--font-inter), 'Inter', system-ui, sans-serif;
     --font-mono: var(--font-jetbrains), 'JetBrains Mono', 'SF Mono', monospace;
+    /* Dashboard redesign fonts — editorial/luxury voice */
+    --font-editorial: var(--font-cormorant), 'Cormorant Garamond', Georgia, serif;
+    --font-dm: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+
+    /* ── Cleared green — new brand accent for dashboard ──── */
+    --c-cleared-green: #1D9E75;
+    --c-cleared-green-bright: #5DCAA5;
+    --c-cleared-green-soft: #9FE1CB;
+    --c-cleared-green-tint: rgba(29, 158, 117, 0.06);
+    --c-cleared-green-glow: rgba(29, 158, 117, 0.12);
+
+    /* ── Dashboard dark rail ───────────────────────────────── */
+    --c-rail-bg: #151d28;
+    --c-rail-icon: rgba(255, 255, 255, 0.48);
+    --c-rail-icon-active: #FFFFFF;
+
+    /* ── Border weights (redesign uses 0.5px) ──────────────── */
+    --border-tertiary: rgba(20, 24, 32, 0.10);
+    --border-secondary: rgba(20, 24, 32, 0.16);
+    --border-primary: rgba(20, 24, 32, 0.22);
+
+    /* ── Pastel avatars (dashboard redesign) ───────────────── */
+    --c-pastel-blue-bg: #DBEAFE;
+    --c-pastel-blue-fg: #1E40AF;
+    --c-pastel-violet-bg: #EDE9FE;
+    --c-pastel-violet-fg: #5B21B6;
+    --c-pastel-pink-bg: #FCE7F3;
+    --c-pastel-pink-fg: #9D174D;
+    --c-pastel-amber-bg: #FEF3C7;
+    --c-pastel-amber-fg: #92400E;
+    --c-pastel-green-bg: #D1FAE5;
+    --c-pastel-green-fg: #065F46;
+    --c-pastel-red-bg: #FEE2E2;
+    --c-pastel-red-fg: #991B1B;
 
     /* Motion */
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -570,3 +604,156 @@ a, button, [role="button"] {
   }
   body::after { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DASHBOARD REDESIGN — "Editorial Calm"
+   Cormorant Garamond display + DM Sans body. Use space like a luxury
+   brand: every element earns its place, nothing is crammed.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Greeting — the first thing you see */
+.dash-greeting {
+  font-family: var(--font-editorial);
+  font-weight: 300;
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--c-gray-800);
+  text-align: center;
+}
+.dash-greeting-date {
+  font-family: var(--font-dm);
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.166em; /* 2px at 12px */
+  color: var(--c-gray-400);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Editorial micro-label used by every section header on the dashboard */
+.dash-label {
+  font-family: var(--font-dm);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.2em; /* 2px at 10px */
+  color: var(--c-cleared-green);
+}
+
+/* The body voice. Airy, unhurried, reads like a magazine. */
+.dash-body {
+  font-family: var(--font-dm);
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.8;
+  letter-spacing: 0.0095em; /* 0.15px at 15px */
+  color: var(--c-gray-700);
+}
+
+/* Meta (timestamps, names, small labels) */
+.dash-meta {
+  font-family: var(--font-dm);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--c-gray-400);
+}
+.dash-name {
+  font-family: var(--font-dm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-gray-800);
+}
+
+/* Tag pills — uppercase micro-labels with pastel backgrounds */
+.dash-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-family: var(--font-dm);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  line-height: 1;
+}
+.dash-tag-team      { background: var(--c-pastel-blue-bg);   color: var(--c-pastel-blue-fg); }
+.dash-tag-research  { background: var(--c-pastel-violet-bg); color: var(--c-pastel-violet-fg); }
+.dash-tag-pippen    { background: var(--c-pastel-amber-bg);  color: var(--c-pastel-amber-fg); }
+.dash-tag-junebug   { background: var(--c-pastel-green-bg);  color: var(--c-pastel-green-fg); }
+.dash-tag-alert     { background: var(--c-pastel-red-bg);    color: var(--c-pastel-red-fg); }
+
+/* Editorial card — the shared primitive for Pippen / Junebug / Composer.
+   0.5px border. No shadows. Warms on hover. */
+.dash-card {
+  background: var(--c-white);
+  border: 0.5px solid var(--border-tertiary);
+  border-radius: 16px;
+  transition: border-color 200ms var(--ease-smooth);
+}
+.dash-card:hover { border-color: var(--border-secondary); }
+
+/* The single page divider between featured zone and team feed */
+.dash-divider {
+  height: 0.5px;
+  background: var(--border-tertiary);
+  border: none;
+  margin: 48px 0;
+}
+
+/* Pippen's pull-quote — the only gradient surface accent on the page */
+.dash-pippen-card {
+  position: relative;
+  background: var(--c-white);
+  border: 0.5px solid var(--c-cleared-green-soft);
+  border-radius: 16px;
+  padding: 28px;
+  overflow: hidden;
+}
+.dash-pippen-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--c-cleared-green) 0%,
+    var(--c-cleared-green-bright) 50%,
+    var(--c-cleared-green-soft) 100%
+  );
+  border-radius: 16px 16px 0 0;
+}
+.dash-pippen-body {
+  font-family: var(--font-editorial);
+  font-size: 19px;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.55;
+  color: var(--c-gray-800);
+  letter-spacing: 0.005em;
+}
+.dash-pippen-body strong {
+  font-style: normal;
+  font-weight: 500;
+}
+
+/* Older posts fade out — the natural visual hierarchy */
+.dash-post-fade { opacity: 0.5; transition: opacity 200ms var(--ease-smooth); }
+.dash-post-fade:hover { opacity: 1; }
+
+/* The compact left rail (56px dark icon nav) */
+.dash-rail {
+  width: 56px;
+  background: var(--c-rail-bg);
+}
+.dash-rail-icon {
+  color: var(--c-rail-icon);
+  stroke-width: 1.5;
+  transition: color 200ms var(--ease-smooth);
+}
+.dash-rail-icon-active { color: var(--c-rail-icon-active); }
+.dash-rail-link:hover .dash-rail-icon { color: var(--c-rail-icon-active); }
