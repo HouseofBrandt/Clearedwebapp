@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { caseAccessFilter } from "@/lib/auth/case-access"
-import { Rail } from "@/components/layout/rail"
+import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { ChatPanel } from "@/components/assistant/chat-panel"
 import { IdleTimeout } from "@/components/layout/idle-timeout"
@@ -46,7 +46,7 @@ export default async function DashboardLayout({
   return (
     <>
       <div className="flex h-screen overflow-hidden">
-        <Rail
+        <Sidebar
           user={session.user}
           pendingReviewCount={pendingReviewCount}
           overdueDeadlineCount={overdueDeadlineCount}
@@ -64,7 +64,7 @@ export default async function DashboardLayout({
           />
           <main
             className="flex-1 overflow-y-auto"
-            style={{ padding: "24px 40px 64px" }}
+            style={{ padding: "28px 32px 48px" }}
           >
             {children}
           </main>

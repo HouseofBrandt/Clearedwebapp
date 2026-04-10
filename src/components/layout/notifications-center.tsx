@@ -296,31 +296,35 @@ export function NotificationsCenter({ initialUnreadCount = 0 }: NotificationsCen
 
   return (
     <>
-      {/* Bell trigger */}
+      {/* Bell trigger — styled for the light Header bar */}
       <button
         onClick={handleOpen}
         className="relative flex items-center justify-center transition-colors"
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
+          width: 32,
+          height: 32,
+          borderRadius: 8,
           background: "transparent",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(255, 255, 255, 0.06)"
+          e.currentTarget.style.background = "var(--c-gray-50)"
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = "transparent"
         }}
         aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
       >
-        <Bell className="dash-rail-icon h-[18px] w-[18px]" strokeWidth={1.5} />
+        <Bell
+          className="h-[18px] w-[18px]"
+          strokeWidth={1.5}
+          style={{ color: "var(--c-gray-400)" }}
+        />
         {unreadCount > 0 && (
           <span
             className="absolute flex items-center justify-center"
             style={{
-              top: 4,
-              right: 4,
+              top: 2,
+              right: 2,
               height: 16,
               minWidth: 16,
               padding: "0 4px",
@@ -330,7 +334,7 @@ export function NotificationsCenter({ initialUnreadCount = 0 }: NotificationsCen
               fontFamily: "var(--font-dm)",
               fontSize: 9,
               fontWeight: 500,
-              boxShadow: "0 0 0 1.5px var(--c-rail-bg)",
+              boxShadow: "0 0 0 1.5px var(--c-snow)",
             }}
           >
             {unreadCount > 9 ? "9+" : unreadCount}
