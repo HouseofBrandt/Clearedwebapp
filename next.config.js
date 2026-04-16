@@ -21,6 +21,32 @@ const nextConfig = {
     },
     outputFileTracingIncludes: {
       '/api/ai/analyze': ['./src/lib/ai/prompts/**/*.txt'],
+      // Form routes need access to all IRS form PDFs for filling
+      '/api/forms/[instanceId]/preview-pdf': [
+        './public/forms/**/*.pdf',
+        './public/irs_kb/f*.pdf',
+      ],
+    },
+    outputFileTracingExcludes: {
+      // IRS publications (p*.pdf, etc.) are reference docs only — not used by the
+      // PDF filler. Excluding them keeps the function under Vercel's 300MB limit.
+      '/api/forms/[instanceId]/preview-pdf': [
+        'public/irs_kb/p*.pdf',
+        'public/irs_kb/rp-*.pdf',
+        'public/irs_kb/pcir*.pdf',
+        // Build/dev tooling that occasionally gets traced into serverless bundles
+        'node_modules/@swc/core-*',
+        'node_modules/@esbuild/**',
+        'node_modules/typescript/lib/**',
+        'node_modules/.cache/**',
+      ],
+      '/api/forms/[instanceId]/auto-populate': [
+        'public/**',
+        'node_modules/@swc/core-*',
+        'node_modules/@esbuild/**',
+        'node_modules/typescript/lib/**',
+        'node_modules/.cache/**',
+      ],
     },
   },
   async headers() {

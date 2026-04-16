@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { readFile } from "fs/promises"
-import { join } from "path"
 import { getFormInstance } from "@/lib/forms/form-store"
-import { getAcroFieldMap, getPDFMap } from "@/lib/forms/pdf-maps/registry"
+import { getAcroFieldMap } from "@/lib/forms/pdf-maps/registry"
 import { getAutoMapping, getPDFFileName, resolvePdfPath } from "@/lib/forms/pdf-auto-mapper"
-import { fillPdf } from "@/lib/forms/pdf-filler"
-import { getFormSchema } from "@/lib/forms/registry"
 import { canAccessCase } from "@/lib/auth/case-access"
+// fillPdf, getPDFMap, getFormSchema are dynamically imported inside generateFilledPDF
+// to keep this serverless function under Vercel's 300MB bundle limit. Static imports
+// of the form registry pull all 7 schemas + fragments into the bundle eagerly.
 
 const FORM_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
@@ -733,6 +733,14 @@ async function generateFilledPDF(formNumber: string, values: Record<string, any>
       return NextResponse.json({ error: `PDF "${pdfFileName}" not found` }, { status: 404 })
     }
     const pdfBytes = await readFile(pdfPath)
+
+    // Dynamic imports keep the serverless function bundle under Vercel's 300MB limit.
+    // The form registry imports all 7 schemas eagerly when used at the top level.
+    const [{ fillPdf }, { getPDFMap }, { getFormSchema }] = await Promise.all([
+      import("@/lib/forms/pdf-filler"),
+      import("@/lib/forms/pdf-maps/registry"),
+      import("@/lib/forms/registry"),
+    ])
 
     // Source 1: Hand-coded explicit map (highest priority)
     const explicitMap = await getFieldMap(formNumber)
