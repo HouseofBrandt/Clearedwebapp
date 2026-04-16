@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { getFormInstance } from "@/lib/forms/form-store"
-import { canAccessCase } from "@/lib/auth/case-access"
-// autoPopulateForm is dynamically imported below to keep this serverless function
-// under Vercel's 300MB bundle limit (auto-populate.ts transitively pulls in the
-// full form registry + Anthropic SDK).
+import { autoPopulateForm } from "@/lib/forms/auto-populate"
 
 /**
  * POST /api/forms/[instanceId]/auto-populate
@@ -41,14 +38,7 @@ export async function POST(
       )
     }
 
-    // Verify access to the case (defense in depth)
-    const userId = (session.user as any).id
-    if (!await canAccessCase(userId, instance.caseId)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
-
-    // Run auto-population against all data sources (lazy import — see top of file)
-    const { autoPopulateForm } = await import("@/lib/forms/auto-populate")
+    // Run auto-population against all data sources
     const result = await autoPopulateForm(instance.caseId, instance.formNumber)
 
     return NextResponse.json(result)

@@ -14,9 +14,8 @@
 // Claude AI is used only for what can't be determined structurally.
 // ---------------------------------------------------------------------------
 
-import type { FormSchema, FieldDef, ConditionalRule } from "./types"
+import type { FormSchema } from "./types"
 import { getFormSchema } from "./registry"
-import { normalizeValue } from "./value-normalizers"
 
 export interface AutoPopulatedField {
   fieldId: string
@@ -58,7 +57,7 @@ async function gatherFromCaseRecord(caseId: string): Promise<AutoPopulatedField[
   const fields: AutoPopulatedField[] = []
   const src = { documentId: "case-record", documentName: "Case Record", documentType: "CASE" }
 
-  // Client name — log decryption failures so we can diagnose missing data
+  // Client name
   try {
     const name = decryptField(caseData.clientName)
     if (name && name.length > 1) {
@@ -70,17 +69,13 @@ async function gatherFromCaseRecord(caseId: string): Promise<AutoPopulatedField[
         fields.push({ fieldId: "taxpayer_last_name", value: parts.slice(1).join(" "), confidence: "high", source: src, extractedFrom: "Case record" })
       }
     }
-  } catch (err: any) {
-    console.warn(`[Auto-populate] Failed to decrypt clientName for case ${caseId}: ${err?.message}`)
-  }
+  } catch { /* decryption failed */ }
 
   // Contact info
   try {
     const email = caseData.clientEmail ? decryptField(caseData.clientEmail) : null
     if (email) fields.push({ fieldId: "email", value: email, confidence: "high", source: src, extractedFrom: "Case record — email" })
-  } catch (err: any) {
-    console.warn(`[Auto-populate] Failed to decrypt clientEmail for case ${caseId}: ${err?.message}`)
-  }
+  } catch {}
 
   try {
     const phone = caseData.clientPhone ? decryptField(caseData.clientPhone) : null
@@ -88,9 +83,7 @@ async function gatherFromCaseRecord(caseId: string): Promise<AutoPopulatedField[
       fields.push({ fieldId: "home_phone", value: phone, confidence: "high", source: src, extractedFrom: "Case record — phone" })
       fields.push({ fieldId: "cell_phone", value: phone, confidence: "medium", source: src, extractedFrom: "Case record — phone (may be home or cell)" })
     }
-  } catch (err: any) {
-    console.warn(`[Auto-populate] Failed to decrypt clientPhone for case ${caseId}: ${err?.message}`)
-  }
+  } catch {}
 
   // Filing status → marital status mapping
   if (caseData.filingStatus) {
@@ -286,9 +279,7 @@ async function gatherFromAIOutputs(caseId: string): Promise<{ fields: AutoPopula
         if (output.length > 4000) context += "\n[... truncated]"
         context += "\n"
       }
-    } catch (err: any) {
-      console.warn(`[Auto-populate] Failed to decrypt AI output for task ${task.id}: ${err?.message}`)
-    }
+    } catch { /* decryption failed */ }
   }
 
   return { fields: [], context }
@@ -428,195 +419,6 @@ EXTRACTION RULES:
 10. Do NOT re-extract fields listed in STRUCTURED DATA — they're already populated
 
 Return ONLY a JSON object mapping field IDs to extracted values. No markdown fences, no explanation.`
-}
-
-// ── Conditional rule evaluation ──
-//
-// Walk a schema's conditionalRules and determine which fields would be hidden
-// based on the current value snapshot. Used to skip filling inapplicable
-// fields (e.g. spouse_name when filing_status is SINGLE).
-
-function evaluateConditional(rule: ConditionalRule, values: Map<string, AutoPopulatedField>): boolean {
-  const target = values.get(rule.field)
-  const targetVal = target?.value
-  switch (rule.operator) {
-    case "equals": return targetVal === rule.value
-    case "not_equals": return targetVal !== rule.value
-    case "contains": return Array.isArray(targetVal) ? targetVal.includes(rule.value) : String(targetVal ?? "").includes(String(rule.value))
-    case "greater_than": return Number(targetVal) > Number(rule.value)
-    case "less_than": return Number(targetVal) < Number(rule.value)
-    case "is_empty": return targetVal == null || targetVal === ""
-    case "is_not_empty": return targetVal != null && targetVal !== ""
-    default: return true
-  }
-}
-
-/** Returns true if the field is currently visible (no conditional hides it). */
-function isFieldVisible(field: FieldDef, values: Map<string, AutoPopulatedField>): boolean {
-  if (!field.conditionals || field.conditionals.length === 0) return true
-  for (const rule of field.conditionals) {
-    const conditionMet = evaluateConditional(rule, values)
-    if (rule.action === "show" && !conditionMet) return false
-    if (rule.action === "hide" && conditionMet) return false
-  }
-  return true
-}
-
-// ── Computed field evaluation ──
-//
-// Resolve simple aggregate formulas like "SUM(employers.emp_gross_monthly)" or
-// "field_a + field_b". Designed to be conservative — if a formula is too
-// complex to safely evaluate, the field is left blank (the user can fill it).
-
-function resolveComputedField(
-  field: FieldDef,
-  values: Map<string, AutoPopulatedField>
-): number | null {
-  const formula = field.computeFormula
-  if (!formula) return null
-  return evaluateFormula(formula, (id) => values.get(id)?.value)
-}
-
-/**
- * Tiny safe formula evaluator supporting:
- *   - SUM(group.subfield)        — sum a column across a repeating group
- *   - field_id                   — variable lookup (numeric)
- *   - + - * /                    — basic arithmetic
- *   - numeric literals + parens  — including unary minus
- *
- * Does NOT use eval(). Tokenizes, then evaluates with a recursive-descent
- * parser. Returns null on malformed input. Missing variables resolve to 0.
- *
- * resolveVar receives the field id; it may return a number, an array of rows
- * (for SUM expansion), null/undefined (treated as 0), or any other value
- * (coerced via Number()).
- */
-export function evaluateFormula(
-  formula: string,
-  resolveVar: (name: string) => unknown
-): number | null {
-  // Pre-pass: replace SUM(group.subfield) with the precomputed numeric sum.
-  const expanded = formula.replace(/SUM\(([\w.]+)\)/gi, (_match, path: string) => {
-    const dot = path.indexOf(".")
-    if (dot === -1) return "0"
-    const groupVal = resolveVar(path.slice(0, dot))
-    const subId = path.slice(dot + 1)
-    if (!Array.isArray(groupVal)) return "0"
-    let total = 0
-    for (const row of groupVal) {
-      if (row && typeof row === "object") {
-        const n = Number((row as Record<string, unknown>)[subId])
-        if (Number.isFinite(n)) total += n
-      }
-    }
-    return Number.isFinite(total) ? String(total) : "0"
-  })
-
-  // Wrap resolveVar to coerce non-numeric values to 0 for arithmetic
-  const numericResolver = (name: string): number => {
-    const v = resolveVar(name)
-    if (typeof v === "number") return Number.isFinite(v) ? v : 0
-    if (v == null || v === "") return 0
-    const n = Number(v)
-    return Number.isFinite(n) ? n : 0
-  }
-
-  try {
-    const tokens = tokenize(expanded, numericResolver)
-    if (!tokens) return null
-    const result = parseExpression(tokens, { pos: 0 })
-    return Number.isFinite(result) ? result : null
-  } catch {
-    return null
-  }
-}
-
-// ---- Tiny expression parser ----
-type Token =
-  | { type: "num"; value: number }
-  | { type: "op"; value: "+" | "-" | "*" | "/" }
-  | { type: "lparen" }
-  | { type: "rparen" }
-
-function tokenize(formula: string, resolveVar: (name: string) => number): Token[] | null {
-  const tokens: Token[] = []
-  let i = 0
-  while (i < formula.length) {
-    const ch = formula[i]
-    if (/\s/.test(ch)) { i++; continue }
-    if (ch === "+" || ch === "-" || ch === "*" || ch === "/") {
-      tokens.push({ type: "op", value: ch as any })
-      i++; continue
-    }
-    if (ch === "(") { tokens.push({ type: "lparen" }); i++; continue }
-    if (ch === ")") { tokens.push({ type: "rparen" }); i++; continue }
-    // Numeric literal
-    if (/[0-9.]/.test(ch)) {
-      let j = i
-      while (j < formula.length && /[0-9.]/.test(formula[j])) j++
-      tokens.push({ type: "num", value: Number(formula.slice(i, j)) })
-      i = j; continue
-    }
-    // Identifier (field id, may contain dots)
-    if (/[a-zA-Z_]/.test(ch)) {
-      let j = i
-      while (j < formula.length && /[\w.]/.test(formula[j])) j++
-      const name = formula.slice(i, j)
-      tokens.push({ type: "num", value: resolveVar(name) })
-      i = j; continue
-    }
-    return null // unknown character
-  }
-  return tokens
-}
-
-interface Cursor { pos: number }
-
-function parseExpression(tokens: Token[], cur: Cursor): number {
-  let left = parseTerm(tokens, cur)
-  while (cur.pos < tokens.length) {
-    const t = tokens[cur.pos]
-    if (t.type === "op" && (t.value === "+" || t.value === "-")) {
-      cur.pos++
-      const right = parseTerm(tokens, cur)
-      left = t.value === "+" ? left + right : left - right
-    } else break
-  }
-  return left
-}
-
-function parseTerm(tokens: Token[], cur: Cursor): number {
-  let left = parseFactor(tokens, cur)
-  while (cur.pos < tokens.length) {
-    const t = tokens[cur.pos]
-    if (t.type === "op" && (t.value === "*" || t.value === "/")) {
-      cur.pos++
-      const right = parseFactor(tokens, cur)
-      left = t.value === "*" ? left * right : (right === 0 ? 0 : left / right)
-    } else break
-  }
-  return left
-}
-
-function parseFactor(tokens: Token[], cur: Cursor): number {
-  const t = tokens[cur.pos]
-  if (!t) return 0
-  // Unary minus
-  if (t.type === "op" && t.value === "-") {
-    cur.pos++
-    return -parseFactor(tokens, cur)
-  }
-  if (t.type === "lparen") {
-    cur.pos++
-    const val = parseExpression(tokens, cur)
-    if (tokens[cur.pos]?.type === "rparen") cur.pos++
-    return val
-  }
-  if (t.type === "num") {
-    cur.pos++
-    return t.value
-  }
-  return 0
 }
 
 // ── Main entry point ──
@@ -764,77 +566,7 @@ export async function autoPopulateForm(
       }
     }
 
-    // Phase 4: Schema-aware refinement
-    const finalSchema = getFormSchema(formNumber)
-    if (finalSchema) {
-      const allSchemaFields: FieldDef[] = []
-      for (const section of finalSchema.sections) {
-        for (const field of section.fields) {
-          allSchemaFields.push(field)
-          // Also include repeating-group sub-fields when present in values
-          if (field.type === "repeating_group" && field.groupFields) {
-            const groupVal = structuredFields.get(field.id)?.value
-            if (Array.isArray(groupVal)) {
-              for (let i = 0; i < groupVal.length; i++) {
-                for (const sub of field.groupFields) {
-                  allSchemaFields.push({ ...sub, id: `${field.id}.${i}.${sub.id}` })
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // 4a. Drop fields hidden by conditional rules
-      const visibleIds = new Set<string>()
-      for (const field of allSchemaFields) {
-        if (isFieldVisible(field, structuredFields)) {
-          visibleIds.add(field.id)
-        }
-      }
-      // Also keep fields not in the schema (we can't make a determination)
-      for (const id of Array.from(structuredFields.keys())) {
-        if (!allSchemaFields.some((f) => f.id === id)) visibleIds.add(id)
-      }
-      for (const id of Array.from(structuredFields.keys())) {
-        if (!visibleIds.has(id)) {
-          structuredFields.delete(id)
-        }
-      }
-
-      // 4b. Type-aware normalization for storage
-      for (const [id, fld] of Array.from(structuredFields.entries())) {
-        const def = allSchemaFields.find((f) => f.id === id)
-        if (def && fld.value != null) {
-          const normalized = normalizeValue(fld.value, def.type, { target: "storage" })
-          if (normalized !== null && normalized !== fld.value) {
-            structuredFields.set(id, { ...fld, value: normalized })
-          }
-        }
-      }
-
-      // 4c. Resolve computed fields (SUM(...) and simple arithmetic)
-      const computedSrc = {
-        documentId: "computed",
-        documentName: "Computed",
-        documentType: "COMPUTED",
-      }
-      for (const field of allSchemaFields) {
-        if (field.type !== "computed" || structuredFields.has(field.id)) continue
-        const value = resolveComputedField(field, structuredFields)
-        if (value != null) {
-          structuredFields.set(field.id, {
-            fieldId: field.id,
-            value,
-            confidence: "high",
-            source: computedSrc,
-            extractedFrom: `Computed via ${field.computeFormula}`,
-          })
-        }
-      }
-    }
-
-    // Phase 5: Build final result
+    // Phase 4: Build final result
     const allFields = Array.from(structuredFields.values())
     const highCount = allFields.filter(f => f.confidence === "high").length
     const reviewCount = allFields.filter(f => f.confidence !== "high").length

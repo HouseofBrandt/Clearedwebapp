@@ -52,15 +52,8 @@ export const FORM_433A_OIC: FormSchema = {
           id: "total_asset_equity",
           label: "Total Equity in Assets (Quick Sale Value)",
           type: "computed",
-          // IRS OIC RCP per Form 656 Booklet Section 7:
-          //   - Real estate / vehicles: QSV = 0.80 × FMV; QSV equity = QSV − loan
-          //   - Investments: full balance (liquid, no QSV reduction) minus loans against them
-          //   - Bank: full balance (the $1,000 exemption is a per-account allowance the
-          //     practitioner subtracts when entering total_bank_balances)
-          //   - Life insurance: cash surrender value
-          // Each per-asset *_qsv_equity = (FMV * 0.8) − loan, computed per row.
           computeFormula:
-            "total_bank_balances + SUM(investments.inv_balance) - SUM(investments.inv_loan) + SUM(real_property.prop_qsv_equity) + SUM(vehicles.veh_qsv_equity) + life_insurance_csv",
+            "total_bank_balances + SUM(investments.inv_equity) + SUM(real_property.prop_equity) + SUM(vehicles.veh_equity) + life_insurance_csv",
           dependsOn: [
             "total_bank_balances",
             "investments",
@@ -69,7 +62,7 @@ export const FORM_433A_OIC: FormSchema = {
             "life_insurance_csv",
           ],
           helpText:
-            "Sum of quick-sale equity (FMV × 80% − loan) for vehicles & real property + investment balances − investment loans + bank balances + life insurance CSV. This is what the IRS uses for RCP.",
+            "Sum of quick-sale values (typically 80% of FMV) for all assets minus encumbrances.",
           irsReference: "OIC Worksheet, Line 1",
         },
         {
