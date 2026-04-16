@@ -248,10 +248,11 @@ export async function POST(
     })
     .catch((e) => console.warn("[Junebug] thread timestamp update failed:", e?.message))
 
-  // Audit (spec §10.3)
+  // Audit (spec §10.3). createAuditLog wants `string | undefined` for caseId,
+  // not `string | null` — coerce since this thread may be general-scoped.
   createAuditLog({
     practitionerId: auth.userId,
-    caseId,
+    caseId: caseId ?? undefined,
     action: "JUNEBUG_MESSAGE",
     metadata: {
       threadId: params.id,
