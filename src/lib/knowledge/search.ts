@@ -165,12 +165,23 @@ export async function searchKnowledge(
     }).catch(() => {})
     return []
   }
-  // Apply authority-weighted scoring based on source type
+  // Apply authority-weighted scoring based on source type.
+  //
+  // TAX_AUTHORITY: rows promoted from SourceArtifact (raw IRM sections,
+  // Treas. Regs, Tax Court opinions, Rev. Procs harvested daily). They
+  // rank with human-approved work because they are the primary authorities
+  // themselves — not derived summaries.
+  //
+  // PIPPEN_DAILY_LEARNINGS: explicitly listed so daily compiled summaries
+  // do not outrank the raw authorities they reference (previously fell
+  // through to the 0.8 default).
   const AUTHORITY_WEIGHTS: Record<string, number> = {
     MANUAL_UPLOAD: 1.0,
     APPROVED_OUTPUT: 0.95,
+    TAX_AUTHORITY: 0.95,
     JUNEBUG_CURATED: 0.85,
     WEB_RESEARCH: 0.75,
+    PIPPEN_DAILY_LEARNINGS: 0.70,
     AUTO_ENRICHMENT: 0.65,
   }
 
