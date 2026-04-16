@@ -161,7 +161,8 @@ export async function promoteSourceArtifactsToKB(
         ? text.slice(0, MAX_TEXT_BYTES)
         : text
 
-      // Create the KnowledgeDocument
+      // Create the KnowledgeDocument with the FK back to source_artifacts
+      // so retrieval can JOIN on qualityScore (Phase 3).
       const doc = await prisma.knowledgeDocument.create({
         data: {
           title: artifact.normalizedTitle,
@@ -169,6 +170,7 @@ export async function promoteSourceArtifactsToKB(
           category: category as any,
           sourceText: truncatedText,
           sourceType: "TAX_AUTHORITY",
+          sourceArtifactId: artifact.id,
           tags,
           processingStatus: "processing",
           uploadedById: systemUser.id,

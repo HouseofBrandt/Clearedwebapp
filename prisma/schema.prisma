@@ -582,6 +582,13 @@ model KnowledgeDocument {
   sourceType       String    @default("MANUAL_UPLOAD")
   lastReferencedAt DateTime?
 
+  // Pippen Phase 3 — FK back to the SourceArtifact this KB doc was promoted
+  // from (only set for sourceType='TAX_AUTHORITY'). Lets retrieval multiply
+  // the search score by source_artifacts.qualityScore via a cheap LEFT JOIN
+  // instead of regex-parsing the `tags` array.
+  sourceArtifactId String?
+  sourceArtifact   SourceArtifact? @relation(fields: [sourceArtifactId], references: [id], onDelete: SetNull)
+
   // V2: Outcome tagging (populated when source case is resolved)
   outcomeTag    String? // OIC_ACCEPTED, OIC_REJECTED, IA_APPROVED, etc.
   outcomeAmount Decimal? // Final accepted amount (for OIC)
@@ -597,6 +604,7 @@ model KnowledgeDocument {
   @@index([category])
   @@index([isActive])
   @@index([processingStatus])
+  @@index([sourceArtifactId])
   @@map("knowledge_documents")
 }
 
@@ -1823,6 +1831,25 @@ model SourceRegistry {
   @@map("source_registry")
 }
 
+/// Pippen Phase 3 — practitioner-tunable harvest/retrieval weights for
+/// (source × issueCategory) pairs. Populated by the "more / less like this"
+/// UI on Pippen feed cards. The harvester gate and retrieval scorer can
+/// consult this table to raise or lower specific source+topic combinations.
+model HarvestPreference {
+  id            String   @id @default(cuid())
+  sourceId      String   // matches SourceArtifact.sourceId / SourceRegistry.sourceId
+  issueCategory String   // one of the IssueCategory string values, or "*" for any
+  weight        Float    @default(1.0) // 0.0 = suppress, 1.0 = neutral, >1 = boost
+  signalCount   Int      @default(0)
+  lastSignalAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([sourceId, issueCategory])
+  @@index([sourceId])
+  @@map("harvest_preferences")
+}
+
 model SourceArtifact {
   id              String              @id @default(cuid())
   sourceId        String
@@ -1842,12 +1869,18 @@ model SourceArtifact {
   authorityTier   AuthorityTier
   jurisdiction    String?
   metadata        Json?
+  // Pippen Phase 3 — per-artifact quality multiplier. Starts at 1.0; updated
+  // by applyReviewFeedback when practitioners approve/reject AI outputs that
+  // cite authorities promoted from this artifact. Multiplied into retrieval
+  // scores via a LEFT JOIN in knowledge/search.ts.
+  qualityScore    Float               @default(1.0)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
-  authorities    CanonicalAuthority[]
-  ingestionRunId String?
-  ingestionRun   IngestionRun?        @relation(fields: [ingestionRunId], references: [id])
+  authorities        CanonicalAuthority[]
+  knowledgeDocuments KnowledgeDocument[]
+  ingestionRunId     String?
+  ingestionRun       IngestionRun?        @relation(fields: [ingestionRunId], references: [id])
 
   @@index([sourceId, sourceHash])
   @@index([sourceId, publicationDate])
@@ -1893,6 +1926,12 @@ model CanonicalAuthority {
   supersedes         CanonicalAuthority[] @relation("Supersession")
   promotionLayer     PromotionLayer       @default(RAW)
   metadata           Json?
+  // Pippen Phase 3 — feedback loop scoring. Decays when practitioners reject
+  // outputs citing this authority; grows when they approve. Retrieval uses
+  // this to rank authorities the firm has historically trusted.
+  practitionerScore  Float                @default(1.0)
+  lastCitedAt        DateTime?
+  timesCited         Int                  @default(0)
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 

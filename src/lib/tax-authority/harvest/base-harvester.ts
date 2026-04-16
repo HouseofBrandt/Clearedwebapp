@@ -229,6 +229,11 @@ export abstract class BaseHarvester {
     //       Match → parserStatus: PENDING, promoted to KB.
     //       Miss  → parserStatus: SKIPPED, NOT promoted. The row still exists
     //               for audit; Phase 3's feedback loop may reverse this later.
+    //
+    // Phase 3 overlay — HarvestPreference. Practitioners can suppress a
+    // (source × issueCategory) pair via the "Less like this" signal
+    // (weight → 0). When a classified category has weight <= 0.1 per
+    // HarvestPreference, the row gets SKIPPED regardless of tier.
     const effectiveTier = item.authorityTier ?? this.config.defaultTier
     const titleForClassification = [item.title, item.metadata?.abstract]
       .filter(Boolean)
@@ -237,18 +242,48 @@ export abstract class BaseHarvester {
     const issueCategories = await classifyIssue(titleForClassification)
     const isAlwaysKeep = ALWAYS_KEEP_TIERS.includes(effectiveTier)
     const matchedPracticeArea = issueCategories.some((c) => c !== 'mixed')
-    const parserStatus =
-      isAlwaysKeep || matchedPracticeArea ? 'PENDING' : 'SKIPPED'
+
+    // Look up practitioner preferences. If every matched category has been
+    // deeply suppressed, skip. Wildcard "*" applies to any category from
+    // this source.
+    const lookupCategories = matchedPracticeArea
+      ? issueCategories.filter((c) => c !== 'mixed')
+      : ['mixed']
+    const prefs = await prisma.harvestPreference.findMany({
+      where: {
+        sourceId: this.config.sourceId,
+        issueCategory: { in: [...lookupCategories, '*'] },
+      },
+      select: { issueCategory: true, weight: true },
+    })
+    const prefWeight =
+      prefs.length === 0
+        ? 1.0
+        : Math.max(...prefs.map((p) => p.weight))
+    const suppressedByPreference = prefs.length > 0 && prefWeight <= 0.1
+
+    const parserStatus: 'PENDING' | 'SKIPPED' =
+      suppressedByPreference
+        ? 'SKIPPED'
+        : isAlwaysKeep || matchedPracticeArea
+        ? 'PENDING'
+        : 'SKIPPED'
 
     // Merge classifier output into metadata for audit + later promotion use.
-    // Cast to `any` at the Prisma boundary: Prisma's InputJsonValue is stricter
-    // than `Record<string, unknown>` (no `unknown` value variant), and our
-    // values are JSON-serializable primitives + arrays of strings anyway.
+    // Cast to `any` at the Prisma boundary (Prisma's InputJsonValue is stricter
+    // than Record<string, unknown> — our values are all JSON-safe anyway).
+    const classifierDecision: string = suppressedByPreference
+      ? 'preference_suppressed'
+      : parserStatus === 'SKIPPED'
+      ? 'off_topic'
+      : 'kept'
+
     const mergedMetadata = {
       ...(item.metadata ?? {}),
       issueCategories,
-      classifierDecision: parserStatus === 'SKIPPED' ? 'off_topic' : 'kept',
+      classifierDecision,
       classifiedAt: new Date().toISOString(),
+      ...(prefs.length > 0 ? { preferenceWeight: prefWeight } : {}),
     }
 
     await prisma.sourceArtifact.create({
