@@ -1,9 +1,11 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
-import { Send, ChevronUp, ChevronDown } from "lucide-react"
+import Link from "next/link"
+import { ArrowUpRight, Send, ChevronUp, ChevronDown } from "lucide-react"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { getJunebugMessage } from "@/lib/junebug/loading-messages"
+import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
 
 interface CaseJunebugProps {
   caseId: string
@@ -26,7 +28,37 @@ interface ChatMessage {
   content: string
 }
 
-export function CaseJunebug({ caseId, caseContext, collapsed, onToggle, digest }: CaseJunebugProps) {
+/**
+ * Thin wrapper. Spec §9: when the threads workspace is on, the inline
+ * widget gives way to a link that opens the full workspace with this
+ * case pre-scoped. We branch at the component boundary so hooks in the
+ * legacy inline component still obey the rules of hooks.
+ */
+export function CaseJunebug(props: CaseJunebugProps) {
+  if (junebugThreadsEnabled()) {
+    return <CaseJunebugLink caseId={props.caseId} />
+  }
+  return <LegacyInlineCaseJunebug {...props} />
+}
+
+function CaseJunebugLink({ caseId }: { caseId: string }) {
+  return (
+    <div className="border-t">
+      <Link
+        href={`/junebug?case=${caseId}`}
+        className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <JunebugIcon className="h-4 w-4" style={{ color: "var(--c-warning)" }} />
+          <span className="text-xs font-medium text-c-gray-700">Ask Junebug about this case</span>
+        </div>
+        <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
+      </Link>
+    </div>
+  )
+}
+
+function LegacyInlineCaseJunebug({ caseId, caseContext, collapsed, onToggle, digest }: CaseJunebugProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)

@@ -65,10 +65,19 @@ export function JunebugWorkspace({
 
   const threads = useThreads(filters)
 
+  // Sync activeThreadId with the URL-driven initialThreadId prop. This
+  // matters for browser back/forward navigation: Next.js re-renders the
+  // page with the new params, which would otherwise leave the workspace
+  // pointing at the wrong thread. The lastPushedRef guard below prevents
+  // a loop with our own router.replace.
+  useEffect(() => {
+    if (typeof initialThreadId === "undefined") return
+    setActiveThreadId((prev) => (prev === initialThreadId ? prev : initialThreadId))
+  }, [initialThreadId])
+
   // Keep URL in sync with active thread — only when mounted under
   // /junebug. When embedded on a case detail page we leave the URL
-  // alone. PR 5 wires up the /junebug route; until then deep-linking
-  // is a no-op on non-Junebug pages.
+  // alone.
   const lastPushedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!activeThreadId) return

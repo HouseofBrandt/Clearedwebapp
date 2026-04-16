@@ -37,6 +37,7 @@
     { "path": "/api/cron/tax-authority/weekly-gaps", "schedule": "0 11 * * 1" },
     { "path": "/api/cron/tax-authority/benchmark-replay", "schedule": "0 13 * * *" },
     { "path": "/api/cron/tax-authority/daily-digest", "schedule": "0 14 * * *" },
-    { "path": "/api/cron/scan-implementations", "schedule": "0 12 * * *" }
+    { "path": "/api/cron/scan-implementations", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/junebug/cleanup", "schedule": "0 7 * * *" }
   ]
 }
