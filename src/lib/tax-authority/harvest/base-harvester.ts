@@ -240,8 +240,11 @@ export abstract class BaseHarvester {
     const parserStatus =
       isAlwaysKeep || matchedPracticeArea ? 'PENDING' : 'SKIPPED'
 
-    // Merge classifier output into metadata for audit + later promotion use
-    const mergedMetadata: Record<string, unknown> = {
+    // Merge classifier output into metadata for audit + later promotion use.
+    // Cast to `any` at the Prisma boundary: Prisma's InputJsonValue is stricter
+    // than `Record<string, unknown>` (no `unknown` value variant), and our
+    // values are JSON-serializable primitives + arrays of strings anyway.
+    const mergedMetadata = {
       ...(item.metadata ?? {}),
       issueCategories,
       classifierDecision: parserStatus === 'SKIPPED' ? 'off_topic' : 'kept',
@@ -261,7 +264,7 @@ export abstract class BaseHarvester {
         rightsProfile: this.config.rightsProfile,
         authorityTier: effectiveTier,
         jurisdiction: item.jurisdiction,
-        metadata: mergedMetadata as Record<string, unknown>,
+        metadata: mergedMetadata as any,
         ingestionRunId,
         parserStatus,
       },
