@@ -23,7 +23,7 @@ export default async function FormInstancePage({
     redirect("/forms")
   }
 
-  const schema = getFormSchema(instance.formNumber)
+  const schema = await getFormSchema(instance.formNumber)
   if (!schema) redirect("/forms")
 
   return <div className="page-enter"><FormWizard schema={schema} instance={instance} /></div>

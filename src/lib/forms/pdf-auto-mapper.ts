@@ -57,7 +57,7 @@ export async function getAutoMapping(formNumber: string): Promise<AutoMapResult 
     return null
   }
 
-  const schema = getFormSchema(formNumber)
+  const schema = await getFormSchema(formNumber)
   if (!schema) {
     console.error(`[AUTO-MAP] No schema found for ${formNumber}`)
     return null

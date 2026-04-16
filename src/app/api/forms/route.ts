@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate the form schema exists
-    const schema = getFormSchema(formNumber)
+    const schema = await getFormSchema(formNumber)
     if (!schema) {
       return NextResponse.json(
         { error: `Form schema not found: ${formNumber}` },
