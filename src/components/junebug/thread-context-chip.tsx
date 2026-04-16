@@ -47,20 +47,33 @@ export function ThreadContextChip({ thread, messages }: ThreadContextChipProps) 
   if (!thread) return null
 
   const isCaseScoped = !!thread.caseId
+  const hasSentTurn = latest !== null
   const hasLiveData = latest?.contextAvailable === true
-  const label = isCaseScoped
-    ? hasLiveData
-      ? `${thread.caseNumber ?? "case scoped"}${latest?.caseType ? ` · ${latest.caseType}` : ""}${
-          typeof latest?.kbHits === "number" ? ` · ${latest.kbHits} KB hits` : ""
-        }`
-      : `${thread.caseNumber ?? "case scoped"} — case data unavailable`
-    : "General — no case context"
 
+  // Three distinct states per spec §7.6:
+  //   ok   — case thread, last turn had live data
+  //   warn — case thread, last turn's context load failed (guardrail fired)
+  //   info — either no case, or case thread that hasn't sent a turn yet
   const status: "ok" | "warn" | "info" = isCaseScoped
-    ? hasLiveData
-      ? "ok"
-      : "warn"
+    ? hasSentTurn
+      ? hasLiveData
+        ? "ok"
+        : "warn"
+      : "info"
     : "info"
+
+  let label: string
+  if (!isCaseScoped) {
+    label = "General — no case context"
+  } else if (!hasSentTurn) {
+    label = `${thread.caseNumber ?? "Case loaded"} — ready to start`
+  } else if (hasLiveData) {
+    label = `${thread.caseNumber ?? "case scoped"}${latest?.caseType ? ` · ${latest.caseType}` : ""}${
+      typeof latest?.kbHits === "number" ? ` · ${latest.kbHits} KB hits` : ""
+    }`
+  } else {
+    label = `${thread.caseNumber ?? "case scoped"} — case data unavailable`
+  }
   const color =
     status === "ok"
       ? "var(--c-teal)"
@@ -105,9 +118,11 @@ export function ThreadContextChip({ thread, messages }: ThreadContextChipProps) 
             <Row label="Case type">{latest?.caseType ?? "—"}</Row>
             <Row label="Context available">
               {isCaseScoped
-                ? hasLiveData
-                  ? "Yes — live case data loaded"
-                  : "No — guardrail active"
+                ? !hasSentTurn
+                  ? "Will be loaded on first turn"
+                  : hasLiveData
+                    ? "Yes — live case data loaded"
+                    : "No — guardrail active"
                 : "Not applicable (general thread)"}
             </Row>
             <Row label="KB hits (last turn)">
