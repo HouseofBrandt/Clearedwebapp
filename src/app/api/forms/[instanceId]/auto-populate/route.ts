@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { getFormInstance } from "@/lib/forms/form-store"
 import { autoPopulateForm } from "@/lib/forms/auto-populate"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 /**
  * POST /api/forms/[instanceId]/auto-populate
@@ -36,6 +37,12 @@ export async function POST(
         { error: "Form instance has no associated case. Select a case first." },
         { status: 400 }
       )
+    }
+
+    // Verify access to the case (defense in depth)
+    const userId = (session.user as any).id
+    if (!await canAccessCase(userId, instance.caseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     // Run auto-population against all data sources

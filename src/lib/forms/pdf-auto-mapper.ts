@@ -19,22 +19,51 @@ const mapCache = new Map<string, AutoMapResult>()
 const EXPLICIT_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
   "433-A-OIC": "f433aoic.pdf",
+  "433-B": "f433b.pdf",
+  "433-B-OIC": "f433boi.pdf",
   "12153": "f12153.pdf",
   "911": "f911.pdf",
+  "656": "f656.pdf",
+  "656-B": "f656b.pdf",
+  "843": "f843.pdf",
+  "8857": "f8857.pdf",
+  "9465": "f9465.pdf",
+}
+
+// Folders to search for IRS PDFs, in priority order. /public/forms/ holds
+// the canonical filled set; /public/irs_kb/ holds the broader IRS library.
+const PDF_SEARCH_DIRS = [
+  ["public", "forms"],
+  ["public", "irs_kb"],
+] as const
+
+/**
+ * Resolve a PDF filename to its full filesystem path. Searches the standard
+ * directories. Returns null if not found.
+ */
+export function resolvePdfPath(fileName: string): string | null {
+  for (const dir of PDF_SEARCH_DIRS) {
+    const candidate = join(process.cwd(), ...dir, fileName)
+    if (existsSync(candidate)) return candidate
+  }
+  return null
 }
 
 /**
  * Derive a PDF filename from a form number.
- * Checks explicit mapping first, then tries IRS standard naming convention.
+ * Checks explicit mapping first, then tries IRS standard naming convention,
+ * looking in both /public/forms and /public/irs_kb.
  */
 export function getPDFFileName(formNumber: string): string | null {
   if (EXPLICIT_PDF_FILES[formNumber]) {
-    return EXPLICIT_PDF_FILES[formNumber]
+    // Verify the PDF actually exists somewhere we can find it
+    if (resolvePdfPath(EXPLICIT_PDF_FILES[formNumber])) {
+      return EXPLICIT_PDF_FILES[formNumber]
+    }
   }
   // Try standard IRS naming convention: Form 1040 -> f1040.pdf, Form 433-B -> f433b.pdf
   const standardName = `f${formNumber.toLowerCase().replace(/-/g, "")}.pdf`
-  const pdfPath = join(process.cwd(), "public", "forms", standardName)
-  if (existsSync(pdfPath)) {
+  if (resolvePdfPath(standardName)) {
     return standardName
   }
   return null
@@ -67,9 +96,9 @@ export async function getAutoMapping(formNumber: string): Promise<AutoMapResult 
 
   try {
     // Step 1: Extract all PDF field names
-    const pdfPath = join(process.cwd(), "public", "forms", pdfFile)
-    if (!existsSync(pdfPath)) {
-      console.error(`[AUTO-MAP] PDF file not found: ${pdfPath}`)
+    const pdfPath = resolvePdfPath(pdfFile)
+    if (!pdfPath) {
+      console.error(`[AUTO-MAP] PDF file not found in any search dir: ${pdfFile}`)
       return null
     }
 

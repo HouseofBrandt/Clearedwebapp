@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { useToast } from "@/components/ui/toast"
 import {
   ArrowLeft,
   ChevronLeft,
@@ -204,6 +205,7 @@ interface FormWizardProps {
 
 export function FormWizard({ schema, instance }: FormWizardProps) {
   const router = useRouter()
+  const { addToast } = useToast()
   const allSections = schema.sections
   const [activeSection, setActiveSection] = useState<string>(allSections[0]?.id || "")
   const [values, setValues] = useState<Record<string, any>>(instance.values || {})
@@ -254,7 +256,7 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
   const doSave = useCallback(async (newValues: Record<string, any>) => {
     setSaving(true)
     try {
-      await fetch(`/api/forms/${instance.id}`, {
+      const res = await fetch(`/api/forms/${instance.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -262,13 +264,33 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
           completionPercent: computeCompletion(sections, newValues),
         }),
       })
+      if (res.status === 409) {
+        // Version conflict — another user (or another tab) modified the form.
+        // Toast the user and reload so they see the latest data instead of
+        // silently overwriting their colleague's work.
+        addToast({
+          title: "Form was updated elsewhere",
+          description: "Reloading to show the latest version. Your unsaved changes from the last few seconds may be overwritten.",
+          variant: "destructive",
+        })
+        router.refresh()
+        return
+      }
+      if (!res.ok) {
+        throw new Error(`Save failed (${res.status})`)
+      }
       setLastSaved(new Date())
-    } catch {
-      // Silent failure for auto-save
+    } catch (err: any) {
+      // Show the user that autosave failed — silent failures hide data loss
+      addToast({
+        title: "Couldn't save your changes",
+        description: err?.message || "Check your connection and try again.",
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
-  }, [instance.id, sections])
+  }, [instance.id, sections, addToast, router])
 
   const handleFieldChange = useCallback(
     (fieldId: string, value: any) => {
@@ -370,16 +392,39 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       })
-      if (!res.ok) throw new Error("Auto-populate failed")
+      if (!res.ok) {
+        let detail = "Auto-populate failed"
+        try {
+          const body = await res.json()
+          if (body?.error && typeof body.error === "string") detail = body.error
+        } catch { /* keep default */ }
+        throw new Error(detail)
+      }
       const result: AutoPopulationResult = await res.json()
       setAutoPopResult(result)
       setAutoPopDialogOpen(true)
-    } catch {
-      // Silent failure
+      if (result.totalFound === 0) {
+        addToast({
+          title: "No data to populate",
+          description:
+            "Upload case documents (tax returns, bank statements, IRS notices) so Banjo can extract field values for you.",
+        })
+      } else {
+        addToast({
+          title: `Found ${result.totalFound} value${result.totalFound === 1 ? "" : "s"}`,
+          description: `${result.highConfidence} high-confidence, ${result.needsReview} need review.`,
+        })
+      }
+    } catch (err: any) {
+      addToast({
+        title: "Auto-populate failed",
+        description: err?.message || "Please try again or fill the form manually.",
+        variant: "destructive",
+      })
     } finally {
       setAutoPopLoading(false)
     }
-  }, [instance.id])
+  }, [instance.id, addToast])
 
   const applyAutoPopulated = useCallback(
     (fields: AutoPopulatedField[]) => {

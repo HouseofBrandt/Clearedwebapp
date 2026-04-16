@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
-import { PDFDocument } from "pdf-lib"
 import { readFile } from "fs/promises"
 import { join } from "path"
 import { getFormInstance } from "@/lib/forms/form-store"
-import { getAcroFieldMap } from "@/lib/forms/pdf-maps/registry"
-import { getAutoMapping, getPDFFileName } from "@/lib/forms/pdf-auto-mapper"
+import { getAcroFieldMap, getPDFMap } from "@/lib/forms/pdf-maps/registry"
+import { getAutoMapping, getPDFFileName, resolvePdfPath } from "@/lib/forms/pdf-auto-mapper"
+import { fillPdf } from "@/lib/forms/pdf-filler"
+import { getFormSchema } from "@/lib/forms/registry"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 const FORM_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
@@ -661,13 +663,22 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  // Verify access to this form instance's case (defense in depth)
+  const instance = await getFormInstance(params.instanceId)
+  if (instance?.caseId) {
+    const userId = (session.user as any).id
+    if (!await canAccessCase(userId, instance.caseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+  }
+
   let values: Record<string, any> = {}
   let formNumber = "433-A"
 
   try {
     const body = await request.json()
     values = body.values || {}
-    formNumber = body.formNumber || "433-A"
+    formNumber = body.formNumber || instance?.formNumber || "433-A"
   } catch {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
@@ -695,6 +706,13 @@ export async function GET(
 
   const instance = await getFormInstance(instanceId)
   if (instance) {
+    // Verify access to this form instance's case (defense in depth)
+    if (instance.caseId) {
+      const userId = (session.user as any).id
+      if (!await canAccessCase(userId, instance.caseId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+    }
     values = instance.values || {}
     formNumber = instance.formNumber || "433-A"
   }
@@ -709,131 +727,59 @@ export async function GET(
 
 async function generateFilledPDF(formNumber: string, values: Record<string, any>, pdfFileName: string) {
   try {
-    const pdfPath = join(process.cwd(), "public", "forms", pdfFileName)
+    const pdfPath = resolvePdfPath(pdfFileName)
+    if (!pdfPath) {
+      console.error(`[PDF FILL] PDF not found: ${pdfFileName}`)
+      return NextResponse.json({ error: `PDF "${pdfFileName}" not found` }, { status: 404 })
+    }
     const pdfBytes = await readFile(pdfPath)
-    const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
 
-    // Select the correct field map for this form (tries AI auto-map, then registry, then inline)
-    const fieldMap = await getFieldMap(formNumber)
+    // Source 1: Hand-coded explicit map (highest priority)
+    const explicitMap = await getFieldMap(formNumber)
+    // Source 2: Coordinate-based map for forms without complete AcroForm coverage
+    const coordinateMap = getPDFMap(formNumber)
+    // Source 3: Schema (drives type-aware normalization + fuzzy matching)
+    const schema = getFormSchema(formNumber)
 
-    // DEBUG MODE: report field info and test results
-    if (Object.keys(values).length > 0) {
+    // Optional debug echo of what we'd fill (for development tooling)
+    if (values._debug === true) {
+      const { PDFDocument } = await import("pdf-lib")
+      const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true })
       const form = pdfDoc.getForm()
       const allFields = form.getFields()
-      const firstFieldName = allFields[0]?.getName()
-      const testResults: string[] = []
-
-      try {
-        const tf = form.getTextField(firstFieldName)
-        tf.setText("TEST_VALUE")
-        testResults.push(`SUCCESS: getTextField('${firstFieldName}') worked, setText succeeded`)
-      } catch (e: any) {
-        testResults.push(`FAILED getTextField: ${e.message}`)
-        try {
-          const f = allFields[0]
-          testResults.push(`Field class: ${f.constructor.name}`)
-          testResults.push(`Field acroField: ${JSON.stringify(Object.keys(f))}`)
-        } catch (e2: any) {
-          testResults.push(`Inspection failed: ${e2.message}`)
-        }
-      }
-
-      const isDebug = new URL("http://x?" + (values._debug || "")).searchParams.has("debug") || values._debug === true
-      if (isDebug) {
-        return NextResponse.json({
-          fieldCount: allFields.length,
-          firstField: firstFieldName,
-          testResults,
-          valuesReceived: Object.keys(values),
-          mappedFieldCount: Object.keys(fieldMap).length,
-        })
-      }
+      return NextResponse.json({
+        fieldCount: allFields.length,
+        firstField: allFields[0]?.getName(),
+        valuesReceived: Object.keys(values).filter((k) => k !== "_debug"),
+        explicitMapSize: Object.keys(explicitMap).length,
+        hasCoordinateMap: !!coordinateMap,
+        hasSchema: !!schema,
+      })
     }
 
-    // Flatten repeating groups from nested arrays to dot-notation keys
-    const flatValues: Record<string, any> = {}
-    for (const [key, val] of Object.entries(values)) {
-      if (Array.isArray(val)) {
-        val.forEach((entry: Record<string, any>, idx: number) => {
-          if (entry && typeof entry === "object") {
-            for (const [subKey, subVal] of Object.entries(entry)) {
-              flatValues[`${key}.${idx}.${subKey}`] = subVal
-            }
-          }
-        })
-      } else {
-        flatValues[key] = val
-      }
+    const { pdfBytes: filledPdfBytes, report } = await fillPdf(pdfBytes, values, {
+      schema,
+      explicitMap,
+      coordinateMap,
+      flatten: true,
+    })
+
+    console.log(
+      `[PDF FILL] Form ${formNumber}: filled ${report.filled}, skipped ${report.skipped}, errors ${report.errors.length}`
+    )
+    if (report.errors.length > 0) {
+      const sample = report.errors.slice(0, 5).map((e) => `${e.fieldId}: ${e.reason}`).join("; ")
+      console.log(`[PDF FILL] Sample errors: ${sample}`)
     }
-
-    // Get the form — pdf-lib strips XFA but keeps AcroForm fields
-    const form = pdfDoc.getForm()
-    const fields = form.getFields()
-    let filledCount = 0
-    const errors: string[] = []
-
-    console.log(`[PDF FILL] Form ${formNumber} has ${fields.length} AcroForm fields, field map has ${Object.keys(fieldMap).length} entries`)
-
-    // Build a set of actual PDF field names for fuzzy matching fallback
-    const actualFieldNames = new Set(fields.map(f => f.getName()))
-
-    // Fill fields using exact name mapping
-    for (const [ourId, value] of Object.entries(flatValues)) {
-      if (value === undefined || value === null || value === "") continue
-      if (ourId === "_debug") continue
-
-      const pdfFieldName = fieldMap[ourId]
-      if (!pdfFieldName) continue
-
-      try {
-        // Check if this is a checkbox/yes-no field
-        if (typeof value === "boolean") {
-          try {
-            const checkbox = form.getCheckBox(pdfFieldName)
-            if (value) checkbox.check()
-            else checkbox.uncheck()
-            filledCount++
-            continue
-          } catch {
-            // Not a checkbox — fall through to text field
-          }
-        }
-
-        const textField = form.getTextField(pdfFieldName)
-        let displayValue = String(value)
-        if (typeof value === "boolean") displayValue = value ? "Yes" : "No"
-        textField.setText(displayValue)
-        filledCount++
-      } catch (e: any) {
-        // Try without the full path — just the field name after the last dot
-        const shortName = pdfFieldName.split(".").pop() || pdfFieldName
-        if (actualFieldNames.has(shortName)) {
-          try {
-            const textField = form.getTextField(shortName)
-            textField.setText(String(value))
-            filledCount++
-            continue
-          } catch {
-            // Also failed with short name
-          }
-        }
-        errors.push(`${ourId} → ${pdfFieldName}: ${e?.message?.slice(0, 80)}`)
-      }
-    }
-
-    console.log(`[PDF FILL] Filled ${filledCount} fields, ${errors.length} errors`)
-    if (errors.length > 0) console.log(`[PDF FILL] Errors: ${errors.slice(0, 10).join("; ")}`)
-
-    // Flatten form so values render as text
-    form.flatten()
-
-    const filledPdfBytes = await pdfDoc.save()
 
     return new NextResponse(Buffer.from(filledPdfBytes), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="preview-${formNumber}.pdf"`,
         "Cache-Control": "no-cache, no-store, must-revalidate",
+        "X-Fill-Filled": String(report.filled),
+        "X-Fill-Skipped": String(report.skipped),
+        "X-Fill-Errors": String(report.errors.length),
       },
     })
   } catch (error: any) {

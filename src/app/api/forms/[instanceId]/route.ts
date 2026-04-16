@@ -140,11 +140,27 @@ export async function PATCH(
     }
 
     instance.updatedAt = new Date().toISOString()
-    instance.version += 1
+    // Do NOT pre-increment — saveFormInstance handles versioning atomically.
+    // We pass the version we READ from the DB; if another request beat us,
+    // saveFormInstance throws VersionConflictError and we return 409.
 
-    await saveFormInstance(instance)
-
-    return NextResponse.json({ instance })
+    try {
+      const newVersion = await saveFormInstance(instance)
+      return NextResponse.json({ instance: { ...instance, version: newVersion } })
+    } catch (e: any) {
+      if (e?.name === "VersionConflictError") {
+        return NextResponse.json(
+          {
+            error: "This form was updated by someone else. Please refresh to see the latest version.",
+            code: "VERSION_CONFLICT",
+            currentVersion: e.actual,
+            yourVersion: e.expected,
+          },
+          { status: 409 }
+        )
+      }
+      throw e
+    }
   } catch (error) {
     console.error("Error updating form instance:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
