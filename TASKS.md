@@ -89,7 +89,7 @@ Acceptance:
 - New messages appear within 30 seconds without full page reload
 - State survives page refresh
 
-## [TODO] A4.7 Junebug Threads — Persistent Multi-Thread Workspace
+## [IN_PROGRESS] A4.7 Junebug Threads — Persistent Multi-Thread Workspace
 Priority: P0
 Source: Part A — Junebug persistence + Claude.ai interaction pattern
 Spec: docs/spec-junebug-threads.md (full design — read before starting)
