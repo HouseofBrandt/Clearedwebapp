@@ -15,37 +15,41 @@ const nextConfig = {
     return config
   },
   experimental: {
-    serverComponentsExternalPackages: ['ws'],
+    // pdf-lib is large (~5MB unpacked) and used in form/PDF routes — externalizing
+    // it prevents webpack from bundling it into every function that touches it,
+    // which keeps us under Vercel's 300MB serverless function limit.
+    serverComponentsExternalPackages: ['ws', 'pdf-lib'],
     serverActions: {
       bodySizeLimit: '10mb',
     },
     outputFileTracingIncludes: {
       '/api/ai/analyze': ['./src/lib/ai/prompts/**/*.txt'],
-      // Form routes need access to all IRS form PDFs for filling
-      '/api/forms/[instanceId]/preview-pdf': [
-        './public/forms/**/*.pdf',
-        './public/irs_kb/f*.pdf',
-      ],
     },
     outputFileTracingExcludes: {
-      // IRS publications (p*.pdf, etc.) are reference docs only — not used by the
-      // PDF filler. Excluding them keeps the function under Vercel's 300MB limit.
+      // /public/irs_kb holds large IRS publications (p971.pdf, p556.pdf, etc.)
+      // that aren't used by the PDF filler. Form PDFs in /public/forms are used
+      // and traced automatically via readFile() calls.
       '/api/forms/[instanceId]/preview-pdf': [
         'public/irs_kb/p*.pdf',
         'public/irs_kb/rp-*.pdf',
         'public/irs_kb/pcir*.pdf',
-        // Build/dev tooling that occasionally gets traced into serverless bundles
-        'node_modules/@swc/core-*',
+        'node_modules/@swc/**',
         'node_modules/@esbuild/**',
-        'node_modules/typescript/lib/**',
+        'node_modules/typescript/**',
         'node_modules/.cache/**',
+        'node_modules/canvas/**',
+        'node_modules/sharp/**',
+        '.next/cache/**',
       ],
       '/api/forms/[instanceId]/auto-populate': [
         'public/**',
-        'node_modules/@swc/core-*',
+        'node_modules/@swc/**',
         'node_modules/@esbuild/**',
-        'node_modules/typescript/lib/**',
+        'node_modules/typescript/**',
         'node_modules/.cache/**',
+        'node_modules/canvas/**',
+        'node_modules/sharp/**',
+        '.next/cache/**',
       ],
     },
   },

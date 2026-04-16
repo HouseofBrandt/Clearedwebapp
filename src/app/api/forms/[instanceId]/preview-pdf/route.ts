@@ -3,12 +3,13 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { readFile } from "fs/promises"
 import { getFormInstance } from "@/lib/forms/form-store"
-import { getAcroFieldMap } from "@/lib/forms/pdf-maps/registry"
-import { getAutoMapping, getPDFFileName, resolvePdfPath } from "@/lib/forms/pdf-auto-mapper"
 import { canAccessCase } from "@/lib/auth/case-access"
-// fillPdf, getPDFMap, getFormSchema are dynamically imported inside generateFilledPDF
-// to keep this serverless function under Vercel's 300MB bundle limit. Static imports
-// of the form registry pull all 7 schemas + fragments into the bundle eagerly.
+// All form-system / PDF imports are dynamic to keep this serverless function under
+// Vercel's 300MB bundle limit. The registry, fillPdf, pdf-auto-mapper, and even the
+// AcroForm field maps are loaded lazily on first request.
+//
+//   getFieldMap()    — uses dynamic imports of pdf-auto-mapper + registry
+//   generateFilledPDF — uses dynamic imports of pdf-filler + registry + pdf-maps
 
 const FORM_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
@@ -621,8 +622,9 @@ const FORM_911_FIELD_MAP: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function getFieldMap(formNumber: string): Promise<Record<string, string>> {
-  // 1. Try AI-powered auto-mapping first
+  // 1. Try AI-powered auto-mapping first (lazy import — pulls in Anthropic SDK)
   try {
+    const { getAutoMapping } = await import("@/lib/forms/pdf-auto-mapper")
     const autoMap = await getAutoMapping(formNumber)
     if (autoMap && Object.keys(autoMap.mappings).length > 0) {
       console.log(`[PDF FILL] Using auto-map for ${formNumber}: ${Object.keys(autoMap.mappings).length} fields, confidence ${autoMap.confidence}%`)
@@ -632,7 +634,8 @@ async function getFieldMap(formNumber: string): Promise<Record<string, string>> 
     console.warn(`[PDF FILL] Auto-map failed for ${formNumber}, falling back to manual maps: ${e.message}`)
   }
 
-  // 2. Try the centralized PDF map registry
+  // 2. Try the centralized PDF map registry (lazy — pulls in 700-line 433-A field map)
+  const { getAcroFieldMap } = await import("@/lib/forms/pdf-maps/registry")
   const registryMap = getAcroFieldMap(formNumber)
   if (registryMap && Object.keys(registryMap).length > 0) {
     console.log(`[PDF FILL] Using registry map for ${formNumber}: ${Object.keys(registryMap).length} fields`)
@@ -683,6 +686,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
 
+  const { getPDFFileName } = await import("@/lib/forms/pdf-auto-mapper")
   const pdfFileName = FORM_PDF_FILES[formNumber] || getPDFFileName(formNumber)
   if (!pdfFileName) {
     return NextResponse.json({ error: "PDF not available" }, { status: 404 })
@@ -717,6 +721,7 @@ export async function GET(
     formNumber = instance.formNumber || "433-A"
   }
 
+  const { getPDFFileName } = await import("@/lib/forms/pdf-auto-mapper")
   const pdfFileName = FORM_PDF_FILES[formNumber] || getPDFFileName(formNumber)
   if (!pdfFileName) {
     return NextResponse.json({ error: "PDF not available" }, { status: 404 })
@@ -727,20 +732,22 @@ export async function GET(
 
 async function generateFilledPDF(formNumber: string, values: Record<string, any>, pdfFileName: string) {
   try {
+    // Dynamic imports keep the serverless function bundle under Vercel's 300MB limit.
+    // The form registry imports all 7 schemas eagerly when used at the top level;
+    // pdf-filler imports pdf-lib (~5MB); pdf-auto-mapper imports the Anthropic SDK.
+    const [{ fillPdf }, { getPDFMap }, { getFormSchema }, { resolvePdfPath }] = await Promise.all([
+      import("@/lib/forms/pdf-filler"),
+      import("@/lib/forms/pdf-maps/registry"),
+      import("@/lib/forms/registry"),
+      import("@/lib/forms/pdf-auto-mapper"),
+    ])
+
     const pdfPath = resolvePdfPath(pdfFileName)
     if (!pdfPath) {
       console.error(`[PDF FILL] PDF not found: ${pdfFileName}`)
       return NextResponse.json({ error: `PDF "${pdfFileName}" not found` }, { status: 404 })
     }
     const pdfBytes = await readFile(pdfPath)
-
-    // Dynamic imports keep the serverless function bundle under Vercel's 300MB limit.
-    // The form registry imports all 7 schemas eagerly when used at the top level.
-    const [{ fillPdf }, { getPDFMap }, { getFormSchema }] = await Promise.all([
-      import("@/lib/forms/pdf-filler"),
-      import("@/lib/forms/pdf-maps/registry"),
-      import("@/lib/forms/registry"),
-    ])
 
     // Source 1: Hand-coded explicit map (highest priority)
     const explicitMap = await getFieldMap(formNumber)
