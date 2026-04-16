@@ -1,0 +1,319 @@
+"use client"
+
+/**
+ * JunebugWorkspace — top-level layout (spec §4 + §7.2).
+ *
+ * Holds:
+ *   - Active thread state (URL-driven if `initialThreadId` is passed)
+ *   - Sidebar filter state (archived, case scope, search)
+ *   - Sidebar collapse (mobile overlay vs desktop fixed)
+ *
+ * Wires:
+ *   - useThreads → ThreadSidebar
+ *   - useThread + useSendMessage → ThreadView
+ *   - Starting a message from the splash screen creates a thread first,
+ *     then hands off to ThreadView which sends the turn.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { usePathname, useRouter } from "next/navigation"
+import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
+import { ThreadSidebar } from "./thread-sidebar"
+import { ThreadView } from "./thread-view"
+import { ThreadEmptyState } from "./thread-empty-state"
+import { useThreads } from "./hooks/use-threads"
+import type { ComposerAttachment } from "./message-composer"
+import type { JunebugThreadListItem } from "./types"
+
+export interface JunebugWorkspaceProps {
+  initialThreadId?: string
+  scopeToCaseId?: string | null
+  /** Suggestions override for the splash screen (e.g. on a case page). */
+  suggestions?: string[]
+}
+
+export function JunebugWorkspace({
+  initialThreadId,
+  scopeToCaseId,
+  suggestions,
+}: JunebugWorkspaceProps) {
+  const flagOn = junebugThreadsEnabled()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(
+    initialThreadId ?? null
+  )
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [showArchived, setShowArchived] = useState(false)
+  const [caseScopeFilter, setCaseScopeFilter] = useState<"all" | "current_case">(
+    scopeToCaseId ? "current_case" : "all"
+  )
+
+  const filters = useMemo(
+    () => ({
+      archived: showArchived,
+      caseId:
+        scopeToCaseId && caseScopeFilter === "current_case" ? scopeToCaseId : undefined,
+      search: searchQuery,
+    }),
+    [showArchived, scopeToCaseId, caseScopeFilter, searchQuery]
+  )
+
+  const threads = useThreads(filters)
+
+  // Keep URL in sync with active thread — only when mounted under
+  // /junebug. When embedded on a case detail page we leave the URL
+  // alone. PR 5 wires up the /junebug route; until then deep-linking
+  // is a no-op on non-Junebug pages.
+  const lastPushedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!activeThreadId) return
+    if (lastPushedRef.current === activeThreadId) return
+    if (!pathname?.startsWith("/junebug")) return
+    lastPushedRef.current = activeThreadId
+    const qs = scopeToCaseId ? `?case=${scopeToCaseId}` : ""
+    router.replace(`/junebug/${activeThreadId}${qs}`, { scroll: false })
+  }, [activeThreadId, router, pathname, scopeToCaseId])
+
+  const handleSelect = useCallback((id: string) => {
+    setActiveThreadId(id)
+    setMobileSidebarOpen(false)
+  }, [])
+
+  const handleNewThread = useCallback(async () => {
+    const created = await threads.createThread(scopeToCaseId)
+    setActiveThreadId(created.id)
+    setMobileSidebarOpen(false)
+  }, [threads, scopeToCaseId])
+
+  /**
+   * Splash-screen "start a conversation" handler. Creates the thread first,
+   * then sets it active. The ThreadView, which mounts with that id, will
+   * pick up the first turn — but since the turn was typed into the splash
+   * composer, we need to post the first message ourselves. We store the
+   * pending content in a ref and let ThreadView send it once mounted.
+   */
+  const pendingInitialMessageRef = useRef<
+    | { threadId: string; content: string; attachments: ComposerAttachment[] }
+    | null
+  >(null)
+
+  const handleSplashStart = useCallback(
+    async (content: string, attachments: ComposerAttachment[]) => {
+      const created = await threads.createThread(scopeToCaseId)
+      pendingInitialMessageRef.current = {
+        threadId: created.id,
+        content,
+        attachments,
+      }
+      setActiveThreadId(created.id)
+    },
+    [threads, scopeToCaseId]
+  )
+
+  const handleRename = useCallback(
+    async (id: string, next: string) => {
+      await threads.updateThread(id, { title: next })
+    },
+    [threads]
+  )
+  const handlePin = useCallback(
+    async (id: string, next: boolean) => {
+      await threads.updateThread(id, { pinned: next })
+    },
+    [threads]
+  )
+  const handleArchive = useCallback(
+    async (id: string, next: boolean) => {
+      await threads.updateThread(id, { archived: next })
+    },
+    [threads]
+  )
+  const handleDelete = useCallback(
+    async (id: string) => {
+      await threads.deleteThread(id)
+      if (activeThreadId === id) setActiveThreadId(null)
+    },
+    [threads, activeThreadId]
+  )
+
+  const handleThreadBumped = useCallback(
+    (patch: Partial<JunebugThreadListItem> & { id: string }) => {
+      // Merge the bump into the list; if thread isn't in the list yet
+      // (e.g. first message on a freshly-created thread), upsert it.
+      const existing = threads.threads.find((x) => x.id === patch.id)
+      if (existing) {
+        // Optimistic patch; next poll confirms
+        threads.upsertThread({ ...existing, ...patch } as JunebugThreadListItem)
+      } else {
+        threads.upsertThread({
+          id: patch.id,
+          title: patch.title ?? "New conversation",
+          titleAutoGenerated: patch.titleAutoGenerated ?? true,
+          caseId: patch.caseId ?? null,
+          caseNumber: patch.caseNumber ?? null,
+          clientName: patch.clientName ?? null,
+          pinned: false,
+          archived: false,
+          lastMessageAt: patch.lastMessageAt ?? new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          messageCount: 0,
+          lastMessagePreview: "",
+          lastMessageRole: null,
+        })
+      }
+    },
+    [threads]
+  )
+
+  if (!flagOn) {
+    return (
+      <div className="flex h-full items-center justify-center p-12 text-center text-c-gray-500">
+        <p className="text-[13px]">
+          Junebug Threads is not enabled on this environment.
+        </p>
+      </div>
+    )
+  }
+
+  const activeThread = activeThreadId
+    ? threads.threads.find((t) => t.id === activeThreadId) ?? null
+    : null
+  const splashScopedCaseNumber = scopeToCaseId
+    ? activeThread?.caseNumber ??
+      threads.threads.find((t) => t.caseId === scopeToCaseId)?.caseNumber ??
+      null
+    : null
+
+  return (
+    <div className="flex h-full w-full bg-white">
+      {/* Desktop sidebar */}
+      <div
+        className={`hidden md:flex transition-all duration-200 ${
+          sidebarCollapsed ? "w-0 overflow-hidden" : "w-[280px]"
+        }`}
+      >
+        <ThreadSidebar
+          threads={threads.threads}
+          activeThreadId={activeThreadId}
+          isLoading={threads.isLoading}
+          scopeToCaseId={scopeToCaseId ?? null}
+          caseScopeFilter={caseScopeFilter}
+          onCaseScopeChange={setCaseScopeFilter}
+          showArchived={showArchived}
+          onToggleArchived={setShowArchived}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onSelect={handleSelect}
+          onNewThread={handleNewThread}
+          onRename={handleRename}
+          onPin={handlePin}
+          onArchive={handleArchive}
+          onDelete={handleDelete}
+        />
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 flex md:hidden">
+          <div className="w-[280px] max-w-[85%] bg-white shadow-xl">
+            <ThreadSidebar
+              threads={threads.threads}
+              activeThreadId={activeThreadId}
+              isLoading={threads.isLoading}
+              scopeToCaseId={scopeToCaseId ?? null}
+              caseScopeFilter={caseScopeFilter}
+              onCaseScopeChange={setCaseScopeFilter}
+              showArchived={showArchived}
+              onToggleArchived={setShowArchived}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onSelect={handleSelect}
+              onNewThread={handleNewThread}
+              onRename={handleRename}
+              onPin={handlePin}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(false)}
+            className="flex-1 bg-black/30"
+            aria-label="Close sidebar"
+          />
+        </div>
+      )}
+
+      {/* Main */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Top chrome: collapse button (desktop) / menu (mobile) */}
+        <div className="flex items-center gap-2 border-b border-c-gray-100 bg-white px-4 py-2">
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(true)}
+            className="rounded p-1.5 text-c-gray-500 hover:bg-c-gray-50 md:hidden"
+            aria-label="Open threads"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((v) => !v)}
+            className="hidden rounded p-1.5 text-c-gray-500 hover:bg-c-gray-50 md:block"
+            aria-label={sidebarCollapsed ? "Show threads" : "Hide threads"}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </button>
+          <h2
+            className="flex-1 truncate text-[14px] text-c-gray-900"
+            style={{ fontFamily: "var(--font-display, Georgia), serif", fontWeight: 400 }}
+          >
+            {activeThread?.title ?? "Junebug"}
+          </h2>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col">
+          {activeThreadId ? (
+            <ThreadView
+              key={activeThreadId}
+              threadId={activeThreadId}
+              currentRoute={typeof window !== "undefined" ? window.location.pathname : undefined}
+              onThreadBumped={handleThreadBumped}
+              initialSendContent={
+                pendingInitialMessageRef.current?.threadId === activeThreadId
+                  ? pendingInitialMessageRef.current.content
+                  : undefined
+              }
+              initialSendAttachments={
+                pendingInitialMessageRef.current?.threadId === activeThreadId
+                  ? pendingInitialMessageRef.current.attachments
+                  : undefined
+              }
+              onInitialSendDispatched={() => {
+                if (pendingInitialMessageRef.current?.threadId === activeThreadId) {
+                  pendingInitialMessageRef.current = null
+                }
+              }}
+            />
+          ) : (
+            <ThreadEmptyState
+              scopedCaseNumber={splashScopedCaseNumber}
+              isCreating={threads.isLoading}
+              onStart={handleSplashStart}
+              suggestions={suggestions}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
