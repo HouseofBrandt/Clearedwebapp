@@ -173,8 +173,10 @@ export async function POST(
       const knownNames = [caseData.clientName].filter(Boolean) as string[]
       const { tokenizedText: tokenizedDocText, tokenMap } = tokenizeText(documentText, knownNames)
 
+      const tokenMapExpiresAt = new Date()
+      tokenMapExpiresAt.setFullYear(tokenMapExpiresAt.getFullYear() + 2)
       await prisma.tokenMap.create({
-        data: { caseId: caseData.id, tokenMap: encryptTokenMap(tokenMap) },
+        data: { caseId: caseData.id, tokenMap: encryptTokenMap(tokenMap), expiresAt: tokenMapExpiresAt },
       })
 
       // === DAG EXECUTION ===
@@ -338,9 +340,12 @@ export async function POST(
 
           stopKeepalive()
 
-          const responseModel = finalMessage.model
-          const inputTokens = finalMessage.usage.input_tokens
-          const outputTokens = finalMessage.usage.output_tokens
+          if (!finalMessage) {
+            throw new Error("Claude API returned no final message")
+          }
+          const responseModel = finalMessage.model || model
+          const inputTokens = finalMessage.usage?.input_tokens ?? 0
+          const outputTokens = finalMessage.usage?.output_tokens ?? 0
 
           // Process output
           emit({
@@ -359,25 +364,19 @@ export async function POST(
           if (isTemplateTask) {
             try {
               const extractedData = extractJSON(fullContent)
-              const detokenizedData: Record<string, any> = {}
-              for (const [key, value] of Object.entries(extractedData)) {
-                if (typeof value === "string") {
-                  detokenizedData[key] = detokenizeText(value, tokenMap)
-                } else if (Array.isArray(value)) {
-                  detokenizedData[key] = value.map((item: any) => {
-                    if (typeof item === "object" && item !== null) {
-                      const d: Record<string, any> = {}
-                      for (const [k, v] of Object.entries(item)) {
-                        d[k] = typeof v === "string" ? detokenizeText(v, tokenMap) : v
-                      }
-                      return d
-                    }
-                    return typeof item === "string" ? detokenizeText(item, tokenMap) : item
-                  })
-                } else {
-                  detokenizedData[key] = value
+              // Recursively detokenize ALL string values at any depth — prevents
+              // PII tokens like "[SSN-ABC123]" leaking through deeply nested arrays/objects
+              const detokenizeDeep = (val: any): any => {
+                if (typeof val === "string") return detokenizeText(val, tokenMap)
+                if (Array.isArray(val)) return val.map(detokenizeDeep)
+                if (val && typeof val === "object") {
+                  const out: Record<string, any> = {}
+                  for (const [k, v] of Object.entries(val)) out[k] = detokenizeDeep(v)
+                  return out
                 }
+                return val
               }
+              const detokenizedData = detokenizeDeep(extractedData) as Record<string, any>
               const merged = mergeTemplateWithData(detokenizedData)
               detokenized = JSON.stringify({ _type: "oic_working_papers_v1", extracted: detokenizedData, merged })
               const detokenizedStr = JSON.stringify(detokenizedData)

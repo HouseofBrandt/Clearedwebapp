@@ -179,6 +179,8 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   const polishingStartRef = useRef<number | null>(null)
 
   function startPolling(id: string) {
+    // Clear any existing polling interval to prevent memory leaks
+    if (pollingRef.current) clearInterval(pollingRef.current)
     pollingRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/banjo/${id}`)
@@ -301,6 +303,8 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
 
   async function handleApprove() {
     if (!assignmentId || !plan) return
+    // Prevent double-submission — if already executing, ignore additional clicks
+    if (phase === "executing" || phase === "planning") return
 
     const initialDeliverables: DeliverableProgress[] = plan.deliverables.map((d: any) => ({
       step: d.stepNumber,
@@ -352,12 +356,13 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
                     : d
                 )
               )
-              const totalSteps = event.totalSteps || plan.deliverables.length
+              const planSteps = plan?.deliverables?.length ?? deliverables.length ?? 1
+              const totalSteps = event.totalSteps || planSteps
               const completedSteps = completed.length
               const stepProgress = event.percent || 0
               setOverallPercent(Math.round(((completedSteps + stepProgress / 100) / totalSteps) * 100))
             } else if (event.type === "step_complete") {
-              const planDeliverable = plan.deliverables.find((d: any) => d.stepNumber === event.step)
+              const planDeliverable = plan?.deliverables?.find((d: any) => d.stepNumber === event.step)
               setDeliverables((prev) =>
                 prev.map((d) =>
                   d.step === event.step

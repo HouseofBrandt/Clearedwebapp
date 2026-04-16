@@ -73,8 +73,15 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
   const [notes, setNotes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [filterType, setFilterType] = useState("ALL")
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest")
+
+  // Debounce search input to avoid hammering the API on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 250)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
   // Quick-add form state
   const [formType, setFormType] = useState("GENERAL")
@@ -103,25 +110,28 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
 
   const { addToast } = useToast()
 
-  const fetchNotes = useCallback(async () => {
+  const fetchNotes = useCallback(async (signal?: AbortSignal) => {
     try {
       const params = new URLSearchParams()
-      if (searchQuery) params.set("search", searchQuery)
+      if (debouncedSearch) params.set("search", debouncedSearch)
       if (filterType !== "ALL") params.set("noteType", filterType)
       params.set("sort", sortOrder)
-      const res = await fetch(`/api/cases/${caseId}/notes?${params}`)
-      if (!res.ok) throw new Error()
+      const res = await fetch(`/api/cases/${caseId}/notes?${params}`, { signal })
+      if (!res.ok) throw new Error("Notes fetch failed")
       const data = await res.json()
       setNotes(data.notes || data)
-    } catch {
+    } catch (err: any) {
+      if (err?.name === "AbortError") return // user changed filters mid-flight; ignore
       addToast({ title: "Error loading notes", variant: "destructive" })
     } finally {
       setLoading(false)
     }
-  }, [caseId, searchQuery, filterType, sortOrder, addToast])
+  }, [caseId, debouncedSearch, filterType, sortOrder, addToast])
 
   useEffect(() => {
-    fetchNotes()
+    const controller = new AbortController()
+    fetchNotes(controller.signal)
+    return () => controller.abort()
   }, [fetchNotes])
 
   function resetForm() {
@@ -224,6 +234,7 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
 
   const pinnedNotes = notes.filter((n) => n.pinned)
   const filteredNotes = notes
+  const hasActiveFilters = !!debouncedSearch || filterType !== "ALL"
 
   return (
     <div className="flex gap-4 h-full">
@@ -268,15 +279,41 @@ export function NotesPanel({ caseId, currentUserId, currentUserRole }: NotesPane
 
         {/* Notes list */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="space-y-2" aria-live="polite" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-lg border border-c-gray-100 bg-white p-4 animate-pulse">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-24 rounded bg-c-gray-100" />
+                  <div className="h-3 w-16 rounded bg-c-gray-100/70 ml-auto" />
+                </div>
+                <div className="mt-3 space-y-2">
+                  <div className="h-3 w-full rounded bg-c-gray-100" />
+                  <div className="h-3 w-5/6 rounded bg-c-gray-100" />
+                  <div className="h-3 w-2/3 rounded bg-c-gray-100" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredNotes.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <StickyNote className="h-12 w-12 text-muted-foreground/50" />
-              <h3 className="mt-4 text-lg font-medium">No notes yet</h3>
-              <p className="text-sm text-muted-foreground">Add a note using the form on the right.</p>
+              <h3 className="mt-4 text-base font-medium tracking-[-0.01em]">
+                {hasActiveFilters ? "No notes match your filters" : "No notes yet"}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {hasActiveFilters
+                  ? "Try clearing filters or broadening your search."
+                  : "Add a note using the form on the right."}
+              </p>
+              {hasActiveFilters && (
+                <button
+                  onClick={() => { setSearchQuery(""); setFilterType("ALL") }}
+                  className="mt-3 text-xs font-medium text-c-teal hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
             </CardContent>
           </Card>
         ) : (

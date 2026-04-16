@@ -151,6 +151,18 @@ export function DocumentUpload({ caseId }: DocumentUploadProps) {
           description: `${files.length} file(s) uploaded and processed.`,
         })
       }
+      // Clear successfully-uploaded files; keep errored ones so user can retry/remove them
+      const erroredIndices = new Set<number>()
+      fileStates.forEach((s, i) => { if (s.status === "error") erroredIndices.add(i) })
+      if (erroredIndices.size === 0) {
+        setFiles([])
+        setFileCategories([])
+        setFileStates([])
+      } else {
+        setFiles((prev) => prev.filter((_, i) => erroredIndices.has(i)))
+        setFileCategories((prev) => prev.filter((_, i) => erroredIndices.has(i)))
+        setFileStates((prev) => prev.filter((_, i) => erroredIndices.has(i)))
+      }
       router.refresh()
     } catch (error) {
       addToast({

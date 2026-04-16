@@ -101,12 +101,21 @@ export function CasesList({ initialCases, practitioners, totalCount }: CasesList
 
   const handleDeleteCase = useCallback(async function handleDeleteCase(caseId: string, tabsNumber: string) {
     if (!confirm(`Delete case ${tabsNumber}? This permanently deletes all documents, AI tasks, and review history.`)) return
-    const res = await fetch(`/api/cases/${caseId}`, { method: "DELETE" })
-    if (res.ok) {
-      setCases((prev) => prev.filter((c) => c.id !== caseId))
-      addToast({ title: "Case deleted" })
-    } else {
-      addToast({ title: "Error", description: "Failed to delete case", variant: "destructive" })
+    try {
+      const res = await fetch(`/api/cases/${caseId}`, { method: "DELETE" })
+      if (res.ok) {
+        setCases((prev) => prev.filter((c) => c.id !== caseId))
+        addToast({ title: "Case deleted" })
+        return
+      }
+      let detail = "Failed to delete case"
+      try {
+        const body = await res.json()
+        if (body?.error) detail = typeof body.error === "string" ? body.error : detail
+      } catch { /* keep default */ }
+      addToast({ title: "Could not delete case", description: detail, variant: "destructive" })
+    } catch (err: any) {
+      addToast({ title: "Network error", description: err?.message || "Could not reach the server.", variant: "destructive" })
     }
   }, [addToast])
 
@@ -128,16 +137,42 @@ export function CasesList({ initialCases, practitioners, totalCount }: CasesList
         }),
       })
 
-      if (!res.ok) throw new Error("Failed to create case")
+      if (!res.ok) {
+        // Try to surface specific validation errors from the API
+        let errorMsg = "Failed to create case"
+        try {
+          const errBody = await res.json()
+          if (errBody?.error) {
+            if (typeof errBody.error === "string") {
+              errorMsg = errBody.error
+            } else if (typeof errBody.error === "object") {
+              // Zod fieldErrors shape: { fieldName: ["error1", "error2"] }
+              const fieldErrors = Object.entries(errBody.error)
+                .map(([field, msgs]) => {
+                  const messages = Array.isArray(msgs) ? msgs.join(", ") : String(msgs)
+                  return `${field}: ${messages}`
+                })
+                .join("; ")
+              if (fieldErrors) errorMsg = fieldErrors
+            }
+          }
+        } catch { /* fall back to generic message */ }
+        throw new Error(errorMsg)
+      }
 
       const created = await res.json()
-      setCases([created, ...cases])
+      // Use functional updater to avoid stale-closure bugs when state was updated mid-flight
+      setCases((prev) => [created, ...prev])
       setDialogOpen(false)
       setNewCase({ clientName: "", caseType: "OTHER", notes: "", filingStatus: "", clientEmail: "", clientPhone: "", totalLiability: "", tabsNumber: "" })
       addToast({ title: "Case created", description: `Case ${created.tabsNumber || created.id} has been created.` })
       router.refresh()
-    } catch {
-      addToast({ title: "Error", description: "Failed to create case", variant: "destructive" })
+    } catch (err: any) {
+      addToast({
+        title: "Could not create case",
+        description: err?.message || "Please check the fields and try again.",
+        variant: "destructive",
+      })
     } finally {
       setCreating(false)
     }

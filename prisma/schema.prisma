@@ -479,17 +479,18 @@ model ReviewAction {
 model AuditLog {
   id             String   @id @default(cuid())
   aiTaskId       String?
-  aiTask         AITask?  @relation(fields: [aiTaskId], references: [id])
+  aiTask         AITask?  @relation(fields: [aiTaskId], references: [id], onDelete: Cascade)
   practitionerId String?
   practitioner   User?    @relation(fields: [practitionerId], references: [id])
   caseId         String?
-  case           Case?    @relation(fields: [caseId], references: [id])
+  case           Case?    @relation(fields: [caseId], references: [id], onDelete: Cascade)
   action         String
   metadata       Json?
   timestamp      DateTime @default(now())
 
   @@index([caseId])
   @@index([timestamp])
+  @@index([practitionerId, timestamp])
   @@map("audit_logs")
 }
 
@@ -637,6 +638,8 @@ model AppError {
 
   @@index([route])
   @@index([userId])
+  @@index([caseId])
+  @@index([aiTaskId])
   @@index([createdAt])
   @@map("app_errors")
 }
@@ -878,7 +881,7 @@ model Task {
   status        String     @default("open")
   priority      String     @default("normal")
   caseId        String?
-  case          Case?      @relation(fields: [caseId], references: [id])
+  case          Case?      @relation(fields: [caseId], references: [id], onDelete: Cascade)
   deadlineId    String?
   feedPosts     FeedPost[] @relation("TaskFeedPosts")
   createdAt     DateTime   @default(now())
@@ -910,7 +913,7 @@ model FeedPost {
 
   // Case tagging (legacy — primary case)
   caseId String? // Primary case this post is about
-  case   Case?   @relation(fields: [caseId], references: [id])
+  case   Case?   @relation(fields: [caseId], references: [id], onDelete: SetNull)
 
   // Task-specific fields (legacy compat — kept for existing queries)
   taskTitle         String?
@@ -1007,7 +1010,7 @@ model FeedPostCase {
   postId String
   post   FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   caseId String
-  case   Case     @relation("FeedPostCases", fields: [caseId], references: [id])
+  case   Case     @relation("FeedPostCases", fields: [caseId], references: [id], onDelete: Cascade)
 
   @@unique([postId, caseId])
   @@index([caseId])
@@ -1213,7 +1216,7 @@ model HealthCheckResult {
 model ComplianceIssue {
   id              String            @id @default(cuid())
   controlId       String
-  control         ComplianceControl @relation(fields: [controlId], references: [id])
+  control         ComplianceControl @relation(fields: [controlId], references: [id], onDelete: Cascade)
   severity        IssueSeverity
   status          IssueStatus       @default(OPEN)
   description     String            @db.Text
@@ -1232,7 +1235,7 @@ model ComplianceIssue {
 model EvidenceItem {
   id            String            @id @default(cuid())
   controlId     String
-  control       ComplianceControl @relation(fields: [controlId], references: [id])
+  control       ComplianceControl @relation(fields: [controlId], references: [id], onDelete: Cascade)
   evidenceType  EvidenceType
   collectedAt   DateTime          @default(now())
   contentOrPath String            @db.Text
@@ -1282,7 +1285,7 @@ model CompliancePolicy {
 model PolicyAcknowledgment {
   id             String           @id @default(cuid())
   policyId       String
-  policy         CompliancePolicy @relation(fields: [policyId], references: [id])
+  policy         CompliancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
   userId         String
   user           User             @relation("PolicyAcknowledgments", fields: [userId], references: [id])
   version        Int // The version they acknowledged
@@ -1440,7 +1443,7 @@ model FormInstance {
   updatedAt         DateTime @updatedAt
   createdById       String
 
-  case      Case @relation(fields: [caseId], references: [id])
+  case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
   createdBy User @relation("FormInstances", fields: [createdById], references: [id])
 
   @@index([caseId])
@@ -1498,7 +1501,7 @@ model ReasoningPipelineLog {
   humanReviewNotes      String?   @db.Text
   createdAt             DateTime  @default(now())
 
-  case Case? @relation(fields: [caseId], references: [id])
+  case Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
 
   @@index([caseId])
   @@index([taskType])

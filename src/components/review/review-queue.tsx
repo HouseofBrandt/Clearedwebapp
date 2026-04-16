@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { TASK_TYPE_LABELS } from "@/types"
+import { useToast } from "@/components/ui/toast"
 
 const CASE_TYPES = [
   "OIC", "IA", "PENALTY", "INNOCENT_SPOUSE", "CNC", "TFRP",
@@ -218,6 +219,7 @@ function BanjoBundleCard({
 
 export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: assigneeOptions }: ReviewQueueProps) {
   const router = useRouter()
+  const { addToast } = useToast()
   const [assigneeFilter, setAssigneeFilter] = useState<string>(currentUserId || "ALL")
   const [caseTypeFilter, setCaseTypeFilter] = useState<string>("ALL")
   const [taskTypeFilter, setTaskTypeFilter] = useState<string>("ALL")
@@ -325,6 +327,7 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
   const handleBulkAction = useCallback(
     async (action: "APPROVE" | "REJECT_MANUAL") => {
       if (selectedIds.size === 0) return
+      const count = selectedIds.size
       setBulkLoading(true)
       setBulkError(null)
 
@@ -339,19 +342,23 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
         })
 
         if (!res.ok) {
-          const data = await res.json()
+          const data = await res.json().catch(() => ({}))
           throw new Error(data.error || "Bulk action failed")
         }
 
         setSelectedIds(new Set())
+        addToast({
+          title: action === "APPROVE" ? `Approved ${count} task${count === 1 ? "" : "s"}` : `Rejected ${count} task${count === 1 ? "" : "s"}`,
+        })
         router.refresh()
       } catch (err: any) {
         setBulkError(err.message)
+        addToast({ title: "Bulk action failed", description: err.message, variant: "destructive" })
       } finally {
         setBulkLoading(false)
       }
     },
-    [selectedIds, router]
+    [selectedIds, router, addToast]
   )
 
   const openReassignDialog = useCallback(async () => {
@@ -373,7 +380,9 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
 
   const handleReassign = useCallback(async () => {
     if (!selectedPractitioner || selectedIds.size === 0) return
+    const count = selectedIds.size
     setReassignLoading(true)
+    setBulkError(null) // clear stale errors from previous bulk operations
 
     try {
       const res = await fetch("/api/review/reassign", {
@@ -386,19 +395,21 @@ export function ReviewQueue({ tasks, userRole, currentUserId, practitioners: ass
       })
 
       if (!res.ok) {
-        const data = await res.json()
+        const data = await res.json().catch(() => ({}))
         throw new Error(data.error || "Reassignment failed")
       }
 
       setReassignOpen(false)
       setSelectedIds(new Set())
+      addToast({ title: `Reassigned ${count} task${count === 1 ? "" : "s"}` })
       router.refresh()
     } catch (err: any) {
-      setBulkError(err.message)
+      // Show the error inside the dialog (not in bulk-action banner)
+      addToast({ title: "Reassignment failed", description: err.message, variant: "destructive" })
     } finally {
       setReassignLoading(false)
     }
-  }, [selectedPractitioner, selectedIds, router])
+  }, [selectedPractitioner, selectedIds, router, addToast])
 
   if (tasks.length === 0) {
     return (

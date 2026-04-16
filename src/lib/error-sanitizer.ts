@@ -21,14 +21,22 @@ export function sanitizeErrorResponse(error: any): { message: string; code?: str
 
 /**
  * Sanitize error data before sending to Sentry.
- * Strips PII from error context.
+ * Recursively strips PII from error context, including nested objects and arrays.
  */
-export function sanitizeForSentry(data: Record<string, any>): Record<string, any> {
+const PII_KEYS = ["clientname", "ssn", "tin", "ein", "address", "phone", "email", "accountnumber", "routingnumber", "dob", "dateofbirth", "bankaccount", "taxid"]
+
+export function sanitizeForSentry(data: Record<string, any>, depth = 0): Record<string, any> {
+  if (depth > 10) return data // prevent infinite recursion
   const sanitized = { ...data }
-  const piiKeys = ["clientName", "ssn", "tin", "ein", "address", "phone", "email", "accountNumber"]
   for (const key of Object.keys(sanitized)) {
-    if (piiKeys.some(pk => key.toLowerCase().includes(pk))) {
+    if (PII_KEYS.some(pk => key.toLowerCase().includes(pk))) {
       sanitized[key] = "[REDACTED]"
+    } else if (sanitized[key] && typeof sanitized[key] === "object" && !Array.isArray(sanitized[key])) {
+      sanitized[key] = sanitizeForSentry(sanitized[key], depth + 1)
+    } else if (Array.isArray(sanitized[key])) {
+      sanitized[key] = sanitized[key].map((item: any) =>
+        item && typeof item === "object" ? sanitizeForSentry(item, depth + 1) : item
+      )
     }
   }
   return sanitized

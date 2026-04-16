@@ -21,7 +21,7 @@ const TableHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <thead
     ref={ref}
-    className={cn("[&_tr]:border-b-2 [&_tr]:border-b-[var(--c-gray-100)]", className)}
+    className={cn("[&_tr]:border-b [&_tr]:border-[var(--c-gray-100)]", className)}
     {...props}
   />
 ))
@@ -58,7 +58,8 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "border-b border-[var(--c-gray-100)] transition-colors hover:bg-[var(--c-gray-50)]/50 data-[state=selected]:bg-[var(--c-teal-soft)]",
+      // Subtle separator using border on the row but only between rows in body
+      "border-b border-[var(--c-gray-100)]/60 transition-colors hover:bg-[var(--c-gray-50)]/60 data-[state=selected]:bg-[var(--c-teal-soft)]",
       className
     )}
     {...props}
@@ -73,7 +74,10 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-11 px-4 text-left align-middle text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--c-gray-400)] [&:has([role=checkbox])]:pr-0",
+      // Apple-style table header — title-cased, modest tracking, refined color
+      "h-10 px-4 text-left align-middle text-[11.5px] font-medium tracking-[-0.005em] text-[var(--c-gray-500)] [&:has([role=checkbox])]:pr-0",
+      // Right-align numeric columns when data-numeric attribute is set
+      "data-[numeric=true]:text-right",
       className
     )}
     {...props}
@@ -88,7 +92,9 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      "px-4 py-3.5 text-[13.5px] align-middle text-[var(--c-gray-700)] [&:has([role=checkbox])]:pr-0",
+      "px-4 py-3 text-[13.5px] align-middle text-[var(--c-gray-700)] tracking-[-0.005em] [&:has([role=checkbox])]:pr-0",
+      // Right-align + tabular numbers when data-numeric attribute is set
+      "data-[numeric=true]:text-right data-[numeric=true]:tabular-nums data-[numeric=true]:font-mono",
       className
     )}
     {...props}

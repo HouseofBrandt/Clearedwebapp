@@ -39,7 +39,7 @@ function generateHash(value: string, type: string): string {
     .toUpperCase()
 }
 
-// Tier 1: Always strip — SSN, EIN, names, DOB, addresses, bank accounts, routing numbers
+// Tier 1: Always strip — SSN, EIN, ITIN, names, DOB, addresses, bank accounts, routing numbers, phone, email
 const TIER1_PATTERNS: { pattern: RegExp; type: string; prefix: string }[] = [
   {
     // SSN: 123-45-6789 (require hyphens to avoid matching 9-digit financial amounts)
@@ -55,10 +55,28 @@ const TIER1_PATTERNS: { pattern: RegExp; type: string; prefix: string }[] = [
     prefix: "SSN",
   },
   {
+    // ITIN: 9XX-XX-XXXX (always starts with 9, used by non-citizens)
+    pattern: /\b(9\d{2}-\d{2}-\d{4})\b/g,
+    type: "ITIN",
+    prefix: "ITIN",
+  },
+  {
     // EIN: 12-3456789
     pattern: /\b(\d{2}-\d{7})\b/g,
     type: "EIN",
     prefix: "EIN",
+  },
+  {
+    // Phone numbers: (XXX) XXX-XXXX, XXX-XXX-XXXX, XXX.XXX.XXXX
+    pattern: /\b(\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4})\b/g,
+    type: "PHONE",
+    prefix: "PHONE",
+  },
+  {
+    // Email addresses
+    pattern: /\b([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\b/g,
+    type: "EMAIL",
+    prefix: "EMAIL",
   },
   {
     // Bank account numbers (8-17 digits)
@@ -201,6 +219,27 @@ export function validateTokenization(text: string): {
   const unhyphenated = text.match(/(?:SSN|TIN|Social)\s*:?\s*\d{9}\b/gi)
   if (unhyphenated) {
     warnings.push(`Found ${unhyphenated.length} potential unhyphenated SSN(s)`)
+  }
+
+  // Check for remaining ITIN patterns (9XX-XX-XXXX not inside tokens)
+  const itinPattern = /(?<!\[ITIN-)\b9\d{2}-\d{2}-\d{4}\b/g
+  const itinMatches = text.match(itinPattern)
+  if (itinMatches) {
+    warnings.push(`Found ${itinMatches.length} potential ITIN(s) still in text`)
+  }
+
+  // Check for remaining phone numbers (not inside tokens)
+  const phonePattern = /(?<!\[PHONE-)\b\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}\b/g
+  const phoneMatches = text.match(phonePattern)
+  if (phoneMatches) {
+    warnings.push(`Found ${phoneMatches.length} potential phone number(s) still in text`)
+  }
+
+  // Check for remaining email addresses (not inside tokens)
+  const emailPattern = /(?<!\[EMAIL-)\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b/g
+  const emailMatches = text.match(emailPattern)
+  if (emailMatches) {
+    warnings.push(`Found ${emailMatches.length} potential email(s) still in text`)
   }
 
   return {
