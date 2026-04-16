@@ -8,6 +8,7 @@ import { IrsNewsHarvester } from '@/lib/tax-authority/harvest/irs-news-harvester
 import { TreasuryNewsHarvester } from '@/lib/tax-authority/harvest/treasury-news-harvester'
 import { TasHarvester } from '@/lib/tax-authority/harvest/tas-harvester'
 import type { HarvestResult } from '@/lib/tax-authority/types'
+import { promoteSourceArtifactsToKB } from '@/lib/tax-authority/integration/promote-artifacts'
 
 export const maxDuration = 300
 
@@ -55,9 +56,23 @@ export async function GET(request: NextRequest) {
   const totalChanged = results.reduce((s, r) => s + r.itemsChanged, 0)
   const totalErrors = results.reduce((s, r) => s + r.errors.length, 0)
 
+  // After harvesting, promote newly-stored SourceArtifacts into the
+  // KnowledgeDocument store so Banjo / Junebug / Research can retrieve
+  // authoritative source text (not just Pippen's compiled summaries).
+  // Wrapped in try/catch so promotion failures never fail the harvest run.
+  let promotion: Awaited<ReturnType<typeof promoteSourceArtifactsToKB>> | null = null
+  let promotionError: string | null = null
+  try {
+    promotion = await promoteSourceArtifactsToKB()
+  } catch (e) {
+    promotionError = e instanceof Error ? e.message : String(e)
+    console.error('[daily-harvest] KB promotion failed:', promotionError)
+  }
+
   return NextResponse.json({
     ok: totalErrors === 0,
     summary: { totalNew, totalChanged, totalErrors },
     results,
+    promotion: promotion ?? { error: promotionError },
   })
 }
