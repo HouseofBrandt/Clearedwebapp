@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header"
 import { ChatPanel } from "@/components/assistant/chat-panel"
 import { IdleTimeout } from "@/components/layout/idle-timeout"
 import { DiagnosticsInit } from "@/components/diagnostics-init"
+import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
 
 export default async function DashboardLayout({
   children,
@@ -70,7 +71,12 @@ export default async function DashboardLayout({
           </main>
         </div>
       </div>
-      <ChatPanel />
+      {/* Legacy FAB — hidden when the Junebug Threads workspace is on.
+          Spec §8: "the old chat panel FAB is hidden; a new Junebug
+          entry point opens JunebugWorkspace". The chat-panel code still
+          exists behind the flag for one release cycle so we can roll
+          back; PR 6 deletes it. */}
+      {!junebugThreadsEnabled() && <ChatPanel />}
       <IdleTimeout />
       <DiagnosticsInit />
     </>
