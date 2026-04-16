@@ -17,6 +17,30 @@ export interface DailyLearning {
   relevance: string
   actionItems?: string[]
   publicationDate?: string
+  /**
+   * Primary issue category extracted from the harvester's classifyIssue() pass
+   * (Pippen Phase 2 — see base-harvester.ts). Used by the practitioner
+   * feedback control to call /api/tax-authority/preference with a
+   * (sourceId, issueCategory) pair. Defaults to "general" when no category
+   * survived classification (legacy pre-Phase-2 artifacts, mostly).
+   */
+  issueCategory?: string
+}
+
+/**
+ * Pull the first non-"mixed" issue category from SourceArtifact.metadata if
+ * Phase 2 classifyIssue() ran on this artifact. Falls back to "general" so
+ * the preference API still has a category to bucket the signal into.
+ */
+function extractIssueCategory(metadata: unknown): string {
+  if (!metadata || typeof metadata !== "object") return "general"
+  const m = metadata as Record<string, unknown>
+  const cats = m.issueCategories
+  if (Array.isArray(cats)) {
+    const first = cats.find((c) => typeof c === "string" && c !== "mixed")
+    if (first) return String(first)
+  }
+  return "general"
 }
 
 export interface CompiledReport {
@@ -41,6 +65,7 @@ function buildFallbackReport(
     sourceUrl: a.sourceUrl,
     relevance: "Review to determine applicability to active cases.",
     publicationDate: a.publicationDate?.toISOString().split("T")[0],
+    issueCategory: extractIssueCategory((a as any).metadata),
   }))
 
   const lines = [
@@ -217,6 +242,7 @@ Be concise and practical. Focus on what practitioners need to know and do.`
         relevance: l.relevance,
         actionItems: l.actionItems,
         publicationDate: artifact.publicationDate?.toISOString().split("T")[0],
+        issueCategory: extractIssueCategory(artifact.metadata),
       }
     })
 

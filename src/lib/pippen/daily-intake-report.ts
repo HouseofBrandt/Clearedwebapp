@@ -83,6 +83,13 @@ export interface LearningItem {
   relevance: string
   actionItems?: string[]
   publicationDate?: string
+  /**
+   * Primary issue category from Pippen Phase 2 classifyIssue() — surfaces
+   * the (sourceId, issueCategory) pair the practitioner-feedback control
+   * needs. Optional for back-compat with consumers that don't render
+   * the +1/-1 buttons. "general" is a permitted value.
+   */
+  issueCategory?: string
 }
 
 export interface LearningsSection {
@@ -321,6 +328,7 @@ export async function buildDailyIntakeReport(date?: Date): Promise<PippenDailyRe
           relevance: l.relevance,
           actionItems: l.actionItems,
           publicationDate: l.publicationDate,
+          issueCategory: l.issueCategory,
         })),
       }
     }
