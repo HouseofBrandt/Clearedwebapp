@@ -401,10 +401,12 @@ export async function POST(request: NextRequest) {
           : tokenizedDocText
         console.log("[AI Analyze] Tokenized:", tokenizedText.length, "chars")
 
-        // Store encrypted token map
+        // Store encrypted token map with 2-year expiration per data retention policy
         const encryptedMap = encryptTokenMap(tokenMap)
+        const expiresAt = new Date()
+        expiresAt.setFullYear(expiresAt.getFullYear() + 2)
         await prisma.tokenMap.create({
-          data: { caseId, tokenMap: encryptedMap },
+          data: { caseId, tokenMap: encryptedMap, expiresAt },
         })
 
         // PII pre-flight validation

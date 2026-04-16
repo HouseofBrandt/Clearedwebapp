@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import { decryptField } from "@/lib/encryption"
 import { parseOICOutput, oicToSpreadsheetData } from "@/lib/ai/parsers/oic-parser"
 import { mergeTemplateWithData, mergedToSpreadsheetData } from "@/lib/templates/oic-merge"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 /**
  * Returns the parsed OIC working paper data as JSON
@@ -29,6 +30,12 @@ export async function GET(
 
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 })
+  }
+
+  // Verify the user can access the case this task belongs to
+  const userId = (session.user as any).id
+  if (!await canAccessCase(userId, task.caseId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
   const SPREADSHEET_TASKS = ["WORKING_PAPERS"]

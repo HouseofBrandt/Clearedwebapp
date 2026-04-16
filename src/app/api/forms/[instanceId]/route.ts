@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { getFormSchema } from "@/lib/forms/registry"
 import { getFormInstance, saveFormInstance } from "@/lib/forms/form-store"
+import { canAccessCase } from "@/lib/auth/case-access"
 
 /**
  * GET /api/forms/[instanceId]
@@ -21,6 +22,12 @@ export async function GET(
     const instance = await getFormInstance(params.instanceId)
     if (!instance) {
       return NextResponse.json({ error: "Form instance not found" }, { status: 404 })
+    }
+
+    // Verify the user can access the case this form belongs to
+    const userId = (session.user as any).id
+    if (instance.caseId && !await canAccessCase(userId, instance.caseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const schema = getFormSchema(instance.formNumber)
@@ -50,6 +57,12 @@ export async function PATCH(
     const instance = await getFormInstance(params.instanceId)
     if (!instance) {
       return NextResponse.json({ error: "Form instance not found" }, { status: 404 })
+    }
+
+    // Verify the user can access the case this form belongs to
+    const userId = (session.user as any).id
+    if (instance.caseId && !await canAccessCase(userId, instance.caseId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
     const body = await request.json()

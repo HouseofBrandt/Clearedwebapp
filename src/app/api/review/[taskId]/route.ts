@@ -83,13 +83,14 @@ export async function POST(
       },
     })
 
-    // Update task status
+    // Update task status — include status guard in WHERE clause to prevent race conditions.
+    // If another request already changed the status, updateMany returns count: 0.
     const newStatus = action === "REJECT_REPROMPT" || action === "REJECT_MANUAL"
       ? "REJECTED"
       : "APPROVED"
 
-    await prisma.aITask.update({
-      where: { id: params.taskId },
+    const updateResult = await prisma.aITask.updateMany({
+      where: { id: params.taskId, status: "READY_FOR_REVIEW" },
       data: {
         status: newStatus,
         ...(action === "EDIT_APPROVE" && editedOutput
@@ -98,10 +99,19 @@ export async function POST(
       },
     })
 
-    // Learning loop: track edits and rejections (fire-and-forget)
+    if (updateResult.count === 0) {
+      // Task was already reviewed by another user — roll back the review action
+      await prisma.reviewAction.delete({ where: { id: reviewAction.id } })
+      return NextResponse.json(
+        { error: "Task was already reviewed by another user. Please refresh." },
+        { status: 409 }
+      )
+    }
+
+    // Learning loop: track edits and rejections
     if (action === "EDIT_APPROVE" && editedOutput && task.detokenizedOutput) {
       const decryptedOriginal = decryptField(task.detokenizedOutput)
-      prisma.editHistory.create({
+      await prisma.editHistory.create({
         data: {
           aiTaskId: task.id,
           caseType: task.case.caseType,
@@ -110,10 +120,12 @@ export async function POST(
           editedOutput,
           practitionerId: auth.userId,
         },
-      }).catch(() => {})
+      }).catch((err) => {
+        console.error("[Review] EditHistory create failed:", err.message)
+      })
     }
     if ((action === "REJECT_REPROMPT" || action === "REJECT_MANUAL") && reviewNotes) {
-      prisma.rejectionFeedback.create({
+      await prisma.rejectionFeedback.create({
         data: {
           aiTaskId: task.id,
           caseType: task.case.caseType,
@@ -121,7 +133,9 @@ export async function POST(
           correctionNotes: reviewNotes,
           practitionerId: auth.userId,
         },
-      }).catch(() => {})
+      }).catch((err) => {
+        console.error("[Review] RejectionFeedback create failed:", err.message)
+      })
     }
 
     // Auto-ingest to Knowledge Base on approval (fire-and-forget)
@@ -165,9 +179,9 @@ export async function POST(
       content: `${newStatus === "APPROVED" ? "Approved" : "Rejected"} ${task.banjoStepLabel || task.taskType.replace(/_/g, " ")}`,
     }).catch(() => {})
 
-    // Log activity (fire-and-forget)
+    // Log activity
     const taskLabel = task.taskType.replace(/_/g, " ")
-    prisma.caseActivity.create({
+    await prisma.caseActivity.create({
       data: {
         caseId: task.caseId,
         userId: auth.userId,
@@ -175,7 +189,9 @@ export async function POST(
         description: `${action === "APPROVE" || action === "EDIT_APPROVE" ? "Approved" : "Rejected"} ${taskLabel}`,
         metadata: { taskId: task.id, action: action },
       },
-    }).catch(() => {})
+    }).catch((err) => {
+      console.error("[Review] CaseActivity create failed:", err.message)
+    })
 
     // Fire-and-forget notification to the task creator
     try {

@@ -41,9 +41,10 @@ marked.setOptions({ breaks: true, gfm: true })
 
 function renderMarkdown(text: string) {
   const rawHtml = marked.parse(text) as string
+  // Always sanitize — even if window is undefined during SSR, never render raw HTML
   const cleanHtml = typeof window !== "undefined"
     ? DOMPurify.sanitize(rawHtml)
-    : rawHtml
+    : ""
 
   return (
     <div
@@ -86,20 +87,49 @@ function getSuggestions(caseContext: CaseContext | null): string[] {
 // -------------------------------------------------------------------
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
+  const [failed, setFailed] = useState(false)
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const handleCopy = async () => {
+    try {
+      // Modern path
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        // Fallback for older browsers / insecure contexts
+        const ta = document.createElement("textarea")
+        ta.value = text
+        ta.setAttribute("readonly", "")
+        ta.style.position = "absolute"
+        ta.style.left = "-9999px"
+        document.body.appendChild(ta)
+        ta.select()
+        const ok = document.execCommand("copy")
+        document.body.removeChild(ta)
+        if (!ok) throw new Error("execCommand copy failed")
+      }
+      setCopied(true)
+      setFailed(false)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setFailed(true)
+      setTimeout(() => setFailed(false), 2000)
+    }
   }
 
   return (
     <button
       onClick={handleCopy}
       className="rounded p-1 text-c-gray-300 opacity-0 transition-opacity hover:text-c-gray-500 group-hover:opacity-100"
-      title="Copy message"
+      title={failed ? "Copy failed — clipboard unavailable" : "Copy message"}
+      aria-label={failed ? "Copy failed" : "Copy message"}
     >
-      {copied ? <Check className="h-4 w-4 text-c-success" /> : <Copy className="h-4 w-4" />}
+      {copied ? (
+        <Check className="h-4 w-4 text-c-success" />
+      ) : failed ? (
+        <X className="h-4 w-4 text-destructive" />
+      ) : (
+        <Copy className="h-4 w-4" />
+      )}
     </button>
   )
 }
