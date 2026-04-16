@@ -793,7 +793,7 @@ export async function autoPopulateForm(
         }
       }
       // Also keep fields not in the schema (we can't make a determination)
-      for (const id of structuredFields.keys()) {
+      for (const id of Array.from(structuredFields.keys())) {
         if (!allSchemaFields.some((f) => f.id === id)) visibleIds.add(id)
       }
       for (const id of Array.from(structuredFields.keys())) {

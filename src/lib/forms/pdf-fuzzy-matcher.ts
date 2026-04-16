@@ -111,8 +111,10 @@ function tokens(s: string): string[] {
 /** Extract candidate IRS line refs from a string: "Line 1a", "L1a", "1a". */
 function extractLineRefs(s: string): string[] {
   const out = new Set<string>()
-  const matches = s.matchAll(/\b(?:line\s*|l)?(\d{1,3}[a-z]?)\b/gi)
-  for (const m of matches) {
+  // Use exec() in a loop instead of matchAll() — works under all TS targets.
+  const re = /\b(?:line\s*|l)?(\d{1,3}[a-z]?)\b/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(s)) !== null) {
     out.add(m[1].toLowerCase())
   }
   return Array.from(out)
@@ -215,7 +217,11 @@ function scoreFieldMatch(schema: SchemaFieldInfo, pdf: PDFFieldInfo): MatchResul
   // 6. TOKEN OVERLAP (label words appearing in field name)
   const labelTokens = tokens(schema.label)
   const idTokens = tokens(schema.id.replace(/_/g, " "))
-  const allWanted = new Set([...labelTokens, ...idTokens])
+  // Deduplicate via object keys — works under all TS targets without Set iteration
+  const wantedDedup: Record<string, true> = {}
+  for (const t of labelTokens) wantedDedup[t] = true
+  for (const t of idTokens) wantedDedup[t] = true
+  const allWanted = Object.keys(wantedDedup)
   let tokenHits = 0
   for (const t of allWanted) {
     if (pdfNorm.includes(t)) {
@@ -228,10 +234,10 @@ function scoreFieldMatch(schema: SchemaFieldInfo, pdf: PDFFieldInfo): MatchResul
       tokenHits += 0.7 // partial credit for synonym match
     }
   }
-  if (allWanted.size > 0) {
-    const ratio = tokenHits / allWanted.size
+  if (allWanted.length > 0) {
+    const ratio = tokenHits / allWanted.length
     score += Math.round(ratio * 30)
-    if (tokenHits > 0) reasons.push(`${Math.round(tokenHits)} of ${allWanted.size} label tokens matched`)
+    if (tokenHits > 0) reasons.push(`${Math.round(tokenHits)} of ${allWanted.length} label tokens matched`)
   }
 
   // 7. TYPE COMPATIBILITY BONUS / PENALTY
