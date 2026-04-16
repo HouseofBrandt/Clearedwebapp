@@ -72,9 +72,11 @@ export async function searchKnowledge(
             THEN (1 - (kc.embedding <=> $${paramIndex}::vector)) * 0.7 ELSE 0 END, 0) +
           COALESCE(CASE WHEN kc.search_vector @@ to_tsquery('english', $${paramIndex + 1})
             THEN ts_rank_cd(kc.search_vector, to_tsquery('english', $${paramIndex + 1}), 32) * 0.3 ELSE 0 END, 0)
-        ) as score
+        ) as score,
+        COALESCE(sa."qualityScore", 1.0) as "qualityScore"
       FROM knowledge_chunks kc
       JOIN knowledge_documents kd ON kd.id = kc."documentId"
+      LEFT JOIN source_artifacts sa ON sa.id = kd."sourceArtifactId"
       WHERE kd."isActive" = true
         AND (
           (kc.embedding IS NOT NULL AND 1 - (kc.embedding <=> $${paramIndex}::vector) > 0.25)
@@ -94,9 +96,11 @@ export async function searchKnowledge(
           THEN 1 - (kc.embedding <=> $${paramIndex}::vector) ELSE 0 END as "vectorScore",
         0::float as "textScore",
         CASE WHEN kc.embedding IS NOT NULL
-          THEN 1 - (kc.embedding <=> $${paramIndex}::vector) ELSE 0 END as score
+          THEN 1 - (kc.embedding <=> $${paramIndex}::vector) ELSE 0 END as score,
+        COALESCE(sa."qualityScore", 1.0) as "qualityScore"
       FROM knowledge_chunks kc
       JOIN knowledge_documents kd ON kd.id = kc."documentId"
+      LEFT JOIN source_artifacts sa ON sa.id = kd."sourceArtifactId"
       WHERE kd."isActive" = true
         AND kc.embedding IS NOT NULL
         AND 1 - (kc.embedding <=> $${paramIndex}::vector) > 0.25
@@ -111,9 +115,11 @@ export async function searchKnowledge(
         kd.category as "documentCategory", kd.tags, kd."sourceType",
         0::float as "vectorScore",
         ts_rank_cd(kc.search_vector, to_tsquery('english', $${paramIndex}), 32) as "textScore",
-        ts_rank_cd(kc.search_vector, to_tsquery('english', $${paramIndex}), 32) as score
+        ts_rank_cd(kc.search_vector, to_tsquery('english', $${paramIndex}), 32) as score,
+        COALESCE(sa."qualityScore", 1.0) as "qualityScore"
       FROM knowledge_chunks kc
       JOIN knowledge_documents kd ON kd.id = kc."documentId"
+      LEFT JOIN source_artifacts sa ON sa.id = kd."sourceArtifactId"
       WHERE kd."isActive" = true
         AND kc.search_vector @@ to_tsquery('english', $${paramIndex})
     `
@@ -188,6 +194,12 @@ export async function searchKnowledge(
   for (const r of results) {
     const weight = AUTHORITY_WEIGHTS[(r as any).sourceType] || 0.8
     r.score *= weight
+    // Pippen Phase 3 — multiply by the underlying SourceArtifact.qualityScore,
+    // which reflects practitioner approve/reject/edit feedback on authorities
+    // that cited this artifact. Non-authority docs have COALESCE(.,1.0) so
+    // this is a no-op for MANUAL_UPLOAD / APPROVED_OUTPUT / etc.
+    const quality = Number((r as any).qualityScore) || 1.0
+    r.score *= quality
   }
 
   const filtered = results.filter((r) => r.score >= minScore)

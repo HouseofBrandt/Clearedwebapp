@@ -108,6 +108,19 @@ export async function POST(
       )
     }
 
+    // Pippen Phase 3 — fire-and-forget feedback loop. Extracts authority
+    // citations from the AI output and nudges their practitionerScore based
+    // on the review decision. Dynamic import keeps this route's serverless
+    // bundle lean; `apply-review-feedback` itself imports only `prisma`.
+    import("@/lib/tax-authority/feedback/apply-review-feedback")
+      .then(({ applyReviewFeedback }) => applyReviewFeedback(reviewAction.id))
+      .catch((err) => {
+        console.warn(
+          "[Review] applyReviewFeedback failed (non-blocking):",
+          err instanceof Error ? err.message : err
+        )
+      })
+
     // Learning loop: track edits and rejections
     if (action === "EDIT_APPROVE" && editedOutput && task.detokenizedOutput) {
       const decryptedOriginal = decryptField(task.detokenizedOutput)
