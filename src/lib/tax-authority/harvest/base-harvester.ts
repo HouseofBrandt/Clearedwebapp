@@ -2,6 +2,15 @@ import { createHash } from 'crypto'
 import { prisma } from '@/lib/db'
 import type { HarvestResult, SourceRightsProfile, AuthorityTier } from '../types'
 import { checkLicense } from './license-guard'
+import { classifyIssue } from '../retrieval/classifier'
+
+/**
+ * Authority tiers that are always stored + promoted regardless of keyword match.
+ * Primary authorities (A1-A5) include statutes, regulations, and case law that
+ * practitioners need access to even when the title doesn't hit our tax-controversy
+ * keyword dictionary. Never skip these.
+ */
+const ALWAYS_KEEP_TIERS: ReadonlyArray<AuthorityTier> = ['A1', 'A2', 'A3', 'A4', 'A5']
 
 export interface HarvesterConfig {
   sourceId: string
@@ -209,6 +218,36 @@ export abstract class BaseHarvester {
       orderBy: { fetchedAt: 'desc' },
     })
 
+    // Tax-controversy relevance gate.
+    //
+    // We always store the artifact for the audit trail. What varies is whether
+    // the downstream promoter (promoteSourceArtifactsToKB) will bring this into
+    // the retrieval index.
+    //
+    //   - A1-A5 (primary authorities): always kept, regardless of keyword match.
+    //   - Other tiers: classified against the tax-controversy keyword dictionary.
+    //       Match → parserStatus: PENDING, promoted to KB.
+    //       Miss  → parserStatus: SKIPPED, NOT promoted. The row still exists
+    //               for audit; Phase 3's feedback loop may reverse this later.
+    const effectiveTier = item.authorityTier ?? this.config.defaultTier
+    const titleForClassification = [item.title, item.metadata?.abstract]
+      .filter(Boolean)
+      .join(' ')
+
+    const issueCategories = await classifyIssue(titleForClassification)
+    const isAlwaysKeep = ALWAYS_KEEP_TIERS.includes(effectiveTier)
+    const matchedPracticeArea = issueCategories.some((c) => c !== 'mixed')
+    const parserStatus =
+      isAlwaysKeep || matchedPracticeArea ? 'PENDING' : 'SKIPPED'
+
+    // Merge classifier output into metadata for audit + later promotion use
+    const mergedMetadata: Record<string, unknown> = {
+      ...(item.metadata ?? {}),
+      issueCategories,
+      classifierDecision: parserStatus === 'SKIPPED' ? 'off_topic' : 'kept',
+      classifiedAt: new Date().toISOString(),
+    }
+
     await prisma.sourceArtifact.create({
       data: {
         sourceId: this.config.sourceId,
@@ -220,11 +259,11 @@ export abstract class BaseHarvester {
         rawContent: Buffer.from(item.rawContent),
         contentType: item.contentType,
         rightsProfile: this.config.rightsProfile,
-        authorityTier: item.authorityTier ?? this.config.defaultTier,
+        authorityTier: effectiveTier,
         jurisdiction: item.jurisdiction,
-        metadata: item.metadata ? (item.metadata as Record<string, string>) : undefined,
+        metadata: mergedMetadata as Record<string, unknown>,
         ingestionRunId,
-        parserStatus: 'PENDING',
+        parserStatus,
       },
     })
 

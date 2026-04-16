@@ -165,13 +165,14 @@ export function TaxAuthorityOverviewClient({ data }: { data: OverviewData }) {
       )}
 
       {/* Quick nav */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { name: "Sources", href: "/admin/tax-authority/sources", icon: Database },
           { name: "Ingestion", href: "/admin/tax-authority/ingestion", icon: Download },
           { name: "Authorities", href: "/admin/tax-authority/authorities", icon: FileText },
           { name: "Benchmarks", href: "/admin/tax-authority/benchmarks", icon: BarChart3 },
           { name: "Digest", href: "/admin/tax-authority/digest", icon: Clock },
+          { name: "Gap Report", href: "/admin/tax-authority/gaps", icon: AlertTriangle },
         ].map((item) => (
           <Link
             key={item.href}

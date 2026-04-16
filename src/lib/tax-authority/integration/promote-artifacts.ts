@@ -81,11 +81,13 @@ export async function promoteSourceArtifactsToKB(
     return result
   }
 
-  // Pull artifacts worth considering. We don't pre-filter by parserStatus in
-  // Phase 1 — Phase 2 will add that filter when we start writing SKIPPED
-  // statuses for relevance-rejected artifacts.
+  // Skip artifacts that the harvester-side relevance gate flagged as
+  // off-topic (parserStatus='SKIPPED'). Those rows still exist for the audit
+  // trail but never reach retrieval. See BaseHarvester.storeArtifact for the
+  // classifier decision logic.
   const artifacts = await prisma.sourceArtifact.findMany({
     where: {
+      parserStatus: { notIn: ["SKIPPED", "FAILED"] },
       ...(opts.since ? { createdAt: { gte: opts.since } } : {}),
     },
     select: {
@@ -99,6 +101,7 @@ export async function promoteSourceArtifactsToKB(
       rawContent: true,
       contentType: true,
       sourceUrl: true,
+      metadata: true,
     },
     orderBy: { createdAt: "desc" },
     take: opts.batchLimit ?? 500,
