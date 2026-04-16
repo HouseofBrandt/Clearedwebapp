@@ -15,10 +15,23 @@ const nextConfig = {
     return config
   },
   experimental: {
-    // pdf-lib is large (~5MB unpacked) and used in form/PDF routes — externalizing
-    // it prevents webpack from bundling it into every function that touches it,
-    // which keeps us under Vercel's 300MB serverless function limit.
-    serverComponentsExternalPackages: ['ws', 'pdf-lib'],
+    // Externalize heavy packages so webpack doesn't bundle them per-function.
+    // They're loaded as CommonJS externals at runtime (Node resolves them from
+    // node_modules in the deployment). This is what keeps our serverless
+    // functions under Vercel's 300MB bundle limit.
+    serverComponentsExternalPackages: [
+      'ws',
+      'pdf-lib',
+      'pdf-parse',
+      '@anthropic-ai/sdk',
+      'tesseract.js',
+      'mammoth',
+      'exceljs',
+      'docx',
+      'jszip',
+      'sharp',
+      'canvas',
+    ],
     serverActions: {
       bodySizeLimit: '10mb',
     },
