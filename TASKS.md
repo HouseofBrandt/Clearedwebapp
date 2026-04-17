@@ -160,6 +160,45 @@ Push-back triggers: if runJunebugCompletion() extraction would duplicate
 
 ## ═══ P1 — Next After P0 ═══
 
+## [TODO] A4.8 Dashboard Bifurcation — Junebug Takes Half the Home Page
+Priority: P1
+Source: Part A — dashboard redesign; called out in docs/spec-junebug-threads.md §1 as the initiative A4.7 was foundational for.
+Blocks-on: A4.7 Junebug Threads flag fully rolled out (flag: true for everyone, PR 6 legacy cleanup done).
+Scope:
+  - src/app/(dashboard)/dashboard/page.tsx — switch to a two-pane
+    layout. Left: existing daily-brief / feed / action queue. Right:
+    embedded JunebugWorkspace (or a thinner ThreadView when a thread
+    is active). Responsive: mobile stacks vertically with Junebug
+    below the feed.
+  - Consider a top-level ThreadSidebar collapse toggle for the
+    split view so practitioners can give the feed full width when
+    they want.
+  - Probably a new wrapper component: DashboardJunebugPane that
+    composes JunebugWorkspace with the dashboard's density (tighter
+    padding, maybe a condensed ThreadSidebar variant).
+  - Decide: sidebar nav's /junebug entry stays (dedicated workspace)
+    and the dashboard right-pane is a second surface that shares the
+    same threads? Or does /junebug redirect to the dashboard pane
+    when flag is on? Recommend the former — two surfaces, one data
+    store, so case-detail's "Ask Junebug" link still makes sense.
+Acceptance:
+  - On /dashboard, the right 50% (desktop) or below-the-fold
+    (mobile) renders the Junebug workspace with the same persistence
+    as /junebug
+  - New threads created on /dashboard appear in /junebug and vice
+    versa (same DB rows)
+  - Context chip visible in the dashboard pane (spec §7.6)
+  - The feed + action queue on the left stays fully functional
+  - No regression in preview-pdf bundle size (dashboard-side
+    imports of JunebugWorkspace are already client-side, should
+    be neutral)
+  - Flag-gated: when NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED is false,
+    the dashboard stays single-pane (current layout)
+Push-back trigger: if the two-pane layout pushes the dashboard
+  below Core Web Vitals thresholds (LCP, CLS), defer in favor of
+  a slot-based opt-in ("Pin Junebug to my dashboard" toggle) rather
+  than force the split on everyone.
+
 ## [TODO] A5.1 Junebug Chat Persistence + Screenshots + Uploads
 Priority: P1
 Source: Part A — Junebug enhancements
