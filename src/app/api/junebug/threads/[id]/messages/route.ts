@@ -128,11 +128,28 @@ export async function POST(
   // 1. Build case context (if thread is case-scoped). This drives both
   //    the system prompt and the contextSnapshot we persist onto the
   //    USER message for audit (spec §7.6 — practitioner accountability).
+  //
+  //    The prompt is assembled in two halves so the stable half can be
+  //    cached by Anthropic's ephemeral prompt cache (~0.1× cost on
+  //    subsequent turns — see src/lib/junebug/completion.ts for the
+  //    cache contract):
+  //
+  //      STABLE   = guardrail prefix (if context unavailable)
+  //               + research_assistant_v1 base
+  //               + case context packet
+  //               + rolling summary (changes once per ~20 turns)
+  //
+  //      VOLATILE = KB hits (recomputed from body.content every turn)
+  //
+  //    Any new addition that varies turn-to-turn MUST go into
+  //    `systemVolatile` or it invalidates the cache for the rest of
+  //    the thread.
   // ------------------------------------------------------------------
   const caseId = access.thread.caseId
   let contextAvailable = false
   let contextFailureReason: string | null = null
-  let systemPrompt = loadPrompt("research_assistant_v1")
+  let systemStable = loadPrompt("research_assistant_v1")
+  let systemVolatile = ""
   let caseNumber: string | null = null
   let caseType: string | null = null
 
@@ -143,7 +160,7 @@ export async function POST(
         includeReviewInsights: true,
       })
       if (packet) {
-        systemPrompt += "\n\n" + formatContextForPrompt(packet)
+        systemStable += "\n\n" + formatContextForPrompt(packet)
         contextAvailable = true
         caseNumber = packet.tabsNumber ?? null
         caseType = packet.caseType ?? null
@@ -156,9 +173,11 @@ export async function POST(
 
     if (!contextAvailable) {
       // A4.1 guardrail — never fabricate case details when context is missing.
-      systemPrompt =
+      // Prepended to the stable block: per-thread the guardrail state rarely
+      // flips, so it stays in the cached prefix.
+      systemStable =
         `IMPORTANT: You do NOT have live case data for this conversation. Do not fabricate or guess specific case details like document counts, file names, deadlines, AI task status, or liability amounts. If asked about specific case data, respond: "I don't currently have live case data loaded for this case. I can help with general tax resolution guidance, but for specific case details, please check the case detail page directly."\n\n` +
-        systemPrompt
+        systemStable
 
       createAuditLog({
         practitionerId: auth.userId,
@@ -175,18 +194,22 @@ export async function POST(
   }
 
   // ------------------------------------------------------------------
-  // 2. Knowledge base retrieval for the user's current message
+  // 2. Knowledge base retrieval for the user's current message.
+  //    VOLATILE — KB hits are derived from body.content, so they differ
+  //    every turn. Keeping them out of the cached prefix is the whole
+  //    point of the split.
   // ------------------------------------------------------------------
   let kbHits = 0
   try {
     const results = await searchKnowledge(body.content, { topK: 5, minScore: 0.3 })
     if (results.length > 0) {
       kbHits = results.length
-      systemPrompt += "\n\nFIRM KNOWLEDGE BASE:\n"
+      let kbBlock = "FIRM KNOWLEDGE BASE:\n"
       for (const r of results) {
-        systemPrompt += `[${r.documentTitle}${r.sectionHeader ? ` — ${r.sectionHeader}` : ""}]\n`
-        systemPrompt += `${r.content}\n\n`
+        kbBlock += `[${r.documentTitle}${r.sectionHeader ? ` — ${r.sectionHeader}` : ""}]\n`
+        kbBlock += `${r.content}\n\n`
       }
+      systemVolatile += kbBlock
     }
   } catch (err: any) {
     console.warn("[Junebug] KB search failed:", err?.message)
@@ -205,7 +228,12 @@ export async function POST(
   const priorMessageCount = historyLoad.totalCount
 
   if (historyLoad.summary) {
-    systemPrompt +=
+    // Summary regenerates once per ~20 turns (spec §6.5.1). Parking it
+    // in the stable block means the cache hits ~19 of every 20 requests
+    // — worth it. When the summary does regenerate it invalidates the
+    // cache once; the next turn pays a cache-write and subsequent turns
+    // hit the new cache entry.
+    systemStable +=
       "\n\nEARLIER IN THIS CONVERSATION (SUMMARIZED):\n" + historyLoad.summary
   }
 
@@ -315,12 +343,19 @@ export async function POST(
 
   // Audit (spec §10.3). createAuditLog wants `string | undefined` for caseId,
   // not `string | null` — coerce since this thread may be general-scoped.
+  //
+  // Fires pre-stream with stage="started". The post-stream path adds a
+  // second row with stage="completed" carrying token + cache stats, so
+  // a failed turn has exactly one row (started, no completed) and a
+  // successful turn has two (started, completed). Query by `stage` to
+  // count distinct turns vs. completed turns.
   createAuditLog({
     practitionerId: auth.userId,
     caseId: caseId ?? undefined,
     action: AUDIT_ACTIONS.JUNEBUG_MESSAGE,
     metadata: {
       threadId: params.id,
+      stage: "started",
       userMessageId: userMessage.id,
       assistantMessageId: assistantMessage.id,
       model: body.model ?? "claude-opus-4-6",
@@ -356,7 +391,9 @@ export async function POST(
         const result = await runJunebugCompletion(
           {
             messages: historyMessages,
-            systemPrompt,
+            // Two-part prompt so the stable half caches across turns
+            // (src/lib/junebug/completion.ts handles the block split).
+            systemPrompt: { stable: systemStable, volatile: systemVolatile },
             knownNames,
             model: body.model,
           },
@@ -379,6 +416,28 @@ export async function POST(
           },
           include: { attachments: true },
         })
+
+        // Audit stage="completed" with cache stats. Kept on a separate
+        // row (cheap: AuditLog is already indexed on action+timestamp
+        // post-898a5a9) so we can trend cache hit rate with a single
+        // query: `WHERE action='JUNEBUG_MESSAGE' AND metadata->>'stage'='completed'`.
+        // Fire-and-forget; never block the response.
+        createAuditLog({
+          practitionerId: auth.userId,
+          caseId: caseId ?? undefined,
+          action: AUDIT_ACTIONS.JUNEBUG_MESSAGE,
+          metadata: {
+            threadId: params.id,
+            stage: "completed",
+            assistantMessageId: assistantMessage.id,
+            model: result.model,
+            tokensIn: result.tokensIn,
+            tokensOut: result.tokensOut,
+            cacheCreationTokens: result.cacheCreationTokens,
+            cacheReadTokens: result.cacheReadTokens,
+            durationMs: result.durationMs,
+          },
+        }).catch(() => {})
 
         // Bump thread timestamp now (after content lands, so list ordering
         // reflects the actual send time).
