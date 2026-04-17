@@ -93,6 +93,28 @@ WHERE action = 'JUNEBUG_THREAD_CONTEXT_UNAVAILABLE'
 
 7-year retention per SOC 2. See `src/lib/data-retention.ts`.
 
+### Cache hit rate (Junebug prompt caching)
+
+`JUNEBUG_MESSAGE` fires twice per successful turn — `stage="started"` pre-stream, `stage="completed"` post-stream with token + cache counts. A failed turn has only the started row. Aggregate cache hit rate for the last hour:
+
+```sql
+SELECT
+  COUNT(*) AS completed_turns,
+  SUM((metadata->>'cacheReadTokens')::int) AS total_read,
+  SUM((metadata->>'tokensIn')::int + (metadata->>'cacheReadTokens')::int) AS total_billed,
+  ROUND(
+    100.0 * SUM((metadata->>'cacheReadTokens')::int) /
+    NULLIF(SUM((metadata->>'tokensIn')::int + (metadata->>'cacheReadTokens')::int), 0),
+    1
+  ) AS hit_rate_pct
+FROM audit_logs
+WHERE action = 'JUNEBUG_MESSAGE'
+  AND metadata->>'stage' = 'completed'
+  AND timestamp > now() - interval '1 hour';
+```
+
+**Healthy signal:** >60% hit rate on turn-2-or-later requests in an active thread. If `cacheReadTokens` is zero across repeated turns in the same thread, a silent invalidator has crept into `systemStable` — something that varies per-turn. See `src/lib/junebug/completion.ts` → SystemPromptParts for the stable/volatile contract; anything recomputed from `body.content` or the current turn's state must go into `systemVolatile`.
+
 ### Health endpoint
 
 `GET /api/health` — JSON with status, Git SHA, DB round-trip latency, env var presence. 200 when healthy, 503 when any required check fails. Public; uptime monitors can hit it without auth.

@@ -14,6 +14,28 @@
  * Follow-up: TODO(refactor) — unify with /api/ai/chat once the Junebug
  * routes stabilize (PR 2+ of spec §14).
  *
+ * ## Prompt caching (Anthropic ephemeral cache)
+ *
+ * The system prompt is split into a STABLE prefix and a VOLATILE
+ * suffix. The stable prefix gets `cache_control: { type: "ephemeral" }`
+ * so Anthropic caches it for 5 minutes; subsequent turns within the
+ * same thread pay ~0.1× for the cached bytes instead of full price.
+ * Caching is a prefix match — if the stable block changes, the cache
+ * for everything after it invalidates.
+ *
+ * Callers assemble the two parts themselves:
+ *   - stable:   research_assistant_v1 + case context + rolling summary
+ *               (changes rarely within a conversation — once per ~20
+ *               turns when the summary regenerates)
+ *   - volatile: KB search hits for this turn's user message
+ *               (changes every turn)
+ *
+ * A legacy string `systemPrompt` is still accepted — it's treated as a
+ * single stable block. Cache activates when the rendered prefix
+ * exceeds the model's minimum cacheable length (4096 tokens on Opus
+ * 4.6+); below that threshold caching is a silent no-op (no error,
+ * just no hits).
+ *
  * Bundle: imports only Anthropic SDK (already externalized per
  * next.config.js), `@/lib/ai/tokenizer`, and `@/lib/db`. No transitive
  * pull-in of the tax-authority or Banjo stacks.
@@ -30,11 +52,30 @@ export interface JunebugMessage {
   content: string
 }
 
+/**
+ * Prompt parts. The stable part is the cacheable prefix; the volatile
+ * part (if any) is appended after the cache breakpoint.
+ */
+export interface SystemPromptParts {
+  /** Stable prefix — cached for 5 minutes across turns. */
+  stable: string
+  /**
+   * Volatile suffix — NOT cached. Use for content that changes every
+   * turn (e.g. KB hits derived from the current user message).
+   * Omit when there's nothing turn-specific.
+   */
+  volatile?: string
+}
+
 export interface RunJunebugCompletionInput {
   /** Full chat history, oldest → newest. User messages will be PII-tokenized before transmission. */
   messages: JunebugMessage[]
-  /** Caller-assembled system prompt. */
-  systemPrompt: string
+  /**
+   * Caller-assembled system prompt. Pass `{ stable, volatile? }` to
+   * enable prompt caching on the stable portion. A plain string is
+   * still accepted and treated as a single stable block.
+   */
+  systemPrompt: string | SystemPromptParts
   /** Known PII strings for deterministic tokenization (usually the client name). */
   knownNames?: string[]
   /** Anthropic model slug. Default "claude-opus-4-6". */
@@ -50,10 +91,26 @@ export interface RunJunebugCompletionResult {
   finalContent: string
   /** Tokenized text as Claude produced it (PII tokens still in place). */
   rawContent: string
-  /** Anthropic usage.input_tokens */
+  /** Anthropic usage.input_tokens — tokens processed at full price (not cached). */
   tokensIn: number
   /** Anthropic usage.output_tokens */
   tokensOut: number
+  /**
+   * Tokens written to the cache this turn (at ~1.25× cost). Zero on
+   * repeat-turn requests that hit the cache. A large non-zero value
+   * followed by zero on the next turn is the expected "warm → hot"
+   * transition.
+   */
+  cacheCreationTokens: number
+  /**
+   * Tokens served from the cache this turn (at ~0.1× cost). If this
+   * is zero across repeated turns in the same thread, a silent
+   * invalidator is at work — the stable prefix is probably changing
+   * turn-to-turn. See `src/app/api/junebug/threads/[id]/messages/
+   * route.ts` for the split; any new addition to the stable block
+   * that varies per-turn will invalidate.
+   */
+  cacheReadTokens: number
   /** Wall-clock ms from request start to stream end. */
   durationMs: number
   /** Model Anthropic actually used (may differ from requested if redirected). */
@@ -72,6 +129,50 @@ export interface StreamCallbacks {
 }
 
 /**
+ * Normalize the two accepted systemPrompt shapes into a single
+ * SystemPromptParts struct. Keeps the rest of the function clean.
+ */
+function normalizeSystemPrompt(
+  sp: string | SystemPromptParts
+): SystemPromptParts {
+  if (typeof sp === "string") return { stable: sp }
+  return sp
+}
+
+/**
+ * Build the `system` parameter for the Anthropic call.
+ *
+ * Structural return — the array shape matches what
+ * `anthropic.messages.stream({ system })` accepts. We deliberately
+ * don't import the SDK's TextBlockParam type because the exact
+ * namespace has moved between SDK minor versions (top-level vs
+ * `Messages.TextBlockParam`) and we want this helper to survive a
+ * minor-version bump without a type import change.
+ *
+ * Returns a single cached block when there's no volatile content, or
+ * two blocks (stable cached, volatile not cached) when there is.
+ * Any change to the volatile block alone does NOT invalidate the
+ * stable cache.
+ */
+function buildSystemBlocks(parts: SystemPromptParts) {
+  const blocks: Array<{
+    type: "text"
+    text: string
+    cache_control?: { type: "ephemeral" }
+  }> = [
+    {
+      type: "text",
+      text: parts.stable,
+      cache_control: { type: "ephemeral" },
+    },
+  ]
+  if (parts.volatile && parts.volatile.length > 0) {
+    blocks.push({ type: "text", text: parts.volatile })
+  }
+  return blocks
+}
+
+/**
  * Run a Junebug completion with streaming. Returns the final result on
  * stream end. Throws only for non-recoverable failures (auth, bad params).
  * Anthropic errors mid-stream are surfaced via `onError` and returned as
@@ -86,6 +187,9 @@ export async function runJunebugCompletion(
   const maxTokens = input.maxTokens ?? 4096
   const temperature = input.temperature ?? 0.3
   const knownNames = input.knownNames ?? []
+
+  const systemParts = normalizeSystemPrompt(input.systemPrompt)
+  const systemBlocks = buildSystemBlocks(systemParts)
 
   // Build session token map from all user messages. Assistant messages are
   // already detokenized (they came from prior turns), so we don't re-tokenize.
@@ -107,6 +211,8 @@ export async function runJunebugCompletion(
   let detokenizedContent = ""
   let tokensIn = 0
   let tokensOut = 0
+  let cacheCreationTokens = 0
+  let cacheReadTokens = 0
   let finalModel = model
 
   try {
@@ -114,7 +220,7 @@ export async function runJunebugCompletion(
       model,
       max_tokens: maxTokens,
       temperature,
-      system: input.systemPrompt,
+      system: systemBlocks,
       messages: apiMessages,
     })
 
@@ -142,6 +248,28 @@ export async function runJunebugCompletion(
     finalModel = finalMessage.model || model
     tokensIn = finalMessage.usage?.input_tokens ?? 0
     tokensOut = finalMessage.usage?.output_tokens ?? 0
+    // Cache usage — exposed on the returned result so the caller can
+    // audit hit rate. Anthropic's SDK types these as number | null |
+    // undefined depending on whether caching was exercised; coerce.
+    cacheCreationTokens = finalMessage.usage?.cache_creation_input_tokens ?? 0
+    cacheReadTokens = finalMessage.usage?.cache_read_input_tokens ?? 0
+
+    // Leave a Sentry breadcrumb summarizing cache activity so we can
+    // watch hit rate trend in the dashboard without a separate metric
+    // pipeline. No PII — just counts.
+    Sentry.addBreadcrumb({
+      category: "junebug.cache",
+      level: "info",
+      message: "completion",
+      data: {
+        model: finalModel,
+        tokensIn,
+        tokensOut,
+        cacheCreationTokens,
+        cacheReadTokens,
+        hadVolatile: !!systemParts.volatile,
+      },
+    })
 
     // Detokenize the full response once, using the final accumulated
     // rawContent (which matches what Claude produced, PII-tokenized).
@@ -166,6 +294,7 @@ export async function runJunebugCompletion(
         messageCount: apiMessages.length,
         tokenizedNames: knownNames.length,
         partialBytes: rawContent.length,
+        hadVolatile: !!systemParts.volatile,
       },
     })
 
@@ -185,6 +314,8 @@ export async function runJunebugCompletion(
     rawContent,
     tokensIn,
     tokensOut,
+    cacheCreationTokens,
+    cacheReadTokens,
     durationMs: Date.now() - startedAt,
     model: finalModel,
     tokenMap: sessionTokenMap,
