@@ -12,7 +12,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { junebugThreadsEnabled } from "./feature-flag"
+import { junebugVisibleForUser } from "./feature-flag"
 
 export type AccessCheck =
   | { ok: true; userId: string }
@@ -23,12 +23,20 @@ export type AccessCheck =
  * Returns the userId on success, or a pre-built NextResponse on failure.
  */
 export async function requireJunebugSession(): Promise<AccessCheck> {
-  if (!junebugThreadsEnabled()) {
-    // When the flag is off, the routes don't exist. 404, no body.
+  // We compute session first so the beta-gate can inspect email. But we
+  // still resolve to 404 (not 401) when the user isn't in the beta —
+  // "the route doesn't exist for you" is the spec's don't-leak-existence
+  // posture (§6). A non-beta user learning that the route exists but
+  // isn't open to them would be an enumeration leak.
+  const session = await getServerSession(authOptions)
+  const email = (session?.user as any)?.email as string | undefined
+  if (!junebugVisibleForUser(email)) {
     return { ok: false, response: new NextResponse(null, { status: 404 }) }
   }
-  const session = await getServerSession(authOptions)
   if (!session?.user) {
+    // Reachable only if flag is on AND no beta domain list is set
+    // (otherwise junebugVisibleForUser would have returned false on
+    // missing email). Keep the explicit 401 for that case.
     return {
       ok: false,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),

@@ -102,12 +102,18 @@ interface CaseDetailProps {
   activities?: any[]
   feedPosts?: any[]
   currentUser?: any
+  /**
+   * Server-computed: does the viewing user have Junebug Threads visible?
+   * Passed through to the inline CaseJunebug so its "Ask Junebug" link
+   * only renders for beta users. See src/lib/junebug/feature-flag.ts.
+   */
+  junebugVisible?: boolean
 }
 
 const WORKSPACES = ["documents", "banjo", "deliverables", "deadlines", "activity", "notes", "conversations", "research", "intel-report", "settings"] as const
 type Workspace = typeof WORKSPACES[number]
 
-export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [], feedPosts = [], currentUser }: CaseDetailProps) {
+export function CaseDetail({ caseData, practitioners, deadlines = [], intelligence = null, activities = [], feedPosts = [], currentUser, junebugVisible }: CaseDetailProps) {
   const [workspace, setWorkspace] = useState<Workspace>(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.replace("#", "")
@@ -719,6 +725,7 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             collapsed={junebugCollapsed}
             onToggle={() => setJunebugCollapsed(!junebugCollapsed)}
             digest={intelligence?.digest}
+            junebugVisible={junebugVisible}
           />
         </div>
       </div>

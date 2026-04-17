@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/header"
 import { ChatPanel } from "@/components/assistant/chat-panel"
 import { IdleTimeout } from "@/components/layout/idle-timeout"
 import { DiagnosticsInit } from "@/components/diagnostics-init"
-import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
+import { junebugVisibleForUser } from "@/lib/junebug/feature-flag"
 
 export default async function DashboardLayout({
   children,
@@ -14,6 +14,12 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const session = await requireAuth()
+
+  // Compute once, pass down as a prop. Client components can't check the
+  // server-only JUNEBUG_BETA_EMAIL_DOMAINS env var, so we do it here and
+  // hand the answer down. `session.user.email` is present on every
+  // authenticated route (see src/lib/auth/options.ts session callback).
+  const junebugVisible = junebugVisibleForUser((session.user as any).email)
 
   let pendingReviewCount = 0
   let overdueDeadlineCount = 0
@@ -52,6 +58,7 @@ export default async function DashboardLayout({
           pendingReviewCount={pendingReviewCount}
           overdueDeadlineCount={overdueDeadlineCount}
           unreadMessageCount={unreadMessageCount}
+          junebugVisible={junebugVisible}
         />
         <div
           className="flex flex-1 flex-col overflow-hidden"
@@ -62,6 +69,7 @@ export default async function DashboardLayout({
             pendingReviewCount={pendingReviewCount}
             overdueDeadlineCount={overdueDeadlineCount}
             unreadMessageCount={unreadMessageCount}
+            junebugVisible={junebugVisible}
           />
           <main
             className="flex-1 overflow-y-auto"
@@ -71,12 +79,13 @@ export default async function DashboardLayout({
           </main>
         </div>
       </div>
-      {/* Legacy FAB — hidden when the Junebug Threads workspace is on.
-          Spec §8: "the old chat panel FAB is hidden; a new Junebug
-          entry point opens JunebugWorkspace". The chat-panel code still
-          exists behind the flag for one release cycle so we can roll
-          back; PR 6 deletes it. */}
-      {!junebugThreadsEnabled() && <ChatPanel />}
+      {/* Legacy FAB — hidden when the Junebug Threads workspace is
+          visible FOR THIS USER (spec §8). Users outside the beta
+          gate (JUNEBUG_BETA_EMAIL_DOMAINS set; email not matching)
+          keep seeing the legacy chat panel. The chat-panel code
+          still exists behind the flag for one release cycle so we
+          can roll back; spec §14 PR 6 deletes it post-rollout. */}
+      {!junebugVisible && <ChatPanel />}
       <IdleTimeout />
       <DiagnosticsInit />
     </>

@@ -12,6 +12,14 @@ interface SidebarProps {
   pendingReviewCount?: number
   overdueDeadlineCount?: number
   unreadMessageCount?: number
+  /**
+   * Server-computed boolean: is the Junebug Threads workspace visible
+   * for this user? Combines the global flag with the optional
+   * JUNEBUG_BETA_EMAIL_DOMAINS email-domain gate. When undefined,
+   * falls back to the plain global-flag check in navigation.ts so
+   * existing callers that haven't been updated yet don't break.
+   */
+  junebugVisible?: boolean
 }
 
 function getInitials(name?: string | null) {
@@ -38,11 +46,12 @@ export function SidebarContent({
   pendingReviewCount,
   overdueDeadlineCount,
   unreadMessageCount,
+  junebugVisible,
   showWordmark = true,
   onLinkClick,
 }: SidebarProps & { showWordmark?: boolean; onLinkClick?: () => void }) {
   const pathname = usePathname()
-  const allItems = getVisibleNavItems(user.role)
+  const allItems = getVisibleNavItems(user.role, { junebugVisible })
 
   const sectionItems: Record<NavSection, typeof allItems> = {
     MAIN: [],
@@ -317,6 +326,7 @@ export function Sidebar({
   pendingReviewCount,
   overdueDeadlineCount,
   unreadMessageCount,
+  junebugVisible,
 }: SidebarProps) {
   return (
     <aside
@@ -328,6 +338,7 @@ export function Sidebar({
         pendingReviewCount={pendingReviewCount}
         overdueDeadlineCount={overdueDeadlineCount}
         unreadMessageCount={unreadMessageCount}
+        junebugVisible={junebugVisible}
         showWordmark
       />
     </aside>
