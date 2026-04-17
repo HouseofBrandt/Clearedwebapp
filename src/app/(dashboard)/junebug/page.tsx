@@ -17,7 +17,7 @@
 
 import { requireAuth } from "@/lib/auth/session"
 import { JunebugWorkspace } from "@/components/junebug/junebug-workspace"
-import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
+import { junebugVisibleForUser } from "@/lib/junebug/feature-flag"
 import { notFound } from "next/navigation"
 
 export const dynamic = "force-dynamic"
@@ -27,12 +27,12 @@ export default async function JunebugIndexPage({
 }: {
   searchParams: { case?: string }
 }) {
-  // When the flag is off the workspace would also render a stub, but
-  // serving 404 here keeps the route surface clean for crawlers and
-  // unauthenticated probes.
-  if (!junebugThreadsEnabled()) notFound()
-
-  await requireAuth()
+  // requireAuth first so we have the user's email for the beta gate.
+  // Non-beta users see 404 — consistent with the API surface, which
+  // also returns 404 (not 403) so we don't leak "this exists but
+  // isn't open to you."
+  const session = await requireAuth()
+  if (!junebugVisibleForUser(session.user.email)) notFound()
 
   return (
     <div className="-mx-8 -my-7 h-[calc(100vh-56px)]">

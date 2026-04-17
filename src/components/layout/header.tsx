@@ -30,6 +30,10 @@ interface HeaderProps {
   pendingReviewCount?: number
   overdueDeadlineCount?: number
   unreadMessageCount?: number
+  /** Server-computed Junebug visibility for this user. Passed through
+   *  to the mobile SidebarContent so it honors the same beta gate as
+   *  the desktop sidebar. See src/lib/junebug/feature-flag.ts. */
+  junebugVisible?: boolean
 }
 
 function getInitials(name?: string | null) {
@@ -47,6 +51,7 @@ export function Header({
   pendingReviewCount,
   overdueDeadlineCount,
   unreadMessageCount,
+  junebugVisible,
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
@@ -219,6 +224,7 @@ export function Header({
               pendingReviewCount={pendingReviewCount}
               overdueDeadlineCount={overdueDeadlineCount}
               unreadMessageCount={unreadMessageCount}
+              junebugVisible={junebugVisible}
               showWordmark={false}
               onLinkClick={() => setMobileMenuOpen(false)}
             />

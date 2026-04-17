@@ -36,7 +36,8 @@ All set in Vercel → Project Settings → Environment Variables.
 | `ENCRYPTION_KEY` | 32-char random | `src/lib/encryption.ts` for case PII at rest |
 | `ANTHROPIC_API_KEY` | Anthropic console | All AI routes |
 | `CRON_SECRET` | 32-byte random | Bearer auth for `/api/cron/**` |
-| `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED` | `true` / `false` | Junebug workspace gate |
+| `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED` | `true` / `false` | Junebug workspace gate (global) |
+| `JUNEBUG_BETA_EMAIL_DOMAINS` | comma-separated list | Optional beta gate (server-only) |
 
 ### Verifying env state
 
@@ -46,13 +47,36 @@ All set in Vercel → Project Settings → Environment Variables.
 
 ## Feature flags
 
-Only one is live today:
+Two env vars control Junebug rollout:
 
-- **`NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED`**
-  - `false` (default) — the new Junebug Threads workspace is invisible; legacy chat-panel FAB renders.
-  - `true` — `/junebug` nav entry appears; sidebar / thread view / SSE streaming all become active.
+- **`NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED`** (global kill switch)
+  - `false` (default) — the new Junebug Threads workspace is invisible to everyone; legacy chat-panel FAB renders.
+  - `true` — Junebug becomes visible to users who also pass the beta gate (below). If no beta gate is set, visible to everyone.
   - Flip in Vercel env vars. Requires redeploy (not a runtime flag).
-  - Rollout plan: staging → internal email-domain gate → everyone. See `docs/spec-junebug-threads.md` §8.
+
+- **`JUNEBUG_BETA_EMAIL_DOMAINS`** (optional beta gate, server-only)
+  - Comma-separated list of email domains, e.g. `yourfirm.com,beta.yourfirm.com`.
+  - When **set**, Junebug is only visible to users whose email domain is in the list. Non-matching users see the legacy chat panel; the `/junebug` route returns 404 for them; every Junebug API route returns 404 for them.
+  - When **unset or empty**, Junebug is visible to everyone once the global flag is on.
+  - NOT `NEXT_PUBLIC_` — the beta list would leak to the client bundle. Server-side gates enforce it.
+  - Matching is exact on the domain portion, case-insensitive. `firm.com` does **not** admit `sub.firm.com` — list the subdomain explicitly if you want it in.
+
+### Rollout sequence
+
+1. **Flag false everywhere** (default shipping state). Schema is in place; no user-visible change.
+2. **Dogfood** — flag `true`, beta domains = your firm's domain. Only your own users see Junebug; everyone else sees the legacy surface.
+3. **Widen** — remove `JUNEBUG_BETA_EMAIL_DOMAINS` (flag stays `true`). Junebug goes to all users.
+4. **2 weeks later** — spec §14 PR 6 deletes the legacy chat-panel and the gating code entirely.
+
+### Verifying the gate
+
+```
+# Non-beta user attempt on a beta-gated deployment:
+curl -I https://app/junebug            # → 404 (never 403)
+curl -I https://app/api/junebug/threads # → 404 (never 403)
+```
+
+Both return 404 empty body — no existence leak.
 
 ---
 

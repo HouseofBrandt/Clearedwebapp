@@ -6,6 +6,7 @@ import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { notFound } from "next/navigation"
 import { canAccessCase } from "@/lib/auth/case-access"
 import { CaseDetail } from "@/components/cases/case-detail"
+import { junebugVisibleForUser } from "@/lib/junebug/feature-flag"
 
 const caseInclude = {
   assignedPractitioner: { select: { id: true, name: true, email: true } },
@@ -189,6 +190,7 @@ export default async function CaseDetailPage({
         activities={serializedActivities}
         feedPosts={serializedFeedPosts}
         currentUser={session.user}
+        junebugVisible={junebugVisibleForUser((session.user as any).email)}
       />
     </div>
   )

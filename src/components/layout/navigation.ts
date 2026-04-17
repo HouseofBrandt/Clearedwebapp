@@ -77,10 +77,26 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true, section: "ADMIN" },
 ]
 
-export function getVisibleNavItems(role?: string) {
+/**
+ * Returns visible nav items for the given role.
+ *
+ * `opts.junebugVisible` — if provided, overrides the plain
+ * `junebugThreadsEnabled()` check for the Junebug entry. This is how
+ * the server layout passes down the per-user beta-gate result (which
+ * client code can't compute on its own because the
+ * JUNEBUG_BETA_EMAIL_DOMAINS env var is server-only).
+ *
+ * Falls back to the global flag when the prop is undefined so any
+ * caller that hasn't been updated still gets sensible behavior.
+ */
+export function getVisibleNavItems(
+  role?: string,
+  opts?: { junebugVisible?: boolean }
+) {
+  const junebugVisible = opts?.junebugVisible ?? junebugThreadsEnabled()
   return NAV_ITEMS.filter((item) => {
     if (item.adminOnly && role !== "ADMIN") return false
-    if (item.flagGate === "junebugThreads" && !junebugThreadsEnabled()) return false
+    if (item.flagGate === "junebugThreads" && !junebugVisible) return false
     return true
   })
 }

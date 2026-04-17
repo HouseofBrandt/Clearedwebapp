@@ -20,6 +20,14 @@ interface CaseJunebugProps {
   collapsed: boolean
   onToggle: () => void
   digest?: string | null
+  /**
+   * Server-computed: is the Junebug Threads workspace visible for the
+   * viewing user? Combines the global flag with the
+   * JUNEBUG_BETA_EMAIL_DOMAINS gate. When undefined, falls back to the
+   * global-flag-only check (backward-compatible with pre-beta-gate
+   * callers) so the legacy inline chat still shows when the flag is off.
+   */
+  junebugVisible?: boolean
 }
 
 interface ChatMessage {
@@ -29,13 +37,18 @@ interface ChatMessage {
 }
 
 /**
- * Thin wrapper. Spec §9: when the threads workspace is on, the inline
- * widget gives way to a link that opens the full workspace with this
- * case pre-scoped. We branch at the component boundary so hooks in the
- * legacy inline component still obey the rules of hooks.
+ * Thin wrapper. Spec §9: when the threads workspace is on AND visible
+ * for this user, the inline widget gives way to a link that opens the
+ * full workspace with this case pre-scoped. Users outside the beta
+ * gate keep seeing the legacy inline chat — clicking a link that 404s
+ * would be worse UX than staying on the old surface.
+ *
+ * The branch happens at the component boundary so hooks in the legacy
+ * inline component still obey the rules of hooks.
  */
 export function CaseJunebug(props: CaseJunebugProps) {
-  if (junebugThreadsEnabled()) {
+  const visible = props.junebugVisible ?? junebugThreadsEnabled()
+  if (visible) {
     return <CaseJunebugLink caseId={props.caseId} />
   }
   return <LegacyInlineCaseJunebug {...props} />

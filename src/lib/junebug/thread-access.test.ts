@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
 // Mock modules before importing the subject. Vitest hoists these
 // mocks above the imports so the real implementations never load.
 vi.mock("./feature-flag", () => ({
-  junebugThreadsEnabled: vi.fn(() => true),
+  junebugVisibleForUser: vi.fn(() => true),
 }))
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -30,41 +30,58 @@ vi.mock("@/lib/db", () => ({
 }))
 
 import { requireJunebugSession, requireOwnedThread } from "./thread-access"
-import { junebugThreadsEnabled } from "./feature-flag"
+import { junebugVisibleForUser } from "./feature-flag"
 import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/db"
 
 describe("requireJunebugSession", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(junebugThreadsEnabled as any).mockReturnValue(true)
+    ;(junebugVisibleForUser as any).mockReturnValue(true)
   })
 
-  it("returns 404 when the feature flag is OFF (don't leak route existence)", async () => {
-    ;(junebugThreadsEnabled as any).mockReturnValue(false)
+  it("returns 404 when Junebug is not visible for this user (beta gate)", async () => {
+    // Non-beta user — gate returns false regardless of whether the
+    // session is valid. 404, no JSON body (no existence leak).
+    ;(junebugVisibleForUser as any).mockReturnValue(false)
+    ;(getServerSession as any).mockResolvedValue({
+      user: { id: "user_abc", email: "non-beta@example.com" },
+    })
     const r = await requireJunebugSession()
     expect(r.ok).toBe(false)
     if (!r.ok) {
       expect(r.response.status).toBe(404)
-      // Body should be empty — no JSON leaking feature state
       expect(r.response.body).toBeNull()
     }
   })
 
-  it("does not call getServerSession when the flag is off (cheap gate)", async () => {
-    ;(junebugThreadsEnabled as any).mockReturnValue(false)
-    await requireJunebugSession()
-    expect(getServerSession).not.toHaveBeenCalled()
+  it("returns 404 when the global flag is off (junebugVisibleForUser returns false)", async () => {
+    ;(junebugVisibleForUser as any).mockReturnValue(false)
+    ;(getServerSession as any).mockResolvedValue(null)
+    const r = await requireJunebugSession()
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.response.status).toBe(404)
   })
 
-  it("returns 401 when flag is on but there's no session", async () => {
+  it("passes the session email to the visibility gate", async () => {
+    ;(getServerSession as any).mockResolvedValue({
+      user: { id: "user_abc", email: "beta@firm.com" },
+    })
+    await requireJunebugSession()
+    expect(junebugVisibleForUser).toHaveBeenCalledWith("beta@firm.com")
+  })
+
+  it("returns 401 when flag is on for everyone but there's no session at all", async () => {
+    // No beta gate → visibility returns true for anyone (including
+    // missing email). But the route still needs a session.
+    ;(junebugVisibleForUser as any).mockReturnValue(true)
     ;(getServerSession as any).mockResolvedValue(null)
     const r = await requireJunebugSession()
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.response.status).toBe(401)
   })
 
-  it("returns 401 when session has no user", async () => {
+  it("returns 401 when session exists but session.user is null", async () => {
     ;(getServerSession as any).mockResolvedValue({ user: null })
     const r = await requireJunebugSession()
     expect(r.ok).toBe(false)
