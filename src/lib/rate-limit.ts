@@ -28,6 +28,15 @@ export const RATE_LIMITS = {
   documentUpload: { maxRequests: 100, windowMs: 60 * 60 * 1000 } as RateLimitConfig, // 100/hour
   caseCreate: { maxRequests: 10, windowMs: 60 * 60 * 1000 } as RateLimitConfig,      // 10/hour
   feedPost: { maxRequests: 50, windowMs: 60 * 60 * 1000 } as RateLimitConfig,        // 50/hour
+  // Junebug conversational send — higher ceiling than AI analysis since
+  // each turn is smaller but used more frequently during an active
+  // research session. Burst and hourly limits in one (short window
+  // catches bursts, long window catches sustained abuse).
+  junebugSend: { maxRequests: 60, windowMs: 60 * 60 * 1000 } as RateLimitConfig,     // 60/hour
+  junebugBurst: { maxRequests: 15, windowMs: 60 * 1000 } as RateLimitConfig,         // 15/minute
+  // Pippen "more / less like this" signals. One practitioner shouldn't
+  // be reshaping the firm's harvest preferences through spam clicks.
+  tasteSignal: { maxRequests: 30, windowMs: 5 * 60 * 1000 } as RateLimitConfig,      // 30 per 5 min
   default: { maxRequests: 200, windowMs: 60 * 60 * 1000 } as RateLimitConfig,        // 200/hour
 }
 

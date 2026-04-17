@@ -36,6 +36,11 @@ jobs:
         run: npm run lint
         continue-on-error: true  # Report but don't block until existing warnings are cleaned up
 
+      - name: Unit tests
+        # Runs the Vitest suite (src/**/*.test.ts). No DB, no network —
+        # pure-function coverage only. If this fails, the PR is broken.
+        run: npm test
+
       - name: Build
         run: npx next build
         env:

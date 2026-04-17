@@ -7,6 +7,7 @@ import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/
 import { createAuditLog } from "@/lib/ai/audit"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
 import { runJunebugCompletion, type JunebugMessage } from "@/lib/junebug/completion"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import {
   loadThreadHistoryForCompletion,
   shouldRegenerateSummary,
@@ -69,6 +70,48 @@ export async function POST(
 
   const access = await requireOwnedThread(params.id, auth.userId)
   if (!access.ok) return access.response
+
+  // Rate limit: enforce both a sustained-hourly and a burst-per-minute
+  // ceiling on AI spend. Both keyed to the user (not thread) so opening
+  // multiple threads doesn't expand the budget.
+  const hourly = checkRateLimit(auth.userId, "junebug:send:hour", RATE_LIMITS.junebugSend)
+  if (!hourly.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        detail: "Too many messages this hour. Please try again later.",
+        resetAt: new Date(hourly.resetAt).toISOString(),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((hourly.resetAt - Date.now()) / 1000))),
+          "X-RateLimit-Limit": String(RATE_LIMITS.junebugSend.maxRequests),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.floor(hourly.resetAt / 1000)),
+        },
+      }
+    )
+  }
+  const burst = checkRateLimit(auth.userId, "junebug:send:burst", RATE_LIMITS.junebugBurst)
+  if (!burst.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        detail: "Too many messages this minute. Please slow down.",
+        resetAt: new Date(burst.resetAt).toISOString(),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((burst.resetAt - Date.now()) / 1000))),
+          "X-RateLimit-Limit": String(RATE_LIMITS.junebugBurst.maxRequests),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.floor(burst.resetAt / 1000)),
+        },
+      }
+    )
+  }
 
   let body: z.infer<typeof bodySchema>
   try {
