@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { prisma } from "@/lib/db"
 import { createAuditLog } from "@/lib/ai/audit"
 
@@ -88,6 +89,10 @@ export async function GET(request: NextRequest) {
     })
   } catch (err: any) {
     console.error("[JunebugCleanup] Failed:", err?.message)
+    Sentry.captureException(err, {
+      tags: { route: "cron/junebug/cleanup", junebug: "cleanup-failed" },
+      extra: { cutoff: cutoff.toISOString() },
+    })
     return NextResponse.json({ error: err?.message ?? "cleanup failed" }, { status: 500 })
   }
 }

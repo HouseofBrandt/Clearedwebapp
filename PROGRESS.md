@@ -214,3 +214,148 @@ preview-pdf function.
 5. Two weeks post-rollout: PR 6 — delete `src/components/assistant/
    chat-panel.tsx`, the legacy `case-junebug.tsx` inline-chat path,
    the feature flag itself, and `LegacyInlineCaseJunebug`.
+
+---
+
+## 2026-04-17 — Enterprise hardening pass
+
+**What was done:**
+
+A cross-cutting hardening pass closing the biggest remaining gaps
+between "code that works" and "code that meets enterprise
+production standards." Seven commits, all green on Vercel.
+
+### Pippen Phase 3 user surface (commit 8a2a65b)
+
+The Phase 3 backend shipped in April 16 (review-action feedback +
+HarvestPreference + preference API) but had no practitioner-facing
+click surface. This commit wires a `FeedbackButtons` component
+into `LearningItemCard` on the /pippen daily report. One click
+POSTs `{sourceId, issueCategory, delta}` to
+`/api/tax-authority/preference`; confirmation chip locks further
+clicks. The harvester now has its feedback loop end-to-end:
+practitioners tell Pippen what they want more / less of, and the
+next daily harvest ratchets the (source × issueCategory) weight.
+
+Pipes `issueCategory` through `DailyLearning → LearningItem` from
+`compile-learnings.ts` via a new `extractIssueCategory(metadata)`
+helper that pulls the first non-"mixed" entry from the artifact's
+Phase 2 classifier output, defaulting to "general" for pre-Phase 2
+rows.
+
+### Form-builder Tier 3 redo (commits b820a6f, 9175827)
+
+The original Tier 3 commit (`e0ceae6`) pushed
+`/api/forms/[instanceId]/preview-pdf` from 290MB to 435MB by
+pulling in `pdf-filler.ts` → `pdf-lib.StandardFonts` → fontkit.
+Had to revert the whole feature set. This pass restores the
+valuable parts without the bundle bloater:
+
+- **b820a6f** — restored the 3 schemas (`form-656`, `form-843`,
+  `form-9465`) and `value-normalizers.ts`. Skipped `pdf-filler.ts`
+  and `pdf-fuzzy-matcher.ts`. The new forms render via the
+  existing AI auto-mapper fallback. Registered all 3 in the form
+  registry. Verified the build holds under 300MB on Vercel.
+
+- **9175827** — switched the registry from eager imports to
+  per-slug `await import()` loaders. Each call site only bundles
+  the schemas it actually loads. Future form additions can't
+  blow the 300MB function ceiling again.
+  `getAvailableForms()` stays sync (metadata-only, no schema
+  loads). `getFormSchema()` is now `Promise<FormSchema | null>`;
+  updated all 9 call sites to await.
+
+### Tests + CI (commits 05dc52b, 006422a)
+
+- **05dc52b** — Vitest setup, 52 test cases across 4 high-risk
+  pure-function paths:
+    - SSE parser (19 cases — covers all 4 event types, malformed
+      JSON, multi-line data, the chunk-boundary buffer)
+    - groupThreads bucketing (13 cases — pinned hoisting, 5
+      time buckets, canonical ordering, empty-group omission)
+    - shouldRegenerateSummary trigger logic (6 cases — boundary
+      behavior, turn-count invariant)
+    - title-generator cleanTitle + buildFallback (14 cases)
+
+  Extracted `parseSseFrame` into its own module so the test suite
+  doesn't drag React into scope.
+
+  **Bug caught while writing the title-generator tests:**
+  `cleanTitle`'s quote-stripping regex looked like it handled smart
+  quotes but the source actually contained duplicate ASCII `"`
+  characters. Haiku emits smart quotes regularly. Fixed with
+  explicit `\u201c\u201d\u2018\u2019` escapes. This is exactly
+  why you write tests.
+
+- **006422a** — wired the Vitest suite into
+  `.github/workflows/ci.yml` as a hard gate (not
+  `continue-on-error`). Red tests block merge.
+
+### Rate limits (commit 006422a)
+
+Added two new tiers to `src/lib/rate-limit.ts`:
+
+- `junebugSend`  60 req/hour per user
+- `junebugBurst` 15 req/minute per user
+- `tasteSignal`  30 req per 5 minutes per user
+
+Applied to `/api/junebug/threads/[id]/messages` (both ceilings)
+and `/api/tax-authority/preference`. 429 responses include
+`Retry-After` + `X-RateLimit-*` headers per the HTTP spec.
+Protects against compromised sessions, runaway UI bugs, and
+practitioner-side spam on the feed preference buttons.
+
+### Health endpoint (commit f26489c)
+
+New `/api/health` route — public, no auth (intentionally; uptime
+monitors can't authenticate). Returns 200 when healthy, 503 when
+any required check fails so load balancers rotate broken
+instances out automatically.
+
+Reports:
+  - Git SHA of the running build (truncated — tells you which
+    commit is live without asking Vercel)
+  - Database round-trip via `SELECT 1`
+  - Required env vars (keys only, not values)
+  - Anthropic API key presence (does NOT call the API — a
+    polling monitor shouldn't burn tokens)
+
+### Observability (this commit)
+
+Wired `@sentry/nextjs` capture into three Junebug error paths:
+
+1. `/api/junebug/threads/[id]/messages` — stream-failure catch
+   tags the exception with `junebug: stream-failed`, the model,
+   and captures threadId / userId / assistantMessageId / kbHits
+   / contextAvailable as structured extras. No PII in tags (just
+   IDs).
+
+2. `/api/cron/junebug/cleanup` — any cleanup failure is surfaced
+   with the cutoff timestamp so we can see if the sweep was
+   wedged at a specific moment.
+
+3. `src/lib/junebug/completion.ts` — catches closer to the
+   Anthropic boundary with counts + model only. No message
+   content (PII risk).
+
+Dashboard filter `tag:junebug` now surfaces every Junebug
+incident as a single bucket.
+
+**Bundle impact across the pass:**
+
+`/api/forms/[instanceId]/preview-pdf` remains under 300MB.
+All new Junebug routes and the health endpoint are
+independently-bundled serverless functions. No heavy deps
+leaked into user-facing surfaces.
+
+**Still deferred:**
+
+- PR 6 (legacy chat-panel deletion) — spec-mandated 2-week
+  post-rollout window.
+- Explicit per-form AcroForm field maps for 656/843/9465 —
+  currently AI auto-mapped. Needs actual PDFs in hand to
+  enumerate field names.
+- Upstash/Redis-backed rate limiter to replace the in-memory
+  per-instance Map. Consistent with existing code but weaker
+  at scale; the docstring in `src/lib/rate-limit.ts` already
+  flags the upgrade path.

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import * as Sentry from "@sentry/nextjs"
 import { prisma } from "@/lib/db"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { searchKnowledge } from "@/lib/knowledge/search"
@@ -426,6 +427,29 @@ export async function POST(
         }
       } catch (err: any) {
         const message = err?.message || "AI completion failed"
+
+        // Capture every stream failure with a `junebug` tag + structured
+        // context so the dashboard filter "tag:junebug" surfaces them as
+        // a single bucket. threadId + userId + assistantMessageId let us
+        // triangulate a specific failure without PII in the tag itself.
+        Sentry.captureException(err, {
+          tags: {
+            route: "junebug/messages",
+            junebug: "stream-failed",
+            caseScoped: caseId ? "true" : "false",
+          },
+          user: { id: auth.userId },
+          extra: {
+            threadId: params.id,
+            userMessageId: userMessage.id,
+            assistantMessageId: assistantMessage.id,
+            model: body.model ?? "claude-opus-4-6",
+            kbHits,
+            contextAvailable,
+            priorMessageCount,
+          },
+        })
+
         // Persist the failure onto the reserved assistant message so the
         // thread never holds a dangling USER message without a reply.
         await prisma.junebugMessage

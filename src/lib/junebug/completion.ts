@@ -20,6 +20,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk"
+import * as Sentry from "@sentry/nextjs"
 import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
@@ -149,6 +150,25 @@ export async function runJunebugCompletion(
       : rawContent
   } catch (err: any) {
     const message = err?.message || String(err)
+
+    // Tag every completion failure with `junebug:completion-failed`
+    // so the Sentry dashboard can group them. We don't log the user's
+    // message content (PII risk) — just counts, model name, timing.
+    // The caller already re-captures with threadId/userId; this one
+    // is closer to the Anthropic boundary and keeps the stack frame.
+    Sentry.captureException(err, {
+      tags: {
+        source: "junebug/completion",
+        junebug: "completion-failed",
+        model: finalModel,
+      },
+      extra: {
+        messageCount: apiMessages.length,
+        tokenizedNames: knownNames.length,
+        partialBytes: rawContent.length,
+      },
+    })
+
     if (callbacks.onError) {
       try { await callbacks.onError(message) } catch { /* caller error */ }
     }
