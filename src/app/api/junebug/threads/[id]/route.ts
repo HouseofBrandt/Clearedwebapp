@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import * as Sentry from "@sentry/nextjs"
 import { prisma } from "@/lib/db"
 import { decryptField } from "@/lib/encryption"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
 import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
+
+/**
+ * Shared 500-handler for the GET / PATCH / DELETE paths below. Captures
+ * the exception into Sentry with the right tags, then returns a terse
+ * JSON error. NEVER returns err.message to the client (that's where
+ * stack-adjacent strings like "connect ECONNREFUSED 10.0.0.1:5432"
+ * can leak).
+ */
+function handle500(
+  op: "get" | "patch" | "delete",
+  err: unknown,
+  ctx: { userId: string; threadId: string }
+) {
+  Sentry.captureException(err, {
+    tags: { route: `junebug/thread/${op}`, junebug: `thread-${op}-failed` },
+    user: { id: ctx.userId },
+    extra: { threadId: ctx.threadId },
+  })
+  return NextResponse.json(
+    { error: `Failed to ${op} thread` },
+    { status: 500 }
+  )
+}
 
 /**
  * /api/junebug/threads/[id] — GET, PATCH, DELETE (spec §6.3, §6.4, §6.5).
@@ -32,6 +56,7 @@ export async function GET(
   const access = await requireOwnedThread(params.id, auth.userId)
   if (!access.ok) return access.response
 
+  try {
   const sp = request.nextUrl.searchParams
   const messagesLimit = clampMessagesLimit(sp.get("messagesLimit"))
   const messagesCursor = sp.get("messagesCursor") || undefined
@@ -118,6 +143,9 @@ export async function GET(
     hasMoreMessages,
     oldestMessageCursor,
   })
+  } catch (err) {
+    return handle500("get", err, { userId: auth.userId, threadId: params.id })
+  }
 }
 
 // ============================================================
@@ -153,6 +181,7 @@ export async function PATCH(
     )
   }
 
+  try {
   // If caseId is being set, verify the case exists
   if (body.caseId) {
     const caseExists = await prisma.case.findUnique({
@@ -231,6 +260,9 @@ export async function PATCH(
       lastMessageRole: (last?.role as any) ?? null,
     },
   })
+  } catch (err) {
+    return handle500("patch", err, { userId: auth.userId, threadId: params.id })
+  }
 }
 
 // ============================================================
@@ -258,6 +290,7 @@ export async function DELETE(
   const access = await requireOwnedThread(params.id, auth.userId)
   if (!access.ok) return access.response
 
+  try {
   // Count messages before delete for the audit record. Forensically
   // useful — "did a practitioner torch 500 messages of work, or just
   // an empty stub thread?"
@@ -281,6 +314,9 @@ export async function DELETE(
   }).catch(() => {})
 
   return new NextResponse(null, { status: 204 })
+  } catch (err) {
+    return handle500("delete", err, { userId: auth.userId, threadId: params.id })
+  }
 }
 
 // ============================================================

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import * as Sentry from "@sentry/nextjs"
 import { prisma } from "@/lib/db"
 import { decryptField } from "@/lib/encryption"
 import { requireJunebugSession } from "@/lib/junebug/thread-access"
@@ -51,6 +52,8 @@ export async function GET(request: NextRequest) {
   const search = (sp.get("search") || "").trim()
   const cursor = sp.get("cursor") || undefined
   const limit = clampLimit(sp.get("limit"))
+
+  try {
 
   // Build the WHERE common to search and non-search paths
   const baseWhere: any = {
@@ -184,6 +187,22 @@ export async function GET(request: NextRequest) {
     : null
 
   return NextResponse.json({ threads: hydrated, nextCursor })
+  } catch (err) {
+    // FTS query failures are the most likely offender here — raw SQL
+    // against a user-controlled search string. Even though we pass
+    // the string as a bound parameter, a DB outage / index problem
+    // / Postgres version quirk could throw. Surface it in Sentry so
+    // we don't silently degrade the list.
+    Sentry.captureException(err, {
+      tags: {
+        route: "junebug/threads/list",
+        junebug: search ? "search-failed" : "list-failed",
+      },
+      user: { id: auth.userId },
+      extra: { archived, pinnedOnly, hasSearch: !!search, scopedToCase: !!caseId },
+    })
+    return NextResponse.json({ error: "Failed to list threads" }, { status: 500 })
+  }
 }
 
 // ============================================================
@@ -208,6 +227,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  try {
   // Validate case access if caseId provided — we don't need the full
   // canAccessCase gate here since threads are already per-user, but we
   // should make sure the case exists and isn't someone else's closed record.
@@ -270,6 +290,14 @@ export async function POST(request: NextRequest) {
     },
     { status: 201 }
   )
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { route: "junebug/threads/create", junebug: "create-failed" },
+      user: { id: auth.userId },
+      extra: { caseId: body.caseId ?? null },
+    })
+    return NextResponse.json({ error: "Failed to create thread" }, { status: 500 })
+  }
 }
 
 // ============================================================
