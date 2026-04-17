@@ -359,3 +359,115 @@ leaked into user-facing surfaces.
   per-instance Map. Consistent with existing code but weaker
   at scale; the docstring in `src/lib/rate-limit.ts` already
   flags the upgrade path.
+
+---
+
+## 2026-04-17 — Enterprise hardening (continued)
+
+Second half of the hardening pass, extending the April-17 entry
+above with everything shipped after commit bbab22f: audit log
+coverage, a second batch of tests, a runbook, a DB index, and
+the merge + CI fix that finally let the test suite actually gate
+merges.
+
+### Audit log coverage on all Junebug mutations (commit 6630de8)
+
+AUDIT_ACTIONS grew a typed `JUNEBUG_*` block (create / update /
+delete / regenerated / message / cleanup / context_unavailable).
+Every thread mutation now emits a typed audit row. SOC 2 + legal
+discovery queries can filter on `action LIKE 'JUNEBUG_%'`. Message
+content deliberately stays out of the audit metadata (separation
+of concerns — read the thread row if you need it).
+
+### Rate-limit + value-normalizers tests (commit 33838a9)
+
+71 more test cases. Locks the window/burst contracts and covers
+currency parsing, SSN redaction (no partial leak on invalid
+input), EIN formatting, date parsing across US/ISO conventions,
+ZIP+4, phone digit extraction, parseYesNo ambiguity → null.
+
+### Sentry hardening on remaining Junebug routes (commit 2de09fe)
+
+GET / PATCH / DELETE on /threads/[id], POST on /threads, and
+POST on regenerate — previously fell back to Next.js's default
+500 handler, which leaks raw err.message to clients (including
+Prisma connection strings on DB failures). Now each wraps in a
+shared `handle500(op, err, ctx)` helper that captures to Sentry
+and returns a terse `{ error: "Failed to X" }`.
+
+### thread-access tests (commit 86aada0)
+
+Security-critical. 9 cases pin the cross-tenant gate:
+  - Flag off → 404 empty (no route existence leak)
+  - Missing thread → 404 (no thread existence leak)
+  - Other user's thread → 404 NOT 403 (no enumeration leak)
+  - Owned thread → { ok: true, thread }
+  - Select shape pinned (no content leak via the gate)
+  - threadId reaches Prisma as a bound param (injection-safe)
+
+### RUNBOOK.md (commit cae91ae)
+
+Deliberately terse ops doc. Covers deployment, env vars, feature
+flags, Sentry tag filters, audit-log SQL recipes, rate-limit
+tiers, cron schedule, and incident playbooks — especially the
+cross-tenant P0 procedure. That's the incident that costs a law
+firm its bar license; writing the playbook before the incident
+means on-call at 3 AM isn't inventing procedure during a breach.
+
+### audit_logs (action, timestamp) index (commit 898a5a9)
+
+Every RUNBOOK query filters by action first. Prior indexes
+covered caseId, timestamp alone, and (practitionerId, timestamp).
+New compound index matches the forensic query pattern. Schema +
+migration with `CREATE INDEX IF NOT EXISTS` (safe to re-run).
+
+### Merge with main + CI finally works (commits d1ceb73, 0fceb83, 5a3b3d3)
+
+Main advanced via PR #134. Git saw every shared Junebug file as
+`add/add`. Resolution: `git checkout --ours` — branch is strict
+superset, no content loss.
+
+The merge commit finally triggered GitHub Actions — CI had not
+run on any of the previous hardening commits. First run:
+FAILED at `npm ci` because vitest@^2.1.8 was added to
+package.json without regenerating package-lock.json (no npm
+locally). Switch the Install step to `npm install --no-audit
+--no-fund` (matches Vercel behavior).
+
+Second run caught a bad test assertion: formatRelativeShort test
+asserted "yesterday" for a 20h-ago timestamp, but the function
+correctly returns "20h" under 24h. Code right, test wrong. Split
+into two assertions pinning both branches.
+
+**This is the first commit where the CI test gate actually worked
+as designed.** All 122 tests across 7 files now run on every PR
+commit × hard gate. No more "tests written but unverified."
+
+### Running totals across the enterprise arc
+
+  Commits:                17
+  Test cases green on CI: 122
+  Test files:             7
+  Junebug audit actions:  7 typed constants
+  Sentry-tagged paths:    9 (messages stream, completion,
+                            cleanup, thread GET / PATCH / DELETE,
+                            threads list / create, regenerate)
+  Rate-limit tiers:       3 (60/h, 15/m, 30/5m)
+  Runbook sections:       8
+
+### Bundle impact across the entire hardening arc
+
+Zero regression on `/api/forms/[instanceId]/preview-pdf`. Lazy
+registry (commit 9175827) structurally prevents future
+regressions — new form schemas can't bundle-bomb that function
+anymore.
+
+### Still deferred
+
+Same list as before, plus:
+- Prompt caching on Junebug system prompts (cost/latency win,
+  needs validation that @anthropic-ai/sdk v0.79 supports the
+  cache_control block form cleanly).
+- Lockfile regeneration — next contributor with npm installed
+  locally should run `npm install` once and commit the resulting
+  diff. `npm install` in CI keeps the branch moving until then.
