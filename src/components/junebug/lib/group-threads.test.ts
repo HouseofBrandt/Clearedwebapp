@@ -127,8 +127,19 @@ describe("formatRelativeShort", () => {
   it("returns hours for same-day", () => {
     expect(formatRelativeShort("2026-04-15T11:00:00")).toBe("3h")
   })
-  it("returns 'yesterday' for the previous calendar day", () => {
-    expect(formatRelativeShort("2026-04-14T18:00:00")).toBe("yesterday")
+  it("returns 'yesterday' for calendar-yesterday dates older than 24h", () => {
+    // The function falls through to "Nh" for anything under 24h, then
+    // switches to "yesterday" once we cross into the 24-48h range while
+    // still being on the previous calendar day.
+    // now: 2026-04-15T14:00; dt: 2026-04-14T08:00 = 30h ago.
+    expect(formatRelativeShort("2026-04-14T08:00:00")).toBe("yesterday")
+  })
+
+  it("prefers 'Nh' over 'yesterday' for under-24h diffs", () => {
+    // Even if the timestamp is on the previous calendar day, under 24h
+    // diffs stay as hours — clearer signal for the user.
+    // now: 2026-04-15T14:00; dt: 2026-04-14T18:00 = 20h ago.
+    expect(formatRelativeShort("2026-04-14T18:00:00")).toBe("20h")
   })
   it("returns 'Mon DD' for same-year older dates", () => {
     expect(formatRelativeShort("2026-03-20T12:00:00")).toMatch(/Mar 20/)
