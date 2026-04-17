@@ -20,11 +20,8 @@
  */
 
 import { useCallback, useRef, useState } from "react"
-import type {
-  JunebugMessage,
-  SendMessageInput,
-  SendStreamEvent,
-} from "../types"
+import type { JunebugMessage, SendMessageInput } from "../types"
+import { parseSseFrame, type SendStreamEvent } from "../lib/sse-parser"
 
 interface UseSendMessageCallbacks {
   /** Append a locally-built placeholder USER message immediately on submit. */
@@ -206,49 +203,4 @@ export function useSendMessage(threadId: string | null, cb: UseSendMessageCallba
   )
 
   return { send, isStreaming, streamError, abort }
-}
-
-// -------------------------------------------------------------------
-// SSE frame parser
-// -------------------------------------------------------------------
-function parseSseFrame(frame: string): SendStreamEvent | null {
-  const lines = frame.split("\n")
-  let eventName: string | null = null
-  const dataLines: string[] = []
-  for (const line of lines) {
-    if (line.startsWith(":")) continue // comment
-    if (line.startsWith("event:")) {
-      eventName = line.slice(6).trim()
-    } else if (line.startsWith("data:")) {
-      dataLines.push(line.slice(5).trimStart())
-    }
-  }
-  if (!eventName || dataLines.length === 0) return null
-  let data: any
-  try {
-    data = JSON.parse(dataLines.join("\n"))
-  } catch {
-    return null
-  }
-  switch (eventName) {
-    case "meta":
-      return {
-        type: "meta",
-        userMessageId: data.userMessageId,
-        assistantMessageId: data.assistantMessageId,
-        contextAvailable: !!data.contextAvailable,
-      }
-    case "delta":
-      return { type: "delta", content: String(data.content ?? "") }
-    case "done":
-      return { type: "done", message: data.message, thread: data.thread }
-    case "error":
-      return {
-        type: "error",
-        error: String(data.error ?? "Unknown error"),
-        assistantMessageId: data.assistantMessageId,
-      }
-    default:
-      return null
-  }
 }

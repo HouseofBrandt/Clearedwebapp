@@ -87,8 +87,11 @@ export async function generateAndSaveThreadTitle(
 /**
  * Word-bounded truncation of the first message, used when Haiku is
  * unavailable. Per spec §13, this is a permanent fallback.
+ *
+ * Exported for unit tests; not part of the module's public API for
+ * other callers.
  */
-function buildFallback(message: string): string {
+export function buildFallback(message: string): string {
   const trimmed = message.trim().replace(/\s+/g, " ")
   if (trimmed.length <= FALLBACK_CHAR_LIMIT) return trimmed
   const cut = trimmed.slice(0, FALLBACK_CHAR_LIMIT)
@@ -97,12 +100,21 @@ function buildFallback(message: string): string {
   return (lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trim() + "…"
 }
 
-function cleanTitle(raw: string): string {
+/**
+ * Post-process Haiku's title output: strip wrapping quotes, drop
+ * leading "Title:" prefixes, trim trailing punctuation, and cap word
+ * count + length. Exported for unit tests.
+ */
+export function cleanTitle(raw: string): string {
   let t = raw.trim()
-  // Strip surrounding quotes
-  t = t.replace(/^["'""]+/, "").replace(/["'""]+$/, "")
+  // Strip surrounding quotes. Includes ASCII " ' plus the smart-quote
+  // variants Haiku frequently emits (left/right double \u201c\u201d and
+  // left/right single \u2018\u2019). The previous regex was written
+  // with what looked like smart quotes in the source but were actually
+  // ASCII " characters — a real bug caught by the unit tests.
+  t = t.replace(/^[\"'\u201c\u201d\u2018\u2019]+/, "").replace(/[\"'\u201c\u201d\u2018\u2019]+$/, "")
   // Strip leading "Title:" / "TITLE -"
-  t = t.replace(/^(?:title|conversation|subject)\s*[:\-–]\s*/i, "")
+  t = t.replace(/^(?:title|conversation|subject)\s*[:\-\u2013]\s*/i, "")
   // Strip trailing period / exclamation / question mark clusters
   t = t.replace(/[.!?]+$/, "")
   // Hard cap on length + word count
