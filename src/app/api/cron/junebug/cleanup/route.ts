@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import * as Sentry from "@sentry/nextjs"
 import { prisma } from "@/lib/db"
-import { createAuditLog } from "@/lib/ai/audit"
+import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 /**
  * /api/cron/junebug/cleanup — nightly sweep for empty threads (spec §10.2).
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     // Audit the sweep. Metadata is small — don't log thread ids at rest.
     await createAuditLog({
-      action: "JUNEBUG_CLEANUP",
+      action: AUDIT_ACTIONS.JUNEBUG_CLEANUP,
       metadata: {
         deletedCount,
         thresholdHours: THRESHOLD_HOURS,
@@ -88,6 +89,10 @@ export async function GET(request: NextRequest) {
     })
   } catch (err: any) {
     console.error("[JunebugCleanup] Failed:", err?.message)
+    Sentry.captureException(err, {
+      tags: { route: "cron/junebug/cleanup", junebug: "cleanup-failed" },
+      extra: { cutoff: cutoff.toISOString() },
+    })
     return NextResponse.json({ error: err?.message ?? "cleanup failed" }, { status: 500 })
   }
 }

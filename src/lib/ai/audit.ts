@@ -158,6 +158,18 @@ export const AUDIT_ACTIONS = {
   // AI context
   AI_CONTEXT_ASSEMBLED: "AI_CONTEXT_ASSEMBLED",
   AI_RESPONSE_APPROVED: "AI_RESPONSE_APPROVED",
+
+  // Junebug thread lifecycle (spec §10.3 — plus SOC 2 / legal discovery
+  // coverage for every write operation on the thread surface, not just
+  // message sends). Thread content stays decrypted in Postgres but the
+  // audit log records WHO mutated WHAT and WHEN for compliance.
+  JUNEBUG_THREAD_CREATED: "JUNEBUG_THREAD_CREATED",
+  JUNEBUG_THREAD_UPDATED: "JUNEBUG_THREAD_UPDATED",
+  JUNEBUG_THREAD_DELETED: "JUNEBUG_THREAD_DELETED",
+  JUNEBUG_THREAD_REGENERATED: "JUNEBUG_THREAD_REGENERATED",
+  JUNEBUG_MESSAGE: "JUNEBUG_MESSAGE",
+  JUNEBUG_CLEANUP: "JUNEBUG_CLEANUP",
+  JUNEBUG_THREAD_CONTEXT_UNAVAILABLE: "JUNEBUG_THREAD_CONTEXT_UNAVAILABLE",
 } as const
 
 /**

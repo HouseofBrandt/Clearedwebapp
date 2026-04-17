@@ -462,10 +462,11 @@ export async function autoPopulateForm(
     const hasDocuments = docText.transcripts || docText.taxReturns || docText.bankStatements || docText.payroll || docText.other
 
     if (hasDocuments) {
-      const schema = getFormSchema(formNumber)
+      const schema = await getFormSchema(formNumber)
+      const fallbackSchema = schema ? null : await getFormSchema("433-A")
       const systemPrompt = schema
         ? buildExtractionPrompt(schema)
-        : buildExtractionPrompt(getFormSchema("433-A")!) // Fallback to 433-A
+        : buildExtractionPrompt(fallbackSchema!) // Fallback to 433-A
 
       // Build the user message with all available context
       let userMessage = ""

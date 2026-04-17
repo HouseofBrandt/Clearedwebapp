@@ -23,7 +23,14 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # `npm install` (not `npm ci`) so package-lock.json can update in-
+        # place when package.json adds a new dep. Vercel's deploy build does
+        # the same — `npm ci` would desync CI from Vercel any time we add a
+        # devDependency like Vitest in a commit that can't regenerate the
+        # lockfile locally. Reproducibility still holds because the lockfile
+        # is committed; npm install respects it when it matches, and
+        # updates it when package.json adds new entries.
+        run: npm install --no-audit --no-fund
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -35,6 +42,11 @@ jobs:
       - name: Lint
         run: npm run lint
         continue-on-error: true  # Report but don't block until existing warnings are cleaned up
+
+      - name: Unit tests
+        # Runs the Vitest suite (src/**/*.test.ts). No DB, no network —
+        # pure-function coverage only. If this fails, the PR is broken.
+        run: npm test
 
       - name: Build
         run: npx next build

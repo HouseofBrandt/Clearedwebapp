@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 /**
  * Pippen Phase 3 — practitioner "more / less like this" signals on
@@ -34,6 +35,26 @@ export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+  const userId = (session.user as any).id as string
+
+  // Cap taste signals at 30 per 5 minutes per practitioner so one user
+  // can't reshape the firm's harvest preferences by spamming thumbs-up.
+  const limit = checkRateLimit(userId, "pippen:preference", RATE_LIMITS.tasteSignal)
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        detail: "Too many feedback signals. Take a breath, then try again.",
+        resetAt: new Date(limit.resetAt).toISOString(),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((limit.resetAt - Date.now()) / 1000))),
+        },
+      }
+    )
   }
 
   let body: z.infer<typeof bodySchema>

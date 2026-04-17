@@ -493,6 +493,10 @@ model AuditLog {
   @@index([caseId])
   @@index([timestamp])
   @@index([practitionerId, timestamp])
+  // Compliance / forensic queries: "every JUNEBUG_THREAD_DELETED row
+  // in the last 30 days", "every CASE_DELETED by this practitioner",
+  // etc. Without this index those queries full-scan the audit log.
+  @@index([action, timestamp])
   @@map("audit_logs")
 }
 

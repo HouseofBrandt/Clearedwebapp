@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import * as Sentry from "@sentry/nextjs"
 import { prisma } from "@/lib/db"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { searchKnowledge } from "@/lib/knowledge/search"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
-import { createAuditLog } from "@/lib/ai/audit"
+import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
 import { runJunebugCompletion, type JunebugMessage } from "@/lib/junebug/completion"
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import {
   loadThreadHistoryForCompletion,
   shouldRegenerateSummary,
@@ -70,6 +72,48 @@ export async function POST(
   const access = await requireOwnedThread(params.id, auth.userId)
   if (!access.ok) return access.response
 
+  // Rate limit: enforce both a sustained-hourly and a burst-per-minute
+  // ceiling on AI spend. Both keyed to the user (not thread) so opening
+  // multiple threads doesn't expand the budget.
+  const hourly = checkRateLimit(auth.userId, "junebug:send:hour", RATE_LIMITS.junebugSend)
+  if (!hourly.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        detail: "Too many messages this hour. Please try again later.",
+        resetAt: new Date(hourly.resetAt).toISOString(),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((hourly.resetAt - Date.now()) / 1000))),
+          "X-RateLimit-Limit": String(RATE_LIMITS.junebugSend.maxRequests),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.floor(hourly.resetAt / 1000)),
+        },
+      }
+    )
+  }
+  const burst = checkRateLimit(auth.userId, "junebug:send:burst", RATE_LIMITS.junebugBurst)
+  if (!burst.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded",
+        detail: "Too many messages this minute. Please slow down.",
+        resetAt: new Date(burst.resetAt).toISOString(),
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.max(1, Math.ceil((burst.resetAt - Date.now()) / 1000))),
+          "X-RateLimit-Limit": String(RATE_LIMITS.junebugBurst.maxRequests),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.floor(burst.resetAt / 1000)),
+        },
+      }
+    )
+  }
+
   let body: z.infer<typeof bodySchema>
   try {
     body = bodySchema.parse(await request.json())
@@ -119,7 +163,7 @@ export async function POST(
       createAuditLog({
         practitionerId: auth.userId,
         caseId,
-        action: "JUNEBUG_THREAD_CONTEXT_UNAVAILABLE",
+        action: AUDIT_ACTIONS.JUNEBUG_THREAD_CONTEXT_UNAVAILABLE,
         metadata: {
           route: "/api/junebug/threads/[id]/messages",
           threadId: params.id,
@@ -274,7 +318,7 @@ export async function POST(
   createAuditLog({
     practitionerId: auth.userId,
     caseId: caseId ?? undefined,
-    action: "JUNEBUG_MESSAGE",
+    action: AUDIT_ACTIONS.JUNEBUG_MESSAGE,
     metadata: {
       threadId: params.id,
       userMessageId: userMessage.id,
@@ -383,6 +427,29 @@ export async function POST(
         }
       } catch (err: any) {
         const message = err?.message || "AI completion failed"
+
+        // Capture every stream failure with a `junebug` tag + structured
+        // context so the dashboard filter "tag:junebug" surfaces them as
+        // a single bucket. threadId + userId + assistantMessageId let us
+        // triangulate a specific failure without PII in the tag itself.
+        Sentry.captureException(err, {
+          tags: {
+            route: "junebug/messages",
+            junebug: "stream-failed",
+            caseScoped: caseId ? "true" : "false",
+          },
+          user: { id: auth.userId },
+          extra: {
+            threadId: params.id,
+            userMessageId: userMessage.id,
+            assistantMessageId: assistantMessage.id,
+            model: body.model ?? "claude-opus-4-6",
+            kbHits,
+            contextAvailable,
+            priorMessageCount,
+          },
+        })
+
         // Persist the failure onto the reserved assistant message so the
         // thread never holds a dangling USER message without a reply.
         await prisma.junebugMessage

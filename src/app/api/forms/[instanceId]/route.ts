@@ -30,7 +30,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const schema = getFormSchema(instance.formNumber)
+    const schema = await getFormSchema(instance.formNumber)
 
     return NextResponse.json({ instance, schema })
   } catch (error) {
@@ -85,7 +85,7 @@ export async function PATCH(
     }
 
     // Run basic validation
-    const schema = getFormSchema(instance.formNumber)
+    const schema = await getFormSchema(instance.formNumber)
     if (schema) {
       const errors: Record<string, string[]> = {}
       for (const section of schema.sections) {

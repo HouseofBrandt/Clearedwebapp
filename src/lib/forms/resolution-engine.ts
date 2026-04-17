@@ -1,4 +1,4 @@
-import { getFormSchema } from "./registry"
+import { getAvailableForms, isFormRegistered } from "./registry"
 
 export interface ResolutionPath {
   id: string
@@ -107,9 +107,10 @@ export function generateFormPackage(pathId: string, characteristics: CaseCharact
 }
 
 function getFormTitle(formNumber: string): string {
-  // Try the schema registry first — single source of truth
-  const schema = getFormSchema(formNumber)
-  if (schema) return schema.formTitle
+  // Sync — use the registry's metadata (no schema load required for the
+  // title alone). getAvailableForms() is a tiny constant array.
+  const meta = getAvailableForms().find((f) => f.formNumber === formNumber)
+  if (meta) return meta.formTitle
 
   // Fallback titles for forms not yet in the registry
   const FALLBACK_TITLES: Record<string, string> = {
@@ -118,10 +119,7 @@ function getFormTitle(formNumber: string): string {
     "433-B-OIC": "Collection Information Statement — Business (OIC)",
     "433-D": "Installment Agreement",
     "433-F": "Collection Information Statement — Simplified",
-    "656": "Offer in Compromise",
     "4506-T": "Request for Transcript of Tax Return",
-    "9465": "Installment Agreement Request",
-    "843": "Claim for Refund and Request for Abatement",
     "8857": "Request for Innocent Spouse Relief",
     "12277": "Application for Withdrawal of Filed NFTL",
     "14039": "Identity Theft Affidavit",
@@ -131,5 +129,5 @@ function getFormTitle(formNumber: string): string {
 }
 
 function isFormAvailable(formNumber: string): boolean {
-  return getFormSchema(formNumber) !== null
+  return isFormRegistered(formNumber)
 }

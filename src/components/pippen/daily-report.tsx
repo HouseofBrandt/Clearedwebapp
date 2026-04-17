@@ -17,6 +17,9 @@ import {
   Lightbulb,
   ExternalLink,
   Star,
+  ThumbsUp,
+  ThumbsDown,
+  Check,
 } from "lucide-react"
 import { PippenIcon } from "./pippen-icon"
 import { getPippenMessage, getPippenEmptyMessage, PIPPEN_EMPTY_STATE } from "@/lib/pippen/loading-messages"
@@ -144,6 +147,90 @@ function CaseGroupCard({ group }: { group: CaseDocumentGroup }) {
 
 // ---- Learning Item Card ----
 
+/**
+ * Pippen Phase 3 — practitioner +1/-1 control on a LearningItem.
+ *
+ * Calls /api/tax-authority/preference with { sourceId, issueCategory, delta }.
+ * Each click ratchets the harvest weight for that (source × category) pair.
+ * Optimistic — locks after the click and surfaces a confirmation chip;
+ * a failed POST shows an inline error and re-enables the buttons.
+ */
+function FeedbackButtons({
+  sourceId,
+  issueCategory,
+}: {
+  sourceId: string
+  issueCategory: string
+}) {
+  const [pending, setPending] = useState(false)
+  const [done, setDone] = useState<"more" | "less" | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const send = async (delta: 1 | -1) => {
+    if (pending || done) return
+    setPending(true)
+    setErr(null)
+    try {
+      const res = await fetch("/api/tax-authority/preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ sourceId, issueCategory, delta }),
+      })
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}))
+        throw new Error(detail?.error || `HTTP ${res.status}`)
+      }
+      setDone(delta > 0 ? "more" : "less")
+    } catch (e: any) {
+      setErr(e?.message || "Failed to record feedback")
+    } finally {
+      setPending(false)
+    }
+  }
+
+  if (done) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--c-gray-50)] px-2.5 py-1 text-[11px] font-medium text-[var(--c-gray-700)]">
+        <Check className="h-3 w-3" style={{ color: "var(--c-success)" }} />
+        {done === "more" ? "More like this" : "Less like this"}
+      </span>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => send(1)}
+        disabled={pending}
+        className="inline-flex items-center gap-1 rounded-full border border-[var(--c-gray-100)] bg-white px-2.5 py-1 text-[11px] font-medium text-[var(--c-gray-500)] transition-colors hover:border-[var(--c-gray-200)] hover:bg-[var(--c-gray-50)] hover:text-[var(--c-gray-700)] disabled:opacity-40"
+        title="Tell Pippen to harvest more from this source on this topic"
+        aria-label="More like this"
+      >
+        <ThumbsUp className="h-3 w-3" />
+        More
+      </button>
+      <button
+        type="button"
+        onClick={() => send(-1)}
+        disabled={pending}
+        className="inline-flex items-center gap-1 rounded-full border border-[var(--c-gray-100)] bg-white px-2.5 py-1 text-[11px] font-medium text-[var(--c-gray-500)] transition-colors hover:border-[var(--c-gray-200)] hover:bg-[var(--c-gray-50)] hover:text-[var(--c-gray-700)] disabled:opacity-40"
+        title="Tell Pippen to harvest less from this source on this topic"
+        aria-label="Less like this"
+      >
+        <ThumbsDown className="h-3 w-3" />
+        Less
+      </button>
+      {err && (
+        <span className="text-[10.5px] text-[var(--c-danger)]" role="alert">
+          {err}
+        </span>
+      )}
+    </div>
+  )
+}
+
 function LearningItemCard({ learning }: { learning: LearningItem }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -178,7 +265,7 @@ function LearningItemCard({ learning }: { learning: LearningItem }) {
               </ul>
             </div>
           )}
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             {learning.sourceUrl && (
               <a
                 href={learning.sourceUrl}
@@ -193,6 +280,14 @@ function LearningItemCard({ learning }: { learning: LearningItem }) {
             )}
             {learning.publicationDate && (
               <span className="text-xs text-[var(--c-gray-400)]">Published: {learning.publicationDate}</span>
+            )}
+            {learning.source && (
+              <div className="ml-auto">
+                <FeedbackButtons
+                  sourceId={learning.source}
+                  issueCategory={learning.issueCategory ?? "general"}
+                />
+              </div>
             )}
           </div>
         </div>
