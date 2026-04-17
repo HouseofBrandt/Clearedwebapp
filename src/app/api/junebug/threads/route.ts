@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { decryptField } from "@/lib/encryption"
 import { requireJunebugSession } from "@/lib/junebug/thread-access"
+import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 /**
  * /api/junebug/threads — GET list, POST create (spec §6.1, §6.2).
@@ -231,6 +232,14 @@ export async function POST(request: NextRequest) {
       case: { select: { tabsNumber: true, clientName: true } },
     },
   })
+
+  // Audit — fire-and-forget. Never block the create path.
+  createAuditLog({
+    practitionerId: auth.userId,
+    caseId: body.caseId ?? undefined,
+    action: AUDIT_ACTIONS.JUNEBUG_THREAD_CREATED,
+    metadata: { threadId: thread.id },
+  }).catch(() => {})
 
   let clientName: string | null = null
   if (thread.case?.clientName) {

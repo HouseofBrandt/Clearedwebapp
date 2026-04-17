@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
+import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 /**
  * POST /api/junebug/threads/[id]/messages/[messageId]/regenerate (spec §6.7).
@@ -53,6 +54,20 @@ export async function POST(
       createdAt: { gte: target.createdAt },
     },
   })
+
+  // Audit — forensically useful. Regeneration destroys AI output the
+  // practitioner may have partially trusted. Log who / when / how many
+  // rows disappeared so review-queue investigations can reconstruct.
+  createAuditLog({
+    practitionerId: auth.userId,
+    caseId: access.thread.caseId ?? undefined,
+    action: AUDIT_ACTIONS.JUNEBUG_THREAD_REGENERATED,
+    metadata: {
+      threadId: params.id,
+      regeneratedFromMessageId: params.messageId,
+      deletedCount: deleted.count,
+    },
+  }).catch(() => {})
 
   return NextResponse.json({
     regeneratedFromMessageId: params.messageId,

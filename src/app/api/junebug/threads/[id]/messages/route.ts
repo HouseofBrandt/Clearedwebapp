@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db"
 import { loadPrompt } from "@/lib/ai/prompts"
 import { searchKnowledge } from "@/lib/knowledge/search"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
-import { createAuditLog } from "@/lib/ai/audit"
+import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
 import { runJunebugCompletion, type JunebugMessage } from "@/lib/junebug/completion"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
@@ -163,7 +163,7 @@ export async function POST(
       createAuditLog({
         practitionerId: auth.userId,
         caseId,
-        action: "JUNEBUG_THREAD_CONTEXT_UNAVAILABLE",
+        action: AUDIT_ACTIONS.JUNEBUG_THREAD_CONTEXT_UNAVAILABLE,
         metadata: {
           route: "/api/junebug/threads/[id]/messages",
           threadId: params.id,
@@ -318,7 +318,7 @@ export async function POST(
   createAuditLog({
     practitionerId: auth.userId,
     caseId: caseId ?? undefined,
-    action: "JUNEBUG_MESSAGE",
+    action: AUDIT_ACTIONS.JUNEBUG_MESSAGE,
     metadata: {
       threadId: params.id,
       userMessageId: userMessage.id,

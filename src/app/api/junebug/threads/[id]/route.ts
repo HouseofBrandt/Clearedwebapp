@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/db"
 import { decryptField } from "@/lib/encryption"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
+import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 
 /**
  * /api/junebug/threads/[id] — GET, PATCH, DELETE (spec §6.3, §6.4, §6.5).
@@ -187,6 +188,22 @@ export async function PATCH(
     },
   })
 
+  // Audit — records WHICH fields changed (not the title itself — titles
+  // can contain practitioner shorthand that's effectively PII-adjacent).
+  createAuditLog({
+    practitionerId: auth.userId,
+    caseId: updated.caseId ?? undefined,
+    action: AUDIT_ACTIONS.JUNEBUG_THREAD_UPDATED,
+    metadata: {
+      threadId: params.id,
+      changedFields: Object.keys(data),
+      pinned: typeof body.pinned === "boolean" ? body.pinned : undefined,
+      archived: typeof body.archived === "boolean" ? body.archived : undefined,
+      retitled: typeof body.title === "string",
+      caseReassigned: body.caseId !== undefined,
+    },
+  }).catch(() => {})
+
   let clientName: string | null = null
   if (updated.case?.clientName) {
     try {
@@ -241,8 +258,27 @@ export async function DELETE(
   const access = await requireOwnedThread(params.id, auth.userId)
   if (!access.ok) return access.response
 
+  // Count messages before delete for the audit record. Forensically
+  // useful — "did a practitioner torch 500 messages of work, or just
+  // an empty stub thread?"
+  const messageCount = await prisma.junebugMessage
+    .count({ where: { threadId: params.id } })
+    .catch(() => -1)
+
   // Cascade handles messages + attachments per the Prisma schema relations
   await prisma.junebugThread.delete({ where: { id: params.id } })
+
+  // Audit — permanent deletes are the single most important thing to
+  // log. Fire-and-forget; the thread is already gone.
+  createAuditLog({
+    practitionerId: auth.userId,
+    caseId: access.thread.caseId ?? undefined,
+    action: AUDIT_ACTIONS.JUNEBUG_THREAD_DELETED,
+    metadata: {
+      threadId: params.id,
+      messageCount,
+    },
+  }).catch(() => {})
 
   return new NextResponse(null, { status: 204 })
 }
