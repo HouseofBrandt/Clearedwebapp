@@ -5,6 +5,7 @@ import { getFromS3 } from "@/lib/storage"
 import { transcribeAudio, isTranscriptionAvailable } from "@/lib/audio/transcription"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { canAccessCase } from "@/lib/auth/case-access"
+import { sanitizeForPostgres } from "@/lib/documents/sanitize-text"
 
 // ─── POST: Transcribe (or re-transcribe) an audio document ──
 
@@ -59,10 +60,11 @@ export async function POST(
     // Transcribe
     const result = await transcribeAudio(buffer, document.fileName)
 
-    // Update document with transcript
+    // Update document with transcript. Sanitize to strip NUL bytes /
+    // lone surrogates that would otherwise trip Postgres SQLSTATE 22021.
     await prisma.document.update({
       where: { id: document.id },
-      data: { extractedText: result.text },
+      data: { extractedText: sanitizeForPostgres(result.text) },
     })
 
     // Audit log

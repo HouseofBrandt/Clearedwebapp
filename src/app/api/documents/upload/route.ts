@@ -5,6 +5,7 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { prisma } from "@/lib/db"
 import { uploadToS3 } from "@/lib/storage"
 import { extractWithDetails } from "@/lib/documents/extract"
+import { sanitizeForPostgres } from "@/lib/documents/sanitize-text"
 import { populateFromTranscript } from "@/lib/documents/liability"
 import { autoDetectCategory } from "@/lib/documents/auto-category"
 import { triageDocument, processTriageResult } from "@/lib/case-intelligence/document-triage"
@@ -186,19 +187,23 @@ export async function POST(request: NextRequest) {
     if (isAudio && isTranscriptionAvailable()) {
       transcribeAudio(buffer, file.name)
         .then(async (result) => {
+          // Transcription output can contain NUL bytes from certain audio
+          // codecs / Whisper's Unicode handling. Sanitize before write to
+          // avoid the same SQLSTATE 22021 that hits the PDF path.
+          const cleanText = sanitizeForPostgres(result.text)
           await prisma.document.update({
             where: { id: document.id },
-            data: { extractedText: result.text },
+            data: { extractedText: cleanText },
           })
           console.log(`[AudioTranscription] Completed for document ${document.id} (${Math.round(result.duration)}s, ${result.language})`)
 
           // Trigger triage on the transcript
-          if (result.text.length > 50) {
+          if (cleanText.length > 50) {
             triageDocument({
               documentId: document.id,
               caseId,
               fileName: document.fileName,
-              extractedText: result.text,
+              extractedText: cleanText,
               documentCategory: document.documentCategory,
             }).then(triageResult => {
               processTriageResult(triageResult, {

@@ -4,8 +4,16 @@
  * Handles: PDF, DOCX, XLSX, XLS, CSV, TXT, RTF, images (basic OCR placeholder).
  * Each extractor has its own error handling and fallback.
  * Never throws — always returns a string (empty string on total failure).
+ *
+ * All returned text is passed through `sanitizeForPostgres` so the caller
+ * can safely write it to a Postgres text column. PDF extractors (pdf-parse
+ * in particular) routinely produce text containing NUL bytes (0x00) and
+ * lone UTF-16 surrogate halves; Postgres rejects both with SQLSTATE 22021
+ * ("invalid byte sequence for encoding UTF8"). Sanitizing at this boundary
+ * means every downstream write path is safe by default.
  */
 import { inflateSync } from "zlib"
+import { sanitizeForPostgres } from "./sanitize-text"
 
 export interface ExtractionResult {
   text: string
@@ -27,6 +35,8 @@ export async function extractTextFromBuffer(
 
 /**
  * Detailed extraction — returns text plus metadata about how it was extracted.
+ * Output text is sanitized for safe Postgres storage (NUL bytes, lone
+ * surrogates, and other control chars stripped).
  */
 export async function extractWithDetails(
   buffer: Buffer,
@@ -36,21 +46,28 @@ export async function extractWithDetails(
     return { text: "", method: "none", error: "Empty buffer" }
   }
 
+  let raw: ExtractionResult
   try {
     switch (fileType) {
       case "PDF":
-        return await extractPDF(buffer)
+        raw = await extractPDF(buffer)
+        break
       case "DOCX":
-        return await extractDOCX(buffer)
+        raw = await extractDOCX(buffer)
+        break
       case "XLSX":
-        return await extractXLSX(buffer)
+        raw = await extractXLSX(buffer)
+        break
       case "TEXT":
-        return extractPlainText(buffer)
+        raw = extractPlainText(buffer)
+        break
       case "IMAGE":
-        return await extractImageText(buffer)
+        raw = await extractImageText(buffer)
+        break
       default:
         // Try to detect from buffer content
-        return await extractBySniffing(buffer)
+        raw = await extractBySniffing(buffer)
+        break
     }
   } catch (err: any) {
     return {
@@ -59,6 +76,10 @@ export async function extractWithDetails(
       error: `Top-level extraction failed: ${err.message}`,
     }
   }
+
+  // Sanitize at the boundary so every downstream write path is safe.
+  // See sanitize-text.ts for the specific characters removed and why.
+  return { ...raw, text: sanitizeForPostgres(raw.text) }
 }
 
 // ─── PDF ────────────────────────────────────────────────────────
