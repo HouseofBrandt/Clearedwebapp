@@ -18,23 +18,33 @@ import { decryptField } from "@/lib/encryption"
  *
  *   const tasks = await prisma.task.findMany({ include: { case: { select: { id: true, tabsNumber: true, clientName: true } } } })
  *   return NextResponse.json({ tasks: tasks.map(decryptEmbeddedCaseClientName) })
+ *
+ * The generic is intentionally unconstrained — Prisma return types for
+ * `create()` without an explicit `include` don't carry a `case` field,
+ * and routes that return a freshly-created row alongside the existing
+ * helper's "decrypt if present" logic are common. A constraint-based
+ * overload would force every caller to widen with `as any`, defeating
+ * the purpose. Instead the helper checks at runtime and no-ops when
+ * `case` isn't present.
  */
-export function decryptEmbeddedCaseClientName<T extends { case?: { clientName?: string | null } | null } | null | undefined>(row: T): T {
-  if (!row || !row.case || !row.case.clientName) return row
+export function decryptEmbeddedCaseClientName<T>(row: T): T {
+  if (!row || typeof row !== "object") return row
+  const r = row as any
+  if (!r.case || typeof r.case !== "object" || !r.case.clientName) return row
   let next: string
   try {
-    next = decryptField(row.case.clientName) || ""
+    next = decryptField(r.case.clientName) || ""
   } catch {
     // Never ship an envelope to the client — blank it. Render code should
     // have a tabsNumber fallback.
     next = ""
   }
-  return { ...row, case: { ...row.case, clientName: next } } as T
+  return { ...r, case: { ...r.case, clientName: next } } as T
 }
 
 /**
  * Array variant — maps each row through `decryptEmbeddedCaseClientName`.
  */
-export function decryptEmbeddedCaseClientNames<T extends { case?: { clientName?: string | null } | null }>(rows: T[]): T[] {
-  return rows.map(decryptEmbeddedCaseClientName) as T[]
+export function decryptEmbeddedCaseClientNames<T>(rows: T[]): T[] {
+  return rows.map(decryptEmbeddedCaseClientName)
 }
