@@ -12,6 +12,7 @@ import { TaskCard } from "./task-card"
 import { FeedReplyList, ReplyInput } from "./feed-reply"
 import { TruncatedText } from "@/components/ui/truncated-text"
 import { MessageCircle, Copy, Paperclip, Download, Pencil, X, Check, Eye, Bookmark } from "lucide-react"
+import { redactLeakedPII } from "@/lib/feed/redact-leaked-pii"
 
 function getInitials(name: string): string {
   return name
@@ -41,8 +42,14 @@ function timeAgo(date: string | Date): string {
  * #CaseTags -> clickable links with mono font
  * $amounts  -> mono font
  */
-function renderContent(content: string, mentions?: any[], caseData?: any): React.ReactNode {
-  if (!content) return null
+function renderContent(rawContent: string, mentions?: any[], caseData?: any): React.ReactNode {
+  if (!rawContent) return null
+
+  // Defense-in-depth: redact any leaked encryption envelopes
+  // (`v1:iv:tag:ciphertext`) or tokenizer outputs (`[NAME-A1B2]`) before
+  // the #CaseTag / @mention regex matches, so a leaked encrypted
+  // clientName never renders as a styled tag or inline text.
+  const content = redactLeakedPII(rawContent)
 
   // Build a regex that matches known mention display names (multi-word safe),
   // plus fallback patterns for #tags and $amounts
@@ -219,7 +226,9 @@ export function FeedCard({ post, currentUser, onRefresh, onCaseFilter }: FeedCar
 
   function handleCopy() {
     if (post.content) {
-      navigator.clipboard.writeText(post.content)
+      // Apply the same defense-in-depth redaction used at render time so
+      // users don't paste leaked internal representations elsewhere.
+      navigator.clipboard.writeText(redactLeakedPII(post.content))
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }

@@ -17,6 +17,7 @@ import Link from "next/link"
 import { Archive, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from "lucide-react"
 import type { JunebugThreadListItem as ThreadItem } from "./types"
 import { formatRelativeShort } from "./lib/group-threads"
+import { redactLeakedPII } from "@/lib/feed/redact-leaked-pii"
 
 export interface ThreadListItemProps {
   thread: ThreadItem
@@ -150,11 +151,11 @@ export function ThreadListItem({
             </>
           )}
         </div>
-        {/* Preview row */}
+        {/* Preview row — redacted as a defense-in-depth against upstream leaks */}
         {thread.lastMessagePreview && (
           <p className="mt-1 truncate text-[12px] text-c-gray-500">
             {thread.lastMessageRole === "USER" ? "You: " : ""}
-            {highlight(thread.lastMessagePreview, searchHighlight)}
+            {highlight(redactLeakedPII(thread.lastMessagePreview), searchHighlight)}
           </p>
         )}
       </button>

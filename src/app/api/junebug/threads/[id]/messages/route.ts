@@ -8,6 +8,7 @@ import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/
 import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
 import { runJunebugCompletion, type JunebugMessage } from "@/lib/junebug/completion"
+import { findCaseByName } from "@/lib/junebug/case-match"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import {
   loadThreadHistoryForCompletion,
@@ -49,6 +50,10 @@ const bodySchema = z.object({
   model: z.string().optional(),
   currentRoute: z.string().optional(),
   pageContext: z.any().optional(),
+  /** Full Fetch armed — expands context + raises max_tokens + tries to
+   *  auto-detect a case reference in the message body. See completion.ts
+   *  for the behavior spec. */
+  fullFetch: z.boolean().optional(),
   attachments: z
     .array(
       z.object({
@@ -129,7 +134,25 @@ export async function POST(
   //    the system prompt and the contextSnapshot we persist onto the
   //    USER message for audit (spec §7.6 — practitioner accountability).
   // ------------------------------------------------------------------
-  const caseId = access.thread.caseId
+  // Resolve the target case. Thread-bound caseId wins. When Full Fetch is
+  // armed AND the thread is unscoped, heuristically detect a case from the
+  // user's message (TABS number or decrypted client name) and bind the
+  // turn (not the thread) to it for the duration of this request.
+  // ------------------------------------------------------------------
+  let caseId = access.thread.caseId
+  let detectedCaseName: string | null = null
+  if (!caseId && body.fullFetch) {
+    try {
+      const detected = await findCaseByName(body.content)
+      if (detected) {
+        caseId = detected.id
+        detectedCaseName = detected.name
+      }
+    } catch (err: any) {
+      console.warn("[Junebug] Full Fetch case-detect failed:", err?.message)
+    }
+  }
+
   let contextAvailable = false
   let contextFailureReason: string | null = null
   let systemPrompt = loadPrompt("research_assistant_v1")
@@ -138,8 +161,13 @@ export async function POST(
 
   if (caseId) {
     try {
+      // Full Fetch elevates the context packet: knowledge-base hits pulled
+      // against the user's message + full review insights + broader case
+      // data. Otherwise we keep the cheaper default (no per-case KB slice,
+      // since the KB search below runs on the same message anyway).
       const packet = await getCaseContextPacket(caseId, {
-        includeKnowledge: false,
+        includeKnowledge: body.fullFetch ?? false,
+        knowledgeQuery: body.fullFetch ? body.content : undefined,
         includeReviewInsights: true,
       })
       if (packet) {
@@ -175,11 +203,16 @@ export async function POST(
   }
 
   // ------------------------------------------------------------------
-  // 2. Knowledge base retrieval for the user's current message
+  // 2. Knowledge base retrieval for the user's current message.
+  //    Full Fetch widens the net: 10 hits at a lower similarity floor
+  //    instead of 5 at the default floor.
   // ------------------------------------------------------------------
   let kbHits = 0
   try {
-    const results = await searchKnowledge(body.content, { topK: 5, minScore: 0.3 })
+    const results = await searchKnowledge(body.content, {
+      topK: body.fullFetch ? 10 : 5,
+      minScore: body.fullFetch ? 0.2 : 0.3,
+    })
     if (results.length > 0) {
       kbHits = results.length
       systemPrompt += "\n\nFIRM KNOWLEDGE BASE:\n"
@@ -190,6 +223,29 @@ export async function POST(
     }
   } catch (err: any) {
     console.warn("[Junebug] KB search failed:", err?.message)
+  }
+
+  // ------------------------------------------------------------------
+  // 2b. Full Fetch directive — injected into the system prompt so the
+  //     model knows the turn is in thorough mode. This is what makes the
+  //     armed toggle actually change behavior: it's not a tool gate, it's
+  //     a framing + breadth signal the model responds to.
+  // ------------------------------------------------------------------
+  if (body.fullFetch) {
+    systemPrompt += `\n\n=== FULL FETCH MODE (ARMED) ===
+The user armed Full Fetch for this turn. Treat this as a "be thorough" signal:
+- Use every tool and data source available to you. The knowledge-base block
+  above was retrieved with expanded breadth; the case context (if any) was
+  loaded with the practitioner's full review insights. Cite specific items
+  when they bear on the answer.
+- If the user asked about a specific case by name or TABS number and that
+  case has been auto-detected${detectedCaseName ? ` (${detectedCaseName})` : ""}, answer from that case's data
+  rather than from general principles.
+- When you genuinely lack data (e.g. real-time infrastructure, a case that
+  isn't loaded), say so clearly and suggest the most specific next action.
+  Do NOT pretend Full Fetch gives you live build logs or external services.
+- Length budget is expanded — take the space you need for a complete
+  answer, but don't pad.`
   }
 
   // ------------------------------------------------------------------
@@ -345,12 +401,31 @@ export async function POST(
         }
       }
 
-      // First event — hand the client both message IDs
+      // First event — hand the client both message IDs. Include fullFetch
+      // so the client can reflect the turn's mode in any UI telemetry.
       writeEvent("meta", {
         userMessageId: userMessage.id,
         assistantMessageId: assistantMessage.id,
         contextAvailable,
+        fullFetch: body.fullFetch ?? false,
       })
+
+      // Audit-log Full Fetch turns for internal visibility (spend signal,
+      // usage patterns). Fire-and-forget.
+      if (body.fullFetch) {
+        createAuditLog({
+          practitionerId: auth.userId,
+          caseId: caseId ?? undefined,
+          action: AUDIT_ACTIONS.JUNEBUG_FULL_FETCH_ARMED,
+          metadata: {
+            threadId: params.id,
+            detectedCaseName: detectedCaseName ?? null,
+            contextAvailable,
+            kbHits,
+            timestamp: new Date().toISOString(),
+          },
+        }).catch(() => {})
+      }
 
       try {
         const result = await runJunebugCompletion(
@@ -359,6 +434,7 @@ export async function POST(
             systemPrompt,
             knownNames,
             model: body.model,
+            fullFetch: body.fullFetch ?? false,
           },
           {
             onDelta: (delta) => {
