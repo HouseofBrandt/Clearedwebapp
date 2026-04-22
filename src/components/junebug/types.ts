@@ -29,6 +29,10 @@ export interface JunebugMessage {
   errorMessage: string | null
   createdAt: string // ISO
   attachments: JunebugAttachment[]
+  /** True iff the current practitioner has given this message a treat. */
+  treated?: boolean
+  /** Optional practitioner note on what they liked about this response. */
+  treatNote?: string | null
   /** Transient — set true while the SSE stream is still emitting deltas. */
   streaming?: boolean
 }
@@ -70,6 +74,14 @@ export interface SendMessageInput {
   model?: string
   currentRoute?: string
   pageContext?: unknown
+  /**
+   * Full Fetch mode — unlocks claude-opus-4-7 at a higher token ceiling,
+   * injects the live case data packet (documents with content,
+   * liability periods, deadlines, AI work products, client notes), and
+   * turns on Vercel log retrieval when the user asks about
+   * build/runtime issues.
+   */
+  fullFetch?: boolean
   attachments?: Array<{
     documentId?: string
     fileName: string

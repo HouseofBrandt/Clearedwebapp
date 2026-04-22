@@ -80,6 +80,9 @@ export async function GET(
     : undefined
 
   // Fetch limit+1 descending to detect more, then reverse for chronological.
+  // `treats: { where: { userId } }` scopes the nested fetch so we return
+  // only the current practitioner's treat on each message — never leak
+  // another user's reinforcement signals.
   const raw = await prisma.junebugMessage.findMany({
     where: { threadId: params.id, ...(cursorFilter ?? {}) },
     orderBy: { createdAt: "desc" },
@@ -93,6 +96,10 @@ export async function GET(
           fileType: true,
           fileSize: true,
         },
+      },
+      treats: {
+        where: { userId: auth.userId },
+        select: { id: true, note: true, createdAt: true },
       },
     },
   })
@@ -139,6 +146,12 @@ export async function GET(
       errorMessage: m.errorMessage,
       createdAt: m.createdAt.toISOString(),
       attachments: m.attachments,
+      // Treat state is per-user. `m.treats` was already filtered by
+      // userId above, so this is just "does the current practitioner
+      // have one?". The optional note is included so the UI can show
+      // it as a tooltip on the bone icon.
+      treated: m.treats.length > 0,
+      treatNote: m.treats[0]?.note ?? null,
     })),
     hasMoreMessages,
     oldestMessageCursor,

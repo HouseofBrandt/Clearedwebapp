@@ -18,6 +18,7 @@ import {
   generateAndSaveThreadTitle,
   shouldGenerateTitle,
 } from "@/lib/junebug/title-generator"
+import { buildTreatRetrospective } from "@/lib/junebug/treat-stats"
 
 /**
  * POST /api/junebug/threads/[id]/messages — send a message, stream assistant
@@ -190,6 +191,18 @@ export async function POST(
     }
   } catch (err: any) {
     console.warn("[Junebug] KB search failed:", err?.message)
+  }
+
+  // Self-learning retrospective — appends a per-practitioner signal
+  // about which past responses earned treats. Soft guidance; never a
+  // correctness constraint. See src/lib/junebug/treat-stats.ts.
+  try {
+    const retrospective = await buildTreatRetrospective(auth.userId)
+    if (retrospective.hasSignal) {
+      systemPrompt += retrospective.systemPromptBlock
+    }
+  } catch (err: any) {
+    console.warn("[Junebug] treat retrospective failed:", err?.message)
   }
 
   // ------------------------------------------------------------------

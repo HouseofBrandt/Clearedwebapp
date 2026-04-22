@@ -170,6 +170,15 @@ export const AUDIT_ACTIONS = {
   JUNEBUG_MESSAGE: "JUNEBUG_MESSAGE",
   JUNEBUG_CLEANUP: "JUNEBUG_CLEANUP",
   JUNEBUG_THREAD_CONTEXT_UNAVAILABLE: "JUNEBUG_THREAD_CONTEXT_UNAVAILABLE",
+
+  // Practitioner reinforcement — feeds the self-learning retrospective.
+  JUNEBUG_TREAT_GIVEN: "JUNEBUG_TREAT_GIVEN",
+  JUNEBUG_TREAT_REVOKED: "JUNEBUG_TREAT_REVOKED",
+
+  // Full Fetch "Jarvis" mode — separate action so rate anomalies and
+  // cost spikes are easy to bucket in Sentry / audit queries.
+  JUNEBUG_FULL_FETCH_MESSAGE: "JUNEBUG_FULL_FETCH_MESSAGE",
+  JUNEBUG_DIAGNOSTICS_FETCH: "JUNEBUG_DIAGNOSTICS_FETCH",
 } as const
 
 /**

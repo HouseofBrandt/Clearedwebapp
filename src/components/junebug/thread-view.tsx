@@ -17,6 +17,7 @@ import { useSendMessage } from "./hooks/use-send-message"
 import { MessageList } from "./message-list"
 import { MessageComposer, type ComposerAttachment } from "./message-composer"
 import { ThreadContextChip } from "./thread-context-chip"
+import { useToast } from "@/components/ui/toast"
 import type { JunebugMessage, JunebugThreadListItem } from "./types"
 
 export interface ThreadViewProps {
@@ -40,6 +41,7 @@ export function ThreadView({
 }: ThreadViewProps) {
   const t = useThread(threadId)
   const [sendError, setSendError] = useState<string | null>(null)
+  const { addToast } = useToast()
 
   // Callbacks are referentially stable — wrap in useCallback so the
   // send hook doesn't recreate on every render.
@@ -169,6 +171,51 @@ export function ThreadView({
     [t, threadId, sender, currentRoute]
   )
 
+  const handleToggleTreat = useCallback(
+    async (target: JunebugMessage) => {
+      if (target.role !== "ASSISTANT") return
+      if (target.errorMessage) return
+
+      const nextTreated = !target.treated
+      // Optimistic update — the button reflects the new state immediately;
+      // on error we roll back.
+      t.patchMessage(target.id, {
+        treated: nextTreated,
+        treatNote: nextTreated ? target.treatNote ?? null : null,
+      })
+
+      try {
+        const res = await fetch(
+          `/api/junebug/threads/${threadId}/messages/${target.id}/treat`,
+          {
+            method: nextTreated ? "POST" : "DELETE",
+            credentials: "same-origin",
+            headers: nextTreated ? { "Content-Type": "application/json" } : undefined,
+            body: nextTreated ? JSON.stringify({}) : undefined,
+          }
+        )
+        if (!res.ok && res.status !== 204) {
+          throw new Error(`Treat ${nextTreated ? "save" : "revoke"} failed: ${res.status}`)
+        }
+        if (nextTreated) {
+          addToast({
+            title: "Good girl! 🦴",
+            description: "Junebug will remember what made this answer good.",
+          })
+        }
+      } catch (err: any) {
+        // Roll back on failure
+        t.patchMessage(target.id, { treated: !nextTreated })
+        addToast({
+          title: "Treat didn't save",
+          description: err?.message || "Try again in a moment.",
+          variant: "destructive",
+        })
+      }
+    },
+    [t, threadId, addToast]
+  )
+
   // Clear transient send error when thread changes
   useEffect(() => {
     setSendError(null)
@@ -230,6 +277,7 @@ export function ThreadView({
           loadingOlder={t.loadingOlder}
           onLoadOlder={() => void t.loadOlder()}
           onRetry={handleRetry}
+          onToggleTreat={handleToggleTreat}
         />
       )}
       <MessageComposer

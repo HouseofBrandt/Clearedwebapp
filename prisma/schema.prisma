@@ -359,6 +359,7 @@ model User {
   researchReviews        ResearchReview[]       @relation("UserResearchReviews")
   researchPreference     ResearchPreference?
   junebugThreads         JunebugThread[]        @relation("JunebugThreadOwner")
+  junebugTreats          JunebugTreat[]         @relation("JunebugTreatGiver")
 
   @@map("users")
 }
@@ -2206,9 +2207,34 @@ model JunebugMessage {
   createdAt DateTime @default(now())
 
   attachments JunebugAttachment[]
+  treats      JunebugTreat[]
 
   @@index([threadId, createdAt])
   @@map("junebug_messages")
+}
+
+/// Practitioner reinforcement signal — "good girl" treat given to an
+/// assistant message. One treat per user per message (enforced by the
+/// compound unique index). Feeds into the self-learning retrospective
+/// that prepends aggregate treat stats into future turns' system
+/// prompts so Junebug leans toward patterns the practitioner rewards.
+model JunebugTreat {
+  id        String         @id @default(cuid())
+  messageId String
+  message   JunebugMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation("JunebugTreatGiver", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Optional practitioner note explaining what they liked. Useful for
+  // the retrospective prompt — beats the raw count for signaling *why*
+  // a response was good.
+  note String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([userId, createdAt])
+  @@map("junebug_treats")
 }
 
 /// File attached to a message — either a pointer to an existing case

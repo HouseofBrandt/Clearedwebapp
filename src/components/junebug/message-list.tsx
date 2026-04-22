@@ -22,6 +22,7 @@ export interface MessageListProps {
   loadingOlder: boolean
   onLoadOlder: () => void
   onRetry?: (message: JunebugMessage) => void
+  onToggleTreat?: (message: JunebugMessage) => void
 }
 
 const BOTTOM_STICKINESS_PX = 80 // within this, auto-scroll on new message
@@ -33,6 +34,7 @@ export function MessageList({
   loadingOlder,
   onLoadOlder,
   onRetry,
+  onToggleTreat,
 }: MessageListProps) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -134,6 +136,7 @@ export function MessageList({
               message={m}
               isStreaming={streamingThisOne || !!m.streaming}
               onRetry={onRetry}
+              onToggleTreat={onToggleTreat}
             />
           )
         })}

@@ -7,13 +7,15 @@
  *   - Assistant: full-width prose in junebug-prose, no bubble.
  *   - Error: red left border, error text, Retry button.
  *   - Streaming: subtle pulse on the last chunk until `done`.
+ *   - Treat: bone-icon toggle next to Copy/Retry on assistant messages.
+ *     Bounces on click and feeds the self-learning retrospective.
  */
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Check, Copy, RotateCcw, X } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
-import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import { JunebugIcon, TreatBoneIcon } from "@/components/assistant/junebug-icon"
 import type { JunebugMessage } from "./types"
 
 marked.setOptions({ breaks: true, gfm: true })
@@ -77,15 +79,85 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
+/**
+ * Bone-icon toggle for the treat reinforcement signal. Filled gold when
+ * active; outlined gray otherwise. A short `jb-bounce` animation fires
+ * on the JunebugIcon sibling when a treat is given (not revoked) — the
+ * dog does a visible happy bounce. The parent handles the actual POST /
+ * DELETE + toast; this component is pure presentation.
+ */
+function TreatButton({
+  treated,
+  note,
+  pending,
+  onClick,
+}: {
+  treated: boolean
+  note?: string | null
+  pending: boolean
+  onClick: () => void
+}) {
+  const title = treated
+    ? note
+      ? `Treat given — "${note}". Click to revoke.`
+      : "Treat given. Click to revoke."
+    : "Give Junebug a treat — marks this response as helpful"
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={pending}
+      className={`rounded p-1 transition-all ${
+        treated
+          ? "opacity-100"
+          : "text-c-gray-300 opacity-0 hover:text-c-gold group-hover:opacity-100"
+      } ${pending ? "animate-pulse" : ""}`}
+      style={treated ? { color: "var(--c-gold)" } : undefined}
+      title={title}
+      aria-label={treated ? "Revoke treat" : "Give treat"}
+      aria-pressed={treated}
+    >
+      <TreatBoneIcon className="h-4 w-4" />
+    </button>
+  )
+}
+
 export interface MessageBubbleProps {
   message: JunebugMessage
   /** When true, this is the last assistant message and still actively streaming. */
   isStreaming: boolean
   /** For assistant error rows — regenerate this message. */
   onRetry?: (message: JunebugMessage) => void
+  /**
+   * Called when the practitioner toggles the treat bone. The parent is
+   * responsible for the optimistic state update + server round-trip; we
+   * just surface the intent. Only supplied on non-error ASSISTANT rows.
+   */
+  onToggleTreat?: (message: JunebugMessage) => void
 }
 
-export function MessageBubble({ message, isStreaming, onRetry }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  isStreaming,
+  onRetry,
+  onToggleTreat,
+}: MessageBubbleProps) {
+  // Local "treat-was-just-given" pulse on the JunebugIcon so the dog
+  // visually reacts. Resets after the animation duration.
+  const [treatBouncing, setTreatBouncing] = useState(false)
+  useEffect(() => {
+    if (!treatBouncing) return
+    const t = setTimeout(() => setTreatBouncing(false), 700)
+    return () => clearTimeout(t)
+  }, [treatBouncing])
+
+  const handleToggleTreat = () => {
+    if (!onToggleTreat) return
+    // Bounce only on the give direction, not on revoke
+    if (!message.treated) setTreatBouncing(true)
+    onToggleTreat(message)
+  }
+
   if (message.role === "USER") {
     return (
       <div className="flex animate-message-in justify-end">
@@ -142,8 +214,16 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
       <div className="mt-1 flex-shrink-0">
         <JunebugIcon
           className="h-5 w-5"
-          mood={isStreaming ? "thinking" : "idle"}
-          animated={isStreaming}
+          mood={
+            treatBouncing
+              ? "treat"
+              : isStreaming
+              ? "thinking"
+              : message.treated
+              ? "happy"
+              : "idle"
+          }
+          animated={isStreaming || treatBouncing}
           style={{ color: "var(--c-warning)" }}
         />
       </div>
@@ -167,6 +247,14 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
               >
                 <RotateCcw className="h-4 w-4" />
               </button>
+            )}
+            {!isStreaming && onToggleTreat && (
+              <TreatButton
+                treated={!!message.treated}
+                note={message.treatNote ?? null}
+                pending={false}
+                onClick={handleToggleTreat}
+              />
             )}
           </div>
         )}
