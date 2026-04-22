@@ -36,6 +36,9 @@ All set in Vercel → Project Settings → Environment Variables.
 | `ENCRYPTION_KEY` | 32-char random | `src/lib/encryption.ts` for case PII at rest |
 | `ANTHROPIC_API_KEY` | Anthropic console | All AI routes |
 | `CRON_SECRET` | 32-byte random | Bearer auth for `/api/cron/**` |
+| `VERCEL_API_TOKEN` | Vercel token (optional) | Junebug Full Fetch deployment diagnostics |
+| `VERCEL_PROJECT_ID` | Vercel project id (optional) | Paired with `VERCEL_API_TOKEN` |
+| `VERCEL_TEAM_ID` | Vercel team id (optional) | Only if the token is team-scoped |
 
 ### Verifying env state
 

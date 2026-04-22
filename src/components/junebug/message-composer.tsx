@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from "react"
-import { Paperclip, Send, X } from "lucide-react"
+import { Paperclip, Send, Sparkles, X } from "lucide-react"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 
 const MAX_TEXTAREA_PX = 180
@@ -33,6 +33,14 @@ export interface MessageComposerProps {
   suggestions?: string[]
   onPickSuggestion?: (text: string) => void
   loadingMessage?: string | null
+  /**
+   * Full Fetch toggle — "Jarvis" mode. When on, the next send flips
+   * Junebug to claude-opus-4-7 at a 16k token ceiling and loads the
+   * full live-case packet. Parent owns the state so it can persist
+   * across thread switches + localStorage.
+   */
+  fullFetch?: boolean
+  onToggleFullFetch?: () => void
 }
 
 export function MessageComposer({
@@ -43,6 +51,8 @@ export function MessageComposer({
   suggestions,
   onPickSuggestion,
   loadingMessage,
+  fullFetch = false,
+  onToggleFullFetch,
 }: MessageComposerProps) {
   const [value, setValue] = useState("")
   const [pending, setPending] = useState<ComposerAttachment[]>([])
@@ -144,13 +154,24 @@ export function MessageComposer({
         </div>
       )}
 
-      {/* Composer pill */}
+      {/* Composer pill — borders shift teal + a gentle glow when Full
+          Fetch is armed, so the practitioner sees the mode change
+          before they type. Same shape either way so layout doesn't
+          jump. */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
-        className="flex items-end gap-1.5 rounded-2xl border border-c-gray-200 bg-white px-2 py-1.5 transition-all duration-150 focus-within:border-c-teal/30 focus-within:ring-1 focus-within:ring-c-teal/20"
+        className="flex items-end gap-1.5 rounded-2xl border bg-white px-2 py-1.5 transition-all duration-200"
+        style={
+          fullFetch
+            ? {
+                borderColor: "var(--c-teal)",
+                boxShadow: "var(--shadow-glow, 0 0 0 1px rgba(42,143,168,0.12), 0 4px 16px rgba(42,143,168,0.08))",
+              }
+            : undefined
+        }
       >
         <label
           className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-c-gray-300 transition-colors hover:bg-c-gray-50 hover:text-c-gray-500"
@@ -183,6 +204,37 @@ export function MessageComposer({
           className="flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-[13.5px] placeholder:text-c-gray-300 focus:outline-none focus:ring-0 disabled:opacity-50"
           style={{ maxHeight: MAX_TEXTAREA_PX + "px", minHeight: "36px" }}
         />
+        {onToggleFullFetch && (
+          <button
+            type="button"
+            onClick={onToggleFullFetch}
+            disabled={disabled}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] transition-all duration-150"
+            style={{
+              fontFamily: "var(--font-jetbrains, monospace)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              background: fullFetch ? "var(--c-teal)" : "transparent",
+              color: fullFetch ? "white" : "var(--c-gray-500)",
+              border: `1px solid ${fullFetch ? "var(--c-teal)" : "var(--c-gray-200)"}`,
+            }}
+            title={
+              fullFetch
+                ? "Full Fetch is on — claude-opus-4-7 with the live case packet. Click to turn off."
+                : "Turn on Full Fetch — unlocks claude-opus-4-7, loads the full client + documents + liability + deadlines packet, and surfaces page diagnostics."
+            }
+            aria-pressed={fullFetch}
+            aria-label={fullFetch ? "Turn off Full Fetch" : "Turn on Full Fetch"}
+          >
+            <Sparkles
+              className="h-3.5 w-3.5"
+              style={fullFetch ? { filter: "drop-shadow(0 0 2px rgba(255,255,255,0.4))" } : undefined}
+            />
+            <span className="hidden sm:inline">
+              {fullFetch ? "Full Fetch" : "Full Fetch"}
+            </span>
+          </button>
+        )}
         <button
           type="submit"
           disabled={!canSend}
@@ -198,7 +250,9 @@ export function MessageComposer({
         </button>
       </form>
       <p className="text-center text-[11px] text-c-gray-300">
-        Junebug can make mistakes — review before relying on any output.
+        {fullFetch
+          ? "Full Fetch on — claude-opus-4-7 with live case data. Review every output."
+          : "Junebug can make mistakes — review before relying on any output."}
       </p>
     </div>
   )

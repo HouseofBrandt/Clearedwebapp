@@ -16,6 +16,8 @@ export interface ThreadEmptyStateProps {
   isCreating: boolean
   onStart: (content: string, attachments: ComposerAttachment[]) => void
   suggestions?: string[]
+  fullFetch?: boolean
+  onToggleFullFetch?: () => void
 }
 
 const GENERAL_SUGGESTIONS = [
@@ -30,6 +32,8 @@ export function ThreadEmptyState({
   isCreating,
   onStart,
   suggestions,
+  fullFetch = false,
+  onToggleFullFetch,
 }: ThreadEmptyStateProps) {
   const picks = suggestions ?? GENERAL_SUGGESTIONS
 
@@ -39,14 +43,17 @@ export function ThreadEmptyState({
         <div
           className="flex h-16 w-16 items-center justify-center rounded-full"
           style={{
-            background: "rgba(196,154,60,0.08)",
-            border: "1px solid rgba(196,154,60,0.15)",
+            background: fullFetch
+              ? "rgba(42,143,168,0.08)"
+              : "rgba(196,154,60,0.08)",
+            border: `1px solid ${fullFetch ? "rgba(42,143,168,0.15)" : "rgba(196,154,60,0.15)"}`,
           }}
         >
           <JunebugIcon
             className="h-10 w-10"
             mood="happy"
-            style={{ color: "var(--c-warning)" }}
+            fullFetch={fullFetch}
+            style={{ color: fullFetch ? "var(--c-teal)" : "var(--c-warning)" }}
           />
         </div>
         <h1
@@ -71,6 +78,8 @@ export function ThreadEmptyState({
         onSend={onStart}
         suggestions={picks}
         onPickSuggestion={(text) => onStart(text, [])}
+        fullFetch={fullFetch}
+        onToggleFullFetch={onToggleFullFetch}
       />
     </div>
   )

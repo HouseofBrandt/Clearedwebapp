@@ -78,6 +78,32 @@ export function JunebugWorkspace({
     scopeToCaseId ? "current_case" : "all"
   )
 
+  // Full Fetch ("Jarvis") mode — lifted here so the selection persists
+  // across thread switches inside a single session and (via localStorage)
+  // across reloads. Key namespaced so it doesn't collide with the dead
+  // legacy `junebug-full-fetch` key that the migration effect clears.
+  const FULL_FETCH_STORAGE_KEY = "cleared:junebug:full-fetch"
+  const [fullFetch, setFullFetch] = useState(false)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FULL_FETCH_STORAGE_KEY)
+      if (saved === "true") setFullFetch(true)
+    } catch {
+      /* storage unavailable */
+    }
+  }, [])
+  const toggleFullFetch = useCallback(() => {
+    setFullFetch((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(FULL_FETCH_STORAGE_KEY, String(next))
+      } catch {
+        /* non-fatal */
+      }
+      return next
+    })
+  }, [])
+
   const filters = useMemo(
     () => ({
       archived: showArchived,
@@ -364,6 +390,8 @@ export function JunebugWorkspace({
                   pendingInitialMessageRef.current = null
                 }
               }}
+              fullFetch={fullFetch}
+              onToggleFullFetch={toggleFullFetch}
             />
           ) : (
             <ThreadEmptyState
@@ -371,6 +399,8 @@ export function JunebugWorkspace({
               isCreating={threads.isLoading}
               onStart={handleSplashStart}
               suggestions={suggestions}
+              fullFetch={fullFetch}
+              onToggleFullFetch={toggleFullFetch}
             />
           )}
         </div>

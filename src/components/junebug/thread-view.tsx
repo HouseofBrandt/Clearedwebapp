@@ -18,6 +18,7 @@ import { MessageList } from "./message-list"
 import { MessageComposer, type ComposerAttachment } from "./message-composer"
 import { ThreadContextChip } from "./thread-context-chip"
 import { useToast } from "@/components/ui/toast"
+import { browserDiagnostics } from "@/lib/browser-diagnostics"
 import type { JunebugMessage, JunebugThreadListItem } from "./types"
 
 export interface ThreadViewProps {
@@ -29,6 +30,9 @@ export interface ThreadViewProps {
   initialSendAttachments?: ComposerAttachment[]
   /** Called after initialSendContent has been dispatched, so the parent clears it. */
   onInitialSendDispatched?: () => void
+  /** Full Fetch mode (lifted to the workspace so it persists across thread switches). */
+  fullFetch?: boolean
+  onToggleFullFetch?: () => void
 }
 
 export function ThreadView({
@@ -38,6 +42,8 @@ export function ThreadView({
   initialSendContent,
   initialSendAttachments,
   onInitialSendDispatched,
+  fullFetch = false,
+  onToggleFullFetch,
 }: ThreadViewProps) {
   const t = useThread(threadId)
   const [sendError, setSendError] = useState<string | null>(null)
@@ -117,9 +123,22 @@ export function ThreadView({
     (content: string, attachments: ComposerAttachment[]) => {
       if (!content.trim() && attachments.length === 0) return
       setSendError(null)
+
+      // Snapshot the browser diagnostics at send time so Junebug (in
+      // Full Fetch mode) can see the page the practitioner is looking
+      // at, recent console errors, and failed network requests. Only
+      // attached when Full Fetch is on — outside that mode the payload
+      // inflates the system prompt without a practitioner-visible
+      // return.
+      const pageContext = fullFetch
+        ? browserDiagnostics.getContext()
+        : undefined
+
       void sender.send({
         content,
         currentRoute,
+        fullFetch,
+        pageContext,
         attachments: attachments.length
           ? attachments.map((a) => ({
               documentId: a.documentId,
@@ -131,7 +150,7 @@ export function ThreadView({
           : undefined,
       })
     },
-    [sender, currentRoute]
+    [sender, currentRoute, fullFetch]
   )
 
   const handleRetry = useCallback(
@@ -162,13 +181,14 @@ export function ThreadView({
         await sender.send({
           content: precedingUser.content,
           currentRoute,
+          fullFetch,
         })
         await t.refetch()
       } catch (err: any) {
         setSendError(err?.message || "Retry failed")
       }
     },
-    [t, threadId, sender, currentRoute]
+    [t, threadId, sender, currentRoute, fullFetch]
   )
 
   const handleToggleTreat = useCallback(
@@ -284,6 +304,8 @@ export function ThreadView({
         disabled={sender.isStreaming}
         isStreaming={sender.isStreaming}
         onSend={handleSend}
+        fullFetch={fullFetch}
+        onToggleFullFetch={onToggleFullFetch}
       />
       {sendError && (
         <div className="border-t border-c-danger/20 bg-c-danger/5 px-6 py-2 text-[12px] text-c-danger md:px-10">

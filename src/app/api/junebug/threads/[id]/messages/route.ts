@@ -19,6 +19,16 @@ import {
   shouldGenerateTitle,
 } from "@/lib/junebug/title-generator"
 import { buildTreatRetrospective } from "@/lib/junebug/treat-stats"
+import {
+  loadFullFetchCaseData,
+  findCaseByNameOrTabs,
+  FULL_FETCH_RESPONSE_RULES,
+} from "@/lib/junebug/full-fetch-context"
+import {
+  getDeploymentSnapshot,
+  formatDiagnosticsForPrompt,
+  isConfigured as vercelConfigured,
+} from "@/lib/vercel/client"
 
 /**
  * POST /api/junebug/threads/[id]/messages — send a message, stream assistant
@@ -50,6 +60,15 @@ const bodySchema = z.object({
   model: z.string().optional(),
   currentRoute: z.string().optional(),
   pageContext: z.any().optional(),
+  /**
+   * Full Fetch "Jarvis" mode — upgrades the model to claude-opus-4-7,
+   * raises max_tokens to 16k, and injects the live-case packet
+   * (documents with extracted content, liability periods, deadlines,
+   * intelligence digest, client notes, AI work products). The model
+   * name the client sends is ignored when fullFetch=true — the server
+   * pins it to the upgrade slug.
+   */
+  fullFetch: z.boolean().optional(),
   attachments: z
     .array(
       z.object({
@@ -62,6 +81,13 @@ const bodySchema = z.object({
     )
     .optional(),
 })
+
+// Full Fetch configuration. Pinned server-side so a client can't
+// downgrade to a cheap model while falsely flagging Full Fetch to
+// unlock the extra context. Model slug tracks CLAUDE.md.
+const FULL_FETCH_MODEL = "claude-opus-4-7"
+const FULL_FETCH_MAX_TOKENS = 16_384
+const FULL_FETCH_TEMPERATURE = 0.2
 
 export async function POST(
   request: NextRequest,
@@ -129,13 +155,21 @@ export async function POST(
   // 1. Build case context (if thread is case-scoped). This drives both
   //    the system prompt and the contextSnapshot we persist onto the
   //    USER message for audit (spec §7.6 — practitioner accountability).
+  //
+  //    Full Fetch mode layers on top: resolved caseId either comes from
+  //    the thread scope OR (on a general thread) from a case reference
+  //    detected in the user's current message.
   // ------------------------------------------------------------------
-  const caseId = access.thread.caseId
+  const isFullFetch = body.fullFetch === true
+  let caseId: string | null = access.thread.caseId
   let contextAvailable = false
   let contextFailureReason: string | null = null
   let systemPrompt = loadPrompt("research_assistant_v1")
   let caseNumber: string | null = null
   let caseType: string | null = null
+  const fullFetchKnownNames: string[] = []
+  let fullFetchLoaded = false
+  let fullFetchDetected = false
 
   if (caseId) {
     try {
@@ -172,6 +206,106 @@ export async function POST(
           timestamp: new Date().toISOString(),
         },
       }).catch(() => {})
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 1a. Full Fetch — inject the comprehensive live packet.
+  //
+  // If the thread isn't scoped to a case, try to detect one from the
+  // user's message (TABS number or client-name match). This lets a
+  // practitioner type "what's the status on Smith?" on a general
+  // thread and get Full Fetch context for that case without leaving
+  // the workspace.
+  // ------------------------------------------------------------------
+  if (isFullFetch) {
+    if (!caseId) {
+      const detected = await findCaseByNameOrTabs(body.content).catch(() => null)
+      if (detected) {
+        caseId = detected.id
+        caseNumber = detected.tabsNumber
+        fullFetchDetected = true
+        fullFetchKnownNames.push(detected.name)
+      }
+    }
+
+    if (caseId) {
+      try {
+        const { data: fullFetchData, knownNames } = await loadFullFetchCaseData(caseId)
+        if (fullFetchData) {
+          systemPrompt += fullFetchData + FULL_FETCH_RESPONSE_RULES
+          fullFetchLoaded = true
+          contextAvailable = true
+          for (const n of knownNames) {
+            if (!fullFetchKnownNames.includes(n)) fullFetchKnownNames.push(n)
+          }
+        }
+      } catch (err: any) {
+        console.warn("[Junebug][FullFetch] loadFullFetchCaseData failed:", err?.message)
+      }
+    }
+
+    // Page diagnostics — browser errors / network failures / current
+    // route the practitioner is on. Only injected in Full Fetch mode
+    // so normal turns keep a slim system prompt. Schema is duck-typed
+    // (anything matching `{ route, title, errors[], networkFailures[] }`)
+    // because the client-side BrowserDiagnostics type lives outside
+    // the API boundary.
+    const pc: any = body.pageContext
+    if (pc && typeof pc === "object") {
+      const errorLines = Array.isArray(pc.errors) && pc.errors.length > 0
+        ? pc.errors
+            .slice(-10)
+            .map((e: any) =>
+              `- [${e.type ?? "error"}] ${String(e.message ?? "").slice(0, 240)}${
+                e.source ? ` (${e.source})` : ""
+              }`
+            )
+            .join("\n")
+        : "No recent errors."
+      const netLines =
+        Array.isArray(pc.networkFailures) && pc.networkFailures.length > 0
+          ? pc.networkFailures
+              .slice(-10)
+              .map(
+                (f: any) =>
+                  `- ${f.method ?? "GET"} ${String(f.url ?? "").slice(0, 200)} → ${f.status ?? 0}`
+              )
+              .join("\n")
+          : "No recent network failures."
+      systemPrompt += `
+
+PAGE DIAGNOSTICS (browser state at send time — treat as live):
+Route: ${pc.route || body.currentRoute || "unknown"}
+Title: ${pc.title || "unknown"}
+
+Recent console errors:
+${errorLines}
+
+Recent failed network requests (4xx/5xx/thrown):
+${netLines}
+
+When the practitioner asks what's broken on their screen or why a
+request failed, ground your answer in the above. If the diagnostics
+show no issues, say so plainly instead of speculating.`
+    }
+
+    // Vercel deployment + build-log snapshot. Gated on Full Fetch so
+    // we don't eat the ~1s round-trip on every turn. `isConfigured()`
+    // check avoids calling Vercel at all when the token isn't set, so
+    // local dev without VERCEL_API_TOKEN doesn't pay any cost.
+    if (vercelConfigured()) {
+      try {
+        const diag = await getDeploymentSnapshot()
+        if (diag) {
+          systemPrompt += formatDiagnosticsForPrompt(diag)
+        }
+      } catch (err: any) {
+        console.warn(
+          "[Junebug][FullFetch] Vercel diagnostics failed:",
+          err?.message
+        )
+      }
     }
   }
 
@@ -231,9 +365,11 @@ export async function POST(
   historyMessages.push({ role: "user", content: userContent })
 
   // ------------------------------------------------------------------
-  // 4. Load the thread's clientName (decrypted) for tokenizer hints
+  // 4. Load the thread's clientName (decrypted) for tokenizer hints.
+  //    Full Fetch's case detection may have already contributed names;
+  //    de-dup here so the tokenizer sees each unique string once.
   // ------------------------------------------------------------------
-  let knownNames: string[] = []
+  const knownNames: string[] = [...fullFetchKnownNames]
   if (caseId) {
     try {
       const c = await prisma.case.findUnique({
@@ -244,7 +380,9 @@ export async function POST(
         const { decryptField } = await import("@/lib/encryption")
         try {
           const decrypted = decryptField(c.clientName)
-          if (decrypted) knownNames = [decrypted]
+          if (decrypted && !knownNames.includes(decrypted)) {
+            knownNames.push(decrypted)
+          }
         } catch {
           /* decryption failed — proceed without name-based tokenization */
         }
@@ -266,6 +404,9 @@ export async function POST(
     kbHits,
     currentRoute: body.currentRoute ?? null,
     sentAt: new Date().toISOString(),
+    fullFetch: isFullFetch,
+    fullFetchLoaded,
+    fullFetchDetected,
   }
 
   const userMessage = await prisma.junebugMessage.create({
@@ -289,6 +430,13 @@ export async function POST(
     include: { attachments: true },
   })
 
+  // Effective model / token ceiling for this turn. Full Fetch pins
+  // both server-side — a client can't claim Full Fetch just to unlock
+  // the fatter context while requesting a cheap model.
+  const effectiveModel = isFullFetch ? FULL_FETCH_MODEL : body.model ?? "claude-opus-4-6"
+  const effectiveMaxTokens = isFullFetch ? FULL_FETCH_MAX_TOKENS : undefined
+  const effectiveTemperature = isFullFetch ? FULL_FETCH_TEMPERATURE : undefined
+
   // Reserve the assistant row immediately so the client has its ID in the
   // first SSE event. Content is filled on stream end.
   const assistantMessage = await prisma.junebugMessage.create({
@@ -296,7 +444,7 @@ export async function POST(
       threadId: params.id,
       role: "ASSISTANT",
       content: "", // will be updated on stream end
-      model: body.model ?? "claude-opus-4-6",
+      model: effectiveModel,
     },
   })
 
@@ -326,19 +474,26 @@ export async function POST(
     )
   }
 
-  // Audit (spec §10.3). createAuditLog wants `string | undefined` for caseId,
-  // not `string | null` — coerce since this thread may be general-scoped.
+  // Audit (spec §10.3). Full Fetch turns get their own action so cost
+  // spikes + Sentry rate anomalies are easy to bucket separately.
+  // createAuditLog wants `string | undefined` for caseId — coerce since
+  // general-scoped threads may have no case id.
   createAuditLog({
     practitionerId: auth.userId,
     caseId: caseId ?? undefined,
-    action: AUDIT_ACTIONS.JUNEBUG_MESSAGE,
+    action: isFullFetch
+      ? AUDIT_ACTIONS.JUNEBUG_FULL_FETCH_MESSAGE
+      : AUDIT_ACTIONS.JUNEBUG_MESSAGE,
     metadata: {
       threadId: params.id,
       userMessageId: userMessage.id,
       assistantMessageId: assistantMessage.id,
-      model: body.model ?? "claude-opus-4-6",
+      model: effectiveModel,
       contextAvailable,
       kbHits,
+      fullFetch: isFullFetch,
+      fullFetchLoaded,
+      fullFetchDetected,
     },
   }).catch(() => {})
 
@@ -358,11 +513,17 @@ export async function POST(
         }
       }
 
-      // First event — hand the client both message IDs
+      // First event — hand the client both message IDs + mode flags.
+      // Surfacing fullFetch lets the UI render the "Jarvis" chrome
+      // state (gold glow on JunebugIcon, token counter) without a
+      // second round-trip.
       writeEvent("meta", {
         userMessageId: userMessage.id,
         assistantMessageId: assistantMessage.id,
         contextAvailable,
+        fullFetch: isFullFetch,
+        fullFetchLoaded,
+        model: effectiveModel,
       })
 
       try {
@@ -371,7 +532,9 @@ export async function POST(
             messages: historyMessages,
             systemPrompt,
             knownNames,
-            model: body.model,
+            model: effectiveModel,
+            maxTokens: effectiveMaxTokens,
+            temperature: effectiveTemperature,
           },
           {
             onDelta: (delta) => {
@@ -453,16 +616,18 @@ export async function POST(
             route: "junebug/messages",
             junebug: "stream-failed",
             caseScoped: caseId ? "true" : "false",
+            fullFetch: isFullFetch ? "true" : "false",
           },
           user: { id: auth.userId },
           extra: {
             threadId: params.id,
             userMessageId: userMessage.id,
             assistantMessageId: assistantMessage.id,
-            model: body.model ?? "claude-opus-4-6",
+            model: effectiveModel,
             kbHits,
             contextAvailable,
             priorMessageCount,
+            fullFetchLoaded,
           },
         })
 
