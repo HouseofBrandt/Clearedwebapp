@@ -5,6 +5,112 @@
 
 ---
 
+## 2026-04-22 — Dashboard Polish pass
+
+**What was done:**
+
+UI polish pass against the "Design & Animation Spec" (Dashboard Polish). No new features, no schema changes — typography, hierarchy, spacing, and motion refinements across the dashboard, plus a new Full Fetch suit-up sequence.
+
+### Design tokens ([globals.css](src/app/globals.css))
+
+New additive token groups in `:root`, non-breaking with existing tokens:
+
+- **Typography scale** — `--text-display-{sm,md,lg,xl}`, `--text-body-{xs,sm,,lg}`, `--text-meta{,-lg}`, plus `--lh-*` and `--ls-*`.
+- **Elevation system** — `--elev-0` through `--elev-4`, each with a hairline border via a second box-shadow (Apple's "depth without the visual weight of a line").
+- **Radius discipline** — `--radius-sm: 6px`, `--radius-md: 12px`, `--radius-lg: 20px`. Three sizes, no others.
+- **Motion primitives** — added `--ease-out-quart` (most UI) and `--ease-in-out-quint` (suit-up sequence) alongside existing `--ease-out-expo` and `--ease-spring`.
+- **Spacing** — filled gaps in the scale (`--space-7: 48px`, `--space-9: 96px`, `--space-dash-10: 128px`).
+
+### Full Fetch suit-up sequence
+
+Deleted the old `full-fetch-*` CSS (scan-line, HUD border, blink, etc.) in favor of a spec-faithful 5-stage choreography:
+
+- **Stage 1 (0–300ms)** — 3 shockwave rings from the toggle.
+- **Stage 2 (100–600ms)** — surface dim + backdrop-filter blur (4px).
+- **Stage 3 (300–1100ms)** — HUD corners assemble inward around the Junebug column.
+- **Stage 4 (600–1400ms)** — 6-line typewriter status readout.
+- **Stage 5 (1400–2000ms)** — armed idle state with persistent ambient pulse.
+
+New files:
+- [full-fetch-sequence.tsx](src/components/assistant/full-fetch-sequence.tsx) — `FullFetchActivation`, `FullFetchDeactivation`, `FullFetchShockwave`, `FullFetchHUDCorners`. Portal-rendered overlays; RAF-anchored state machine drives the stage transitions.
+- [full-fetch-toggle.tsx](src/components/assistant/full-fetch-toggle.tsx) — the armed/not-armed pill that lives on the Junebug composer.
+- [full-fetch-context.tsx](src/components/assistant/full-fetch-context.tsx) — React context so the armed state propagates to splash headline, Junebug icon halo, and any downstream request code.
+
+Deactivation is a 600ms reverse. `aria-live` announcements fire on arm and disarm. Reduced-motion fallback hides the readout entirely, freezes corners in place, and replaces blur with a flat overlay — state still communicated calmly.
+
+### Greeting block (spec §6)
+
+[dashboard-greeting.tsx](src/components/dashboard/dashboard-greeting.tsx):
+- Left-aligned (was centered).
+- Time-aware copy: morning / afternoon / evening / working-late / early-start variants.
+- Live clock with minute-precision re-render (aligned to minute boundary).
+- At-a-glance row above the name: `N DEADLINES THIS WEEK · M ITEMS IN REVIEW · K NEW CASES`. Zero-count items omitted entirely. Glance figures computed server-side in the dashboard page from `Deadline`, `AITask`, and `Case` counts.
+- Entry animation: fade + rise 12px, staggered 0/100/200ms for glance → greeting → date.
+
+### Feed
+
+- **Pippen card** ([pippen-takeaway-card.tsx](src/components/feed/pippen-takeaway-card.tsx)) — removed the green left border and green gradient accent bar. Now uses `--elev-2` shadow, header row (label + date), italic Cormorant body, thin divider, and a footer row with byline on the left and "Read full →" on the right. Typography carries the weight; no decorative chrome.
+- **Day headers** ([feed-page.tsx](src/components/feed/feed-page.tsx)) — two-line treatment. Label left (TODAY / YESTERDAY / weekday), date right-aligned (April 22). Count on the second line. Removed the collapse chevron — per spec, days are never folded.
+- **Feed cards** now stagger-enter with a 40ms step, capped at 600ms total window.
+- **Filter row** ([feed-filters.tsx](src/components/feed/feed-filters.tsx)) — teal-soft pill for active, text-only for inactive, gray-50 hover state. Thin border-bottom grounds the row.
+
+### Junebug splash (spec §8)
+
+[thread-empty-state.tsx](src/components/junebug/thread-empty-state.tsx):
+- Icon moved to 96px (was 64px) inside a 200px radial teal glow.
+- Ambient ear-twitch animation (9s / 11s duration, offset) — "Junebug is alive and waiting."
+- Headline bumped to `--text-display-md` (28px) with a new Cormorant italic subtitle: *"I can pull your cases, search your docs, and draft work product."*
+- Four suggestion prompts in a 2×2 grid; hover: border teal + background teal-soft + 2px rise + elev-1 shadow.
+- Prompts rotate with time-of-day — morning surfaces "what needs my attention", afternoon surfaces "help me finish X", evening surfaces recap prompts.
+- When Full Fetch is armed, headline swaps to "Full Fetch engaged" / subtitle "What can I help you unlock?", and the icon picks up a teal halo.
+
+### Junebug composer (spec §8.4)
+
+[message-composer.tsx](src/components/junebug/message-composer.tsx):
+- Height bumped to 64px.
+- Radius 20px (`--radius-lg`), `--elev-2` shadow when resting, `--elev-3` + 3px teal glow on focus-within.
+- Italic placeholder.
+- Paperclip button 40px hit area on left.
+- New **Full Fetch toggle** on the right — armed state is a teal gradient pill with `FULL FETCH // ARMED` monospace label + persistent ambient pulse glow.
+- Send button 40px circular, teal when enabled, scale(0.96) on press.
+
+### Sidebar (spec §10)
+
+[sidebar.tsx](src/components/layout/sidebar.tsx):
+- **Three-tier hierarchy** — primary (Dashboard, Cases, Review Queue, Tasks), secondary (Calendar, Portfolio, Inbox, etc.), tertiary (tools/admin) — driven by a `getTier()` lookup. Visible through opacity/weight differences.
+- **Active state** — rounded 12px pill, full width minus 8px gutter, 3px teal-bright accent bar inside, teal icon color, teal-tinted background. Hairline outside-border removed in favor of interior accent.
+- **Section headers** — JetBrains Mono 10.5px, uppercase, tracked out.
+- **Notification badges** — now positioned top-right of the nav item (not inline at the end of the row), with a 1.2s pulse on first appearance.
+- **User block** — bumped avatar to 36px, now a link with hover affordance (chevron fades in, subtle background tint).
+- **Wordmark** — Instrument Serif 20px weight 500 for "Cleared", JetBrains Mono 10px for "Tax Resolution" subtitle.
+
+### Global interactions
+
+- Page transitions: 500ms / 8px rise via `.polish-page-enter`.
+- Button press utility (`.polish-btn-tactile`): background transition + scale(0.97) press + teal focus-visible ring.
+- Input focus: 1.5px teal border + 3px teal-tinted outer glow.
+
+### Tests
+
+Not added in this pass. The changes are all presentational (typography, spacing, motion, tokens) and have no branching logic worth testing in isolation. Visual regression is the right testing mode and requires a real browser.
+
+**Caveats (honest):**
+
+1. **Could not run `next build`, `tsc`, or `vitest` in this environment** — no Node on PATH. Self-review caught the obvious risks (stale `full-fetch-icon` class reference on `JunebugIcon`, missing `ChevronRight` import on sidebar, CSS-var references verified against `globals.css`, Prisma field names verified against `schema.prisma`). First CI run is the acid test; expect only trivial fixes.
+2. **The Full Fetch sequence needs real-browser verification.** Spec §16 explicitly warns: *"If the Full Fetch sequence doesn't feel dramatic enough when built. Don't ship a disappointing version."* I cannot watch it play. Stage timing and structure are spec-faithful (2000ms end-to-end, 5 stages), but the "whoa" judgment requires a practitioner to see it. Recommend: first reviewer records a clip before approving.
+3. **`prefers-reduced-motion` fallback is implemented** but also hits the global `animation-duration: 0.001ms` override at the bottom of `globals.css`. The Full Fetch sequence's dedicated fallback block uses `!important` to opt out of animations specifically; verify in-browser that the fallback renders correctly (HUD corners should be visible but not animated).
+4. **Audio cue for Full Fetch** — deliberately out of scope per spec §9.2. Visual sequence ships alone.
+5. **Mobile/tablet (< 1024px)** — spec defers mobile entirely (§12.4). At 768–1023px the dashboard bifurcation already collapses to tabs via existing logic; Full Fetch still works but the HUD wraps the active tab only.
+6. **Greeting live-clock timezone** — uses `Intl.DateTimeFormat` with `timeZoneName: "short"`. Falls back gracefully on runtimes that don't expose `timeZoneName` parts.
+
+**Next iteration should:**
+
+- Record a clip of Full Fetch activation and compare to "Iron Man" energy. Iterate on stage timing if disappointing (spec §16 candidates: lengthen Stage 3 to 1200ms, add an 80ms screen flash at Stage 1 onset, intensify shockwave layer count).
+- Add the audio cue behind a user-settings toggle (spec §9.2, P3 follow-up).
+- Clean up any remaining `dash-*` CSS classes that were replaced by `polish-*` equivalents. The old Pippen avatar/name/meta utility classes are still in globals.css but unused on the refactored card — safe to delete in a follow-up PR.
+
+---
+
 ## 2026-03-27 — Initial Setup
 
 **What was done:**

@@ -135,6 +135,9 @@
     --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    /* Additional curves for polish pass — pick one on purpose per spec §5.5 */
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);      /* most UI */
+    --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);  /* suit-up sequences */
     --dur-fast: 120ms;
     --dur-normal: 200ms;
     --dur-slow: 350ms;
@@ -144,6 +147,59 @@
     --surface-primary: linear-gradient(135deg, #FFFFFF 0%, #FAFBFC 100%);
     --surface-elevated: linear-gradient(180deg, #FFFFFF 0%, #FCFCFD 100%);
     --grain-opacity: 0.022;
+
+    /* ═══════════════════════════════════════════════════════════
+       DESIGN POLISH PASS — typography, elevation, radius
+       Spec: docs/spec-dashboard-polish.md (§5.1–5.4)
+       These tokens are additive. Older hardcoded sizes remain
+       but new surfaces should reach for these.
+       ═══════════════════════════════════════════════════════════ */
+
+    /* Typography — Instrument Serif display */
+    --text-display-xl: 56px;   /* hero greetings, once per page */
+    --text-display-lg: 40px;   /* page titles */
+    --text-display-md: 28px;   /* section titles, Junebug headline */
+    --text-display-sm: 22px;   /* card titles */
+
+    /* Body — DM Sans / Inter */
+    --text-body-lg: 17px;      /* lead paragraphs */
+    --text-body: 15px;         /* default */
+    --text-body-sm: 13.5px;    /* dense UI */
+    --text-body-xs: 12px;      /* captions */
+
+    /* Metadata — JetBrains Mono */
+    --text-meta: 11px;         /* timestamps, uppercase labels */
+    --text-meta-lg: 13px;      /* figures, stats */
+
+    /* Line heights */
+    --lh-display: 1.1;
+    --lh-tight: 1.3;
+    --lh-normal: 1.55;
+    --lh-relaxed: 1.7;
+
+    /* Letter spacing */
+    --ls-display: -0.025em;
+    --ls-tight: -0.012em;
+    --ls-normal: 0;
+    --ls-meta: 0.06em;         /* uppercase metadata */
+    --ls-meta-wide: 0.1em;     /* day-group headers, section headers */
+
+    /* Elevation system — each includes hairline border via second shadow */
+    --elev-0: none;
+    --elev-1: 0 1px 2px rgba(10, 22, 40, 0.04), 0 0 0 1px rgba(10, 22, 40, 0.03);
+    --elev-2: 0 2px 8px rgba(10, 22, 40, 0.06), 0 0 0 1px rgba(10, 22, 40, 0.04);
+    --elev-3: 0 8px 24px rgba(10, 22, 40, 0.08), 0 0 0 1px rgba(10, 22, 40, 0.04);
+    --elev-4: 0 24px 60px rgba(10, 22, 40, 0.12), 0 0 0 1px rgba(10, 22, 40, 0.05);
+
+    /* Radius discipline — small / default / large. Only these three. */
+    --radius-sm: 6px;          /* badges, pills */
+    --radius-md: 12px;          /* cards, inputs, buttons */
+    --radius-lg: 20px;          /* modals, composer, splash container */
+
+    /* Added spacing tokens for polish scale (spec §5.2) */
+    --space-7: 48px;
+    --space-9: 96px;
+    --space-dash-10: 128px;    /* distinct from existing --space-10 (40px) */
   }
 
   .dark {
@@ -395,56 +451,244 @@ a, button, [role="button"] {
 }
 .check-pop-in { animation: checkPopIn 300ms var(--ease-out-expo) both; }
 
-/* Full Fetch */
-@keyframes fullFetchActivate {
-  0% { transform: scale(1); filter: brightness(1); }
-  15% { transform: scale(1.3); filter: brightness(1.5) drop-shadow(0 0 8px var(--c-teal)); }
-  50% { transform: scale(1.15); filter: brightness(1.3) drop-shadow(0 0 20px var(--c-teal)); }
-  100% { transform: scale(1); filter: brightness(1) drop-shadow(0 0 4px var(--c-teal)); }
-}
-@keyframes fullFetchPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(42,143,168,0.4); }
-  50% { box-shadow: 0 0 0 6px rgba(42,143,168,0); }
-}
-.full-fetch-icon { animation: fullFetchPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 4px var(--c-teal)); }
-.full-fetch-activating { animation: fullFetchActivate 1.2s var(--ease-smooth); }
+/* ═══════════════════════════════════════════════════════════════════
+   FULL FETCH SEQUENCE — suit-up choreography (spec §9)
+   2000ms end-to-end across 5 stages. 60fps target; transform + opacity
+   only. prefers-reduced-motion fallback at the bottom.
+   ═══════════════════════════════════════════════════════════════════ */
 
-@keyframes fullFetchHUD {
-  0% { opacity: 0; border-color: transparent; }
-  100% { opacity: 1; border-color: rgba(42,143,168,0.15); }
+/* ── Stage 1 — Pulse Out: concentric teal shockwaves from the toggle ── */
+@keyframes ffShockwave {
+  0%   { transform: translate(-50%, -50%) scale(0.25); opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(7);    opacity: 0;    }
 }
-.full-fetch-hud { animation: fullFetchHUD 0.8s ease-out forwards; border: 1px solid rgba(42,143,168,0.15); border-radius: 12px; }
-.full-fetch-status-bar { background: linear-gradient(90deg, rgba(42,143,168,0.08), rgba(42,143,168,0.03)); border-bottom: 1px solid rgba(42,143,168,0.15); }
+.ff-shockwave-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--c-teal);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: ffShockwave 650ms var(--ease-out-expo) forwards;
+  will-change: transform, opacity;
+}
+.ff-shockwave-ring--delay-1 { animation-delay: 80ms;  }
+.ff-shockwave-ring--delay-2 { animation-delay: 160ms; }
 
-@keyframes ffScanDown {
-  0% { top: -2px; opacity: 0; } 10% { opacity: 1; }
-  90% { opacity: 1; } 100% { top: calc(100% + 2px); opacity: 0; }
+/* ── Stage 2 — Surface Dim: dashboard behind dims and blurs subtly ── */
+@keyframes ffDimIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-.full-fetch-scan-line {
-  position: absolute; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--c-teal), transparent);
-  animation: ffScanDown 1s ease-in-out; z-index: 5;
-  box-shadow: 0 0 16px var(--c-teal), 0 0 40px rgba(42,143,168,0.15); pointer-events: none;
+@keyframes ffDimOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
-.full-fetch-scan-trail {
-  position: absolute; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(42,143,168,0.3), transparent);
-  animation: ffScanDown 1s ease-in-out 0.12s; z-index: 4; pointer-events: none;
+.ff-surface-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: rgba(10, 22, 40, 0.04);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: ffDimIn 500ms var(--ease-out-quart) forwards;
+  animation-delay: 100ms;
+}
+.ff-surface-dim[data-exiting="true"] {
+  animation: ffDimOut 400ms var(--ease-out-quart) forwards;
 }
 
-@keyframes ffBorderGlow {
-  0%, 100% { border-color: rgba(42,143,168,0.2); }
-  50% { border-color: rgba(42,143,168,0.45); }
+/* ── Stage 3 — HUD Lock-On: four corners assemble inward ──
+   Each corner is an L-shape made of 2 orthogonal lines (top/left, etc.).
+   Lines scale from 0 → 1 along their axis starting at the outer corner. */
+.ff-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  border-radius: var(--radius-lg);
 }
-.full-fetch-active-border { animation: ffBorderGlow 3s ease infinite; }
-
-@keyframes ffBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-.full-fetch-blink { animation: ffBlink 0.6s step-end infinite; }
-
-@keyframes ffCounterIn {
-  from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); }
+.ff-hud-corner {
+  position: absolute;
+  width: 48%;
+  height: 48%;
+  pointer-events: none;
 }
-.full-fetch-counter { animation: ffCounterIn 0.4s ease both; }
+.ff-hud-corner--tl { top: 0;    left: 0;    }
+.ff-hud-corner--tr { top: 0;    right: 0;   }
+.ff-hud-corner--bl { bottom: 0; left: 0;    }
+.ff-hud-corner--br { bottom: 0; right: 0;   }
+
+.ff-hud-line {
+  position: absolute;
+  background: var(--c-teal);
+  box-shadow: 0 0 6px rgba(42, 143, 168, 0.45);
+  transform-origin: var(--origin, top left);
+  transform: scaleX(0);
+  opacity: 0;
+  animation: ffHudExtend 800ms var(--ease-in-out-quint) forwards;
+  animation-delay: 300ms;
+  will-change: transform, opacity;
+}
+.ff-hud-line--horizontal { height: 1.5px; }
+.ff-hud-line--vertical   { width: 1.5px;  }
+
+@keyframes ffHudExtend {
+  0%   { transform: scaleX(0); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+@keyframes ffHudExtendVertical {
+  0%   { transform: scaleY(0); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+.ff-hud-line--vertical {
+  animation-name: ffHudExtendVertical;
+  transform: scaleY(0);
+}
+
+.ff-hud-line--top-left-h {
+  top: 0; left: 0; width: 100%; --origin: left center;
+}
+.ff-hud-line--top-left-v {
+  top: 0; left: 0; height: 100%; --origin: center top;
+}
+.ff-hud-line--top-right-h {
+  top: 0; right: 0; width: 100%; --origin: right center;
+}
+.ff-hud-line--top-right-v {
+  top: 0; right: 0; height: 100%; --origin: center top;
+}
+.ff-hud-line--bottom-left-h {
+  bottom: 0; left: 0; width: 100%; --origin: left center;
+}
+.ff-hud-line--bottom-left-v {
+  bottom: 0; left: 0; height: 100%; --origin: center bottom;
+}
+.ff-hud-line--bottom-right-h {
+  bottom: 0; right: 0; width: 100%; --origin: right center;
+}
+.ff-hud-line--bottom-right-v {
+  bottom: 0; right: 0; height: 100%; --origin: center bottom;
+}
+
+/* Full border + ambient glow once corners have completed (fires via JS
+   adding data-complete=true at t=1100ms). */
+.ff-hud[data-complete="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--c-teal), 0 0 24px rgba(42, 143, 168, 0.2);
+  transition: box-shadow 300ms var(--ease-out-quart);
+}
+
+/* ── Stage 4 — Systems Readout: cascading typewriter status lines ── */
+.ff-readout {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  z-index: 46;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--c-teal);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-align: right;
+  opacity: 1;
+  transition: opacity 400ms var(--ease-out-quart);
+}
+.ff-readout[data-exiting="true"] {
+  opacity: 0;
+}
+.ff-readout-line {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
+  animation: ffTypewriter 350ms steps(24, end) forwards;
+  opacity: 0;
+}
+.ff-readout-line[data-stage="1"] { animation-delay: 600ms;  }
+.ff-readout-line[data-stage="2"] { animation-delay: 720ms;  }
+.ff-readout-line[data-stage="3"] { animation-delay: 840ms;  }
+.ff-readout-line[data-stage="4"] { animation-delay: 960ms;  }
+.ff-readout-line[data-stage="5"] { animation-delay: 1080ms; }
+.ff-readout-line[data-stage="6"] { animation-delay: 1200ms; }
+@keyframes ffTypewriter {
+  0%   { width: 0;    opacity: 0; }
+  5%   { opacity: 1; }
+  100% { width: 100%; opacity: 1; }
+}
+
+/* ── Stage 5 — Armed Idle: persistent ambient glow on toggle + icon ── */
+@keyframes ffArmedPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(42, 143, 168, 0.0),
+                         0 0 8px rgba(42, 143, 168, 0.22); }
+  50%      { box-shadow: 0 0 0 3px rgba(42, 143, 168, 0.0),
+                         0 0 16px rgba(42, 143, 168, 0.42); }
+}
+.ff-armed {
+  background: linear-gradient(
+    135deg,
+    rgba(42, 143, 168, 0.9),
+    rgba(52, 184, 216, 0.85)
+  ) !important;
+  color: #fff !important;
+  border-color: var(--c-teal) !important;
+  animation: ffArmedPulse 3s ease-in-out infinite;
+}
+.ff-armed-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--ls-meta-wide);
+  text-transform: uppercase;
+}
+.ff-icon-halo {
+  position: absolute;
+  inset: -12px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(42, 143, 168, 0.25) 0%,
+    rgba(42, 143, 168, 0) 70%
+  );
+  pointer-events: none;
+  animation: ffArmedPulse 3s ease-in-out infinite;
+}
+
+/* ── Reduced motion fallback ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ff-shockwave-ring,
+  .ff-surface-dim,
+  .ff-hud-line,
+  .ff-readout-line,
+  .ff-icon-halo {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .ff-hud-line--horizontal { transform: scaleX(1) !important; }
+  .ff-hud-line--vertical   { transform: scaleY(1) !important; }
+  .ff-readout {
+    /* Hide the readout entirely under reduced motion — it's pure flourish. */
+    display: none !important;
+  }
+  .ff-armed {
+    animation: none !important;
+    box-shadow: 0 0 0 1px var(--c-teal) !important;
+  }
+  .ff-surface-dim {
+    /* Replace blur with flat overlay for reduced motion */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(10, 22, 40, 0.04) !important;
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    JUNEBUG CHAT PROSE
@@ -703,42 +947,57 @@ a, button, [role="button"] {
   margin: 48px 0;
 }
 
-/* Pippen's pull-quote — the only gradient surface accent on the page */
+/* Pippen's pull-quote — editorial treatment per polish spec §7.4.
+   No chrome accent; the typography carries the weight. */
 .dash-pippen-card {
   position: relative;
   background: var(--c-white);
-  border: 0.5px solid var(--c-cleared-green-soft);
-  border-radius: 16px;
-  padding: 28px;
-  overflow: hidden;
+  border-radius: var(--radius-md);
+  padding: 32px 32px 24px;
+  box-shadow: var(--elev-2);
 }
-.dash-pippen-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--c-cleared-green) 0%,
-    var(--c-cleared-green-bright) 50%,
-    var(--c-cleared-green-soft) 100%
-  );
-  border-radius: 16px 16px 0 0;
+.dash-pippen-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--ls-meta-wide);
+  text-transform: uppercase;
+  color: var(--c-gray-500);
+  margin-bottom: 20px;
 }
 .dash-pippen-body {
   font-family: var(--font-editorial);
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 400;
   font-style: italic;
-  line-height: 1.55;
+  line-height: var(--lh-normal);
   color: var(--c-gray-800);
   letter-spacing: 0.005em;
 }
 .dash-pippen-body strong {
   font-style: normal;
   font-weight: 500;
+}
+.dash-pippen-divider {
+  height: 1px;
+  background: var(--c-gray-100);
+  margin: 24px 0 14px;
+}
+.dash-pippen-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--ls-meta);
+  text-transform: uppercase;
+  color: var(--c-gray-500);
+}
+.dash-pippen-footer a:hover {
+  color: var(--c-gold);
+  transition: color 150ms var(--ease-out-quart);
 }
 
 /* Older posts fade out — the natural visual hierarchy */
@@ -842,3 +1101,595 @@ a, button, [role="button"] {
   }
 }
 .rail-nav { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DASHBOARD POLISH (spec §6–§11)
+   Typography-first refinements. Motion with intent.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Greeting block (§6) ─────────────────────────────────────────── */
+.polish-greeting-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: polishGreetingIn 600ms var(--ease-out-expo) 0ms both;
+}
+.polish-greeting-name {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xl);
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  color: var(--c-gray-900);
+  font-weight: 400;
+}
+.polish-greeting-date {
+  font-family: var(--font-mono);
+  font-size: var(--text-body-sm);
+  color: var(--c-gray-400);
+  letter-spacing: 0;
+  animation: polishGreetingIn 600ms var(--ease-out-expo) 100ms both;
+}
+.polish-greeting-glance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--ls-meta);
+  text-transform: uppercase;
+  color: var(--c-gray-500);
+  animation: polishGreetingIn 600ms var(--ease-out-expo) 200ms both;
+}
+.polish-greeting-glance a {
+  color: inherit;
+  transition: color 150ms var(--ease-out-quart);
+}
+.polish-greeting-glance a:hover {
+  color: var(--c-teal);
+}
+.polish-greeting-glance .sep {
+  color: var(--c-gray-200);
+}
+
+@keyframes polishGreetingIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Narrow-desktop fallback per §12.2 */
+@media (max-width: 1279px) {
+  .polish-greeting-name { font-size: var(--text-display-lg); }
+}
+
+/* ── Feed refinements (§7) ───────────────────────────────────────── */
+
+/* Day group header (§7.3) — two-line treatment */
+.polish-day-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--c-gray-100);
+  margin-bottom: 16px;
+}
+.polish-day-header-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta-lg);
+  letter-spacing: var(--ls-meta-wide);
+  text-transform: uppercase;
+  color: var(--c-gray-700);
+  font-weight: 500;
+}
+.polish-day-header-date {
+  font-family: var(--font-mono);
+  font-size: var(--text-body-xs);
+  color: var(--c-gray-400);
+  letter-spacing: var(--ls-meta);
+  text-transform: uppercase;
+}
+.polish-day-header-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  letter-spacing: var(--ls-meta);
+  text-transform: uppercase;
+  color: var(--c-gray-400);
+  margin-top: 2px;
+}
+
+/* Filter row (§7.5) */
+.polish-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--c-gray-100);
+  margin-bottom: 20px;
+}
+.polish-filter-pill {
+  background: transparent;
+  color: var(--c-gray-500);
+  font-size: var(--text-body-xs);
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  transition: all 150ms var(--ease-out-quart);
+  cursor: pointer;
+  border: 0;
+}
+.polish-filter-pill:hover {
+  background: var(--c-gray-50);
+  color: var(--c-gray-700);
+}
+.polish-filter-pill[data-active="true"] {
+  background: var(--c-teal-soft);
+  color: var(--c-teal);
+  font-weight: 600;
+}
+
+/* Task priority accent bar (§7.2) — 3px inset from edge, priority-colored */
+.polish-task-card {
+  position: relative;
+  padding-left: 20px;
+}
+.polish-task-accent {
+  position: absolute;
+  left: 12px;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 9999px;
+}
+.polish-task-accent--urgent { background: var(--c-danger); }
+.polish-task-accent--high   { background: var(--c-warning); }
+.polish-task-accent--normal { background: var(--c-gray-200); }
+.polish-task-accent--low    { background: var(--c-gray-100); }
+
+/* Composer (§7.6) — generous initial height, expands on focus */
+.polish-composer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  min-height: 56px;
+  border-radius: var(--radius-md);
+  background: var(--c-white);
+  box-shadow: var(--elev-1);
+  transition: box-shadow 180ms var(--ease-out-quart),
+              min-height 240ms var(--ease-out-quart);
+}
+.polish-composer:focus-within {
+  box-shadow: var(--elev-2), 0 0 0 3px rgba(42, 143, 168, 0.12);
+  min-height: 120px;
+}
+.polish-composer textarea {
+  flex: 1;
+  resize: none;
+  border: 0;
+  background: transparent;
+  font-size: var(--text-body-sm);
+  line-height: var(--lh-normal);
+  color: var(--c-gray-900);
+  outline: none;
+  padding: 0;
+  min-height: 24px;
+}
+.polish-composer textarea::placeholder {
+  color: var(--c-gray-400);
+  font-style: italic;
+}
+.polish-composer-toolbar {
+  display: none;
+  gap: 4px;
+  margin-top: 8px;
+  opacity: 0;
+  animation: polishToolbarIn 200ms var(--ease-out-quart) 100ms forwards;
+}
+.polish-composer:focus-within .polish-composer-toolbar {
+  display: flex;
+}
+@keyframes polishToolbarIn {
+  to { opacity: 1; }
+}
+
+/* ── Junebug splash (§8) ─────────────────────────────────────────── */
+
+.polish-junebug-splash {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 32px 32px;
+  gap: 28px;
+}
+.polish-junebug-icon-wrap {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Radial glow behind the icon */
+.polish-junebug-icon-wrap::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(52, 184, 216, 0.18) 0%,
+    rgba(42, 143, 168, 0.08) 35%,
+    rgba(42, 143, 168, 0) 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.polish-junebug-icon-wrap > * { position: relative; z-index: 1; }
+
+/* Ambient twitch — ears flick every 8-12s (randomized-ish via duration) */
+@keyframes polishJunebugTwitch {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  92%           { transform: rotate(-7deg); }
+  96%           { transform: rotate(5deg); }
+}
+.polish-junebug-ear {
+  animation: polishJunebugTwitch 9s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+.polish-junebug-ear--right {
+  animation-duration: 11s;
+  animation-delay: 4s;
+}
+
+.polish-junebug-headline {
+  font-family: var(--font-display);
+  font-size: var(--text-display-md);
+  line-height: var(--lh-display);
+  letter-spacing: var(--ls-display);
+  color: var(--c-gray-900);
+  font-weight: 400;
+  text-align: center;
+}
+.polish-junebug-subtitle {
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-size: var(--text-body-sm);
+  color: var(--c-gray-400);
+  text-align: center;
+  margin-top: 8px;
+  max-width: 420px;
+}
+
+/* Prompt grid — 2x2 (§8.3) */
+.polish-junebug-prompts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+}
+.polish-junebug-prompt {
+  text-align: left;
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: var(--c-white);
+  border: 1px solid var(--c-gray-100);
+  font-size: var(--text-body-sm);
+  line-height: var(--lh-tight);
+  color: var(--c-gray-700);
+  transition: border-color 180ms var(--ease-out-quart),
+              background-color 180ms var(--ease-out-quart),
+              transform 180ms var(--ease-out-quart),
+              box-shadow 180ms var(--ease-out-quart);
+  cursor: pointer;
+}
+.polish-junebug-prompt:hover {
+  border-color: var(--c-teal);
+  background: var(--c-teal-soft);
+  transform: translateY(-2px);
+  box-shadow: var(--elev-1);
+}
+.polish-junebug-prompt:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 80ms;
+}
+
+/* Junebug composer (§8.4) — the primary interface surface */
+.polish-junebug-composer {
+  height: 64px;
+  border-radius: var(--radius-lg);
+  background: var(--c-white);
+  box-shadow: var(--elev-2);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 10px;
+  transition: box-shadow 180ms var(--ease-out-quart);
+}
+.polish-junebug-composer:focus-within {
+  box-shadow: var(--elev-3), 0 0 0 3px rgba(42, 143, 168, 0.12);
+}
+.polish-junebug-composer input,
+.polish-junebug-composer textarea {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: var(--text-body);
+  color: var(--c-gray-900);
+  font-family: var(--font-body);
+  resize: none;
+}
+.polish-junebug-composer input::placeholder,
+.polish-junebug-composer textarea::placeholder {
+  color: var(--c-gray-400);
+  font-style: italic;
+}
+.polish-junebug-composer-send {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background: var(--c-gray-100);
+  color: var(--c-gray-300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms var(--ease-out-quart);
+  border: 0;
+}
+.polish-junebug-composer-send[data-active="true"] {
+  background: var(--c-teal);
+  color: #fff;
+}
+.polish-junebug-composer-send:not(:disabled):hover {
+  transform: scale(1.03);
+}
+.polish-junebug-composer-send:not(:disabled):active {
+  transform: scale(0.96);
+  transition-duration: 80ms;
+}
+.polish-junebug-caveat {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: var(--text-body-xs);
+  color: var(--c-gray-400);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Full Fetch toggle (pre-armed state) inside the composer */
+.polish-ff-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--c-gray-200);
+  background: var(--c-gray-50);
+  color: var(--c-gray-600);
+  font-family: var(--font-mono);
+  font-size: var(--text-body-xs);
+  letter-spacing: var(--ls-meta);
+  text-transform: uppercase;
+  cursor: pointer;
+  position: relative;
+  transition: all 150ms var(--ease-out-quart);
+}
+.polish-ff-toggle:hover {
+  border-color: var(--c-teal);
+  color: var(--c-teal);
+}
+.polish-ff-toggle:focus-visible {
+  outline: 2px solid var(--c-teal);
+  outline-offset: 2px;
+}
+
+/* ── Sidebar refinements (§10) ──────────────────────────────────── */
+
+.polish-sidebar-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  margin: 0 8px;
+  border-radius: var(--radius-md);
+  color: var(--c-rail-icon);
+  transition: background 150ms var(--ease-out-quart),
+              color 150ms var(--ease-out-quart);
+  font-size: 14px;
+}
+.polish-sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+}
+.polish-sidebar-item[data-tier="primary"] {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+}
+.polish-sidebar-item[data-tier="secondary"] {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.56);
+}
+.polish-sidebar-item[data-tier="tertiary"] {
+  font-weight: 400;
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.46);
+}
+.polish-sidebar-item[data-active="true"] {
+  background: rgba(42, 143, 168, 0.14);
+  color: #fff;
+}
+.polish-sidebar-item[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--c-teal-bright);
+  box-shadow: 0 0 8px rgba(52, 184, 216, 0.5);
+}
+.polish-sidebar-item[data-active="true"] svg {
+  color: var(--c-teal-bright);
+}
+
+.polish-sidebar-section-header {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: var(--ls-meta-wide);
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.22);
+  padding: 16px 18px 6px;
+}
+
+.polish-sidebar-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--c-danger);
+}
+.polish-sidebar-badge--info    { background: var(--c-teal); }
+.polish-sidebar-badge--warning { background: var(--c-warning); }
+
+@keyframes polishBadgePulse {
+  0%   { box-shadow: 0 0 0 0   rgba(217, 48, 37, 0.55); }
+  70%  { box-shadow: 0 0 0 6px rgba(217, 48, 37, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(217, 48, 37, 0);    }
+}
+.polish-sidebar-badge[data-fresh="true"] {
+  animation: polishBadgePulse 1.2s var(--ease-out-quart) 1;
+}
+
+.polish-sidebar-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px;
+  color: #fff;
+}
+.polish-sidebar-wordmark-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+}
+.polish-sidebar-wordmark-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 4px;
+}
+
+.polish-sidebar-userblock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px;
+  margin: 12px 8px 8px;
+  border-radius: var(--radius-md);
+  transition: background 150ms var(--ease-out-quart);
+  cursor: pointer;
+}
+.polish-sidebar-userblock:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.polish-sidebar-userblock:hover .polish-sidebar-userblock-chevron {
+  opacity: 1;
+}
+.polish-sidebar-userblock-chevron {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.45);
+  opacity: 0;
+  transition: opacity 150ms var(--ease-out-quart);
+}
+.polish-sidebar-userblock-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  line-height: 1.2;
+}
+.polish-sidebar-userblock-role {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--ls-meta);
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  margin-top: 3px;
+}
+
+/* ── Global interactions (§11.3–11.4) ───────────────────────────── */
+
+/* Page transition — 8px rise, 500ms. Overrides earlier 12px value. */
+@keyframes polishPageEnter {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.polish-page-enter {
+  animation: polishPageEnter 500ms var(--ease-out-expo) both;
+}
+
+/* Feed card stagger entry */
+@keyframes polishFeedCardIn {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.polish-feed-card-enter {
+  animation: polishFeedCardIn 300ms var(--ease-out-quart) both;
+}
+
+/* Button press / focus — reusable utilities */
+.polish-btn-tactile {
+  transition: background-color 150ms var(--ease-out-quart),
+              transform 80ms var(--ease-spring),
+              box-shadow 150ms var(--ease-out-quart);
+}
+.polish-btn-tactile:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.polish-btn-tactile:focus-visible {
+  outline: 2px solid var(--c-teal);
+  outline-offset: 2px;
+}
+
+/* Input focus — teal ring, 3px offset glow */
+.polish-input {
+  border: 1px solid var(--c-gray-100);
+  border-radius: var(--radius-md);
+  background: var(--c-white);
+  padding: 10px 14px;
+  font-size: var(--text-body-sm);
+  color: var(--c-gray-900);
+  transition: border-color 180ms var(--ease-out-quart),
+              box-shadow 180ms var(--ease-out-quart);
+}
+.polish-input:focus {
+  outline: none;
+  border-color: var(--c-teal);
+  border-width: 1.5px;
+  box-shadow: 0 0 0 3px rgba(42, 143, 168, 0.15);
+}
