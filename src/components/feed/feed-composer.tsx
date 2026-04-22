@@ -229,7 +229,7 @@ export function FeedComposer({
             className="text-[15px] italic"
             style={{ color: 'var(--c-gray-400)' }}
           >
-            What's on your mind?
+            What&rsquo;s on your mind?
           </span>
         </div>
       ) : (
