@@ -8,12 +8,14 @@ import { describe, it, expect, beforeEach, vi } from "vitest"
  * We mock the three dependencies (feature flag, NextAuth session,
  * Prisma) to test the gate logic in isolation. Integration tests
  * against a real DB live elsewhere.
+ *
+ * Note: the feature flag used to gate BEFORE session, but switching
+ * to per-user beta gating (junebugThreadsEnabledForEmail) requires
+ * reading the email first. Order is now session → email-aware flag.
  */
 
-// Mock modules before importing the subject. Vitest hoists these
-// mocks above the imports so the real implementations never load.
 vi.mock("./feature-flag", () => ({
-  junebugThreadsEnabled: vi.fn(() => true),
+  junebugThreadsEnabledForEmail: vi.fn(() => true),
 }))
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
@@ -30,34 +32,17 @@ vi.mock("@/lib/db", () => ({
 }))
 
 import { requireJunebugSession, requireOwnedThread } from "./thread-access"
-import { junebugThreadsEnabled } from "./feature-flag"
+import { junebugThreadsEnabledForEmail } from "./feature-flag"
 import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/db"
 
 describe("requireJunebugSession", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(junebugThreadsEnabled as any).mockReturnValue(true)
+    ;(junebugThreadsEnabledForEmail as any).mockReturnValue(true)
   })
 
-  it("returns 404 when the feature flag is OFF (don't leak route existence)", async () => {
-    ;(junebugThreadsEnabled as any).mockReturnValue(false)
-    const r = await requireJunebugSession()
-    expect(r.ok).toBe(false)
-    if (!r.ok) {
-      expect(r.response.status).toBe(404)
-      // Body should be empty — no JSON leaking feature state
-      expect(r.response.body).toBeNull()
-    }
-  })
-
-  it("does not call getServerSession when the flag is off (cheap gate)", async () => {
-    ;(junebugThreadsEnabled as any).mockReturnValue(false)
-    await requireJunebugSession()
-    expect(getServerSession).not.toHaveBeenCalled()
-  })
-
-  it("returns 401 when flag is on but there's no session", async () => {
+  it("returns 401 when there's no session (unauthenticated)", async () => {
     ;(getServerSession as any).mockResolvedValue(null)
     const r = await requireJunebugSession()
     expect(r.ok).toBe(false)
@@ -71,11 +56,47 @@ describe("requireJunebugSession", () => {
     if (!r.ok) expect(r.response.status).toBe(401)
   })
 
-  it("returns { ok: true, userId } on a valid session", async () => {
-    ;(getServerSession as any).mockResolvedValue({ user: { id: "user_abc" } })
+  it("returns 404 when authenticated but outside beta scope (don't leak)", async () => {
+    ;(getServerSession as any).mockResolvedValue({
+      user: { id: "user_1", email: "outsider@example.com" },
+    })
+    ;(junebugThreadsEnabledForEmail as any).mockReturnValue(false)
+    const r = await requireJunebugSession()
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.response.status).toBe(404)
+      // Empty body — no JSON leaking feature state
+      expect(r.response.body).toBeNull()
+    }
+  })
+
+  it("calls the email-aware flag check with the session email", async () => {
+    ;(getServerSession as any).mockResolvedValue({
+      user: { id: "user_1", email: "staff@cleared.com" },
+    })
+    await requireJunebugSession()
+    expect(junebugThreadsEnabledForEmail).toHaveBeenCalledWith("staff@cleared.com")
+  })
+
+  it("returns { ok: true, userId } for a valid in-scope session", async () => {
+    ;(getServerSession as any).mockResolvedValue({
+      user: { id: "user_abc", email: "staff@cleared.com" },
+    })
     const r = await requireJunebugSession()
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.userId).toBe("user_abc")
+  })
+
+  it("allows a user with no email only when the global flag is on", async () => {
+    ;(getServerSession as any).mockResolvedValue({
+      user: { id: "user_noemail", email: null },
+    })
+    // Simulates global flag on → helper returns true for any email
+    ;(junebugThreadsEnabledForEmail as any).mockReturnValue(true)
+    const r = await requireJunebugSession()
+    expect(r.ok).toBe(true)
+    // And the helper was still consulted (null email is a valid input)
+    expect(junebugThreadsEnabledForEmail).toHaveBeenCalledWith(null)
   })
 })
 

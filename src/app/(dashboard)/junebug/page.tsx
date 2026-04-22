@@ -9,15 +9,16 @@
  *                     defaults to "This case only" and the new-thread
  *                     button creates a case-scoped thread.
  *
- * Feature flag: when NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED is false, this
- * page renders a "not enabled" stub (the workspace itself gates on the
- * flag). Full deletion of /junebug routes is a follow-up if we ever
- * roll this back.
+ * Feature flag: gated by `junebugThreadsEnabledForEmail(session.user.email)`.
+ * During internal beta, only emails in NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS
+ * reach the workspace; everyone else 404s. When the global flag is flipped
+ * on, email becomes irrelevant and the gate passes for all authenticated
+ * users. PR 4 removes the gate entirely.
  */
 
 import { requireAuth } from "@/lib/auth/session"
 import { JunebugWorkspace } from "@/components/junebug/junebug-workspace"
-import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
+import { junebugThreadsEnabledForEmail } from "@/lib/junebug/feature-flag"
 import { notFound } from "next/navigation"
 
 export const dynamic = "force-dynamic"
@@ -27,12 +28,11 @@ export default async function JunebugIndexPage({
 }: {
   searchParams: { case?: string }
 }) {
-  // When the flag is off the workspace would also render a stub, but
-  // serving 404 here keeps the route surface clean for crawlers and
-  // unauthenticated probes.
-  if (!junebugThreadsEnabled()) notFound()
-
-  await requireAuth()
+  // requireAuth() handles unauthenticated (redirects to /login); we only
+  // serve 404 for authenticated-but-not-in-scope users so we don't leak
+  // the workspace's existence during internal beta.
+  const session = await requireAuth()
+  if (!junebugThreadsEnabledForEmail(session.user.email)) notFound()
 
   return (
     <div className="-mx-8 -my-7 h-[calc(100vh-56px)]">

@@ -18,7 +18,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react"
-import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
 import { ThreadSidebar } from "./thread-sidebar"
 import { ThreadView } from "./thread-view"
 import { ThreadEmptyState } from "./thread-empty-state"
@@ -38,7 +37,10 @@ export function JunebugWorkspace({
   scopeToCaseId,
   suggestions,
 }: JunebugWorkspaceProps) {
-  const flagOn = junebugThreadsEnabled()
+  // Feature-flag gating is handled by the page-level (server) entry
+  // points — /junebug/page.tsx, /junebug/[threadId]/page.tsx, and the
+  // dashboard pane (PR 3). Anything that renders this component has
+  // already confirmed the user is in scope, so we don't re-check.
   const router = useRouter()
   const pathname = usePathname()
 
@@ -178,16 +180,6 @@ export function JunebugWorkspace({
     },
     [threads]
   )
-
-  if (!flagOn) {
-    return (
-      <div className="flex h-full items-center justify-center p-12 text-center text-c-gray-500">
-        <p className="text-[13px]">
-          Junebug Threads is not enabled on this environment.
-        </p>
-      </div>
-    )
-  }
 
   const activeThread = activeThreadId
     ? threads.threads.find((t) => t.id === activeThreadId) ?? null

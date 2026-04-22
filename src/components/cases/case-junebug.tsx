@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback, type FormEvent, type KeyboardEvent } from "react"
 import Link from "next/link"
+import { useSession } from "next-auth/react"
 import { ArrowUpRight, Send, ChevronUp, ChevronDown } from "lucide-react"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { getJunebugMessage } from "@/lib/junebug/loading-messages"
-import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
+import { junebugThreadsEnabledForEmail } from "@/lib/junebug/feature-flag"
 
 interface CaseJunebugProps {
   caseId: string
@@ -33,9 +34,18 @@ interface ChatMessage {
  * widget gives way to a link that opens the full workspace with this
  * case pre-scoped. We branch at the component boundary so hooks in the
  * legacy inline component still obey the rules of hooks.
+ *
+ * During internal beta (`NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS` set but
+ * global flag still off), we read the user's email from the session
+ * and route only beta users to the link. `useSession` is cheap here —
+ * SessionProvider hydrates once at the app root; the status progression
+ * is `loading` → `authenticated` and the email is stable across renders.
+ * Until the session resolves we fall back to the legacy inline widget,
+ * which matches the pre-feature behavior.
  */
 export function CaseJunebug(props: CaseJunebugProps) {
-  if (junebugThreadsEnabled()) {
+  const { data: session } = useSession()
+  if (junebugThreadsEnabledForEmail(session?.user?.email)) {
     return <CaseJunebugLink caseId={props.caseId} />
   }
   return <LegacyInlineCaseJunebug {...props} />

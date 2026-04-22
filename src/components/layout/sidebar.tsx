@@ -8,7 +8,7 @@ import { ROLE_LABELS } from "@/types"
 import { getVisibleNavItems, type NavSection } from "@/components/layout/navigation"
 
 interface SidebarProps {
-  user: { name?: string | null; role?: string }
+  user: { name?: string | null; email?: string | null; role?: string }
   pendingReviewCount?: number
   overdueDeadlineCount?: number
   unreadMessageCount?: number
@@ -42,7 +42,7 @@ export function SidebarContent({
   onLinkClick,
 }: SidebarProps & { showWordmark?: boolean; onLinkClick?: () => void }) {
   const pathname = usePathname()
-  const allItems = getVisibleNavItems(user.role)
+  const allItems = getVisibleNavItems(user.role, { userEmail: user.email })
 
   const sectionItems: Record<NavSection, typeof allItems> = {
     MAIN: [],

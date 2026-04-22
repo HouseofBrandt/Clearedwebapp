@@ -50,7 +50,7 @@ export function Header({
 }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
-  const page = getPageContext(pathname, user.role)
+  const page = getPageContext(pathname, user.role, { userEmail: user.email })
 
   const segments = pathname.split("/").filter(Boolean)
   const showBreadcrumb = segments.length > 1
