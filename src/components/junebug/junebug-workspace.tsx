@@ -24,7 +24,7 @@ import { ThreadEmptyState } from "./thread-empty-state"
 import { useThreads } from "./hooks/use-threads"
 import type { ComposerAttachment } from "./message-composer"
 import type { JunebugThreadListItem } from "./types"
-import { FullFetchProvider } from "@/components/assistant/full-fetch-context"
+import { FullFetchProvider, useFullFetch } from "@/components/assistant/full-fetch-context"
 
 export interface JunebugWorkspaceProps {
   initialThreadId?: string
@@ -238,7 +238,7 @@ export function JunebugWorkspace({
 
   return (
     <FullFetchProvider>
-    <div className="polish-junebug-target flex h-full w-full bg-white">
+    <ArmedAwareFrame>
       {/* Desktop sidebar */}
       <div
         className={`hidden md:flex transition-all duration-200 ${
@@ -383,7 +383,31 @@ export function JunebugWorkspace({
           )}
         </div>
       </div>
-    </div>
+    </ArmedAwareFrame>
     </FullFetchProvider>
+  )
+}
+
+/**
+ * Inner frame that reads the Full Fetch armed state from context and
+ * sets the `data-ff-armed` attribute on the polish-junebug-target.
+ *
+ * CSS in globals.css reacts to that attribute with:
+ *   - perpetual breathing HUD border (4s cycle)
+ *   - diagonal scanning sweep (10s cycle, every 2s-delayed)
+ *   - subtle teal background tint at the top of the column
+ *
+ * Split out so we can use `useFullFetch()` which requires being inside
+ * the FullFetchProvider boundary.
+ */
+function ArmedAwareFrame({ children }: { children: React.ReactNode }) {
+  const { armed } = useFullFetch()
+  return (
+    <div
+      className="polish-junebug-target flex h-full w-full bg-white"
+      data-ff-armed={armed ? "true" : "false"}
+    >
+      {children}
+    </div>
   )
 }

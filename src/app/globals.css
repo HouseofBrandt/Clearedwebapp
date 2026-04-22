@@ -457,10 +457,32 @@ a, button, [role="button"] {
    only. prefers-reduced-motion fallback at the bottom.
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Stage 1 — Pulse Out: concentric teal shockwaves from the toggle ── */
+/* ── Stage 0 — Screen flash: instant bright cue at the first frame ── */
+@keyframes ffScreenFlash {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+.ff-screen-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    rgba(52, 184, 216, 0.55) 0%,
+    rgba(42, 143, 168, 0.25) 40%,
+    rgba(42, 143, 168, 0) 75%
+  );
+  animation: ffScreenFlash 240ms var(--ease-out-expo) forwards;
+  mix-blend-mode: screen;
+}
+
+/* ── Stage 1 — Pulse Out: 5 concentric teal shockwaves from the toggle ── */
 @keyframes ffShockwave {
-  0%   { transform: translate(-50%, -50%) scale(0.25); opacity: 0.85; }
-  100% { transform: translate(-50%, -50%) scale(7);    opacity: 0;    }
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0.95; border-color: var(--c-teal-bright); }
+  40%  { border-color: var(--c-teal); }
+  100% { transform: translate(-50%, -50%) scale(9);   opacity: 0; border-color: var(--c-teal); }
 }
 .ff-shockwave-ring {
   position: absolute;
@@ -468,14 +490,17 @@ a, button, [role="button"] {
   top: 50%;
   width: 40px;
   height: 40px;
-  border: 2px solid var(--c-teal);
+  border: 2px solid var(--c-teal-bright);
   border-radius: 9999px;
   pointer-events: none;
-  animation: ffShockwave 650ms var(--ease-out-expo) forwards;
+  box-shadow: 0 0 20px rgba(52, 184, 216, 0.55);
+  animation: ffShockwave 850ms var(--ease-out-expo) forwards;
   will-change: transform, opacity;
 }
-.ff-shockwave-ring--delay-1 { animation-delay: 80ms;  }
-.ff-shockwave-ring--delay-2 { animation-delay: 160ms; }
+.ff-shockwave-ring--delay-1 { animation-delay: 70ms;  }
+.ff-shockwave-ring--delay-2 { animation-delay: 140ms; }
+.ff-shockwave-ring--delay-3 { animation-delay: 210ms; }
+.ff-shockwave-ring--delay-4 { animation-delay: 280ms; }
 
 /* ── Stage 2 — Surface Dim: dashboard behind dims and blurs subtly ── */
 @keyframes ffDimIn {
@@ -628,19 +653,19 @@ a, button, [role="button"] {
 /* ── Stage 5 — Armed Idle: persistent ambient glow on toggle + icon ── */
 @keyframes ffArmedPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(42, 143, 168, 0.0),
-                         0 0 8px rgba(42, 143, 168, 0.22); }
+                         0 0 10px rgba(52, 184, 216, 0.45); }
   50%      { box-shadow: 0 0 0 3px rgba(42, 143, 168, 0.0),
-                         0 0 16px rgba(42, 143, 168, 0.42); }
+                         0 0 22px rgba(52, 184, 216, 0.75); }
 }
 .ff-armed {
   background: linear-gradient(
     135deg,
-    rgba(42, 143, 168, 0.9),
-    rgba(52, 184, 216, 0.85)
+    rgba(52, 184, 216, 1),
+    rgba(42, 143, 168, 0.95)
   ) !important;
   color: #fff !important;
-  border-color: var(--c-teal) !important;
-  animation: ffArmedPulse 3s ease-in-out infinite;
+  border-color: var(--c-teal-bright) !important;
+  animation: ffArmedPulse 2.4s ease-in-out infinite;
 }
 .ff-armed-label {
   font-family: var(--font-mono);
@@ -648,21 +673,93 @@ a, button, [role="button"] {
   letter-spacing: var(--ls-meta-wide);
   text-transform: uppercase;
 }
+
+@keyframes ffIconHaloPulse {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
 .ff-icon-halo {
   position: absolute;
-  inset: -12px;
+  inset: -16px;
   border-radius: 9999px;
   background: radial-gradient(
     circle,
-    rgba(42, 143, 168, 0.25) 0%,
+    rgba(52, 184, 216, 0.45) 0%,
+    rgba(42, 143, 168, 0.18) 40%,
     rgba(42, 143, 168, 0) 70%
   );
   pointer-events: none;
-  animation: ffArmedPulse 3s ease-in-out infinite;
+  animation: ffIconHaloPulse 2.4s ease-in-out infinite;
+  filter: blur(2px);
+}
+
+/* ── Persistent armed-state chrome on the Junebug column ──
+   When armed, the polish-junebug-target gets a subtle HUD border that
+   breathes and an occasional scanning line that sweeps down. These are
+   ambient cues — enough to say "tool is online," not enough to distract. */
+@keyframes ffArmedBorderBreathe {
+  0%, 100% {
+    box-shadow: inset 0 0 0 1px rgba(42, 143, 168, 0.22),
+                0 0 24px rgba(42, 143, 168, 0.08);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1.5px rgba(52, 184, 216, 0.4),
+                0 0 36px rgba(52, 184, 216, 0.18);
+  }
+}
+.polish-junebug-target[data-ff-armed="true"] {
+  position: relative;
+  animation: ffArmedBorderBreathe 4s ease-in-out infinite;
+  border-radius: var(--radius-lg);
+}
+/* Diagonal scanning sweep across the column — fires every 6s and takes 2s.
+   Animated via pseudo-element so it doesn't disturb layout. */
+@keyframes ffArmedSweep {
+  0%, 80% { transform: translateY(-100%); opacity: 0; }
+  85%     { opacity: 1; }
+  100%    { transform: translateY(100%); opacity: 0; }
+}
+.polish-junebug-target[data-ff-armed="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(52, 184, 216, 0) 40%,
+    rgba(52, 184, 216, 0.14) 50%,
+    rgba(52, 184, 216, 0) 60%,
+    transparent 100%
+  );
+  animation: ffArmedSweep 10s ease-in-out infinite;
+  animation-delay: 2s;
+  border-radius: var(--radius-lg);
+  /* Below content, above background. Pointer-events already none. */
+  z-index: 0;
+  mix-blend-mode: screen;
+  overflow: hidden;
+}
+
+/* Subtle color shift on the Junebug pane background when armed — makes
+   the whole surface feel "awake." Paired with the breathing border above. */
+.polish-junebug-target[data-ff-armed="true"] {
+  background: linear-gradient(
+    180deg,
+    rgba(230, 245, 248, 0.4) 0%,
+    rgba(255, 255, 255, 1) 100%
+  );
 }
 
 /* ── Reduced motion fallback ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  .ff-screen-flash,
   .ff-shockwave-ring,
   .ff-surface-dim,
   .ff-hud-line,
@@ -672,6 +769,7 @@ a, button, [role="button"] {
     opacity: 1 !important;
     transform: none !important;
   }
+  .ff-screen-flash { display: none !important; }
   .ff-hud-line--horizontal { transform: scaleX(1) !important; }
   .ff-hud-line--vertical   { transform: scaleY(1) !important; }
   .ff-readout {
@@ -687,6 +785,14 @@ a, button, [role="button"] {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     background: rgba(10, 22, 40, 0.04) !important;
+  }
+  .polish-junebug-target[data-ff-armed="true"] {
+    animation: none !important;
+    box-shadow: inset 0 0 0 1px var(--c-teal) !important;
+    background: white !important;
+  }
+  .polish-junebug-target[data-ff-armed="true"]::before {
+    display: none !important;
   }
 }
 

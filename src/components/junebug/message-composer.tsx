@@ -105,7 +105,7 @@ export function MessageComposer({
       {/* Loading hint while streaming */}
       {isStreaming && (
         <div className="flex items-center gap-2 self-start rounded-full bg-c-gray-50 px-3 py-1 text-[12px] text-c-gray-500">
-          <JunebugIcon className="h-4 w-4" mood="thinking" animated />
+          <JunebugIcon className="h-4 w-4" mood="thinking" animated fullFetch={armed} />
           <span>{loadingMessage || "Junebug is thinking…"}</span>
         </div>
       )}

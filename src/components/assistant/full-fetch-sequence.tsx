@@ -212,16 +212,34 @@ export interface FullFetchShockwaveProps {
   count?: number
 }
 
-export function FullFetchShockwave({ count = 3 }: FullFetchShockwaveProps) {
+/** Screen-wide radial flash — fires at Stage 0 onset. 240ms peak 85% opacity.
+ *  Portal-rendered from the toggle. Visual cue that says "something just
+ *  happened" before the practitioner even processes the shockwave. */
+export function FullFetchScreenFlash() {
+  return <div className="ff-screen-flash" aria-hidden />
+}
+
+/** Concentric shockwave rings from the toggle. 5 rings by default, staggered
+ *  by 70ms, scale from 0.2 → 9x over 850ms with teal-bright color and
+ *  box-shadow glow. */
+export function FullFetchShockwave({ count = 5 }: FullFetchShockwaveProps) {
   return (
     <>
-      {Array.from({ length: count }).map((_, i) => (
-        <span
-          key={i}
-          className={`ff-shockwave-ring ${i === 1 ? "ff-shockwave-ring--delay-1" : ""} ${i === 2 ? "ff-shockwave-ring--delay-2" : ""}`}
-          aria-hidden
-        />
-      ))}
+      {Array.from({ length: count }).map((_, i) => {
+        const delayClass =
+          i === 0 ? "" :
+          i === 1 ? "ff-shockwave-ring--delay-1" :
+          i === 2 ? "ff-shockwave-ring--delay-2" :
+          i === 3 ? "ff-shockwave-ring--delay-3" :
+          "ff-shockwave-ring--delay-4"
+        return (
+          <span
+            key={i}
+            className={`ff-shockwave-ring ${delayClass}`}
+            aria-hidden
+          />
+        )
+      })}
     </>
   )
 }

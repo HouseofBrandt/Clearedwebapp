@@ -193,6 +193,35 @@ export function ThreadView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSendContent])
 
+  // Case-scope mutation. Persists via PATCH /api/junebug/threads/[id] and
+  // updates local thread state so the chip reflects the change immediately.
+  // Declared BEFORE the early returns below to satisfy rules-of-hooks —
+  // hooks must run in the same order on every render.
+  const handleCaseChange = useCallback(
+    async (caseId: string | null) => {
+      const res = await fetch(`/api/junebug/threads/${threadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ caseId }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error || `Failed to update case (${res.status})`)
+      }
+      const data = await res.json()
+      const updated = data.thread
+      // Patch local state so the chip's label + metadata refresh without a
+      // full refetch. The useThread hook manages its own state.
+      t.patchThread({
+        caseId: updated.caseId,
+        caseNumber: updated.caseNumber,
+        clientName: updated.clientName,
+      })
+    },
+    [threadId, t]
+  )
+
   if (t.isLoading && !t.thread) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-c-gray-500">
@@ -219,7 +248,11 @@ export function ThreadView({
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <ThreadContextChip thread={t.thread} messages={t.messages} />
+      <ThreadContextChip
+        thread={t.thread}
+        messages={t.messages}
+        onCaseChange={handleCaseChange}
+      />
       {t.messages.length === 0 && !sender.isStreaming ? (
         <div className="flex flex-1 items-center justify-center px-8 py-12 text-center text-c-gray-500">
           <p className="text-[13px]">

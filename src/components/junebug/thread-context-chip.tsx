@@ -3,22 +3,25 @@
 /**
  * ThreadContextChip (spec §7.6).
  *
- * Accountability surface — shows what Junebug had access to for the most
- * recent turn in this thread. Reads from the latest USER message's
- * `contextSnapshot` field.
+ * Accountability + control surface — shows what Junebug had access to
+ * for the most recent turn AND lets the practitioner attach, change, or
+ * clear a case scope on this thread.
  *
- * v1 shows case chip + doc count + KB hit count + route. PR 4 will
- * augment with live fetch (Title generation + polish layer), but the
- * fundamental "did the model see case data?" answer must ship in v1.
+ * Reads from the latest USER message's `contextSnapshot` field for the
+ * "last turn" data (KB hits, caseType, contextAvailable, etc.).
  */
 
-import { useMemo, useState } from "react"
-import { ChevronDown, ScanSearch } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ChevronDown, ScanSearch, Search, X } from "lucide-react"
 import type { JunebugMessage, JunebugThreadDetail } from "./types"
 
 export interface ThreadContextChipProps {
   thread: JunebugThreadDetail | null
   messages: JunebugMessage[]
+  /** Called when the user picks / clears a case. Parent persists via
+   *  PATCH /api/junebug/threads/[id] and updates local state. Pass null
+   *  to clear the current case scope. */
+  onCaseChange?: (caseId: string | null) => Promise<void> | void
 }
 
 interface ContextSnapshot {
@@ -32,11 +35,16 @@ interface ContextSnapshot {
   sentAt?: string
 }
 
-export function ThreadContextChip({ thread, messages }: ThreadContextChipProps) {
+interface CaseResult {
+  id: string
+  tabsNumber: string
+  clientName: string
+}
+
+export function ThreadContextChip({ thread, messages, onCaseChange }: ThreadContextChipProps) {
   const [expanded, setExpanded] = useState(false)
 
   const latest = useMemo<ContextSnapshot | null>(() => {
-    // Find the most-recent USER message with a contextSnapshot
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i]
       if (m.role === "USER" && m.contextSnapshot) return m.contextSnapshot as ContextSnapshot
@@ -50,10 +58,6 @@ export function ThreadContextChip({ thread, messages }: ThreadContextChipProps) 
   const hasSentTurn = latest !== null
   const hasLiveData = latest?.contextAvailable === true
 
-  // Three distinct states per spec §7.6:
-  //   ok   — case thread, last turn had live data
-  //   warn — case thread, last turn's context load failed (guardrail fired)
-  //   info — either no case, or case thread that hasn't sent a turn yet
   const status: "ok" | "warn" | "info" = isCaseScoped
     ? hasSentTurn
       ? hasLiveData
@@ -64,7 +68,7 @@ export function ThreadContextChip({ thread, messages }: ThreadContextChipProps) 
 
   let label: string
   if (!isCaseScoped) {
-    label = "General — no case context"
+    label = "General — click to attach a case"
   } else if (!hasSentTurn) {
     label = `${thread.caseNumber ?? "Case loaded"} — ready to start`
   } else if (hasLiveData) {
@@ -135,6 +139,21 @@ export function ThreadContextChip({ thread, messages }: ThreadContextChipProps) 
               </Row>
             )}
           </dl>
+
+          {/* Case picker — attach / change / clear. Only shown when the
+              parent supplied an onCaseChange handler (thread is mutable). */}
+          {onCaseChange && (
+            <CasePicker
+              currentCaseId={thread.caseId ?? null}
+              currentLabel={
+                isCaseScoped
+                  ? `${thread.caseNumber ?? ""}${thread.clientName ? ` · ${thread.clientName}` : ""}`
+                  : null
+              }
+              onChange={onCaseChange}
+            />
+          )}
+
           <p className="mt-3 text-[11px] text-c-gray-500">
             Junebug&apos;s answers are informational. Review all output before relying on it.
           </p>
@@ -154,6 +173,159 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
         {label}
       </dt>
       <dd className="flex-1 text-c-gray-700">{children}</dd>
+    </div>
+  )
+}
+
+// ── Case picker ─────────────────────────────────────────────────────
+
+function CasePicker({
+  currentCaseId,
+  currentLabel,
+  onChange,
+}: {
+  currentCaseId: string | null
+  currentLabel: string | null
+  onChange: (caseId: string | null) => Promise<void> | void
+}) {
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<CaseResult[]>([])
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Debounced search — fires on query change after 150ms of idle.
+  useEffect(() => {
+    if (abortRef.current) abortRef.current.abort()
+    if (query.trim().length < 2) {
+      setResults([])
+      setLoading(false)
+      return
+    }
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    const timer = window.setTimeout(async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(
+          `/api/cases?search=${encodeURIComponent(query.trim())}&limit=8`,
+          { credentials: "same-origin", signal: ctrl.signal }
+        )
+        if (!res.ok) throw new Error(`Search failed: ${res.status}`)
+        const data = await res.json()
+        // /api/cases returns { cases: [...] } (decrypted via case-access filter)
+        const rows: CaseResult[] = (data.cases || []).map((c: any) => ({
+          id: c.id,
+          tabsNumber: c.tabsNumber ?? "",
+          clientName: c.clientName ?? "",
+        }))
+        setResults(rows)
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          setError(err.message || "Search failed")
+          setResults([])
+        }
+      } finally {
+        setLoading(false)
+      }
+    }, 150)
+    return () => {
+      window.clearTimeout(timer)
+      ctrl.abort()
+    }
+  }, [query])
+
+  const pick = useCallback(
+    async (caseId: string | null) => {
+      setSubmitting(true)
+      setError(null)
+      try {
+        await onChange(caseId)
+        setQuery("")
+        setResults([])
+      } catch (err: any) {
+        setError(err?.message || "Failed to update case")
+      } finally {
+        setSubmitting(false)
+      }
+    },
+    [onChange]
+  )
+
+  return (
+    <div className="mt-4 border-t border-c-gray-100 pt-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span
+          className="text-[11px] uppercase tracking-[0.06em] text-c-gray-500"
+          style={{ fontFamily: "var(--font-mono, monospace)" }}
+        >
+          {currentCaseId ? "Change case" : "Attach a case"}
+        </span>
+        {currentCaseId && (
+          <button
+            type="button"
+            onClick={() => pick(null)}
+            disabled={submitting}
+            className="inline-flex items-center gap-1 text-[11px] text-c-gray-500 hover:text-c-danger disabled:opacity-50"
+          >
+            <X className="h-3 w-3" />
+            Clear ({currentLabel || "current"})
+          </button>
+        )}
+      </div>
+
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-c-gray-300" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by client name or TABS number…"
+          className="w-full rounded-md border border-c-gray-200 bg-white py-1.5 pl-8 pr-3 text-[12px] text-c-gray-900 placeholder:text-c-gray-300 focus:border-c-teal focus:outline-none focus:ring-2 focus:ring-c-teal/15"
+          disabled={submitting}
+        />
+      </div>
+
+      {error && (
+        <p className="mt-1.5 text-[11px] text-c-danger">{error}</p>
+      )}
+
+      {loading && (
+        <p className="mt-1.5 text-[11px] text-c-gray-500">Searching…</p>
+      )}
+
+      {results.length > 0 && (
+        <ul className="mt-1.5 divide-y divide-c-gray-100 rounded-md border border-c-gray-100 bg-white shadow-sm">
+          {results.map((r) => (
+            <li key={r.id}>
+              <button
+                type="button"
+                onClick={() => pick(r.id)}
+                disabled={submitting || r.id === currentCaseId}
+                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-[12px] transition-colors hover:bg-c-gray-50 disabled:opacity-50"
+              >
+                <span className="truncate text-c-gray-900">
+                  {r.clientName || "(unnamed)"}
+                </span>
+                <span
+                  className="shrink-0 text-[11px] text-c-gray-500"
+                  style={{ fontFamily: "var(--font-mono, monospace)" }}
+                >
+                  {r.tabsNumber}
+                  {r.id === currentCaseId ? " · current" : ""}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {query.trim().length >= 2 && !loading && results.length === 0 && !error && (
+        <p className="mt-1.5 text-[11px] text-c-gray-500">
+          No matches. Type at least 2 characters.
+        </p>
+      )}
     </div>
   )
 }
