@@ -89,13 +89,16 @@ export async function searchCaseDocuments(
   }
 
   // Group by document, compute merged score per chunk, keep top 2 chunks per doc.
-  const byDocument = new Map<string, Array<{ chunkId: string; content: string; pageNumber: number | null; score: number; vector: number; text: number }>>()
-  for (const [chunkId, s] of scoreByChunk) {
+  // Using forEach + Array.from to avoid downlevelIteration requirements (tsconfig
+  // has no target set, so ES3 iteration semantics apply).
+  type ChunkRow = { chunkId: string; content: string; pageNumber: number | null; score: number; vector: number; text: number }
+  const byDocument = new Map<string, ChunkRow[]>()
+  scoreByChunk.forEach((s, chunkId) => {
     const merged = 0.7 * s.vector + 0.3 * s.text
     const arr = byDocument.get(s.documentId) || []
     arr.push({ chunkId, content: s.content, pageNumber: s.pageNumber, score: merged, vector: s.vector, text: s.text })
     byDocument.set(s.documentId, arr)
-  }
+  })
 
   // Fetch document metadata and extracts for the matched docs in one query.
   const documentIds = Array.from(byDocument.keys())
@@ -124,15 +127,15 @@ export async function searchCaseDocuments(
   }
 
   const results: DocumentSearchHit[] = []
-  for (const [docId, chunks] of byDocument) {
+  byDocument.forEach((chunks, docId) => {
     const doc = docMap.get(docId)
-    if (!doc) continue
-    const topChunks = chunks.sort((a, b) => b.score - a.score).slice(0, 2)
+    if (!doc) return
+    const topChunks = chunks.sort((a: ChunkRow, b: ChunkRow) => b.score - a.score).slice(0, 2)
     results.push({
       documentId: doc.id,
       documentName: doc.fileName,
       documentCategory: String(doc.documentCategory),
-      chunks: topChunks.map((c) => ({
+      chunks: topChunks.map((c: ChunkRow) => ({
         chunkId: c.chunkId,
         content: c.content,
         pageNumber: c.pageNumber,
@@ -146,7 +149,7 @@ export async function searchCaseDocuments(
         confidence: e.confidence,
       })),
     })
-  }
+  })
 
   return results.sort((a, b) => {
     const aTop = a.chunks[0]?.score || 0

@@ -196,7 +196,11 @@ export interface FormMetadata {
 export interface FormInstance {
   id: string
   formNumber: string
-  revision: string                   // Added in v2. Older rows default to schema.currentRevision.
+  // Added in v2. Optional at the runtime-type level so legacy call sites
+  // that synthesize FormInstance objects don't need to set it. The Prisma
+  // column defaults to "unknown" — new instances may fill it with the
+  // schema's currentRevision at creation time.
+  revision?: string
   caseId: string
   clientId?: string
   status: "draft" | "in_progress" | "complete" | "submitted"
