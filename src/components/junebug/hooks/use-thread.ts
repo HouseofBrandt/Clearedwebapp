@@ -43,7 +43,19 @@ export function useThread(threadId: string | null) {
       }
       const data: ThreadGetResponse = await res.json()
       setThread(data.thread)
-      setMessages(data.messages)
+      // Merge-preserve optimistic messages that aren't in the server
+      // response yet. This fixes the race where a splash-triggered
+      // initialSend fires optimistic append while the initial fetch is
+      // still in flight — without this merge, the fetch's empty messages
+      // would clobber the optimistic user bubble and the user would see
+      // only the assistant response when the stream finishes.
+      setMessages((prev) => {
+        const fetchedIds = new Set(data.messages.map((m) => m.id))
+        const preservedOptimistic = prev.filter(
+          (m) => m.id.startsWith("optimistic-") && !fetchedIds.has(m.id)
+        )
+        return [...data.messages, ...preservedOptimistic]
+      })
       setHasMore(data.hasMoreMessages)
       setOlderCursor(data.oldestMessageCursor)
     },

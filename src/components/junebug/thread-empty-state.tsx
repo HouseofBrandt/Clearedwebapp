@@ -82,8 +82,10 @@ export function ThreadEmptyState({
           {armed && <span className="ff-icon-halo" />}
           <JunebugIcon
             className="h-16 w-16"
-            mood="happy"
-            style={{ color: "var(--c-warning)" }}
+            mood={armed ? "thinking" : "happy"}
+            animated={armed}
+            fullFetch={armed}
+            style={{ color: armed ? "var(--c-teal)" : "var(--c-warning)" }}
           />
         </div>
 

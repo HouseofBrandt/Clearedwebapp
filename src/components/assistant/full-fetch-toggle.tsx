@@ -16,6 +16,7 @@ import {
   FullFetchActivation,
   FullFetchDeactivation,
   FullFetchShockwave,
+  FullFetchScreenFlash,
 } from "./full-fetch-sequence"
 import { useFullFetch } from "./full-fetch-context"
 
@@ -75,13 +76,16 @@ export function FullFetchToggle({ targetSelector, disabled }: FullFetchTogglePro
 
       {mounted && activating &&
         createPortal(
-          <FullFetchActivation
-            targetSelector={targetSelector}
-            onComplete={() => {
-              setActivating(false)
-              setArmed(true)
-            }}
-          />,
+          <>
+            <FullFetchScreenFlash />
+            <FullFetchActivation
+              targetSelector={targetSelector}
+              onComplete={() => {
+                setActivating(false)
+                setArmed(true)
+              }}
+            />
+          </>,
           document.body,
         )}
 

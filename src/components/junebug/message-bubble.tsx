@@ -14,6 +14,7 @@ import { Check, Copy, RotateCcw, X } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import { useFullFetch } from "@/components/assistant/full-fetch-context"
 import type { JunebugMessage } from "./types"
 
 marked.setOptions({ breaks: true, gfm: true })
@@ -86,6 +87,10 @@ export interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message, isStreaming, onRetry }: MessageBubbleProps) {
+  // When Full Fetch is armed, the assistant icon gets the shield/glow
+  // treatment so every assistant bubble telegraphs the active tool mode.
+  const { armed: fullFetchArmed } = useFullFetch()
+
   if (message.role === "USER") {
     return (
       <div className="flex animate-message-in justify-end">
@@ -144,7 +149,8 @@ export function MessageBubble({ message, isStreaming, onRetry }: MessageBubblePr
           className="h-5 w-5"
           mood={isStreaming ? "thinking" : "idle"}
           animated={isStreaming}
-          style={{ color: "var(--c-warning)" }}
+          fullFetch={fullFetchArmed}
+          style={{ color: fullFetchArmed ? "var(--c-teal)" : "var(--c-warning)" }}
         />
       </div>
       <div className="group relative max-w-[92%] text-[13.5px] text-c-gray-900">
