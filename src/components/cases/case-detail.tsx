@@ -333,6 +333,12 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             <WorkspaceTab active={workspace === "deliverables"} onClick={() => handleWorkspaceChange("deliverables")} count={approvedTasks.length}>
               Deliverables
             </WorkspaceTab>
+            <Link
+              href={`/cases/${caseData.id}/forms`}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              Forms
+            </Link>
             <WorkspaceTab active={workspace === "deadlines"} onClick={() => handleWorkspaceChange("deadlines")} count={deadlines.length}>
               Deadlines
             </WorkspaceTab>

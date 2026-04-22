@@ -7,6 +7,9 @@ import { join } from "path"
 import { getFormInstance } from "@/lib/forms/form-store"
 import { getAcroFieldMap } from "@/lib/forms/pdf-maps/registry"
 import { getAutoMapping, getPDFFileName } from "@/lib/forms/pdf-auto-mapper"
+import { FORM_BUILDER_V2_ENABLED } from "@/lib/forms/feature-flags"
+import { fillPDFOrReport } from "@/lib/forms/pdf-renderer"
+import { hasBinding } from "@/lib/forms/registry"
 
 const FORM_PDF_FILES: Record<string, string> = {
   "433-A": "f433a.pdf",
@@ -672,6 +675,13 @@ export async function POST(
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 })
   }
 
+  // V2 path: use the new renderer when the flag is on and a binding exists.
+  // Falls back to the legacy path for forms whose bindings aren't yet authored
+  // (e.g., 433-A-OIC), so during the rollout both paths coexist cleanly.
+  if (FORM_BUILDER_V2_ENABLED && hasBinding(formNumber)) {
+    return renderWithV2(formNumber, values)
+  }
+
   const pdfFileName = FORM_PDF_FILES[formNumber] || getPDFFileName(formNumber)
   if (!pdfFileName) {
     return NextResponse.json({ error: "PDF not available" }, { status: 404 })
@@ -680,8 +690,33 @@ export async function POST(
   return generateFilledPDF(formNumber, values, pdfFileName)
 }
 
+async function renderWithV2(formNumber: string, values: Record<string, any>) {
+  const result = await fillPDFOrReport({
+    formNumber,
+    values,
+    options: { flatten: true },
+  })
+  if (!result.ok) {
+    return NextResponse.json({ error: result.reason }, { status: 404 })
+  }
+  const { pdfBytes, filled, skipped, failed, durationMs, strategy, revision } = result.result
+  return new NextResponse(Buffer.from(pdfBytes), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="preview-${formNumber}.pdf"`,
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "X-Forms-V2-Strategy": strategy,
+      "X-Forms-V2-Revision": revision,
+      "X-Forms-V2-Filled": String(filled),
+      "X-Forms-V2-Skipped": String(skipped),
+      "X-Forms-V2-Failed": String(failed.length),
+      "X-Forms-V2-Duration-Ms": String(durationMs),
+    },
+  })
+}
+
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { instanceId: string } }
 ) {
   const session = await getServerSession(authOptions)
@@ -697,6 +732,10 @@ export async function GET(
   if (instance) {
     values = instance.values || {}
     formNumber = instance.formNumber || "433-A"
+  }
+
+  if (FORM_BUILDER_V2_ENABLED && hasBinding(formNumber)) {
+    return renderWithV2(formNumber, values)
   }
 
   const pdfFileName = FORM_PDF_FILES[formNumber] || getPDFFileName(formNumber)
