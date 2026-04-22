@@ -193,32 +193,10 @@ export function ThreadView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSendContent])
 
-  if (t.isLoading && !t.thread) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-c-gray-500">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-c-gray-100 border-t-c-gold" />
-        <span className="text-[12px]">Loading conversation…</span>
-      </div>
-    )
-  }
-
-  if (t.error) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-        <p className="text-[13px] text-c-danger">{t.error}</p>
-        <button
-          type="button"
-          onClick={() => void t.refetch()}
-          className="text-[12px] text-c-gray-500 underline hover:text-c-gray-700"
-        >
-          Try again
-        </button>
-      </div>
-    )
-  }
-
   // Case-scope mutation. Persists via PATCH /api/junebug/threads/[id] and
   // updates local thread state so the chip reflects the change immediately.
+  // Declared BEFORE the early returns below to satisfy rules-of-hooks —
+  // hooks must run in the same order on every render.
   const handleCaseChange = useCallback(
     async (caseId: string | null) => {
       const res = await fetch(`/api/junebug/threads/${threadId}`, {
@@ -243,6 +221,30 @@ export function ThreadView({
     },
     [threadId, t]
   )
+
+  if (t.isLoading && !t.thread) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-c-gray-500">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-c-gray-100 border-t-c-gold" />
+        <span className="text-[12px]">Loading conversation…</span>
+      </div>
+    )
+  }
+
+  if (t.error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+        <p className="text-[13px] text-c-danger">{t.error}</p>
+        <button
+          type="button"
+          onClick={() => void t.refetch()}
+          className="text-[12px] text-c-gray-500 underline hover:text-c-gray-700"
+        >
+          Try again
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col bg-white">
