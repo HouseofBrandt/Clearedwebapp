@@ -7,6 +7,7 @@ import {
 } from "@/lib/feed/junebug-reply"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import { z } from "zod"
+import { decryptEmbeddedCaseClientName } from "@/lib/feed/decrypt-case-name"
 
 const createPostSchema = z.object({
   postType: z.enum(["post", "file_share"]),
@@ -112,18 +113,23 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Transform for client
-    const transformed = posts.map((post) => ({
-      ...post,
-      replyCount: post._count.replies,
-      likeCount: post._count.likes,
-      reactionCount: post._count.reactions,
-      liked: post.likes.length > 0,
-      myReactions: post.reactions.map((r) => r.type),
-      likes: undefined,
-      reactions: undefined,
-      _count: undefined,
-    }))
+    // Transform for client. Decrypt case.clientName server-side — it's
+    // stored encrypted at rest and must never be shipped to the browser
+    // raw. Parity with the server-component helper in dashboard/page.tsx.
+    const transformed = posts.map((post) => {
+      const base: any = {
+        ...post,
+        replyCount: post._count.replies,
+        likeCount: post._count.likes,
+        reactionCount: post._count.reactions,
+        liked: post.likes.length > 0,
+        myReactions: post.reactions.map((r) => r.type),
+        likes: undefined,
+        reactions: undefined,
+        _count: undefined,
+      }
+      return decryptEmbeddedCaseClientName(base)
+    })
 
     const nextCursor =
       posts.length === limit ? posts[posts.length - 1].createdAt.toISOString() : null

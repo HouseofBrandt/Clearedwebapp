@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { decryptEmbeddedCaseClientName } from "@/lib/feed/decrypt-case-name"
 
 /**
  * PATCH /api/feed/[postId]/complete — mark a task as complete
@@ -42,7 +43,7 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json(updated)
+    return NextResponse.json(decryptEmbeddedCaseClientName(updated))
   } catch (error: any) {
     console.error("[Feed] Task complete failed:", error.message)
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 })

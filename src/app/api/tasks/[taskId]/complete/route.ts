@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { decryptEmbeddedCaseClientName } from "@/lib/feed/decrypt-case-name"
 
 /**
  * POST /api/tasks/[taskId]/complete — mark task complete (V2)
@@ -73,7 +74,7 @@ async function handleComplete(taskId: string) {
       data: { taskCompleted: true, taskCompletedAt: new Date(), taskCompletedById: auth.userId },
     }).catch(() => {})
 
-    return NextResponse.json(updated)
+    return NextResponse.json(decryptEmbeddedCaseClientName(updated))
   } catch (error: any) {
     console.error("[Tasks] Complete error:", error.message)
     return NextResponse.json({ error: "Failed to complete task" }, { status: 500 })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
+import { decryptEmbeddedCaseClientName } from "@/lib/feed/decrypt-case-name"
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).max(500).optional(),
@@ -66,7 +67,7 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json(task)
+    return NextResponse.json(decryptEmbeddedCaseClientName(task))
   } catch (error: any) {
     console.error("[Tasks] Update error:", error.message)
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 })
