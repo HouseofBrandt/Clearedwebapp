@@ -6,6 +6,10 @@ import { DEADLINE_DEFAULT_PRIORITY } from "@/types"
 import { logAudit, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { canAccessCase, caseAccessFilter } from "@/lib/auth/case-access"
 import { computeCaseGraph } from "@/lib/case-intelligence/graph-engine"
+import {
+  decryptEmbeddedCaseClientName,
+  decryptEmbeddedCaseClientNames,
+} from "@/lib/feed/decrypt-case-name"
 
 const VALID_TYPES = [
   "CDP_HEARING", "EQUIVALENT_HEARING", "TAX_COURT_PETITION", "CSED_EXPIRATION",
@@ -102,7 +106,7 @@ export async function GET(request: NextRequest) {
     ? withComputedStatus.filter((d) => d.computedStatus === status)
     : withComputedStatus
 
-  return NextResponse.json(filtered)
+  return NextResponse.json(decryptEmbeddedCaseClientNames(filtered))
 }
 
 export async function POST(request: NextRequest) {
@@ -172,5 +176,5 @@ export async function POST(request: NextRequest) {
     },
   }).catch(() => {})
 
-  return NextResponse.json(deadline, { status: 201 })
+  return NextResponse.json(decryptEmbeddedCaseClientName(deadline), { status: 201 })
 }

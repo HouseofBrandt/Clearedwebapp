@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, Circle, AlertTriangle, Flag } from "lucide-react"
+import { redactLeakedPII } from "@/lib/feed/redact-leaked-pii"
 
 const PRIORITY_STYLES: Record<string, { text: string; bg: string; border: string }> = {
   urgent: { text: 'var(--c-danger)', bg: 'var(--c-danger-soft)', border: 'var(--c-danger)' },
@@ -22,9 +23,11 @@ export function TaskCard({ post, currentUserId, onComplete }: TaskCardProps) {
   const [completing, setCompleting] = useState(false)
   const isAssignee = post.taskAssigneeId === currentUserId
 
-  // V2: Use Task record if available, fall back to legacy FeedPost fields
+  // V2: Use Task record if available, fall back to legacy FeedPost fields.
+  // Titles and content are redacted defensively in case an upstream write
+  // leaked an encrypted envelope or tokenizer output into the text.
   const task = post.task
-  const title = task?.title || post.taskTitle
+  const title = redactLeakedPII(task?.title || post.taskTitle || "")
   const priority = task?.priority || "normal"
   const status = task?.status || (post.taskCompleted ? "completed" : "open")
   const isCompleted = status === "completed" || post.taskCompleted
@@ -116,11 +119,16 @@ export function TaskCard({ post, currentUserId, onComplete }: TaskCardProps) {
               className="font-mono text-xs font-medium hover:underline mt-1 inline-block"
               style={{ color: 'var(--c-teal)' }}
             >
-              #{post.case.clientName || post.case.tabsNumber}
+              {/* Prefer tabsNumber for the chip — it's safe-to-display and
+                  stable. Fall back to clientName only after redaction, so a
+                  leaked encrypted envelope never surfaces here. */}
+              #{post.case.tabsNumber || redactLeakedPII(post.case.clientName || "") || "Case"}
             </Link>
           )}
           {post.content && (
-            <p className="text-sm mt-2" style={{ color: 'var(--c-gray-300)' }}>{post.content}</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--c-gray-300)' }}>
+              {redactLeakedPII(post.content)}
+            </p>
           )}
           {isCompleted && completedAt && (
             <p className="text-xs mt-1" style={{ color: 'var(--c-success)' }}>

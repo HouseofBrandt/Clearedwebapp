@@ -79,9 +79,24 @@ export async function POST(
             data: { status: "COMPOSING", compositionStartedAt: new Date() },
           })
 
-          const caseContext = session.case
-            ? `${session.case.caseType} case for ${session.case.clientName}`
-            : undefined
+          // Decrypt clientName before composing the research context — the
+          // field is stored as an encrypted envelope at rest; injecting
+          // `v1:iv:tag:ct` into the LLM prompt would both degrade research
+          // quality and persist an unreadable reference. Best-effort: if
+          // decrypt fails, fall back to the TABS number for the prompt.
+          let caseContext: string | undefined
+          if (session.case) {
+            let clientNameForPrompt = ""
+            try {
+              const { decryptField } = await import("@/lib/encryption")
+              clientNameForPrompt = decryptField(session.case.clientName) || ""
+            } catch {
+              clientNameForPrompt = ""
+            }
+            caseContext = `${session.case.caseType} case for ${
+              clientNameForPrompt || "client (name unavailable)"
+            }`
+          }
           const scope = session.mode === "QUICK_ANSWER" ? "narrow" as const : "broad" as const
 
           const result = await conductResearch({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
+import { decryptEmbeddedCaseClientName } from "@/lib/feed/decrypt-case-name"
 
 /**
  * GET /api/research/sessions/[sessionId]
@@ -37,7 +38,7 @@ export async function GET(
       return NextResponse.json({ error: "Research session not found" }, { status: 404 })
     }
 
-    return NextResponse.json(session)
+    return NextResponse.json(decryptEmbeddedCaseClientName(session))
   } catch (error: any) {
     console.error("[Research Session Detail] GET error:", error.message)
     return NextResponse.json(

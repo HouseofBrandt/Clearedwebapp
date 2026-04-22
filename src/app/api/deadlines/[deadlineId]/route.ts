@@ -3,6 +3,7 @@ import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { z } from "zod"
+import { decryptEmbeddedCaseClientName } from "@/lib/feed/decrypt-case-name"
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -39,7 +40,7 @@ export async function GET(
     return NextResponse.json({ error: "Deadline not found" }, { status: 404 })
   }
 
-  return NextResponse.json(deadline)
+  return NextResponse.json(decryptEmbeddedCaseClientName(deadline))
 }
 
 export async function PATCH(
@@ -100,7 +101,7 @@ export async function PATCH(
     ipAddress: getClientIP(),
   })
 
-  return NextResponse.json(updated)
+  return NextResponse.json(decryptEmbeddedCaseClientName(updated))
 }
 
 export async function DELETE(

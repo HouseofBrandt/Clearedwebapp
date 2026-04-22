@@ -3,6 +3,10 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { logAudit } from "@/lib/ai/audit"
 import { z } from "zod"
+import {
+  decryptEmbeddedCaseClientName,
+  decryptEmbeddedCaseClientNames,
+} from "@/lib/feed/decrypt-case-name"
 
 // ─── Validation ──────────────────────────────────────────────────
 
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
       metadata: { mode: data.mode },
     })
 
-    return NextResponse.json(session, { status: 201 })
+    return NextResponse.json(decryptEmbeddedCaseClientName(session), { status: 201 })
   } catch (error: any) {
     console.error("[Research Sessions] POST error:", error.message)
     return NextResponse.json(
@@ -128,7 +132,12 @@ export async function GET(request: NextRequest) {
       prisma.researchSession.count({ where }),
     ])
 
-    return NextResponse.json({ sessions, total, limit, offset })
+    return NextResponse.json({
+      sessions: decryptEmbeddedCaseClientNames(sessions),
+      total,
+      limit,
+      offset,
+    })
   } catch (error: any) {
     console.error("[Research Sessions] GET error:", error.message)
     return NextResponse.json(

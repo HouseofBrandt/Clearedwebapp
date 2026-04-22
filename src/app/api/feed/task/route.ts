@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireApiAuth } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { z } from "zod"
+import { decryptEmbeddedCaseClientName } from "@/lib/feed/decrypt-case-name"
 
 const createTaskSchema = z.object({
   taskTitle: z.string().min(1).max(500),
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(post, { status: 201 })
+    return NextResponse.json(decryptEmbeddedCaseClientName(post), { status: 201 })
   } catch (error: any) {
     console.error("[Feed] Create task failed:", error.message)
     return NextResponse.json({ error: "Failed to create task" }, { status: 500 })
