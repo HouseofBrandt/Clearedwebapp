@@ -1,32 +1,26 @@
 /**
  * Shared auth + ownership helpers for Junebug thread routes.
  *
- * Spec §6 is unambiguous about the access model:
+ * Spec §6 access model:
  *   - Every route requires a session.
  *   - Threads are owned by a single user (userId). Another user's threadId
  *     returns 404 — NOT 403 — to avoid leaking existence.
- *   - The feature flag gates everything. When off, routes return 404.
  */
 
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { junebugThreadsEnabled } from "./feature-flag"
 
 export type AccessCheck =
   | { ok: true; userId: string }
   | { ok: false; response: NextResponse }
 
 /**
- * Gate: feature flag + session. Use at the top of every Junebug route.
- * Returns the userId on success, or a pre-built NextResponse on failure.
+ * Gate: session required. Use at the top of every Junebug route. Returns
+ * the userId on success, or a pre-built NextResponse on failure.
  */
 export async function requireJunebugSession(): Promise<AccessCheck> {
-  if (!junebugThreadsEnabled()) {
-    // When the flag is off, the routes don't exist. 404, no body.
-    return { ok: false, response: new NextResponse(null, { status: 404 }) }
-  }
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return {
@@ -34,7 +28,7 @@ export async function requireJunebugSession(): Promise<AccessCheck> {
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     }
   }
-  return { ok: true, userId: (session.user as any).id }
+  return { ok: true, userId: session.user.id }
 }
 
 /**

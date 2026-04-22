@@ -117,8 +117,6 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
     }
     return "documents"
   })
-  const [junebugCollapsed, setJunebugCollapsed] = useState(true)
-
   useEffect(() => {
     const onHashChange = () => {
       const hash = window.location.hash.replace("#", "")
@@ -712,14 +710,8 @@ export function CaseDetail({ caseData, practitioners, deadlines = [], intelligen
             )}
           </div>
 
-          {/* Inline Junebug */}
-          <CaseJunebug
-            caseId={caseData.id}
-            caseContext={caseContext}
-            collapsed={junebugCollapsed}
-            onToggle={() => setJunebugCollapsed(!junebugCollapsed)}
-            digest={intelligence?.digest}
-          />
+          {/* Junebug — links to the workspace pre-scoped to this case */}
+          <CaseJunebug caseId={caseData.id} />
         </div>
       </div>
     </div>

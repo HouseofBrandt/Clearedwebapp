@@ -18,11 +18,8 @@ import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
  * Auth: Bearer CRON_SECRET, matching the existing cron pattern
  * (src/app/api/cron/data-retention/route.ts).
  *
- * The route runs regardless of the NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED
- * flag — if the flag is off but threads tables exist (they do: PR 1's
- * migration lands schema-only), we still want the sweep to run so the
- * tables don't accumulate garbage if someone flipped the flag on then
- * off again. The query is a no-op when no empty threads exist.
+ * The query is a no-op when no empty threads exist, so running on
+ * every schedule tick is cheap regardless of Junebug activity.
  */
 
 export const maxDuration = 60

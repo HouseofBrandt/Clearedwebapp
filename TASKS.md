@@ -89,21 +89,25 @@ Acceptance:
 - New messages appear within 30 seconds without full page reload
 - State survives page refresh
 
-## [CODE_COMPLETE] A4.7 Junebug Threads — Persistent Multi-Thread Workspace
+## [DONE] A4.7 Junebug Threads — Persistent Multi-Thread Workspace
 Priority: P0
 Source: Part A — Junebug persistence + Claude.ai interaction pattern
-Spec: docs/spec-junebug-threads.md (full design — read before starting)
-Status notes (2026-04-16): all five implementation PRs landed on
-  claude/dreamy-visvesvaraya.
-    PR 1 (schema + flag)            ac91eab — in production via #132
-    PR 2 (API routes + completion)  cc00376 + 6d9aa8d (TS fix)
-    PR 3 (core components + hooks)  9369a2e — deployed green
-    PR 4 (title + summary + chip)   f4635ce — deployed green
-    PR 5 (routes + nav + cron)      6d930a7 — building at push time
-  Feature flag NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED defaults false —
-  nothing renders in production yet. Remaining work is the rollout
-  plan below + the post-rollout PR 6 cleanup. §11 acceptance tests
-  must pass in staging before flipping the flag.
+Spec: docs/spec-junebug-threads.md (header marks the document as
+  historical now that the work has shipped)
+Status notes (2026-04-22): rollout + bifurcation + cleanup completed
+  on claude/eloquent-zhukovsky-609606.
+    PRs 1–5 (schema, API, components, rolling summary, cron)
+      — landed previously on claude/dreamy-visvesvaraya.
+    PR 1 — §11 audit: fixed rolling-summary skip on error-polluted
+      threads and the "New conversation" title-fallback latency.
+    PR 2 — staged rollout gate (junebugThreadsEnabledForEmail +
+      NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS).
+    PR 3 — dashboard bifurcation: new DashboardSplit +
+      DashboardJunebugPane; JunebugWorkspace got an `embedded` mode.
+    PR 4 — legacy cleanup: deleted chat-panel.tsx + feature-flag.ts,
+      stripped gate code across 15 call sites, added a one-shot
+      sessionStorage migration, removed both env vars from
+      .env.example and RUNBOOK.md.
 Scope:
   - prisma/schema.prisma (+ migration): JunebugThread, JunebugMessage,
     JunebugMessageRole enum, JunebugAttachment; GIN index on

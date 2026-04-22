@@ -1,20 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from "vitest"
 
 /**
- * Security-critical: these helpers enforce the access model for
- * every Junebug route. A regression here could leak another user's
- * thread data to a caller.
+ * Security-critical: these helpers enforce the access model for every
+ * Junebug route. A regression here could leak another user's thread
+ * data to a caller.
  *
- * We mock the three dependencies (feature flag, NextAuth session,
- * Prisma) to test the gate logic in isolation. Integration tests
- * against a real DB live elsewhere.
+ * We mock `getServerSession` and the Prisma client so the gate logic
+ * runs in isolation. Integration tests against a real DB live
+ * elsewhere.
  */
 
-// Mock modules before importing the subject. Vitest hoists these
-// mocks above the imports so the real implementations never load.
-vi.mock("./feature-flag", () => ({
-  junebugThreadsEnabled: vi.fn(() => true),
-}))
 vi.mock("next-auth", () => ({
   getServerSession: vi.fn(),
 }))
@@ -30,34 +25,15 @@ vi.mock("@/lib/db", () => ({
 }))
 
 import { requireJunebugSession, requireOwnedThread } from "./thread-access"
-import { junebugThreadsEnabled } from "./feature-flag"
 import { getServerSession } from "next-auth"
 import { prisma } from "@/lib/db"
 
 describe("requireJunebugSession", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(junebugThreadsEnabled as any).mockReturnValue(true)
   })
 
-  it("returns 404 when the feature flag is OFF (don't leak route existence)", async () => {
-    ;(junebugThreadsEnabled as any).mockReturnValue(false)
-    const r = await requireJunebugSession()
-    expect(r.ok).toBe(false)
-    if (!r.ok) {
-      expect(r.response.status).toBe(404)
-      // Body should be empty — no JSON leaking feature state
-      expect(r.response.body).toBeNull()
-    }
-  })
-
-  it("does not call getServerSession when the flag is off (cheap gate)", async () => {
-    ;(junebugThreadsEnabled as any).mockReturnValue(false)
-    await requireJunebugSession()
-    expect(getServerSession).not.toHaveBeenCalled()
-  })
-
-  it("returns 401 when flag is on but there's no session", async () => {
+  it("returns 401 when there's no session (unauthenticated)", async () => {
     ;(getServerSession as any).mockResolvedValue(null)
     const r = await requireJunebugSession()
     expect(r.ok).toBe(false)
@@ -71,8 +47,10 @@ describe("requireJunebugSession", () => {
     if (!r.ok) expect(r.response.status).toBe(401)
   })
 
-  it("returns { ok: true, userId } on a valid session", async () => {
-    ;(getServerSession as any).mockResolvedValue({ user: { id: "user_abc" } })
+  it("returns { ok: true, userId } for a valid session", async () => {
+    ;(getServerSession as any).mockResolvedValue({
+      user: { id: "user_abc", email: "staff@cleared.com" },
+    })
     const r = await requireJunebugSession()
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.userId).toBe("user_abc")

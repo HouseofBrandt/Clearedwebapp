@@ -3,6 +3,8 @@ import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { decryptField } from "@/lib/encryption"
 import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting"
+import { DashboardSplit } from "@/components/dashboard/dashboard-split"
+import { DashboardJunebugPane } from "@/components/dashboard/dashboard-junebug-pane"
 import { FeedPage } from "@/components/feed/feed-page"
 
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
@@ -162,6 +164,11 @@ export default async function DashboardPage() {
     role: session.user.role || "PRACTITIONER",
   }
 
+  // Bifurcated layout: greeting stays narrow and centered (editorial
+  // voice — benefits from the 680px measure); the split below gets a
+  // wider container so each pane has room at ≥1024px viewports. At
+  // md..lg the split stacks; at <md it becomes a tabbed switcher
+  // (handled inside DashboardSplit).
   return (
     <div className="page-enter" style={{ minHeight: 0 }}>
       <div
@@ -171,18 +178,31 @@ export default async function DashboardPage() {
           paddingLeft: 32,
           paddingRight: 32,
           paddingTop: 48,
-          paddingBottom: 120,
         }}
       >
         <DashboardGreeting userName={currentUser.name} />
-
-        <FeedPage
-          currentUser={currentUser}
-          initialPosts={initialPosts}
-          myTaskCount={myTaskCount}
-          pinnedPosts={pinnedPosts}
-          cases={cases}
-          users={users}
+      </div>
+      <div
+        className="mx-auto"
+        style={{
+          maxWidth: 1440,
+          paddingLeft: 32,
+          paddingRight: 32,
+          paddingBottom: 120,
+        }}
+      >
+        <DashboardSplit
+          feedSlot={
+            <FeedPage
+              currentUser={currentUser}
+              initialPosts={initialPosts}
+              myTaskCount={myTaskCount}
+              pinnedPosts={pinnedPosts}
+              cases={cases}
+              users={users}
+            />
+          }
+          junebugSlot={<DashboardJunebugPane currentUser={currentUser} />}
         />
       </div>
     </div>

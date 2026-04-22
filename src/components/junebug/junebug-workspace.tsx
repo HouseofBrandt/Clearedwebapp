@@ -17,8 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react"
-import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
+import { ArrowUpRight, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { ThreadSidebar } from "./thread-sidebar"
 import { ThreadView } from "./thread-view"
 import { ThreadEmptyState } from "./thread-empty-state"
@@ -31,21 +30,47 @@ export interface JunebugWorkspaceProps {
   scopeToCaseId?: string | null
   /** Suggestions override for the splash screen (e.g. on a case page). */
   suggestions?: string[]
+  /**
+   * Embedded mode — used when the workspace lives inside a dashboard pane
+   * rather than the full-screen /junebug route. Changes:
+   *   - Sidebar starts collapsed (the pane is narrow; threads would crowd
+   *     the messages). Users toggle it from the chrome as needed.
+   *   - A small "Open full workspace" link appears in the top chrome,
+   *     inviting users to jump to /junebug[/threadId] when they want the
+   *     full experience.
+   *   - URL sync is skipped — the dashboard URL stays at /dashboard even
+   *     as the user navigates between threads inside the pane.
+   */
+  embedded?: boolean
+  /**
+   * Callback for the "Open full workspace" link in embedded mode. Receives
+   * the currently active thread id (if any) so the parent can route to
+   * `/junebug/:id` or `/junebug` appropriately. If omitted in embedded
+   * mode, the link is hidden.
+   */
+  onOpenFullWorkspace?: (activeThreadId: string | null) => void
 }
 
 export function JunebugWorkspace({
   initialThreadId,
   scopeToCaseId,
   suggestions,
+  embedded = false,
+  onOpenFullWorkspace,
 }: JunebugWorkspaceProps) {
-  const flagOn = junebugThreadsEnabled()
+  // Feature-flag gating is handled by the page-level (server) entry
+  // points — /junebug/page.tsx, /junebug/[threadId]/page.tsx, and the
+  // dashboard pane (PR 3). Anything that renders this component has
+  // already confirmed the user is in scope, so we don't re-check.
   const router = useRouter()
   const pathname = usePathname()
 
   const [activeThreadId, setActiveThreadId] = useState<string | null>(
     initialThreadId ?? null
   )
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  // Sidebar default: expanded in full-screen mode, collapsed when embedded
+  // (a narrow dashboard pane can't fit a 280px sidebar + content).
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(embedded)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [showArchived, setShowArchived] = useState(false)
@@ -65,6 +90,24 @@ export function JunebugWorkspace({
 
   const threads = useThreads(filters)
 
+  // One-shot migration: the legacy chat-panel wrote to sessionStorage
+  // ("junebug-chat", "junebug-chat-case") and localStorage
+  // ("junebug-full-fetch"). Those keys are dead once the threads
+  // workspace ships. Clear them exactly once per browser so users who
+  // upgraded mid-session don't drag orphan keys forever. Gated by a
+  // marker key so we don't clear on every mount.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("junebug-migration-v1") === "1") return
+      sessionStorage.removeItem("junebug-chat")
+      sessionStorage.removeItem("junebug-chat-case")
+      localStorage.removeItem("junebug-full-fetch")
+      localStorage.setItem("junebug-migration-v1", "1")
+    } catch {
+      /* private browsing / storage disabled — non-fatal */
+    }
+  }, [])
+
   // Sync activeThreadId with the URL-driven initialThreadId prop. This
   // matters for browser back/forward navigation: Next.js re-renders the
   // page with the new params, which would otherwise leave the workspace
@@ -76,17 +119,20 @@ export function JunebugWorkspace({
   }, [initialThreadId])
 
   // Keep URL in sync with active thread — only when mounted under
-  // /junebug. When embedded on a case detail page we leave the URL
-  // alone.
+  // /junebug and not in embedded mode. When embedded on a dashboard
+  // pane or case detail page we leave the URL alone so switching
+  // threads inside the pane doesn't dirty the browser history or push
+  // the user away from /dashboard.
   const lastPushedRef = useRef<string | null>(null)
   useEffect(() => {
+    if (embedded) return
     if (!activeThreadId) return
     if (lastPushedRef.current === activeThreadId) return
     if (!pathname?.startsWith("/junebug")) return
     lastPushedRef.current = activeThreadId
     const qs = scopeToCaseId ? `?case=${scopeToCaseId}` : ""
     router.replace(`/junebug/${activeThreadId}${qs}`, { scroll: false })
-  }, [activeThreadId, router, pathname, scopeToCaseId])
+  }, [embedded, activeThreadId, router, pathname, scopeToCaseId])
 
   const handleSelect = useCallback((id: string) => {
     setActiveThreadId(id)
@@ -178,16 +224,6 @@ export function JunebugWorkspace({
     },
     [threads]
   )
-
-  if (!flagOn) {
-    return (
-      <div className="flex h-full items-center justify-center p-12 text-center text-c-gray-500">
-        <p className="text-[13px]">
-          Junebug Threads is not enabled on this environment.
-        </p>
-      </div>
-    )
-  }
 
   const activeThread = activeThreadId
     ? threads.threads.find((t) => t.id === activeThreadId) ?? null
@@ -288,6 +324,22 @@ export function JunebugWorkspace({
           >
             {activeThread?.title ?? "Junebug"}
           </h2>
+          {embedded && onOpenFullWorkspace ? (
+            <button
+              type="button"
+              onClick={() => onOpenFullWorkspace(activeThreadId)}
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-c-gray-500 transition-colors hover:bg-c-gray-50 hover:text-c-gray-900"
+              style={{
+                fontFamily: "var(--font-jetbrains, monospace)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+              aria-label="Open full workspace"
+            >
+              Open workspace
+              <ArrowUpRight className="h-3 w-3" />
+            </button>
+          ) : null}
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">

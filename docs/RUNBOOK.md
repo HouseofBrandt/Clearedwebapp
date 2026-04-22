@@ -36,7 +36,6 @@ All set in Vercel → Project Settings → Environment Variables.
 | `ENCRYPTION_KEY` | 32-char random | `src/lib/encryption.ts` for case PII at rest |
 | `ANTHROPIC_API_KEY` | Anthropic console | All AI routes |
 | `CRON_SECRET` | 32-byte random | Bearer auth for `/api/cron/**` |
-| `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED` | `true` / `false` | Junebug workspace gate |
 
 ### Verifying env state
 
@@ -46,13 +45,14 @@ All set in Vercel → Project Settings → Environment Variables.
 
 ## Feature flags
 
-Only one is live today:
+No active feature flags. Junebug Threads (A4.7) was rolled out via
+`NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED` and
+`NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS`; both were removed with PR 4
+of the rollout once the workspace had stabilized for all users. The
+legacy chat-panel FAB was deleted in the same PR.
 
-- **`NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED`**
-  - `false` (default) — the new Junebug Threads workspace is invisible; legacy chat-panel FAB renders.
-  - `true` — `/junebug` nav entry appears; sidebar / thread view / SSE streaming all become active.
-  - Flip in Vercel env vars. Requires redeploy (not a runtime flag).
-  - Rollout plan: staging → internal email-domain gate → everyone. See `docs/spec-junebug-threads.md` §8.
+Emergency rollback for the workspace would now require reverting the
+code. Keep that in mind when evaluating new changes in `src/components/junebug/**`.
 
 ---
 
@@ -140,7 +140,7 @@ All cron endpoints require `Authorization: Bearer $CRON_SECRET`.
 2. Check Vercel deployments — did a recent deploy fail or enter an error loop?
 3. Check Sentry `tag:junebug` in the last 15 min — what's the error spike look like?
 4. If completions are failing but everything else is fine: Anthropic outage. Check https://status.anthropic.com.
-5. Worst case: flip `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED=false` via Vercel env var and redeploy. The legacy chat panel comes back on flag-off.
+5. Worst case: revert to a known-good deploy via Vercel's "Promote to production" on the previous build. The feature flag + legacy chat-panel FAB were removed in the A4.7 cleanup, so the only escape hatch is a code revert.
 
 ### "AI spend is off the charts"
 

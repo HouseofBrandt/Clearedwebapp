@@ -15,8 +15,6 @@
 
 import { requireAuth } from "@/lib/auth/session"
 import { JunebugWorkspace } from "@/components/junebug/junebug-workspace"
-import { junebugThreadsEnabled } from "@/lib/junebug/feature-flag"
-import { notFound } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
@@ -27,7 +25,6 @@ export default async function JunebugThreadPage({
   params: { threadId: string }
   searchParams: { case?: string }
 }) {
-  if (!junebugThreadsEnabled()) notFound()
   await requireAuth()
 
   return (
