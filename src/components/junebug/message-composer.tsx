@@ -7,8 +7,6 @@
  *   - Enter submits, Shift+Enter inserts newline.
  *   - Send disabled when empty or a stream is in flight.
  *   - Attachment slot: file picker; displays pending files as chips.
- *
- * Design matches the existing chat-panel composer pill.
  */
 
 import { useEffect, useRef, useState } from "react"

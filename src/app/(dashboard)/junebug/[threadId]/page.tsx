@@ -15,8 +15,6 @@
 
 import { requireAuth } from "@/lib/auth/session"
 import { JunebugWorkspace } from "@/components/junebug/junebug-workspace"
-import { junebugThreadsEnabledForEmail } from "@/lib/junebug/feature-flag"
-import { notFound } from "next/navigation"
 
 export const dynamic = "force-dynamic"
 
@@ -27,8 +25,7 @@ export default async function JunebugThreadPage({
   params: { threadId: string }
   searchParams: { case?: string }
 }) {
-  const session = await requireAuth()
-  if (!junebugThreadsEnabledForEmail(session.user.email)) notFound()
+  await requireAuth()
 
   return (
     <div className="-mx-8 -my-7 h-[calc(100vh-56px)]">

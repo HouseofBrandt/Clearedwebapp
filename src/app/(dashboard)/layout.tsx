@@ -3,10 +3,8 @@ import { prisma } from "@/lib/db"
 import { caseAccessFilter } from "@/lib/auth/case-access"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
-import { ChatPanel } from "@/components/assistant/chat-panel"
 import { IdleTimeout } from "@/components/layout/idle-timeout"
 import { DiagnosticsInit } from "@/components/diagnostics-init"
-import { junebugThreadsEnabledForEmail } from "@/lib/junebug/feature-flag"
 
 export default async function DashboardLayout({
   children,
@@ -71,12 +69,6 @@ export default async function DashboardLayout({
           </main>
         </div>
       </div>
-      {/* Legacy FAB — hidden from users who have the Junebug Threads
-          workspace enabled (global flag OR internal-beta domain match).
-          Users outside that scope still see the FAB during rollout so
-          they aren't cut off from AI chat. PR 4 deletes the FAB and
-          the gate together. */}
-      {!junebugThreadsEnabledForEmail(session.user.email) && <ChatPanel />}
       <IdleTimeout />
       <DiagnosticsInit />
     </>

@@ -90,6 +90,24 @@ export function JunebugWorkspace({
 
   const threads = useThreads(filters)
 
+  // One-shot migration: the legacy chat-panel wrote to sessionStorage
+  // ("junebug-chat", "junebug-chat-case") and localStorage
+  // ("junebug-full-fetch"). Those keys are dead once the threads
+  // workspace ships. Clear them exactly once per browser so users who
+  // upgraded mid-session don't drag orphan keys forever. Gated by a
+  // marker key so we don't clear on every mount.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("junebug-migration-v1") === "1") return
+      sessionStorage.removeItem("junebug-chat")
+      sessionStorage.removeItem("junebug-chat-case")
+      localStorage.removeItem("junebug-full-fetch")
+      localStorage.setItem("junebug-migration-v1", "1")
+    } catch {
+      /* private browsing / storage disabled — non-fatal */
+    }
+  }, [])
+
   // Sync activeThreadId with the URL-driven initialThreadId prop. This
   // matters for browser back/forward navigation: Next.js re-renders the
   // page with the new params, which would otherwise leave the workspace

@@ -1,6 +1,10 @@
 # Junebug Threads — Product Spec for Claude Code
 
-**Status:** Ready to build
+**Status:** Shipped. PRs 1–5 landed A4.7 behind a feature flag; the staged
+rollout and legacy cleanup (PR 6) retired both the flag and the old
+chat-panel FAB. Document retained as historical reference for the §6.X
+API contracts, §11 acceptance checklist, and the tokenization / PII
+rules the implementation still honors.
 **Owner:** Cleared Engineering
 **Scope:** Convert Junebug from a single-session chat widget into a persistent, multi-thread AI workspace modeled on Claude.ai's conversation pattern.
 **Priority:** P0 — foundational for the dashboard bifurcation initiative and the "gets smarter over time" product thesis.

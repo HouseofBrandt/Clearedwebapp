@@ -24,32 +24,16 @@ import {
   MessagesSquare,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-import { junebugThreadsEnabledForEmail } from "@/lib/junebug/feature-flag"
 
 export type NavSection = "MAIN" | "TOOLS" | "ADMIN"
 
-/**
- * `flagGate` — optional runtime gate keyed off a feature flag helper.
- * Evaluated inside `getVisibleNavItems`; lets us list new routes in this
- * static array even when the feature isn't turned on yet.
- */
 export type NavItem = {
   name: string
   href: string
   icon: LucideIcon
   description: string
   adminOnly?: boolean
-  flagGate?: "junebugThreads"
   section: NavSection
-}
-
-/**
- * Options for `getVisibleNavItems`. `userEmail` is used by the Junebug
- * flag gate during internal beta — when the global flag is off but the
- * user's email domain is in the beta list, they still see the nav item.
- */
-export interface NavVisibilityOptions {
-  userEmail?: string | null
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -63,7 +47,7 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "Portfolio", href: "/portfolio", icon: BarChart3, description: "Firm-wide case health", section: "MAIN" },
   { name: "Knowledge Base", href: "/knowledge", icon: BookOpen, description: "Firm knowledge and reference library", section: "MAIN" as NavSection },
   { name: "Research", href: "/research", icon: Microscope, description: "Micanopy Research Center — legal tax research", section: "MAIN" as NavSection },
-  { name: "Junebug", href: "/junebug", icon: MessagesSquare, description: "Multi-thread AI workspace — conversations that persist across sessions", section: "MAIN", flagGate: "junebugThreads" },
+  { name: "Junebug", href: "/junebug", icon: MessagesSquare, description: "Multi-thread AI workspace — conversations that persist across sessions", section: "MAIN" },
   { name: "Inbox", href: "/inbox", icon: Mail, description: "Messages and notifications", section: "MAIN" },
 
   // TOOLS section
@@ -86,35 +70,21 @@ export const NAV_ITEMS: NavItem[] = [
   { name: "AI Analytics", href: "/settings/analytics", icon: TrendingUp, description: "AI quality & learning metrics", adminOnly: true, section: "ADMIN" },
 ]
 
-export function getVisibleNavItems(role?: string, opts?: NavVisibilityOptions) {
+export function getVisibleNavItems(role?: string) {
   return NAV_ITEMS.filter((item) => {
     if (item.adminOnly && role !== "ADMIN") return false
-    if (
-      item.flagGate === "junebugThreads" &&
-      !junebugThreadsEnabledForEmail(opts?.userEmail)
-    ) {
-      return false
-    }
     return true
   })
 }
 
-export function getActiveNavItem(
-  pathname: string,
-  role?: string,
-  opts?: NavVisibilityOptions
-) {
-  return getVisibleNavItems(role, opts).find(
+export function getActiveNavItem(pathname: string, role?: string) {
+  return getVisibleNavItems(role).find(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
   )
 }
 
-export function getPageContext(
-  pathname: string,
-  role?: string,
-  opts?: NavVisibilityOptions
-) {
-  const active = getActiveNavItem(pathname, role, opts)
+export function getPageContext(pathname: string, role?: string) {
+  const active = getActiveNavItem(pathname, role)
   if (active) return active
   return {
     name: "Cleared",

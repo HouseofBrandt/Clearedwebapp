@@ -36,8 +36,6 @@ All set in Vercel → Project Settings → Environment Variables.
 | `ENCRYPTION_KEY` | 32-char random | `src/lib/encryption.ts` for case PII at rest |
 | `ANTHROPIC_API_KEY` | Anthropic console | All AI routes |
 | `CRON_SECRET` | 32-byte random | Bearer auth for `/api/cron/**` |
-| `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED` | `true` / `false` | Junebug workspace global kill switch |
-| `NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS` | comma-separated domain list (optional) | Junebug per-user beta gate during staged rollout |
 
 ### Verifying env state
 
@@ -47,30 +45,14 @@ All set in Vercel → Project Settings → Environment Variables.
 
 ## Feature flags
 
-Two live today, both governing the Junebug Threads rollout:
+No active feature flags. Junebug Threads (A4.7) was rolled out via
+`NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED` and
+`NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS`; both were removed with PR 4
+of the rollout once the workspace had stabilized for all users. The
+legacy chat-panel FAB was deleted in the same PR.
 
-- **`NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED`** — global kill switch.
-  - `false` (default) — the new Junebug Threads workspace is invisible; legacy chat-panel FAB renders.
-  - `true` — `/junebug` nav entry appears; sidebar / thread view / SSE streaming all become active **for everyone**.
-  - Flip in Vercel env vars. Requires redeploy (not a runtime flag).
-  - Use for the full rollout step and for emergency rollback (flip back to `false`).
-
-- **`NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS`** — internal-beta gate.
-  - Comma-separated list, e.g. `cleared.com,staff-internal.io`. Case-insensitive. Empty / unset = no beta users.
-  - Users whose session email's domain matches see the Junebug workspace **even when the global flag is off**. Everyone else sees the legacy FAB and 404s from the workspace routes.
-  - Use for step B of the staged rollout (internal dogfooding) before flipping the global flag.
-  - Both vars are `NEXT_PUBLIC_` so client-side gates (nav filter, `CaseJunebug` widget) can read them without a prop-drill of the user email. The domain list is not sensitive — practitioner emails are already in the NextAuth session cookie — so the tradeoff is correct.
-
-### Rollout sequence (spec §8)
-
-1. **Step A — Staging.** Set `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED=true` on the **Preview** environment only. Run the §11 acceptance audit against staging.
-2. **Step B — Internal beta.** In **Production**: keep the global flag `false`; set `NEXT_PUBLIC_JUNEBUG_BETA_EMAIL_DOMAINS` to the firm's email domain(s). Dogfood ≥ 1 week. Monitor `tag:junebug` in Sentry and `JUNEBUG_MESSAGE` in `audit_logs`.
-3. **Step C — Everyone.** Flip `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED=true` in **Production**. The beta domain var becomes a no-op; leave it configured so we can revert to internal-only without a code change.
-4. **PR 4 cleanup.** Two weeks after Step C lands with no regression, delete both env vars and the legacy chat-panel code.
-
-### Emergency rollback
-
-Flip `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED=false` in Production. Redeploy. All users see the legacy FAB again. Existing Junebug threads / messages stay in the DB — the workspace just becomes unreachable.
+Emergency rollback for the workspace would now require reverting the
+code. Keep that in mind when evaluating new changes in `src/components/junebug/**`.
 
 ---
 
@@ -158,7 +140,7 @@ All cron endpoints require `Authorization: Bearer $CRON_SECRET`.
 2. Check Vercel deployments — did a recent deploy fail or enter an error loop?
 3. Check Sentry `tag:junebug` in the last 15 min — what's the error spike look like?
 4. If completions are failing but everything else is fine: Anthropic outage. Check https://status.anthropic.com.
-5. Worst case: flip `NEXT_PUBLIC_JUNEBUG_THREADS_ENABLED=false` via Vercel env var and redeploy. The legacy chat panel comes back on flag-off.
+5. Worst case: revert to a known-good deploy via Vercel's "Promote to production" on the previous build. The feature flag + legacy chat-panel FAB were removed in the A4.7 cleanup, so the only escape hatch is a code revert.
 
 ### "AI spend is off the charts"
 

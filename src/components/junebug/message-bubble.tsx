@@ -3,7 +3,7 @@
 /**
  * Single message row (spec §7.7).
  *
- *   - User: right-aligned dark bubble. --c-navy-950 per existing chat-panel.
+ *   - User: right-aligned dark bubble on --c-navy-950.
  *   - Assistant: full-width prose in junebug-prose, no bubble.
  *   - Error: red left border, error text, Retry button.
  *   - Streaming: subtle pulse on the last chunk until `done`.

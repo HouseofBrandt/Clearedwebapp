@@ -6,7 +6,6 @@ import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting"
 import { DashboardSplit } from "@/components/dashboard/dashboard-split"
 import { DashboardJunebugPane } from "@/components/dashboard/dashboard-junebug-pane"
 import { FeedPage } from "@/components/feed/feed-page"
-import { junebugThreadsEnabledForEmail } from "@/lib/junebug/feature-flag"
 
 export const metadata: Metadata = { title: "Dashboard | Cleared" }
 
@@ -165,47 +164,11 @@ export default async function DashboardPage() {
     role: session.user.role || "PRACTITIONER",
   }
 
-  // Bifurcate only for users who have Junebug turned on (global flag or
-  // internal beta). When off, render the pre-existing single-column
-  // layout byte-for-byte so a rollback is visually invisible.
-  const junebugOn = junebugThreadsEnabledForEmail(session.user.email)
-
-  const feedNode = (
-    <FeedPage
-      currentUser={currentUser}
-      initialPosts={initialPosts}
-      myTaskCount={myTaskCount}
-      pinnedPosts={pinnedPosts}
-      cases={cases}
-      users={users}
-    />
-  )
-
-  if (!junebugOn) {
-    return (
-      <div className="page-enter" style={{ minHeight: 0 }}>
-        <div
-          className="mx-auto"
-          style={{
-            maxWidth: 680,
-            paddingLeft: 32,
-            paddingRight: 32,
-            paddingTop: 48,
-            paddingBottom: 120,
-          }}
-        >
-          <DashboardGreeting userName={currentUser.name} />
-          {feedNode}
-        </div>
-      </div>
-    )
-  }
-
-  // Bifurcated layout: greeting stays narrow and centered (it's
-  // editorial and benefits from the 680px measure); the split below
-  // gets a wider container so each pane has room to breathe at
-  // ≥1024px viewports. At md..lg the split stacks; at <md it becomes
-  // a tabbed switcher (handled inside DashboardSplit).
+  // Bifurcated layout: greeting stays narrow and centered (editorial
+  // voice — benefits from the 680px measure); the split below gets a
+  // wider container so each pane has room at ≥1024px viewports. At
+  // md..lg the split stacks; at <md it becomes a tabbed switcher
+  // (handled inside DashboardSplit).
   return (
     <div className="page-enter" style={{ minHeight: 0 }}>
       <div
@@ -229,7 +192,16 @@ export default async function DashboardPage() {
         }}
       >
         <DashboardSplit
-          feedSlot={feedNode}
+          feedSlot={
+            <FeedPage
+              currentUser={currentUser}
+              initialPosts={initialPosts}
+              myTaskCount={myTaskCount}
+              pinnedPosts={pinnedPosts}
+              cases={cases}
+              users={users}
+            />
+          }
           junebugSlot={<DashboardJunebugPane currentUser={currentUser} />}
         />
       </div>

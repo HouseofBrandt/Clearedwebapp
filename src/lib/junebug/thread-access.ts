@@ -1,34 +1,24 @@
 /**
  * Shared auth + ownership helpers for Junebug thread routes.
  *
- * Spec §6 is unambiguous about the access model:
+ * Spec §6 access model:
  *   - Every route requires a session.
  *   - Threads are owned by a single user (userId). Another user's threadId
  *     returns 404 — NOT 403 — to avoid leaking existence.
- *   - The feature flag gates everything. When off globally AND the user's
- *     email isn't in the internal-beta domain list, routes return 404.
- *
- * Session comes before the flag check now: we need the user's email to
- * evaluate the per-user beta gate. Anonymous callers therefore get a 401
- * rather than a 404, which is consistent with every other protected API
- * in the app — Junebug-specific existence is still masked from
- * authenticated-but-not-beta users.
  */
 
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { prisma } from "@/lib/db"
-import { junebugThreadsEnabledForEmail } from "./feature-flag"
 
 export type AccessCheck =
   | { ok: true; userId: string }
   | { ok: false; response: NextResponse }
 
 /**
- * Gate: session + feature flag (global or per-user beta). Use at the top
- * of every Junebug route. Returns the userId on success, or a pre-built
- * NextResponse on failure.
+ * Gate: session required. Use at the top of every Junebug route. Returns
+ * the userId on success, or a pre-built NextResponse on failure.
  */
 export async function requireJunebugSession(): Promise<AccessCheck> {
   const session = await getServerSession(authOptions)
@@ -37,10 +27,6 @@ export async function requireJunebugSession(): Promise<AccessCheck> {
       ok: false,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     }
-  }
-  if (!junebugThreadsEnabledForEmail(session.user.email)) {
-    // Authenticated but not in scope — 404, no body. Don't leak.
-    return { ok: false, response: new NextResponse(null, { status: 404 }) }
   }
   return { ok: true, userId: session.user.id }
 }
