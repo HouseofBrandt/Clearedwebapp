@@ -1,14 +1,21 @@
 "use client"
 
 import React from "react"
+import { redactLeakedPII } from "@/lib/feed/redact-leaked-pii"
 
 /**
  * Lightweight formatted text renderer for Junebug replies.
  * Handles: **bold**, bullet lists (- ), and paragraph breaks.
  * No full markdown parser needed — keeps bundle small.
+ *
+ * Every rendered text segment is run through redactLeakedPII as a
+ * defense-in-depth guard: if an upstream write path accidentally wrote
+ * an encrypted envelope (v1:iv:tag:ciphertext) or a tokenizer output
+ * ([NAME-A1B2C3]) into content, we mask it here instead of leaking it.
  */
 
-function parseLine(text: string): React.ReactNode[] {
+function parseLine(rawText: string): React.ReactNode[] {
+  const text = redactLeakedPII(rawText)
   // Split on **bold** markers
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
   return parts.map((part, i) => {

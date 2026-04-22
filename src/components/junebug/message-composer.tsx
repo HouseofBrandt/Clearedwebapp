@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react"
 import { Paperclip, Send, X } from "lucide-react"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { FullFetchToggle } from "@/components/assistant/full-fetch-toggle"
+import { useFullFetch } from "@/components/assistant/full-fetch-context"
 
 const MAX_TEXTAREA_PX = 180
 
@@ -29,7 +30,12 @@ export interface MessageComposerProps {
   disabled: boolean
   isStreaming: boolean
   placeholder?: string
-  onSend: (content: string, attachments: ComposerAttachment[]) => void
+  /**
+   * Called when the user submits. `fullFetch` reflects the armed state of
+   * the Full Fetch toggle at submit time — parent wires it into the
+   * outbound request so the backend routes to the thorough-mode completion.
+   */
+  onSend: (content: string, attachments: ComposerAttachment[], fullFetch: boolean) => void
   /** Suggestion chips rendered above the composer when the thread is empty. */
   suggestions?: string[]
   onPickSuggestion?: (text: string) => void
@@ -49,6 +55,7 @@ export function MessageComposer({
   const [pending, setPending] = useState<ComposerAttachment[]>([])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { armed } = useFullFetch()
 
   // Autosize on value change
   useEffect(() => {
@@ -62,7 +69,7 @@ export function MessageComposer({
 
   const submit = () => {
     if (!canSend) return
-    onSend(value.trim(), pending)
+    onSend(value.trim(), pending, armed)
     setValue("")
     setPending([])
     // Reset height

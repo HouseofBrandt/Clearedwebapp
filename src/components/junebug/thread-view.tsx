@@ -26,6 +26,8 @@ export interface ThreadViewProps {
   /** Optional: auto-send these on mount (splash screen → new thread handoff). */
   initialSendContent?: string
   initialSendAttachments?: ComposerAttachment[]
+  /** Armed state of Full Fetch at splash submit time. */
+  initialSendFullFetch?: boolean
   /** Called after initialSendContent has been dispatched, so the parent clears it. */
   onInitialSendDispatched?: () => void
 }
@@ -36,6 +38,7 @@ export function ThreadView({
   onThreadBumped,
   initialSendContent,
   initialSendAttachments,
+  initialSendFullFetch,
   onInitialSendDispatched,
 }: ThreadViewProps) {
   const t = useThread(threadId)
@@ -112,12 +115,13 @@ export function ThreadView({
   })
 
   const handleSend = useCallback(
-    (content: string, attachments: ComposerAttachment[]) => {
+    (content: string, attachments: ComposerAttachment[], fullFetch: boolean) => {
       if (!content.trim() && attachments.length === 0) return
       setSendError(null)
       void sender.send({
         content,
         currentRoute,
+        fullFetch: fullFetch || undefined,
         attachments: attachments.length
           ? attachments.map((a) => ({
               documentId: a.documentId,
@@ -182,7 +186,7 @@ export function ThreadView({
     if (initialSentRef.current) return
     if (!initialSendContent) return
     initialSentRef.current = true
-    handleSend(initialSendContent, initialSendAttachments ?? [])
+    handleSend(initialSendContent, initialSendAttachments ?? [], initialSendFullFetch ?? false)
     onInitialSendDispatched?.()
     // Intentionally omitting handleSend from deps — ref guard is the
     // concurrency control. Re-sending on re-render would cause duplicates.

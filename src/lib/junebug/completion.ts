@@ -39,10 +39,20 @@ export interface RunJunebugCompletionInput {
   knownNames?: string[]
   /** Anthropic model slug. Default "claude-opus-4-6". */
   model?: string
-  /** Anthropic max_tokens for the response. Default 4096. */
+  /** Anthropic max_tokens for the response. Default 4096 (bumped to 8192 when fullFetch is true). */
   maxTokens?: number
   /** Anthropic temperature. Default 0.3. */
   temperature?: number
+  /**
+   * Full Fetch armed mode. When true:
+   *   - Default maxTokens doubles (4096 → 8192) so thorough answers aren't truncated.
+   *   - The caller is expected to have already expanded the system prompt
+   *     with broader KB hits and case context. This flag is informational
+   *     to the completion helper itself — the real behavior change lives
+   *     in the route's prompt assembly.
+   *   - Logged with the completion for telemetry.
+   */
+  fullFetch?: boolean
 }
 
 export interface RunJunebugCompletionResult {
@@ -83,7 +93,9 @@ export async function runJunebugCompletion(
 ): Promise<RunJunebugCompletionResult> {
   const startedAt = Date.now()
   const model = input.model || "claude-opus-4-6"
-  const maxTokens = input.maxTokens ?? 4096
+  // Full Fetch doubles the default max_tokens so thorough answers aren't
+  // truncated mid-thought. Explicit maxTokens (if supplied) still wins.
+  const maxTokens = input.maxTokens ?? (input.fullFetch ? 8192 : 4096)
   const temperature = input.temperature ?? 0.3
   const knownNames = input.knownNames ?? []
 

@@ -19,7 +19,9 @@ import { useFullFetch } from "@/components/assistant/full-fetch-context"
 export interface ThreadEmptyStateProps {
   scopedCaseNumber?: string | null
   isCreating: boolean
-  onStart: (content: string, attachments: ComposerAttachment[]) => void
+  /** Third arg is the Full Fetch armed state at submit time. Parent wires
+   *  it into the outbound thread-creation + send payload. */
+  onStart: (content: string, attachments: ComposerAttachment[], fullFetch: boolean) => void
   suggestions?: string[]
 }
 
@@ -103,14 +105,14 @@ export function ThreadEmptyState({
           </p>
         )}
 
-        {/* 2×2 prompt grid */}
+        {/* 2×2 prompt grid — prompts carry the current armed state at click time */}
         <div className="polish-junebug-prompts" role="list">
           {picks.map((prompt) => (
             <button
               key={prompt}
               type="button"
               role="listitem"
-              onClick={() => onStart(prompt, [])}
+              onClick={() => onStart(prompt, [], armed)}
               disabled={isCreating}
               className="polish-junebug-prompt"
             >

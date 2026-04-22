@@ -154,17 +154,18 @@ export function JunebugWorkspace({
    * pending content in a ref and let ThreadView send it once mounted.
    */
   const pendingInitialMessageRef = useRef<
-    | { threadId: string; content: string; attachments: ComposerAttachment[] }
+    | { threadId: string; content: string; attachments: ComposerAttachment[]; fullFetch: boolean }
     | null
   >(null)
 
   const handleSplashStart = useCallback(
-    async (content: string, attachments: ComposerAttachment[]) => {
+    async (content: string, attachments: ComposerAttachment[], fullFetch: boolean) => {
       const created = await threads.createThread(scopeToCaseId)
       pendingInitialMessageRef.current = {
         threadId: created.id,
         content,
         attachments,
+        fullFetch,
       }
       setActiveThreadId(created.id)
     },
@@ -359,6 +360,11 @@ export function JunebugWorkspace({
               initialSendAttachments={
                 pendingInitialMessageRef.current?.threadId === activeThreadId
                   ? pendingInitialMessageRef.current.attachments
+                  : undefined
+              }
+              initialSendFullFetch={
+                pendingInitialMessageRef.current?.threadId === activeThreadId
+                  ? pendingInitialMessageRef.current.fullFetch
                   : undefined
               }
               onInitialSendDispatched={() => {

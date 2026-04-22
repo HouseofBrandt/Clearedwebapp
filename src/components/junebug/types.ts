@@ -70,6 +70,13 @@ export interface SendMessageInput {
   model?: string
   currentRoute?: string
   pageContext?: unknown
+  /**
+   * When true, Junebug runs in "Full Fetch" mode: broader system prompt,
+   * higher max_tokens, case-name auto-detection in message body, and
+   * full case data injection (when a case is matched). Set by the
+   * armed-state of the FullFetchToggle in the composer.
+   */
+  fullFetch?: boolean
   attachments?: Array<{
     documentId?: string
     fileName: string

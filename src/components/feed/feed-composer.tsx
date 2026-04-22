@@ -206,21 +206,31 @@ export function FeedComposer({
 
   return (
     <div
-      className="rounded-xl border border-[var(--c-gray-100)] transition-all"
-      style={{ background: expanded ? 'var(--c-white)' : 'var(--c-snow)' }}
+      className="rounded-xl transition-all duration-200"
+      style={{
+        background: "var(--c-white)",
+        boxShadow: expanded ? "var(--elev-2)" : "var(--elev-1)",
+      }}
     >
-      {/* Compact view when not expanded */}
+      {/* Compact view when not expanded — polish pass §7.6: italic placeholder,
+          larger hit target, elev-1 default, elev-2 on expand. */}
       {!expanded ? (
         <div
-          className="flex items-center gap-3 px-4 py-3 cursor-text"
+          className="flex items-center gap-3 px-5 py-4 cursor-text"
+          style={{ minHeight: "56px" }}
           onClick={() => { setExpanded(true); setTimeout(() => textareaRef.current?.focus(), 0) }}
         >
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="text-[10px]" style={{ background: 'var(--c-gray-100)', color: 'var(--c-gray-500)' }}>
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="text-[11px]" style={{ background: 'var(--c-gray-100)', color: 'var(--c-gray-500)' }}>
               {getInitials(currentUser.name || "U")}
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm" style={{ color: 'var(--c-gray-300)' }}>Add a note, task, or update...</span>
+          <span
+            className="text-[15px] italic"
+            style={{ color: 'var(--c-gray-400)' }}
+          >
+            What's on your mind?
+          </span>
         </div>
       ) : (
         <div className="p-4 space-y-3">
