@@ -158,39 +158,70 @@ export default async function DashboardPage() {
     console.error("[Dashboard] data error:", error?.message)
   }
 
+  // Compute at-a-glance figures for the greeting block (polish §6.1).
+  // Each figure is optional — zero-count items are omitted in the component.
+  // These queries are independent and failure on any one returns 0.
+  let deadlinesThisWeek = 0
+  let itemsInReview = 0
+  let newCases = 0
+  try {
+    const now = new Date()
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const [dRes, rRes, cRes] = await Promise.allSettled([
+      prisma.deadline.count({
+        where: {
+          dueDate: { gte: now, lte: weekFromNow },
+          status: { notIn: ["COMPLETED", "WAIVED"] },
+        },
+      }),
+      prisma.aITask.count({
+        where: { status: "READY_FOR_REVIEW" },
+      }),
+      prisma.case.count({
+        where: {
+          status: "INTAKE",
+          createdAt: { gte: sevenDaysAgo },
+        },
+      }),
+    ])
+    if (dRes.status === "fulfilled") deadlinesThisWeek = dRes.value
+    if (rRes.status === "fulfilled") itemsInReview = rRes.value
+    if (cRes.status === "fulfilled") newCases = cRes.value
+  } catch (error: any) {
+    console.warn("[Dashboard] glance error:", error?.message)
+  }
+
   const currentUser = {
     id: userId,
     name: session.user.name || "there",
     role: session.user.role || "PRACTITIONER",
   }
 
-  // Bifurcated layout: greeting stays narrow and centered (editorial
-  // voice — benefits from the 680px measure); the split below gets a
-  // wider container so each pane has room at ≥1024px viewports. At
-  // md..lg the split stacks; at <md it becomes a tabbed switcher
+  // Bifurcated layout (polish §6): greeting is now left-aligned and shares
+  // the wider container with the split below — asymmetry with purpose.
+  // At md..lg the split stacks; at <md it becomes a tabbed switcher
   // (handled inside DashboardSplit).
   return (
-    <div className="page-enter" style={{ minHeight: 0 }}>
-      <div
-        className="mx-auto"
-        style={{
-          maxWidth: 680,
-          paddingLeft: 32,
-          paddingRight: 32,
-          paddingTop: 48,
-        }}
-      >
-        <DashboardGreeting userName={currentUser.name} />
-      </div>
+    <div className="polish-page-enter" style={{ minHeight: 0 }}>
       <div
         className="mx-auto"
         style={{
           maxWidth: 1440,
           paddingLeft: 32,
           paddingRight: 32,
+          paddingTop: 48,
           paddingBottom: 120,
         }}
       >
+        <DashboardGreeting
+          userName={currentUser.name}
+          glance={{
+            deadlinesThisWeek,
+            itemsInReview,
+            newCases,
+          }}
+        />
         <DashboardSplit
           feedSlot={
             <FeedPage

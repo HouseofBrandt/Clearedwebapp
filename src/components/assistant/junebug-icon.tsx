@@ -11,7 +11,7 @@ export function JunebugIcon({ className = "h-5 w-5", animated = false, mood = "i
   const id = `jb-${Math.random().toString(36).slice(2, 6)}`
 
   return (
-    <div className={`relative inline-flex ${fullFetch ? 'full-fetch-icon' : ''}`} style={{ display: 'inline-flex', lineHeight: 0 }}>
+    <div className="relative inline-flex" style={{ display: 'inline-flex', lineHeight: 0 }}>
     <svg viewBox="0 0 24 24" fill="currentColor" className={`${className} ${activeMood === "treat" ? "jb-bounce" : ""}`} style={style} aria-label="Junebug">
       <defs>
         <radialGradient id={`${id}-head`} cx="50%" cy="40%" r="60%">
