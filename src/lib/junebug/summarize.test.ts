@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
 import {
   shouldRegenerateSummary,
+  shouldRegenerateSummaryOnTurn,
   SUMMARY_THRESHOLD,
   RAW_TAIL_SIZE,
   SUMMARY_INTERVAL,
@@ -42,6 +43,50 @@ describe("shouldRegenerateSummary", () => {
     expect(shouldRegenerateSummary(42)).toBe(false)
     expect(shouldRegenerateSummary(58)).toBe(false)
     expect(shouldRegenerateSummary(60)).toBe(true)
+  })
+})
+
+describe("shouldRegenerateSummaryOnTurn", () => {
+  it("does not fire below the threshold", () => {
+    expect(shouldRegenerateSummaryOnTurn(36, 38)).toBe(false)
+    expect(shouldRegenerateSummaryOnTurn(0, 2)).toBe(false)
+  })
+
+  it("fires when a turn crosses 40 exactly (even sequence, no errors)", () => {
+    expect(shouldRegenerateSummaryOnTurn(38, 40)).toBe(true)
+  })
+
+  it("fires when an odd sequence steps OVER 40 (error-polluted thread)", () => {
+    // Real-world case: an earlier errored assistant drops the errorless
+    // count by 1. Sequence of post-turn counts is ..., 37, 39, 41, 43 —
+    // never 40. Must still trigger on the 39 -> 41 step.
+    expect(shouldRegenerateSummaryOnTurn(39, 41)).toBe(true)
+  })
+
+  it("fires when an odd sequence crosses 60 via 59 -> 61", () => {
+    expect(shouldRegenerateSummaryOnTurn(59, 61)).toBe(true)
+  })
+
+  it("does not fire on non-boundary steps (42 -> 44)", () => {
+    expect(shouldRegenerateSummaryOnTurn(42, 44)).toBe(false)
+  })
+
+  it("does not fire on steps well below the next boundary (45 -> 47)", () => {
+    expect(shouldRegenerateSummaryOnTurn(45, 47)).toBe(false)
+  })
+
+  it("fires exactly once per boundary — subsequent turns in the same bucket don't re-fire", () => {
+    // Turn that crosses 40 fires; the next turn (40 -> 42) must not.
+    expect(shouldRegenerateSummaryOnTurn(38, 40)).toBe(true)
+    expect(shouldRegenerateSummaryOnTurn(40, 42)).toBe(false)
+    // Jump further inside the bucket — still no fire until 60
+    expect(shouldRegenerateSummaryOnTurn(56, 58)).toBe(false)
+  })
+
+  it("handles a large turn delta that spans two boundaries (fires once, not twice)", () => {
+    // Unlikely in production (turns are always 2) but should be correct
+    // for any positive delta.
+    expect(shouldRegenerateSummaryOnTurn(35, 65)).toBe(true)
   })
 })
 

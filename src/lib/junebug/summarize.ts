@@ -58,14 +58,43 @@ no preamble like "Here is a summary". Third-person, past-tense narration
 ("The practitioner asked about…, the assistant outlined…").`
 
 /**
- * Returns whether a thread of this message count should trigger a
- * summary regeneration on this turn. Matches §6.5.1's "crosses 40,
- * then every +20".
+ * Returns whether a thread at this message count sits exactly on a
+ * summary-regeneration boundary (40, 60, 80, …). This is the simple
+ * equality check; use `shouldRegenerateSummaryOnTurn` for the
+ * post-turn trigger that must handle the fact that turn counts step
+ * by 2, and errored rows are excluded from the errorless count so
+ * the sequence can skip the exact boundary.
  */
 export function shouldRegenerateSummary(messageCount: number): boolean {
   if (messageCount < SUMMARY_THRESHOLD) return false
   const past = messageCount - SUMMARY_THRESHOLD
   return past % SUMMARY_INTERVAL === 0
+}
+
+/**
+ * Returns whether the current turn crossed a summary-regeneration
+ * boundary. The caller passes the errorless message count before this
+ * turn and after it; this function answers "did we pass through at
+ * least one of 40, 60, 80, … in between?".
+ *
+ * Why this exists: a turn adds a USER row and an ASSISTANT row. If
+ * prior turns produced errored ASSISTANT rows, those are excluded
+ * from the errorless count used as `priorCount`, so the sequence
+ * becomes ..., 37, 39, 41, 43, ... — skipping 40 entirely. Using
+ * equality (`shouldRegenerateSummary(40)`) would never fire, and the
+ * thread's prompt would grow unbounded. Boundary-crossing catches it
+ * on the 37 → 39 or 39 → 41 step regardless.
+ */
+export function shouldRegenerateSummaryOnTurn(
+  priorCount: number,
+  postTurnCount: number
+): boolean {
+  if (postTurnCount < SUMMARY_THRESHOLD) return false
+  const bucketOf = (n: number): number =>
+    n < SUMMARY_THRESHOLD
+      ? -1
+      : Math.floor((n - SUMMARY_THRESHOLD) / SUMMARY_INTERVAL)
+  return bucketOf(postTurnCount) > bucketOf(priorCount)
 }
 
 /**

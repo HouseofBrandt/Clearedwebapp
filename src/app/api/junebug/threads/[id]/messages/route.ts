@@ -11,7 +11,7 @@ import { runJunebugCompletion, type JunebugMessage } from "@/lib/junebug/complet
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import {
   loadThreadHistoryForCompletion,
-  shouldRegenerateSummary,
+  shouldRegenerateSummaryOnTurn,
   generateAndSaveRollingSummary,
 } from "@/lib/junebug/summarize"
 import {
@@ -410,17 +410,20 @@ export async function POST(
         })
 
         // Rolling summary (spec §6.5.1) — fire-and-forget after the
-        // stream lands. This turn's USER + ASSISTANT both count toward
-        // the total, so we check priorMessageCount + 2 to decide
-        // whether the new count hits a summarization trigger (40, 60,
-        // 80, …).
+        // stream lands. priorMessageCount is the errorless row count
+        // BEFORE this turn; +2 is this turn's USER + ASSISTANT. We
+        // use boundary-crossing rather than equality because prior
+        // errored rows are excluded from the errorless count and can
+        // make the step-by-2 sequence skip 40/60/80 exactly. See
+        // shouldRegenerateSummaryOnTurn's docstring for the full
+        // reasoning.
         //
         // Never awaited: the response has already reached the client
         // and we don't want to hold the serverless function open past
         // maxDuration for a background Haiku call. The call takes
         // care of its own error handling.
         const postTurnCount = priorMessageCount + 2
-        if (shouldRegenerateSummary(postTurnCount)) {
+        if (shouldRegenerateSummaryOnTurn(priorMessageCount, postTurnCount)) {
           generateAndSaveRollingSummary(params.id, knownNames).catch(
             (e) => console.warn("[Junebug] summary regeneration failed:", e?.message)
           )
