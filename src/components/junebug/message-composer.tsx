@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Paperclip, Send, X } from "lucide-react"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
+import { FullFetchToggle } from "@/components/assistant/full-fetch-toggle"
 
 const MAX_TEXTAREA_PX = 180
 
@@ -144,19 +145,19 @@ export function MessageComposer({
         </div>
       )}
 
-      {/* Composer pill */}
+      {/* Composer pill (polish §8.4) — 64px tall, 20px radius, elev-2 shadow */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
-        className="flex items-end gap-1.5 rounded-2xl border border-c-gray-200 bg-white px-2 py-1.5 transition-all duration-150 focus-within:border-c-teal/30 focus-within:ring-1 focus-within:ring-c-teal/20"
+        className="polish-junebug-composer"
       >
         <label
-          className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-c-gray-300 transition-colors hover:bg-c-gray-50 hover:text-c-gray-500"
+          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-c-gray-400 transition-colors hover:bg-c-gray-50 hover:text-c-gray-600"
           title="Attach file"
         >
-          <Paperclip className="h-[15px] w-[15px]" />
+          <Paperclip className="h-[16px] w-[16px]" />
           <input
             ref={fileInputRef}
             type="file"
@@ -180,24 +181,22 @@ export function MessageComposer({
           placeholder={placeholder}
           disabled={disabled}
           rows={1}
-          className="flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-[13.5px] placeholder:text-c-gray-300 focus:outline-none focus:ring-0 disabled:opacity-50"
-          style={{ maxHeight: MAX_TEXTAREA_PX + "px", minHeight: "36px" }}
+          className="flex-1 resize-none border-0 bg-transparent text-[15px] placeholder:text-c-gray-300 placeholder:italic focus:outline-none focus:ring-0 disabled:opacity-50"
+          style={{ maxHeight: MAX_TEXTAREA_PX + "px", minHeight: "28px" }}
         />
+        <FullFetchToggle disabled={disabled} />
         <button
           type="submit"
           disabled={!canSend}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all duration-150 disabled:opacity-30"
-          style={{
-            background: canSend ? "var(--c-teal)" : "var(--c-gray-100)",
-            color: canSend ? "white" : "var(--c-gray-300)",
-          }}
+          className="polish-junebug-composer-send polish-btn-tactile"
+          data-active={canSend ? "true" : "false"}
           title="Send message"
           aria-label="Send message"
         >
-          <Send className="h-[14px] w-[14px]" />
+          <Send className="h-[15px] w-[15px]" />
         </button>
       </form>
-      <p className="text-center text-[11px] text-c-gray-300">
+      <p className="polish-junebug-caveat">
         Junebug can make mistakes — review before relying on any output.
       </p>
     </div>

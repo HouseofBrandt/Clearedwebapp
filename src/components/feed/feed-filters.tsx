@@ -26,22 +26,30 @@ export function FeedFilters({
   ]
 
   return (
-    <div className="flex items-center gap-1 py-3 mb-3">
+    <div className="polish-filter-row" role="tablist" aria-label="Feed filters">
       {filters.map((f) => (
         <button
           key={f.key}
+          type="button"
+          role="tab"
+          aria-selected={filter === f.key}
           onClick={() => onFilterChange(f.key)}
-          className="px-2.5 py-1 text-xs font-medium rounded-full transition-colors"
-          style={{
-            background: filter === f.key ? 'var(--c-teal-soft)' : 'transparent',
-            color: filter === f.key ? 'var(--c-teal)' : 'var(--c-gray-300)',
-          }}
+          className="polish-filter-pill"
+          data-active={filter === f.key}
         >
           {f.label}
           {f.count != null && f.count > 0 && (
             <span
-              className="ml-1 rounded-full px-1.5"
-              style={{ fontSize: '10px', background: 'var(--c-teal)', color: 'white' }}
+              className="ml-1.5 inline-flex items-center justify-center rounded-full"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "10px",
+                minWidth: "16px",
+                height: "16px",
+                padding: "0 5px",
+                background: filter === f.key ? "var(--c-teal)" : "var(--c-gray-200)",
+                color: filter === f.key ? "white" : "var(--c-gray-600)",
+              }}
             >
               {f.count}
             </span>
@@ -51,11 +59,12 @@ export function FeedFilters({
       {caseFilter && onClearCaseFilter && (
         <button
           onClick={onClearCaseFilter}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full"
-          style={{ background: 'var(--c-teal-soft)', color: 'var(--c-teal)' }}
+          className="ml-auto polish-filter-pill"
+          data-active="true"
+          aria-label="Clear case filter"
         >
           Case filtered
-          <span className="ml-1">&times;</span>
+          <span className="ml-1" aria-hidden>&times;</span>
         </button>
       )}
     </div>

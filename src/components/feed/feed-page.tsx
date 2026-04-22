@@ -5,7 +5,7 @@ import { FeedComposer } from "./feed-composer"
 import { FeedCard } from "./feed-card"
 import { FeedFilters } from "./feed-filters"
 import { PinnedNowStrip } from "./pinned-now-strip"
-import { Loader2, ChevronDown, ChevronRight } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 type FilterType = "all" | "post" | "task" | "my_tasks" | "system_event"
 
@@ -255,69 +255,40 @@ function DayGroupedFeed({
     return groups
   }, [posts])
 
-  // Today expanded by default, others collapsed
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
-    const set = new Set<string>()
-    const todayKey = getDayKey(new Date().toISOString())
-    for (const g of dayGroups) {
-      if (g.key !== todayKey) set.add(g.key)
-    }
-    return set
-  })
-
-  const toggle = (key: string) => {
-    setCollapsed(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
+  // Polish §7.3: days are never collapsed. Pagination handles overlong days.
+  // Collapse state removed; all days render fully expanded.
 
   return (
-    <div className="feed-timeline space-y-1">
-      {dayGroups.map(group => {
-        const isCollapsed = collapsed.has(group.key)
+    <div className="space-y-2">
+      {dayGroups.map((group, gi) => {
+        // Format date for right column (e.g., "April 22")
+        const dateLabel = new Date(group.posts[0].createdAt).toLocaleDateString(
+          "en-US",
+          { month: "long", day: "numeric" }
+        )
         return (
-          <div key={group.key}>
-            {/* Day header with timeline dot */}
-            <button
-              onClick={() => toggle(group.key)}
-              className="timeline-date flex items-center gap-2 w-full py-2 px-1 group cursor-pointer"
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--c-gray-300)' }} />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--c-gray-300)' }} />
-              )}
-              <span className="text-[13px] font-semibold" style={{ color: 'var(--c-gray-700)' }}>
-                {group.label}
-              </span>
-              <span
-                className="text-[10px] px-2 py-0.5 rounded-full font-mono"
-                style={{ background: 'var(--c-gray-50)', color: 'var(--c-gray-400)' }}
-              >
-                {group.posts.length}
-              </span>
-              <div className="flex-1 h-px" style={{ background: 'var(--c-gray-100)' }} />
-            </button>
+          <section key={group.key} aria-label={`${group.label} feed`}>
+            {/* Two-line day header (§7.3) */}
+            <header className="polish-day-header">
+              <div className="flex flex-col">
+                <span className="polish-day-header-label">{group.label}</span>
+                <span className="polish-day-header-count">
+                  {group.posts.length} {group.posts.length === 1 ? "update" : "updates"}
+                </span>
+              </div>
+              <span className="polish-day-header-date">{dateLabel}</span>
+            </header>
 
-            {/* Posts with timeline event dots */}
-            <div
-              style={{
-                maxHeight: isCollapsed ? 0 : `${group.posts.length * 600}px`,
-                overflow: "hidden",
-                transition: "max-height 350ms cubic-bezier(0.4, 0, 0.2, 1)",
-              }}
-            >
+            {/* Posts with staggered entry — max 600ms total (spec §11.2) */}
+            <div className="space-y-3">
               {group.posts.map((post: any, i: number) => {
-                // Determine event type class for timeline dot color
-                const evClass = post.postType === "system_event" || post.postType === "pippen_digest" ? "ev-sys"
-                  : post.postType === "file_upload" ? "ev-file"
-                  : post.postType === "task" || post.postType === "task_created" ? "ev-task"
-                  : "ev-note"
+                const staggerDelay = Math.min(i * 40, 600)
                 return (
-                  <div key={post.id} className={`timeline-event ${evClass} feed-card-enter`} style={{ animationDelay: `${i * 50}ms` }}>
+                  <div
+                    key={post.id}
+                    className="polish-feed-card-enter"
+                    style={{ animationDelay: `${staggerDelay}ms` }}
+                  >
                     <FeedCard
                       post={post}
                       currentUser={currentUser}
@@ -328,7 +299,9 @@ function DayGroupedFeed({
                 )
               })}
             </div>
-          </div>
+
+            {gi < dayGroups.length - 1 && <div className="h-6" aria-hidden />}
+          </section>
         )
       })}
     </div>

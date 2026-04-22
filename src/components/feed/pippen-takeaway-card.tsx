@@ -266,45 +266,16 @@ export function PippenTakeawayCard({ post }: PippenTakeawayCardProps) {
   const formattedDate = formatDate(date)
 
   return (
-    <div className="dash-pippen-card mb-[48px]">
-      {/* Label row */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <span className="dash-label">Pippen&rsquo;s daily brief</span>
-          {formattedDate && (
-            <>
-              <span style={{ color: "var(--c-gray-200)", fontSize: 10 }}>·</span>
-              <span
-                style={{
-                  fontFamily: "var(--font-dm)",
-                  fontSize: 10,
-                  fontWeight: 400,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.2em",
-                  color: "var(--c-gray-400)",
-                }}
-              >
-                {formattedDate}
-              </span>
-            </>
-          )}
-        </div>
-        <Link
-          href="/pippen"
-          className="flex items-center gap-1.5 transition-opacity hover:opacity-70"
-          style={{
-            fontFamily: "var(--font-dm)",
-            fontSize: 10,
-            fontWeight: 500,
-            textTransform: "uppercase",
-            letterSpacing: "0.15em",
-            color: "var(--c-cleared-green)",
-          }}
-          aria-label="Open Pippen's full daily learnings report"
-        >
-          Open full report
-          <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
-        </Link>
+    <article className="dash-pippen-card mb-12">
+      {/* Header — label + date (polish §7.4) */}
+      <div className="dash-pippen-header">
+        <span>Pippen&rsquo;s Daily Brief</span>
+        {formattedDate && (
+          <>
+            <span aria-hidden style={{ color: "var(--c-gray-200)" }}>·</span>
+            <span>{formattedDate}</span>
+          </>
+        )}
       </div>
 
       {/* Editorial pull-quote body */}
@@ -316,32 +287,41 @@ export function PippenTakeawayCard({ post }: PippenTakeawayCardProps) {
         </p>
       )}
 
-      {/* Footer — Pippen avatar + timestamp */}
-      <div
-        className="flex items-center gap-2.5 mt-6 pt-5"
-        style={{ borderTop: "0.5px solid var(--border-tertiary)" }}
-      >
-        <div
-          className="flex items-center justify-center shrink-0"
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: "var(--c-pastel-amber-bg)",
-            color: "var(--c-pastel-amber-fg)",
-            fontFamily: "var(--font-dm)",
-            fontSize: 10,
-            fontWeight: 500,
-            letterSpacing: "0.05em",
-          }}
-          aria-hidden="true"
-        >
-          P
+      {/* Divider */}
+      <div className="dash-pippen-divider" aria-hidden />
+
+      {/* Footer — Pippen avatar + timestamp on left; Read Full on right */}
+      <div className="dash-pippen-footer">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="flex items-center justify-center shrink-0"
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: "var(--c-pastel-amber-bg)",
+              color: "var(--c-pastel-amber-fg)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              fontWeight: 500,
+            }}
+            aria-hidden="true"
+          >
+            P
+          </div>
+          <span>Pippen</span>
+          <span aria-hidden style={{ color: "var(--c-gray-200)" }}>·</span>
+          <span>{timeAgo(post.createdAt)}</span>
         </div>
-        <span className="dash-name">Pippen</span>
-        <span style={{ color: "var(--c-gray-200)", fontSize: 10 }}>·</span>
-        <span className="dash-meta">{timeAgo(post.createdAt)}</span>
+        <Link
+          href="/pippen"
+          className="flex items-center gap-1.5"
+          aria-label="Open Pippen's full daily learnings report"
+        >
+          Read full
+          <ArrowUpRight className="h-3 w-3" strokeWidth={1.75} />
+        </Link>
       </div>
-    </div>
+    </article>
   )
 }

@@ -24,6 +24,7 @@ import { ThreadEmptyState } from "./thread-empty-state"
 import { useThreads } from "./hooks/use-threads"
 import type { ComposerAttachment } from "./message-composer"
 import type { JunebugThreadListItem } from "./types"
+import { FullFetchProvider } from "@/components/assistant/full-fetch-context"
 
 export interface JunebugWorkspaceProps {
   initialThreadId?: string
@@ -235,7 +236,8 @@ export function JunebugWorkspace({
     : null
 
   return (
-    <div className="flex h-full w-full bg-white">
+    <FullFetchProvider>
+    <div className="polish-junebug-target flex h-full w-full bg-white">
       {/* Desktop sidebar */}
       <div
         className={`hidden md:flex transition-all duration-200 ${
@@ -376,5 +378,6 @@ export function JunebugWorkspace({
         </div>
       </div>
     </div>
+    </FullFetchProvider>
   )
 }
