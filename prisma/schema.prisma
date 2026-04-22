@@ -421,8 +421,51 @@ model Document {
   uploadedBy       User             @relation(fields: [uploadedById], references: [id])
   uploadedAt       DateTime         @default(now())
 
+  chunks   DocumentChunk[]
+  extracts DocumentExtract[]
+
   @@index([caseId])
   @@map("documents")
+}
+
+// V2 document search: overlapping chunks with pgvector embeddings.
+// One row per ~400-token window of extractedText. Populated on upload and
+// backfilled via `npm run document:chunk-all`.
+model DocumentChunk {
+  id         String    @id @default(cuid())
+  documentId String
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex Int
+  content    String    @db.Text
+  pageNumber Int?
+  tokenCount Int
+  // pgvector column — the embedding itself is populated via raw SQL since
+  // Prisma does not natively support the `vector` type. Selecting from
+  // Prisma returns null for this field; use raw queries for vector search.
+  embedding  Unsupported("vector(1536)")?
+  createdAt  DateTime  @default(now())
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@map("document_chunks")
+}
+
+// V2 document search: structured extractions for well-known document types.
+// extractType is one of: "1040" | "w2" | "1099" | "bank_statement" | "irs_notice" | "irs_transcript".
+// extractedData is the JSON blob of typed fields (e.g. { agi, filing_status, total_tax }).
+model DocumentExtract {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  extractType   String
+  extractedData Json
+  confidence    Float
+  extractedBy   String   // "claude-sonnet-4-6" | "manual" | "irs-transcript-parser"
+  extractedAt   DateTime @default(now())
+
+  @@index([documentId])
+  @@index([extractType])
+  @@map("document_extracts")
 }
 
 model AITask {
@@ -1448,6 +1491,11 @@ model DataSubjectRequest {
 model FormInstance {
   id                String   @id @default(cuid())
   formNumber        String
+  // V2: PDF revision this instance targets. Defaults to the schema's
+  // currentRevision at creation time. Instances stay on their original
+  // revision even if a newer revision binding is added later — practitioners
+  // don't want a 60%-complete form to silently re-map to a different layout.
+  revision          String   @default("unknown")
   caseId            String
   status            String   @default("draft")
   values            Json     @default("{}")
@@ -1460,9 +1508,28 @@ model FormInstance {
   case      Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
   createdBy User @relation("FormInstances", fields: [createdById], references: [id])
 
+  sensitive FormInstanceSensitive?
+
   @@index([caseId])
   @@index([createdById])
   @@map("form_instances")
+}
+
+// Sensitive sidecar for highly-protected fields (Form 8857 abuse/duress).
+// Stored separately with stricter access and audit. Never included in
+// cross-form auto-populate. Never surfaced to Junebug context except when
+// the practitioner is actively editing the relevant section.
+model FormInstanceSensitive {
+  id              String       @id @default(cuid())
+  formInstanceId  String       @unique
+  formInstance    FormInstance @relation(fields: [formInstanceId], references: [id], onDelete: Cascade)
+  encryptedData   String       @db.Text
+  lastAccessedAt  DateTime?
+  lastAccessedBy  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@map("form_instance_sensitive")
 }
 
 // ─── Junebug Feedback Pipeline ───

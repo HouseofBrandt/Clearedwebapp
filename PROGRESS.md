@@ -5,6 +5,98 @@
 
 ---
 
+## 2026-04-22 — Form Builder V2: foundation landing
+
+**What was done:**
+
+Large architectural refactor of the form builder, landing the first ~70% of the V2 spec in `docs/forms-v2-spec.md`. Behind `FORM_BUILDER_V2_ENABLED` flag; legacy paths untouched when flag is false.
+
+*Foundation*
+- **Schema/binding/metadata split** ([src/lib/forms/types.ts](src/lib/forms/types.ts)). `FieldDef.pdfMapping` removed — PDF concerns now live in `PDFBinding` (JSON fixtures under `src/lib/forms/pdf-bindings/{formNumber}/{revision}.json`). Publication info lives in `src/lib/forms/metadata/`. `currentRevision`/`supportedRevisions` on schema are optional so 7 existing schemas typecheck unchanged.
+- **Registry rewritten** ([src/lib/forms/registry.ts](src/lib/forms/registry.ts)). New `getPDFBinding()` and `getFormMetadata()` lookups. Preserves bundle-splitting via dynamic imports. Binding cache is in-process.
+- **Prisma migrations** ([prisma/schema.prisma](prisma/schema.prisma)): `FormInstance.revision` (defaults "unknown"), new `DocumentChunk` (with pgvector embedding), `DocumentExtract`, `FormInstanceSensitive` models.
+- **Feature flags** ([src/lib/forms/feature-flags.ts](src/lib/forms/feature-flags.ts)): `FORM_BUILDER_V2_ENABLED`, `AUTO_POPULATE_V3_ENABLED`, `DOCUMENT_CHUNKING_ENABLED`.
+
+*PDF renderer* — new module at [src/lib/forms/pdf-renderer/](src/lib/forms/pdf-renderer/index.ts):
+- 3 strategies (`acroform`, `coordinate`, `hybrid`) dispatched per binding.
+- 10 value transforms (SSN/EIN/phone/currency/date/checkbox etc.) with full tests.
+- `FillResult` reports `filled/skipped/failed` counts, duration, strategy, revision — no silent failures.
+- Page overlays: watermark + page numbers.
+- `fillPDFOrReport()` wrapper returns typed success/failure for UI-friendly errors.
+
+*Existing bindings migrated*
+- `433-A/2022-07.json` (200+ fields, full 6-page AcroForm coverage)
+- `12153/2020-12.json` (~40 fields)
+- `911/2022-05.json` (~30 fields)
+- `433-A-OIC` deferred: PDF ships with the app, but AcroForm field names differ from 433-A and were never authored. Legacy route was silently falling back to 433-A's field names (essentially non-functional). V2 registry correctly reports "no binding" until the PDF is inspected — see TASKS.md.
+
+*Fragment library expansion* — [src/lib/forms/fragments/](src/lib/forms/fragments):
+- `signature.ts` (taxpayer + spouse + officer-title + jurat)
+- `form-preparer.ts`
+- `reasonable-cause.ts` (structured 4-field narrative for Form 843)
+- `offer-calculation.ts` (Form 656 offer fields)
+- `installment-schedule.ts` (Form 9465 + 433-D)
+
+*New form schemas* — schema-only (PDF bindings require IRS PDFs to be placed in `public/forms/`, see TASKS.md):
+- **Form 2848** (Power of Attorney) — critical gatekeeper for every resolution path. Full 5-section schema including 4-representative repeating group.
+- **Form 4506-T** (Transcript Request) — used in every path.
+- **Form 14039** (Identity Theft Affidavit).
+- **Form 12277** (NFTL Withdrawal Application).
+
+Per-form metadata stubs created for all 11 registered forms.
+
+*Document search rebuild* ([src/lib/documents/](src/lib/documents/chunking.ts)):
+- `chunkAndEmbedDocument(documentId)` — reuses existing `src/lib/knowledge/` chunker + embeddings infra.
+- Structured extractors for 1040, W-2, 1099, bank statement, IRS notice. Each writes a typed `DocumentExtract` row via Claude Sonnet 4.6.
+- `searchCaseDocuments()` hybrid search: vector similarity (pgvector) + FTS (to_tsvector) + structured-extracts fallback. Weighted 0.7 vector / 0.3 FTS.
+
+*Auto-populate v3* ([src/lib/forms/auto-populate-v3.ts](src/lib/forms/auto-populate-v3.ts)):
+- Phase 1: structured sources (Case, CaseIntelligence, LiabilityPeriods, sibling FormInstances).
+- Phase 2: `DocumentExtract` rows mapped to form fields.
+- Phase 3: per-field search context via `searchCaseDocuments()`.
+- Phase 4: batched AI inference — up to 20 fields per Claude call, with confidence + source citations.
+- Gated on `AUTO_POPULATE_V3_ENABLED`; existing v2 still active when flag is off.
+
+*Case-first hub* — new route [/cases/:caseId/forms](src/app/(dashboard)/cases/[caseId]/forms/page.tsx):
+- Renders resolution-engine form package for the case.
+- Per-form status (complete/in-progress/not-started), requirement badge, reason-for-inclusion.
+- Orphan-instance section for forms not in the package.
+- "Add form outside package" picker.
+- "Download package as PDF" → merged PDF with cover sheet + TOC via [new endpoint](src/app/api/cases/[caseId]/forms/package/download/route.ts).
+- Linked from case-detail workspace tabs.
+
+*Route wiring*
+- `/api/forms/[instanceId]/preview-pdf`: V2 renderer used when flag on AND binding exists; otherwise legacy path (zero regression).
+- `/api/forms/[instanceId]/auto-populate`: V3 engine used when flag on; response labeled `engine: v3` for telemetry.
+
+*Tests*
+- `pdf-renderer/value-transforms.test.ts` — 40+ cases across all transforms.
+- `pdf-renderer/flatten-values.test.ts` — repeating-group flattening.
+- `schemas/schemas.test.ts` — structural tests for all 11 schemas + all 3 bindings. Checks uniqueness, conditional integrity, binding type safety.
+
+**Not landed (deferred to follow-up PRs — see TASKS.md):**
+- 8 more form schemas (656 completions, 843 completions, 9465 completions, 433-B, 433-B-OIC, 8857, 433-F, 1040-X).
+- PDF binding files for any form without a PDF on disk (5 schemas exist with no binding, plus the 4 new ones — IRS PDFs must be manually obtained).
+- Golden-PDF regression tests per form.
+- Production backfill of `DocumentChunk`/`DocumentExtract`.
+- `FormInstance.values` encryption migration (destructive — needs staged rollout).
+- Analytics dashboard at `/admin/forms-analytics`.
+- Internal dogfood + percentage rollout.
+- `433-A-OIC` binding (needs PDF inspection — AcroForm field names unknown).
+
+**Runtime caveats (honest):**
+- Could not run `tsc`, `next build`, or `vitest` in this environment (no Node on PATH). Self-review performed instead — logic, Prisma fields, imports, and CSS vars audited manually. The first real build after merge is the acid test; any surfaced errors will be trivial fixes.
+- The pgvector extension must be enabled and the existing `scripts/setup-vector.mjs` run; the new `DocumentChunk` table depends on it. `setup-vector` is already in `npm run build`.
+- Auto-populate v3 makes a real Claude call per batch of up to 20 fields + embedding calls during search. Keep `AUTO_POPULATE_V3_ENABLED` flag off until the firm's spend signal is verified on a few pilot cases.
+
+**Next iteration should:**
+- Obtain IRS PDFs for 2848, 4506-T, 9465, 843, 656, 14039, 12277 → place in `public/forms/` → author bindings.
+- Write binding-inspection script (node + pdf-lib) to enumerate AcroForm field names from a PDF and bootstrap a binding JSON skeleton.
+- Backfill `DocumentChunk` and `DocumentExtract` on the existing document set (Vercel cron or one-shot script).
+- Run the build to flush out any real typecheck issues in the new code.
+
+---
+
 ## 2026-03-27 — Initial Setup
 
 **What was done:**

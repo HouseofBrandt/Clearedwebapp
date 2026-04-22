@@ -567,3 +567,146 @@ Acceptance: Schemas + wizard + PDF gen for: 2848, 8821, 843, 8857, 12277, 14135,
 Priority: P3
 Source: Addendum B17
 Acceptance: Schemas + wizard + PDF gen for: 4506-T, 14039, 14134, 1040-X, W-7, SS-4, 12203, state forms
+
+---
+
+# PART C: FORM BUILDER V2 FOLLOW-UPS (as of 2026-04-22)
+
+V2 foundation landed behind `FORM_BUILDER_V2_ENABLED` flag. The tasks below are the remaining work from docs/forms-v2-spec.md.
+
+## ═══ V2 P0 — Ship-blockers ═══
+
+## [TODO] V2.1 Author 433-A-OIC PDF binding
+Priority: P0
+Source: docs/forms-v2-spec.md §7 + PROGRESS.md 2026-04-22
+Scope: src/lib/forms/pdf-bindings/433-A-OIC/2024-04.json, write a one-shot pdf-inspect script under scripts/
+Acceptance:
+- Node script (scripts/inspect-pdf-fields.mjs) that takes a PDF path and dumps every AcroForm field name + type
+- Run against public/forms/f433aoic.pdf to enumerate fields
+- Author 433-A-OIC/2024-04.json with real field names
+- Update registry: add 433-A-OIC to BINDING_LOADERS, flip hasBinding to true
+- Manual smoke test: fill an instance, render PDF, verify every expected field appears
+
+## [TODO] V2.2 Acquire + bind 2848 (Power of Attorney)
+Priority: P0
+Scope: public/forms/f2848.pdf, src/lib/forms/pdf-bindings/2848/2021-01.json
+Acceptance:
+- Download f2848 from irs.gov (Rev. 1-2021)
+- Run inspect script, author binding
+- Fill test instance end-to-end
+- 2848 is the gatekeeper for every resolution path — this is the highest-leverage missing form
+
+## ═══ V2 P1 — Near-term follow-ups ═══
+
+## [TODO] V2.3 Acquire + bind 4506-T, 14039, 12277
+Priority: P1
+Scope: public/forms/f4506t.pdf, f14039.pdf, f12277.pdf + corresponding binding JSONs
+Acceptance: Same pattern as V2.1. All three schemas already shipped; only PDFs + bindings are missing.
+
+## [TODO] V2.4 Complete form schemas 656, 843, 9465
+Priority: P1
+Scope: src/lib/forms/schemas/form-{656,843,9465}.ts (existing files are partial)
+Acceptance:
+- Review existing schemas against docs/forms-v2-spec.md §7.2/7.3/7.4
+- Use fragment-library expansions (offer-calculation, reasonable-cause, installment-schedule)
+- Add crossFormMappings (656 ← 433-A-OIC, 9465 ← 433-A)
+
+## [TODO] V2.5 Binding files for 656, 843, 9465
+Priority: P1
+Scope: public/forms/f656.pdf, f843.pdf, f9465.pdf + binding JSONs
+Acceptance: same pattern as V2.1
+
+## [TODO] V2.6 Backfill DocumentChunk + DocumentExtract
+Priority: P1
+Scope: scripts/backfill-document-chunks.ts (new), runs against production Neon DB
+Acceptance:
+- Iterates every Document with extractedText
+- Calls chunkAndEmbedDocument and extractDocumentFields
+- Handles rate limits (batch, retry, progress logging)
+- Idempotent — safe to re-run
+- Flag DOCUMENT_CHUNKING_ENABLED can be flipped on AFTER backfill completes
+
+## [TODO] V2.7 Encrypt FormInstance.values
+Priority: P1
+Scope: prisma/schema.prisma, src/lib/forms/form-store.ts, one-shot migration script
+Acceptance:
+- Add `valuesEncrypted String? @db.Text` column alongside `values`
+- Update form-store to read/write encrypted column (fallback to plain for legacy rows)
+- Write migration script to encrypt existing rows in place
+- Follow-up PR drops the plain `values` column after 2 weeks of stable dual-column operation
+
+## [TODO] V2.8 Golden-PDF tests
+Priority: P1
+Scope: tests/golden-pdfs/ + src/lib/forms/pdf-renderer/golden.test.ts
+Acceptance:
+- Known test-data set per form (synthetic — no real client PII)
+- Fill each form, save output to tests/golden-pdfs/{form}.pdf
+- CI test compares byte-for-byte, tolerating PDF timestamp differences
+- Golden regeneration is a deliberate commit, reviewed per-diff
+
+## ═══ V2 P2 — Medium-term ═══
+
+## [TODO] V2.9 Form schemas 433-B, 433-B-OIC, 8857, 433-F, 1040-X
+Priority: P2
+Scope: src/lib/forms/schemas/
+Acceptance:
+- One schema per form using the fragment library
+- 8857 uses FormInstanceSensitive sidecar for abuse/duress fields
+- Each schema ships with a metadata file in src/lib/forms/metadata/
+- Bindings deferred to V2.10
+
+## [TODO] V2.10 Binding files for 433-B, 433-B-OIC, 8857, 433-F, 1040-X
+Priority: P2
+Scope: public/forms/ + binding JSONs
+Acceptance: same pattern as V2.1
+
+## [TODO] V2.11 Field highlighting in PDF preview
+Priority: P2
+Scope: src/components/forms/pdf-preview.tsx, uses binding coordinates
+Acceptance:
+- When a field is focused in the wizard, the PDF preview highlights its location
+- Yellow outline overlay via pdfjsLib canvas
+- Revision badge in preview header
+
+## [TODO] V2.12 Cross-form data flow declarations
+Priority: P2
+Scope: crossFormMappings on every schema that has a sibling form
+Acceptance:
+- 656 auto-fills from 433-A-OIC completion
+- 9465 auto-fills from 433-A completion
+- 2848 representative info flows into 8821, 12153, 911, etc.
+
+## [TODO] V2.13 Analytics dashboard /admin/forms-analytics
+Priority: P2
+Scope: src/app/(dashboard)/admin/forms-analytics/, new AuditLog queries
+Acceptance:
+- Per-form: time-to-start, time-to-complete, auto-populate adoption, PDF fill duration/failure rate
+- Per-practitioner: forms completed per week
+- Weekly admin report of binding-health (forms with >5% fill-failure)
+
+## ═══ V2 P3 — Nice to have ═══
+
+## [TODO] V2.14 Observability: failed-fill alerting
+Priority: P3
+Scope: src/lib/forms/pdf-renderer/index.ts writes AuditLog entries on failure
+Acceptance: Every FillResult with failed fields creates an AuditLog row, queryable on the analytics dashboard
+
+## [TODO] V2.15 Dogfood + rollout
+Priority: P3
+Acceptance:
+- Enable FORM_BUILDER_V2_ENABLED for 5 internal practitioners
+- Monitor metrics for 1 week
+- Roll to 25% for 3 days
+- Full rollout
+- Delete legacy form-hub/renderer code 2 weeks after full stable
+
+## [TODO] V2.16 Form 8821 (simpler 2848 sibling)
+Priority: P3
+Acceptance: Schema + binding + case-first hub integration. Structurally a subset of 2848.
+
+## [TODO] V2.17 Form schemas deliberately out of scope
+Do not pick up in follow-ups without an explicit ask:
+- State tax forms (California FTB, New York DTF, etc.)
+- e-Filing integration (v1 is PDF-for-signature only)
+- Client portal form signing
+- Mid-flight revision migration UI (instances stay on their original revision)

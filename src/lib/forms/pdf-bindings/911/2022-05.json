@@ -1,0 +1,51 @@
+{
+  "formNumber": "911",
+  "revision": "2022-05",
+  "pdfFileName": "f911.pdf",
+  "fillStrategy": "acroform",
+  "pageCount": 2,
+  "pageDimensions": [
+    { "width": 612, "height": 792 },
+    { "width": 612, "height": 792 }
+  ],
+  "effectiveDate": "2022-05-01",
+  "supersededDate": null,
+  "notes": "Migrated from inline FORM_911_FIELD_MAP in preview-pdf/route.ts. Maintains byte-for-byte equivalence with pre-V2 fill behavior.",
+  "fields": {
+    "taxpayer_name":        { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line1a[0].f911-t1a[0]" } },
+    "ssn":                  { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line1b[0].f911-t1b[0]" }, "transform": "ssn-format" },
+    "address_street":       { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line2[0].f911-t2[0]" } },
+    "address_city":         { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line2[0].f911-t2c[0]" } },
+    "address_state":        { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line2[0].f911-t2s[0]" } },
+    "address_zip":          { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line2[0].f911-t2z[0]" } },
+    "phone":                { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line3[0].f911-t3[0]" }, "transform": "phone-format" },
+    "email":                { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line4[0].f911-t4[0]" } },
+    "spouse_name":          { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line5a[0].f911-t5a[0]" } },
+    "spouse_ssn":           { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line5b[0].f911-t5b[0]" }, "transform": "ssn-format" },
+    "tax_form_number":      { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line6[0].f911-t6[0]" } },
+
+    "tax_periods.0.period_year": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line7[0].f911-t7a[0]" } },
+    "tax_periods.1.period_year": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line7[0].f911-t7b[0]" } },
+    "tax_periods.2.period_year": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line7[0].f911-t7c[0]" } },
+    "tax_periods.3.period_year": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line7[0].f911-t7d[0]" } },
+
+    "has_representative":      { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line8[0].f911-cb8[0]", "acroFieldType": "checkbox" } },
+    "rep_name":                { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line9a[0].f911-t9a[0]" } },
+    "rep_phone":               { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line9b[0].f911-t9b[0]" }, "transform": "phone-format" },
+    "rep_caf":                 { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line9c[0].f911-t9c[0]" } },
+    "rep_centralized_auth":    { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line10[0].f911-cb10[0]", "acroFieldType": "checkbox" } },
+
+    "irs_employee_name":       { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line11a[0].f911-t11a[0]" } },
+    "irs_employee_id":         { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line11b[0].f911-t11b[0]" } },
+    "irs_office":              { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line11c[0].f911-t11c[0]" } },
+    "contact_date":            { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line11d[0].f911-t11d[0]" }, "transform": "date-mmddyyyy" },
+    "irs_response":            { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Line12[0].f911-t12[0]" } },
+
+    "hardship_category":    { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Line13[0].f911-cb13[0]", "acroFieldType": "checkbox" } },
+    "problem_description":  { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Line14[0].f911-t14[0]" } },
+    "attempts_to_resolve":  { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Line15[0].f911-t15[0]" } },
+    "relief_requested":     { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Line16[0].f911-t16[0]" } },
+    "hardship_explanation": { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Line17[0].f911-t17[0]" } },
+    "supporting_documents": { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Line18[0].f911-t18[0]" } }
+  }
+}

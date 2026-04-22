@@ -3,17 +3,22 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
 import { getFormInstance } from "@/lib/forms/form-store"
 import { autoPopulateForm } from "@/lib/forms/auto-populate"
+import { autoPopulateV3 } from "@/lib/forms/auto-populate-v3"
+import { AUTO_POPULATE_V3_ENABLED } from "@/lib/forms/feature-flags"
 
 /**
  * POST /api/forms/[instanceId]/auto-populate
  *
- * Runs the multi-source auto-population engine for the given form instance.
- * Gathers data from: case record, case intelligence, liability periods,
- * existing form instances, approved AI outputs, client notes, and document text.
+ * Runs the auto-population engine for the given form instance.
+ *
+ * When AUTO_POPULATE_V3_ENABLED is true, uses the v3 hybrid-search engine:
+ * structured sources + DocumentExtract rows + embedding-based chunk search +
+ * batched AI inference. Otherwise falls back to v2 (the naive-grep engine).
+ *
  * Returns suggested values with confidence scores and source attribution.
  */
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { instanceId: string } }
 ) {
   try {
@@ -22,13 +27,9 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Load the form instance to get caseId and formNumber
     const instance = await getFormInstance(params.instanceId)
     if (!instance) {
-      return NextResponse.json(
-        { error: "Form instance not found" },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: "Form instance not found" }, { status: 404 })
     }
 
     if (!instance.caseId) {
@@ -38,10 +39,17 @@ export async function POST(
       )
     }
 
-    // Run auto-population against all data sources
-    const result = await autoPopulateForm(instance.caseId, instance.formNumber)
+    if (AUTO_POPULATE_V3_ENABLED) {
+      const result = await autoPopulateV3({
+        caseId: instance.caseId,
+        formNumber: instance.formNumber,
+        formInstanceId: instance.id,
+      })
+      return NextResponse.json({ ...result, engine: "v3" })
+    }
 
-    return NextResponse.json(result)
+    const result = await autoPopulateForm(instance.caseId, instance.formNumber)
+    return NextResponse.json({ ...result, engine: "v2" })
   } catch (error) {
     console.error("Auto-populate error:", error)
     return NextResponse.json(
