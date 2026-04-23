@@ -30,6 +30,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
 import { preferredOpusModel } from "@/lib/ai/model-selection"
+import { createMessageWithRetry } from "@/lib/ai/retry"
 import {
   VERIFY_CITATION_TOOL,
   verifyCitation,
@@ -123,8 +124,8 @@ export async function generateMemo(
   let response: any
   let turns = 0
   while (true) {
-    response = await anthropic.messages.create(
-      buildMessagesRequest({
+    response = await createMessageWithRetry(anthropic, {
+      body: buildMessagesRequest({
         model,
         max_tokens: 16384,
         system: MEMO_SYSTEM_PROMPT,
@@ -135,8 +136,13 @@ export async function generateMemo(
         messages,
         effort: "xhigh",
       }),
-      { timeout: ANTHROPIC_CALL_TIMEOUT_MS }
-    )
+      timeout: ANTHROPIC_CALL_TIMEOUT_MS,
+      label: "generateMemo/draft",
+      onRetry: (attempt, msg) => emit({
+        kind: "detail",
+        detail: `Anthropic hiccup (${msg.slice(0, 80)}) — retrying (attempt ${attempt}/3)`,
+      }),
+    })
     messages.push({ role: "assistant", content: response.content })
     if (response.stop_reason !== "tool_use") break
 
@@ -194,8 +200,8 @@ export async function generateMemo(
   // the model now has all the verification context it needs.
   if (!draftRaw || draftRaw.trim().length === 0) {
     emit({ kind: "detail", detail: "Finalizing the memo draft" })
-    const finalize = await anthropic.messages.create(
-      buildMessagesRequest({
+    const finalize = await createMessageWithRetry(anthropic, {
+      body: buildMessagesRequest({
         model,
         max_tokens: 16384,
         system: MEMO_SYSTEM_PROMPT,
@@ -210,8 +216,13 @@ export async function generateMemo(
         ],
         effort: "xhigh",
       }),
-      { timeout: ANTHROPIC_CALL_TIMEOUT_MS }
-    )
+      timeout: ANTHROPIC_CALL_TIMEOUT_MS,
+      label: "generateMemo/finalize",
+      onRetry: (attempt, msg) => emit({
+        kind: "detail",
+        detail: `Anthropic hiccup (${msg.slice(0, 80)}) — retrying finalize (attempt ${attempt}/3)`,
+      }),
+    })
     draftRaw = extractTextFromResponse(finalize)
   }
 
@@ -390,8 +401,8 @@ ${JSON.stringify(draft, null, 2)}`
   let response: any
   let turns = 0
   while (true) {
-    response = await anthropic.messages.create(
-      buildMessagesRequest({
+    response = await createMessageWithRetry(anthropic, {
+      body: buildMessagesRequest({
         model: preferredOpusModel(),
         max_tokens: 16384,
         system: MEMO_SYSTEM_PROMPT,
@@ -402,8 +413,9 @@ ${JSON.stringify(draft, null, 2)}`
         messages,
         effort: "xhigh",
       }),
-      { timeout: REVISION_CALL_TIMEOUT_MS }
-    )
+      timeout: REVISION_CALL_TIMEOUT_MS,
+      label: "generateMemo/revise",
+    })
     messages.push({ role: "assistant", content: response.content })
     if (response.stop_reason !== "tool_use") break
 

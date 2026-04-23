@@ -10,6 +10,7 @@ import {
 import { scanCitations } from "./citation-normalizer"
 import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
 import { preferredOpusModel } from "@/lib/ai/model-selection"
+import { createMessageWithRetry } from "@/lib/ai/retry"
 import { RESEARCH_RESPONSE_STYLE_SUFFIX } from "./memo-system-prompt"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
@@ -170,8 +171,8 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
   let turns = 0
   emit({ kind: "phase", phase: "searching", message: "Searching for authorities" })
   while (true) {
-    response = await anthropic.messages.create(
-      buildMessagesRequest({
+    response = await createMessageWithRetry(anthropic, {
+      body: buildMessagesRequest({
         model: researchModel,
         max_tokens: 16384,
         system: systemPrompt,
@@ -182,8 +183,13 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
         messages,
         effort: researchEffort,
       }),
-      { timeout: ANTHROPIC_CALL_TIMEOUT_MS }
-    )
+      timeout: ANTHROPIC_CALL_TIMEOUT_MS,
+      label: "conductResearch",
+      onRetry: (attempt, msg) => emit({
+        kind: "detail",
+        message: `Anthropic hiccup (${msg.slice(0, 80)}) — retrying (attempt ${attempt}/3)`,
+      }),
+    })
 
     // Append the assistant turn to the conversation.
     messages.push({ role: "assistant", content: response.content })
