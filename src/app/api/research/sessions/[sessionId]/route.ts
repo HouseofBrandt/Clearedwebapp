@@ -66,7 +66,7 @@ export async function PATCH(
     if (body.status === "INTAKE") {
       const updated = await prisma.researchSession.update({
         where: { id: sessionId },
-        data: { status: "INTAKE", output: null, completedAt: null },
+        data: { status: "INTAKE", output: null, completedAt: null, progress: null as any },
       })
       return NextResponse.json({ id: updated.id, status: updated.status })
     }

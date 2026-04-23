@@ -21,6 +21,20 @@ const VALID_KB_CATEGORIES = [
 ] as const
 type KnowledgeCategory = typeof VALID_KB_CATEGORIES[number]
 
+/**
+ * Per-event progress emitted during conductResearch. The launch route
+ * forwards these to the client over SSE so the UI can show specific,
+ * moment-to-moment status instead of a vague "Composing..." for 60s.
+ *
+ * Keep the payload small and stable — event schema leaks into the SSE
+ * transport.
+ */
+export type ResearchProgressEvent =
+  | { kind: "phase"; phase: "preparing" | "searching" | "verifying" | "composing" | "backfill" | "evaluating" | "humanizing" | "ingesting" | "complete"; message: string }
+  | { kind: "verify_citation"; citation: string; status: "started" | "verified" | "not_found" | "superseded" | "unverifiable" }
+  | { kind: "source_found"; total: number }
+  | { kind: "detail"; message: string }
+
 export interface ResearchRequest {
   topic: string
   context?: string
@@ -29,6 +43,12 @@ export interface ResearchRequest {
   kbCategory?: string
   kbTags?: string[]
   userId?: string
+  /**
+   * Optional progress listener. The caller (typically the launch route)
+   * forwards these events to an SSE stream. Never throws — callers
+   * should make this cheap and side-effect-free.
+   */
+  onProgress?: (event: ResearchProgressEvent) => void
 }
 
 export interface ResearchResult {
@@ -117,6 +137,12 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
     ? `Research the following for a ${request.context} case:\n\n${request.topic}`
     : `Research the following:\n\n${request.topic}`
 
+  const emit = (event: ResearchProgressEvent) => {
+    try { request.onProgress?.(event) } catch { /* never let UI hooks fail the research */ }
+  }
+
+  emit({ kind: "phase", phase: "preparing", message: "Preparing research context" })
+
   // Agentic multi-turn loop: Claude produces text and may emit tool_use
   // blocks (web_search is built-in; verify_citation is our handler). Each
   // tool_use gets a corresponding tool_result appended to the messages,
@@ -134,6 +160,7 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
   const researchModel = preferredOpusModel()
   let response: any
   let turns = 0
+  emit({ kind: "phase", phase: "searching", message: "Searching for authorities" })
   while (true) {
     response = await anthropic.messages.create(
       buildMessagesRequest({
@@ -152,6 +179,19 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
     // Append the assistant turn to the conversation.
     messages.push({ role: "assistant", content: response.content })
 
+    // Forward any web_search results to the progress stream so the UI can
+    // narrate which sources landed. Anthropic's built-in web_search tool
+    // includes results inline in the assistant content.
+    const webSearchBlocks = response.content.filter(
+      (b: any) => b.type === "web_search_tool_result" || b.type === "tool_result"
+    )
+    let sourceCount = 0
+    for (const block of webSearchBlocks) {
+      const results = block.content || block.search_results || []
+      if (Array.isArray(results)) sourceCount += results.length
+    }
+    if (sourceCount > 0) emit({ kind: "source_found", total: sourceCount })
+
     // If the model stopped for any reason other than tool_use, we're done.
     if (response.stop_reason !== "tool_use") break
 
@@ -168,9 +208,12 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
       // handles that one server-side; on the next turn the results are
       // already in the assistant message. Just continue the loop to let
       // Claude produce its next turn.
+      emit({ kind: "detail", message: "Reading web-search results" })
       if (++turns >= MAX_TOOL_TURNS) break
       continue
     }
+
+    emit({ kind: "phase", phase: "verifying", message: `Verifying ${toolUses.length} citation${toolUses.length === 1 ? "" : "s"}` })
 
     // Resolve each verify_citation call in parallel. One call per tool_use —
     // the same VerificationResult feeds both the accumulator and the
@@ -178,8 +221,10 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
     const results = await Promise.all(
       toolUses.map(async (tu: any) => {
         const input = tu.input as { citation: string }
+        emit({ kind: "verify_citation", citation: input.citation, status: "started" })
         const v = await verifyCitation(input.citation)
         citationsCollected.push(v)
+        emit({ kind: "verify_citation", citation: input.citation, status: v.status })
         const payload = {
           citation: v.raw,
           status: v.status,
@@ -214,6 +259,8 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
     }
   }
 
+  emit({ kind: "phase", phase: "composing", message: "Composing the memo" })
+
   const textBlocks = response.content.filter((b: any) => b.type === "text")
   let fullText = textBlocks.map((b: any) => b.text).join("\n\n")
 
@@ -226,9 +273,11 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
   // Post-pass: if the memo contains a citation the model never actually
   // verified (lazy model behavior), verify now and record the result. This
   // backstops the system-prompt rule.
+  emit({ kind: "phase", phase: "backfill", message: "Double-checking citations in the draft" })
   await backfillUnverifiedCitations(fullText, citationsCollected)
 
   // Run through reasoning pipeline for quality evaluation
+  emit({ kind: "phase", phase: "evaluating", message: "Evaluating draft quality" })
   try {
     const { evaluateAIOutput } = await import("@/lib/reasoning/wrap")
     const evaluated = await evaluateAIOutput({
@@ -246,6 +295,7 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
     console.warn("[Reasoning] Web research pipeline error (non-blocking):", e.message)
   }
 
+  emit({ kind: "phase", phase: "humanizing", message: "Polishing language" })
   fullText = humanizeText(fullText)
 
   const result: ResearchResult = {
@@ -256,6 +306,7 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
   }
 
   if (request.saveToKB) {
+    emit({ kind: "phase", phase: "ingesting", message: "Saving to the firm's knowledge base" })
     const scrubbed = scrubForKnowledgeBase(fullText, "", "")
     const title = `Research: ${request.topic.substring(0, 100)}`
 
@@ -283,6 +334,7 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
     result.savedToKB = { documentId: doc.id, title }
   }
 
+  emit({ kind: "phase", phase: "complete", message: "Research complete" })
   return result
 }
 

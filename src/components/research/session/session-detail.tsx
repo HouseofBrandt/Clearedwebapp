@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { SmartProgress } from "@/components/ui/smart-progress"
 import type { LucideIcon } from "lucide-react"
 
 /* ── Types ────────────────────────────────────────────────────────── */
@@ -67,6 +68,14 @@ interface ResearchSessionDetail {
   retrievalStartedAt?: string | null
   completedAt?: string | null
   createdBy?: { id: string; name: string; email: string } | null
+  /** Live progress snapshot — written by the launch route as work progresses. */
+  progress?: {
+    headline?: string
+    detail?: string
+    percent?: number
+    phase?: string
+    updatedAt?: string
+  } | null
 }
 
 /* ── Config ───────────────────────────────────────────────────────── */
@@ -130,18 +139,31 @@ const STATUS_CONFIG: Record<
   ARCHIVED: { label: "Archived", variant: "secondary" },
 }
 
-const PROGRESS_MESSAGES = [
-  "Parsing your question...",
-  "Searching the Internal Revenue Code...",
-  "Reviewing Treasury Regulations...",
-  "Analyzing relevant case law...",
-  "Checking Revenue Rulings and Procedures...",
-  "Cross-referencing IRS guidance...",
-  "Structuring the analysis...",
-  "Drafting output...",
-  "Finalizing citations...",
-  "Almost there...",
+/**
+ * Fallback details used only when the server hasn't yet emitted a
+ * progress event. Once real events arrive (usually within a second),
+ * SmartProgress shows the real detail line instead.
+ */
+const FALLBACK_RESEARCH_DETAILS = [
+  "Parsing the question",
+  "Searching IRS.gov and primary-source databases",
+  "Verifying citations against CourtListener",
+  "Reviewing Treasury Regulations and Revenue Rulings",
+  "Cross-referencing IRS guidance",
+  "Structuring the analysis",
+  "Drafting the memo",
+  "Double-checking every citation",
 ]
+
+function defaultHeadlineFor(status: ResearchStatus): string {
+  switch (status) {
+    case "PRESCOPING": return "Preparing research context"
+    case "RETRIEVING": return "Searching for authorities"
+    case "COMPOSING":  return "Composing the memo"
+    case "EVALUATING": return "Evaluating draft quality"
+    default:           return "Working on your research"
+  }
+}
 
 /* ── Component ────────────────────────────────────────────────────── */
 
@@ -173,14 +195,15 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
     fetchSession()
   }, [fetchSession])
 
-  /* Poll while processing */
+  /* Poll while processing — 1.5s cadence so the thinking display feels
+   * responsive. The progress JSON column is small so the load is trivial. */
   useEffect(() => {
     if (!session) return
     if (session.status !== "PRESCOPING" && session.status !== "RETRIEVING" && session.status !== "COMPOSING" && session.status !== "EVALUATING") return
 
     const interval = setInterval(() => {
       fetchSession()
-    }, 5000)
+    }, 1500)
 
     return () => clearInterval(interval)
   }, [session, fetchSession])
@@ -228,33 +251,78 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
 
   const [memoGenerating, setMemoGenerating] = useState(false)
   const [memoError, setMemoError] = useState<string | null>(null)
+  const [memoHeadline, setMemoHeadline] = useState<string>("Starting memo generation")
+  const [memoDetail, setMemoDetail] = useState<string | undefined>(undefined)
+  const [memoPercent, setMemoPercent] = useState<number | undefined>(undefined)
 
   const handleGenerateMemo = useCallback(async () => {
     if (!session || memoGenerating) return
     setMemoError(null)
     setMemoGenerating(true)
+    setMemoHeadline("Starting memo generation")
+    setMemoDetail(undefined)
+    setMemoPercent(undefined)
     try {
       const res = await fetch(`/api/research/sessions/${session.id}/memo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}", // no overrides — renderer uses placeholders / session defaults
+        body: "{}",
       })
-      if (!res.ok) {
+      if (!res.ok || !res.body) {
         const detail = await res.json().catch(() => ({}))
         throw new Error(detail?.error || `Memo generation failed (${res.status})`)
       }
-      const blob = await res.blob()
-      const contentDisposition = res.headers.get("Content-Disposition") || ""
-      const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
-      const filename = filenameMatch?.[1] || `memo-${session.id}.docx`
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ""
+      let downloaded = false
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const parts = buf.split("\n\n")
+        buf = parts.pop() || ""
+        for (const p of parts) {
+          const line = p.trim()
+          if (!line.startsWith("data:")) continue
+          const json = line.slice(5).trim()
+          if (!json) continue
+          try {
+            const event = JSON.parse(json)
+            if (event.type === "phase") {
+              if (event.headline) setMemoHeadline(event.headline)
+              if (typeof event.percent === "number") setMemoPercent(event.percent)
+            } else if (event.type === "detail") {
+              setMemoDetail(event.detail)
+            } else if (event.type === "verify_citation") {
+              // Already reflected via the detail event the server also sends.
+            } else if (event.type === "done") {
+              // Convert base64 docx and trigger download.
+              const binary = atob(event.docxBase64)
+              const bytes = new Uint8Array(binary.length)
+              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+              const blob = new Blob([bytes], {
+                type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement("a")
+              a.href = url
+              a.download = event.filename || `memo-${session.id}.docx`
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+              URL.revokeObjectURL(url)
+              downloaded = true
+            } else if (event.type === "error") {
+              throw new Error(event.error || "Memo generation failed")
+            }
+          } catch (parseErr) {
+            // Only rethrow deliberate errors.
+            if (parseErr instanceof Error && parseErr.message) throw parseErr
+          }
+        }
+      }
+      if (!downloaded) throw new Error("Stream ended before memo was delivered")
     } catch (err: any) {
       setMemoError(err?.message || "Could not generate memo")
     } finally {
@@ -327,9 +395,24 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
     session.status === "PRESCOPING" || session.status === "RETRIEVING" || session.status === "COMPOSING" || session.status === "EVALUATING"
   const isReviewable = session.status === "READY_FOR_REVIEW"
 
-  // Detect stuck sessions (processing for >5 minutes)
-  const isStuck = isProcessing && session?.createdAt &&
-    (Date.now() - new Date(session.createdAt).getTime()) > 5 * 60 * 1000
+  // A session looks stuck only when progress hasn't advanced for a long
+  // time. Legit deep research can run 8+ minutes; the old "over 5 min" check
+  // fired on healthy runs and nagged the user. Now: stuck = no progress
+  // update in the last 4 minutes AND at least 3 minutes elapsed overall.
+  const lastProgressAt = session?.progress?.updatedAt
+    ? new Date(session.progress.updatedAt).getTime()
+    : session?.retrievalStartedAt
+      ? new Date(session.retrievalStartedAt).getTime()
+      : session?.createdAt
+        ? new Date(session.createdAt).getTime()
+        : 0
+  const elapsedOverall = session?.createdAt
+    ? Date.now() - new Date(session.createdAt).getTime()
+    : 0
+  const isStuck =
+    isProcessing &&
+    elapsedOverall > 3 * 60 * 1000 &&
+    Date.now() - lastProgressAt > 4 * 60 * 1000
 
   async function handleRetry() {
     if (!session) return
@@ -429,14 +512,27 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
       </Card>
 
       {/* Processing state */}
-      {isProcessing && <ProcessingIndicator />}
+      {isProcessing && (
+        <Card>
+          <CardContent className="p-6">
+            <SmartProgress
+              headline={session.progress?.headline || defaultHeadlineFor(session.status)}
+              detail={session.progress?.detail}
+              percent={session.progress?.percent}
+              fallbackDetails={FALLBACK_RESEARCH_DETAILS}
+              active
+              size="md"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stuck session retry */}
       {isStuck && (
         <div className="rounded-[12px] px-5 py-4 flex items-center justify-between" style={{ background: "var(--c-warning-soft)", border: "1px solid rgba(217,119,6,0.15)" }}>
           <div>
-            <p className="text-[13px] font-medium" style={{ color: "var(--c-warning)" }}>Research appears to be stuck</p>
-            <p className="text-[12px]" style={{ color: "var(--c-gray-500)" }}>This session has been processing for over 5 minutes.</p>
+            <p className="text-[13px] font-medium" style={{ color: "var(--c-warning)" }}>Research may be stuck</p>
+            <p className="text-[12px]" style={{ color: "var(--c-gray-500)" }}>No progress update in the last 4 minutes. Deep research can legitimately run 8–10 minutes — only retry if this looks truly frozen.</p>
           </div>
           <button
             onClick={handleRetry}
@@ -541,6 +637,22 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
               <p className="text-[11px]" style={{ color: "var(--c-danger, #b91c1c)" }}>
                 {memoError}
               </p>
+            )}
+            {memoGenerating && (
+              <div className="w-full max-w-md mt-2 rounded-lg px-4 py-3" style={{ background: "var(--c-gray-50)", border: "1px solid var(--c-gray-100)" }}>
+                <SmartProgress
+                  headline={memoHeadline}
+                  detail={memoDetail}
+                  percent={memoPercent}
+                  fallbackDetails={[
+                    "Drafting sections",
+                    "Verifying citations",
+                    "Checking for unverified authorities",
+                    "Rendering the .docx",
+                  ]}
+                  active
+                />
+              </div>
             )}
           </div>
 
@@ -678,44 +790,8 @@ function MetaItem({
   )
 }
 
-function ProcessingIndicator() {
-  const [msgIndex, setMsgIndex] = useState(0)
-  const [progress, setProgress] = useState(5)
-
-  useEffect(() => {
-    const msgTimer = setInterval(() => {
-      setMsgIndex((prev) =>
-        prev < PROGRESS_MESSAGES.length - 1 ? prev + 1 : prev
-      )
-    }, 4000)
-
-    const progressTimer = setInterval(() => {
-      setProgress((prev) => Math.min(prev + 2, 90))
-    }, 2000)
-
-    return () => {
-      clearInterval(msgTimer)
-      clearInterval(progressTimer)
-    }
-  }, [])
-
-  return (
-    <Card>
-      <CardContent className="flex flex-col items-center justify-center p-10 text-center">
-        <div className="relative mb-4">
-          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-        </div>
-        <p className="text-sm font-medium">Banjo is working on it...</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {PROGRESS_MESSAGES[msgIndex]}
-        </p>
-        <div className="mt-4 w-full max-w-xs">
-          <Progress value={progress} size="sm" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
+/* Legacy ProcessingIndicator deleted — replaced by SmartProgress driven
+ * by server-sent progress events persisted on ResearchSession.progress. */
 
 /* ── Utilities ────────────────────────────────────────────────────── */
 

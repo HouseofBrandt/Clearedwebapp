@@ -64,16 +64,31 @@ export async function POST(
           } catch { /* client disconnected */ }
         }
 
+        // Phase-to-percent map — lets the client render a real progress
+        // bar driven by server events instead of fake creep. Percentages
+        // are approximate and ordered so the bar only moves forward.
+        const PHASE_PERCENT: Record<string, number> = {
+          preparing: 5,
+          searching: 15,
+          verifying: 35,
+          composing: 55,
+          backfill: 75,
+          evaluating: 85,
+          humanizing: 92,
+          ingesting: 96,
+          complete: 100,
+        }
+
         try {
           // Stage 1: RETRIEVING
-          send({ status: "RETRIEVING", message: "Searching for relevant sources..." })
+          send({ status: "RETRIEVING", phase: "preparing", percent: PHASE_PERCENT.preparing, headline: "Preparing research context" })
           await prisma.researchSession.update({
             where: { id: sessionId },
             data: { status: "RETRIEVING", retrievalStartedAt: new Date() },
           })
 
           // Stage 2: COMPOSING
-          send({ status: "COMPOSING", message: "Analyzing sources and composing research memo..." })
+          send({ status: "COMPOSING", phase: "searching", percent: PHASE_PERCENT.searching, headline: "Searching for authorities" })
           await prisma.researchSession.update({
             where: { id: sessionId },
             data: { status: "COMPOSING", compositionStartedAt: new Date() },
@@ -107,6 +122,51 @@ export async function POST(
             kbCategory: "CUSTOM",
             kbTags: ["research", session.mode.toLowerCase()],
             userId: session.createdById,
+            onProgress: (event) => {
+              // Forward every granular progress event to the SSE stream
+              // AND persist a snapshot to the DB so the detail page (which
+              // polls) can show the same Claude-style thinking display
+              // even when the user reloads mid-flight.
+              const updatedAt = new Date().toISOString()
+              let payload: any = null
+              if (event.kind === "phase") {
+                payload = {
+                  phase: event.phase,
+                  percent: PHASE_PERCENT[event.phase],
+                  headline: event.message,
+                  updatedAt,
+                }
+                send({ status: "COMPOSING", ...payload })
+              } else if (event.kind === "verify_citation") {
+                const verb = event.status === "started" ? "Verifying" : (
+                  event.status === "verified" ? "Verified" :
+                  event.status === "superseded" ? "Superseded" : "Could not verify"
+                )
+                payload = { detail: `${verb} ${truncateCite(event.citation)}`, updatedAt }
+                send({ status: "COMPOSING", ...payload })
+              } else if (event.kind === "source_found") {
+                payload = { detail: `Found ${event.total} source${event.total === 1 ? "" : "s"} so far`, updatedAt }
+                send({ status: "COMPOSING", ...payload })
+              } else if (event.kind === "detail") {
+                payload = { detail: event.message, updatedAt }
+                send({ status: "COMPOSING", ...payload })
+              }
+              if (payload) {
+                // Merge into the existing progress snapshot so headline
+                // persists through detail-only events.
+                prisma.researchSession.findUnique({
+                  where: { id: sessionId },
+                  select: { progress: true },
+                }).then((s) => {
+                  const prev = (s?.progress as any) || {}
+                  const next = { ...prev, ...payload }
+                  return prisma.researchSession.update({
+                    where: { id: sessionId },
+                    data: { progress: next },
+                  })
+                }).catch(() => {})
+              }
+            },
           })
 
           // Store web search sources
@@ -165,7 +225,7 @@ export async function POST(
             },
           })
 
-          send({ status: "READY_FOR_REVIEW", message: "Research complete", sessionId })
+          send({ status: "READY_FOR_REVIEW", phase: "complete", percent: 100, headline: "Research complete", sessionId })
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err)
           console.error(`[Research] Execution failed for ${sessionId}:`, message)
@@ -201,4 +261,10 @@ export async function POST(
       { status: 500 }
     )
   }
+}
+
+/** Keep citation strings short enough to fit on one progress line. */
+function truncateCite(raw: string): string {
+  const trimmed = raw.replace(/\s+/g, " ").trim()
+  return trimmed.length > 64 ? trimmed.slice(0, 61) + "…" : trimmed
 }
