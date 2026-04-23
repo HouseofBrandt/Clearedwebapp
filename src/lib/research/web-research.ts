@@ -158,6 +158,14 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
   const citationsCollected: VerificationResult[] = []
 
   const researchModel = preferredOpusModel()
+  // Scale effort: narrow-scope (QUICK_ANSWER) questions don't need xhigh
+  // reasoning and it just doubles the latency for marginal quality gain.
+  // Broad-scope questions get "high" — which is still aggressive on 4.7.
+  const researchEffort: "medium" | "high" = request.scope === "narrow" ? "medium" : "high"
+  // Per-call Anthropic timeout. Without this, a hung upstream call stalls
+  // the entire research until the Vercel function timeout kills it. 4 min
+  // per call × up to 8 turns + evaluator fits inside our 800s envelope.
+  const ANTHROPIC_CALL_TIMEOUT_MS = 240_000
   let response: any
   let turns = 0
   emit({ kind: "phase", phase: "searching", message: "Searching for authorities" })
@@ -172,8 +180,9 @@ ${RESEARCH_RESPONSE_STYLE_SUFFIX}`
           VERIFY_CITATION_TOOL,
         ],
         messages,
-        effort: "high",
-      })
+        effort: researchEffort,
+      }),
+      { timeout: ANTHROPIC_CALL_TIMEOUT_MS }
     )
 
     // Append the assistant turn to the conversation.

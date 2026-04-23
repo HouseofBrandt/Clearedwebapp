@@ -100,6 +100,11 @@ export async function generateMemo(
   const model = preferredOpusModel()
   const emit = (e: MemoProgressEvent) => { try { req.onProgress?.(e) } catch {} }
 
+  // Per-call Anthropic timeout — without this, a hung upstream call stalls
+  // the whole pipeline until Vercel kills the function. 4 min per call
+  // bounds the worst case within our maxDuration envelope.
+  const ANTHROPIC_CALL_TIMEOUT_MS = 240_000
+
   // ── Pass 1: Draft ──────────────────────────────────────────────────
 
   emit({ kind: "phase", phase: "drafting", headline: "Drafting the memo", percent: 10 })
@@ -122,7 +127,8 @@ export async function generateMemo(
         ],
         messages,
         effort: "xhigh",
-      })
+      }),
+      { timeout: ANTHROPIC_CALL_TIMEOUT_MS }
     )
     messages.push({ role: "assistant", content: response.content })
     if (response.stop_reason !== "tool_use") break
@@ -345,6 +351,7 @@ CURRENT DRAFT:
 ${JSON.stringify(draft, null, 2)}`
 
   const messages: any[] = [{ role: "user", content: userMessage }]
+  const REVISION_CALL_TIMEOUT_MS = 240_000
   let response: any
   let turns = 0
   while (true) {
@@ -359,7 +366,8 @@ ${JSON.stringify(draft, null, 2)}`
         ],
         messages,
         effort: "xhigh",
-      })
+      }),
+      { timeout: REVISION_CALL_TIMEOUT_MS }
     )
     messages.push({ role: "assistant", content: response.content })
     if (response.stop_reason !== "tool_use") break

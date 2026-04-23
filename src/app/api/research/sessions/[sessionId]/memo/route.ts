@@ -5,7 +5,10 @@ import { logAudit } from "@/lib/ai/audit"
 import { generateMemo } from "@/lib/research/memo-generator"
 import { decryptField } from "@/lib/encryption"
 
-export const maxDuration = 600
+// Memo pipeline = draft (Opus 4.7 xhigh) + verify pass + optional revise
+// pass (another Opus 4.7 xhigh call) + docx render. Worst case 10+ min.
+// Match the research launch cap so long memos don't get killed mid-flight.
+export const maxDuration = 800
 
 /**
  * POST /api/research/sessions/[sessionId]/memo
