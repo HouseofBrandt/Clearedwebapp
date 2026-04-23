@@ -3,6 +3,7 @@ import { requireApiAuth, PRACTITIONER_ROLES } from "@/lib/auth/api-guard"
 import { prisma } from "@/lib/db"
 import { callClaude } from "@/lib/ai/client"
 import { loadPrompt } from "@/lib/ai/prompts"
+import { preferredOpusModel, resolveModel } from "@/lib/ai/model-selection"
 import { logAudit } from "@/lib/ai/audit"
 import { getKBCoverage } from "@/lib/banjo/knowledge-retrieval"
 import { canAccessCase } from "@/lib/auth/case-access"
@@ -20,7 +21,7 @@ const planSchema = z.object({
     priorAttempts: z.array(z.string()).optional(),
     additionalContext: z.string().optional(),
   }).optional(),
-  model: z.enum(["claude-opus-4-6"]).optional(),
+  model: z.enum(["claude-opus-4-7", "claude-opus-4-6"]).optional(),
   skipRevision: z.boolean().optional(),
 })
 
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
 
   const { caseId, assignmentText, casePosture, model: requestedModel, skipRevision, junebugContext } = parsed.data
   const userId = auth.userId
-  const model = requestedModel || "claude-opus-4-6"
+  const model = resolveModel(requestedModel || preferredOpusModel())
 
   const hasAccess = await canAccessCase(userId, caseId)
   if (!hasAccess) {
@@ -170,6 +171,7 @@ export async function POST(request: NextRequest) {
       model,
       temperature: 0.1,
       maxTokens: 2048,
+      effort: "high",
     })
 
     let plan: any

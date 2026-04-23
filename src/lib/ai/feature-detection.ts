@@ -5,6 +5,7 @@
  */
 import { searchCode, getRecentCommits } from "@/lib/infrastructure/github-api"
 import { callClaude } from "@/lib/ai/client"
+import { preferredOpusModel } from "@/lib/ai/model-selection"
 
 export interface DetectionResult {
   confidence: "HIGH" | "MEDIUM" | "LOW" | "NONE"
@@ -209,7 +210,7 @@ ${allMatches.slice(0, 10).join("\n")}
 
 Related commits (${matchedCommits.length}):
 ${matchedCommits.slice(0, 5).join("\n")}`,
-      model: "claude-opus-4-6",
+      model: preferredOpusModel(),
       maxTokens: 200,
       temperature: 0,
     })

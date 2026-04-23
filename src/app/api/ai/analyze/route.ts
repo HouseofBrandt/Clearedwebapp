@@ -19,6 +19,7 @@ import { getAppealsContext } from "@/lib/knowledge/appeals-context"
 import { canAccessCase } from "@/lib/auth/case-access"
 import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/context-packet"
 import { getWorkProductPromptBlock } from "@/lib/work-product/prompt-merger"
+import { preferredOpusModel, resolveModel } from "@/lib/ai/model-selection"
 
 const DEBUG = process.env.NODE_ENV !== "production"
 
@@ -156,7 +157,7 @@ const VALID_TASK_TYPES = [
   "WEB_RESEARCH",
 ] as const
 
-const VALID_MODELS = ["claude-opus-4-6"] as const
+const VALID_MODELS = ["claude-opus-4-7", "claude-opus-4-6"] as const
 
 const casePostureSchema = z.object({
   collectionStage: z.string().optional(),
@@ -556,8 +557,7 @@ export async function POST(request: NextRequest) {
 
         // Determine model and token settings
         const isTemplateTask = TEMPLATE_TASKS.includes(taskType)
-        const defaultModel = "claude-opus-4-6"
-        const model = requestedModel || defaultModel
+        const model = resolveModel(requestedModel || preferredOpusModel())
         const maxTokens = isTemplateTask ? 8192 : (HIGH_TOKEN_TASKS.includes(taskType) ? 12288 : 8192)
         const temperature = isTemplateTask ? 0.1 : 0.2
 
@@ -569,12 +569,22 @@ export async function POST(request: NextRequest) {
         // so the Neon WebSocket doesn't go stale
         stopKeepalive = startDbKeepalive(30_000)
 
+        // Effort budget: OIC analyses and tasks with reliefSought in the
+        // case posture get xhigh — those are the highest-stakes deliverables
+        // this pipeline produces. Template-based analyses also benefit from
+        // xhigh since they're driving structured extractions. Everything
+        // else gets high. (effort only applies to Opus 4.7 — ignored on 4.6.)
+        const isOICAnalysis = taskType === "WORKING_PAPERS" || taskType === "OIC_NARRATIVE"
+        const hasReliefSought = !!casePosture?.reliefSought
+        const effort: "high" | "xhigh" = (isOICAnalysis || hasReliefSought) ? "xhigh" : "high"
+
         const { stream: claudeStream, requestId } = callClaudeStream({
           systemPrompt,
           userMessage,
           model,
           temperature,
           maxTokens,
+          effort,
         })
 
         // Collect the full response while streaming keeps connection alive

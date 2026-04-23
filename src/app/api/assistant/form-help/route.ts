@@ -75,15 +75,18 @@ export async function POST(request: Request) {
     try {
       // Use the Anthropic SDK
       const { default: Anthropic } = await import("@anthropic-ai/sdk")
+      const { buildMessagesRequest } = await import("@/lib/ai/model-capabilities")
       const client = new Anthropic()
 
-      const response = await client.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        temperature: 0.3,
-        system: systemPrompt,
-        messages: [{ role: "user", content: message }],
-      })
+      const response = await client.messages.create(
+        buildMessagesRequest({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          temperature: 0.3,
+          system: systemPrompt,
+          messages: [{ role: "user", content: message }],
+        })
+      )
 
       const responseText = response.content
         .filter((b: any) => b.type === "text")

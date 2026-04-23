@@ -21,6 +21,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
 import { prisma } from "@/lib/db"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -64,13 +65,15 @@ export async function generateAndSaveThreadTitle(
   try {
     const { tokenizedText, tokenMap } = tokenizeText(firstUserMessage, knownNames)
 
-    const resp = await anthropic.messages.create({
-      model: TITLE_MODEL,
-      max_tokens: 60,
-      temperature: 0.4,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: tokenizedText }],
-    })
+    const resp = await anthropic.messages.create(
+      buildMessagesRequest({
+        model: TITLE_MODEL,
+        max_tokens: 60,
+        temperature: 0.4,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: tokenizedText }],
+      })
+    )
 
     const rawTitle = resp.content
       .filter((b) => b.type === "text")

@@ -9,6 +9,7 @@ import Anthropic from "@anthropic-ai/sdk"
 import { TASK_TYPE_CONFIGS } from "./task-types"
 import { buildEvaluatorSystemPrompt, buildEvaluatorUserMessage } from "./evaluator-prompt"
 import { getPipelineConfig } from "./config"
+import { usesAdaptiveThinking, buildMessagesRequest } from "@/lib/ai/model-capabilities"
 import type { GenerationOutput, EvaluationResult } from "./types"
 
 const anthropic = new Anthropic({
@@ -23,16 +24,25 @@ export async function evaluateDraft(input: GenerationOutput): Promise<Evaluation
 
   const startTime = Date.now()
 
-  const response = await anthropic.messages.create({
-    model: config.evaluatorModel,
-    max_tokens: 16000,
-    thinking: {
-      type: "enabled",
-      budget_tokens: config.thinkingBudget,
-    },
-    system: systemPrompt,
-    messages: [{ role: "user", content: userMessage }],
-  })
+  // Opus 4.7 removed `thinking: { type: "enabled", budget_tokens }` and
+  // replaced it with `thinking: { type: "adaptive" }`. `display: "summarized"`
+  // is REQUIRED here because we extract the thinking blocks below for audit
+  // logging — without it `block.thinking` comes back empty on 4.7. The SDK's
+  // ThinkingConfigParam type may not know about the adaptive shape yet, so
+  // we pass via `any`.
+  const thinkingConfig: any = usesAdaptiveThinking(config.evaluatorModel)
+    ? { type: "adaptive", display: "summarized" }
+    : { type: "enabled", budget_tokens: config.thinkingBudget }
+
+  const response = await anthropic.messages.create(
+    buildMessagesRequest({
+      model: config.evaluatorModel,
+      max_tokens: 16000,
+      thinking: thinkingConfig,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+    })
+  )
 
   // Extract thinking blocks for audit logging
   const thinkingBlocks = response.content

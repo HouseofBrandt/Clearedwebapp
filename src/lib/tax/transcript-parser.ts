@@ -6,6 +6,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
@@ -137,12 +138,14 @@ export async function parseTranscripts(
     content.push({ type: "text", text: "Parse all the above IRS transcripts. Return ONLY the JSON object." })
 
     try {
-      const resp = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 8000,
-        system: PARSE_PROMPT,
-        messages: [{ role: "user", content }],
-      })
+      const resp = await anthropic.messages.create(
+        buildMessagesRequest({
+          model: "claude-sonnet-4-6",
+          max_tokens: 8000,
+          system: PARSE_PROMPT,
+          messages: [{ role: "user", content }],
+        })
+      )
 
       const text = resp.content
         .filter((b) => b.type === "text")

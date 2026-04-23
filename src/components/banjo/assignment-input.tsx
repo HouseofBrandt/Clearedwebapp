@@ -149,7 +149,7 @@ function getSuggestions(caseType: string, existingTaskTypes: string[]): Suggesti
 export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disabled }: AssignmentInputProps) {
   const [text, setText] = useState("")
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [model, setModel] = useState("claude-opus-4-6")
+  const [model, setModel] = useState("claude-opus-4-7")
   const [skipRevision, setSkipRevision] = useState(false)
   const [casePosture, setCasePosture] = useState<CasePosture>({
     collectionStage: "",
@@ -211,7 +211,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
         >
           {showAdvanced ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           Advanced Options
-          {(casePosture.collectionStage || casePosture.reliefSought || model !== "claude-opus-4-6") && (
+          {(casePosture.collectionStage || casePosture.reliefSought || model !== "claude-opus-4-7") && (
             <Badge variant="secondary" className="ml-auto text-xs">configured</Badge>
           )}
         </button>
@@ -225,6 +225,7 @@ export function AssignmentInput({ caseType, existingTaskTypes, onSubmit, disable
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="claude-opus-4-7">Opus 4.7 (recommended)</SelectItem>
                   <SelectItem value="claude-opus-4-6">Opus 4.6</SelectItem>
                 </SelectContent>
               </Select>

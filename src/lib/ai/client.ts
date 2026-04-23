@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk"
-import { humanizeText, shouldHumanize } from "./humanizer"
+import { buildMessagesRequest } from "./model-capabilities"
+import { preferredOpusModel, resolveModel } from "./model-selection"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
@@ -9,8 +10,12 @@ interface AIRequestOptions {
   systemPrompt: string
   userMessage: string
   model?: string
+  /** Ignored for Opus 4.7 (family rejects the param). Preserved for callers
+   *  that target earlier models. */
   temperature?: number
   maxTokens?: number
+  /** Opus 4.7 only. Ignored for all other models. */
+  effort?: "low" | "medium" | "high" | "xhigh"
 }
 
 interface AIResponse {
@@ -25,7 +30,6 @@ const MAX_RETRIES = 3
 const RETRY_DELAYS = [2000, 4000, 8000]
 
 function isRetryableError(error: any): boolean {
-  // Don't retry timeouts — if a request timed out once, retrying wastes minutes
   if (error?.name === "AbortError" || error?.code === "ETIMEDOUT" || error?.message?.includes("timed out")) {
     return false
   }
@@ -33,27 +37,27 @@ function isRetryableError(error: any): boolean {
   return status === 429 || status === 529 || (status >= 500 && status < 600)
 }
 
-/**
- * Streaming variant — returns a MessageStream that emits chunks as they arrive.
- * Use this to keep HTTP connections alive past Vercel's 60s time-to-first-byte limit.
- * The stream emits text_delta events; collect them to build the full response.
- */
 export function callClaudeStream({
   systemPrompt,
   userMessage,
-  model = "claude-opus-4-6",
+  model,
   temperature = 0.2,
-  maxTokens = 4096,
+  maxTokens = 6144,
+  effort,
 }: AIRequestOptions) {
   const requestId = crypto.randomUUID()
+  const resolvedModel = resolveModel(model ?? preferredOpusModel())
 
-  const stream = anthropic.messages.stream({
-    model,
-    max_tokens: maxTokens,
-    temperature,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userMessage }],
-  })
+  const stream = anthropic.messages.stream(
+    buildMessagesRequest({
+      model: resolvedModel,
+      max_tokens: maxTokens,
+      temperature,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+      effort,
+    })
+  )
 
   return { stream, requestId }
 }
@@ -61,11 +65,13 @@ export function callClaudeStream({
 export async function callClaude({
   systemPrompt,
   userMessage,
-  model = "claude-opus-4-6",
+  model,
   temperature = 0.2,
-  maxTokens = 4096,
+  maxTokens = 6144,
+  effort,
 }: AIRequestOptions): Promise<AIResponse> {
   const requestId = crypto.randomUUID()
+  const resolvedModel = resolveModel(model ?? preferredOpusModel())
   // Scale timeout with max_tokens: ~1.5s per 100 output tokens, minimum 120s
   const timeoutMs = Math.max(120_000, Math.ceil(maxTokens / 100) * 1500)
 
@@ -74,13 +80,14 @@ export async function callClaude({
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await anthropic.messages.create(
-        {
-          model,
+        buildMessagesRequest({
+          model: resolvedModel,
           max_tokens: maxTokens,
           temperature,
           system: systemPrompt,
           messages: [{ role: "user", content: userMessage }],
-        },
+          effort,
+        }),
         { timeout: timeoutMs },
       )
 

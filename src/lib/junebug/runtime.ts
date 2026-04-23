@@ -93,6 +93,7 @@ export async function runJunebug(
 
   // 5. Call Claude with tools
   const { default: Anthropic } = await import("@anthropic-ai/sdk")
+  const { buildMessagesRequest } = await import("@/lib/ai/model-capabilities")
   const client = new Anthropic()
 
   const toolDefinitions = tools.map((t) => ({
@@ -101,15 +102,21 @@ export async function runJunebug(
     input_schema: t.inputSchema as { type: "object"; [key: string]: unknown },
   }))
 
+  const runtimeModel = "claude-sonnet-4-20250514"
+  const runtimeMaxTokens = request.maxTokens || 2048
+  const runtimeTemperature = request.temperature ?? 0.3
+
   // Initial API call
-  let response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: request.maxTokens || 2048,
-    temperature: request.temperature ?? 0.3,
-    system: systemPrompt,
-    messages,
-    ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
-  })
+  let response = await client.messages.create(
+    buildMessagesRequest({
+      model: runtimeModel,
+      max_tokens: runtimeMaxTokens,
+      temperature: runtimeTemperature,
+      system: systemPrompt,
+      messages,
+      ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
+    })
+  )
 
   // 6. Process response — handle tool use loop
   let textContent = ""
@@ -209,14 +216,16 @@ export async function runJunebug(
     allMessages.push({ role: "assistant", content: response.content })
     allMessages.push({ role: "user", content: toolResults })
 
-    response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: request.maxTokens || 2048,
-      temperature: request.temperature ?? 0.3,
-      system: systemPrompt,
-      messages: allMessages,
-      ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
-    })
+    response = await client.messages.create(
+      buildMessagesRequest({
+        model: runtimeModel,
+        max_tokens: runtimeMaxTokens,
+        temperature: runtimeTemperature,
+        system: systemPrompt,
+        messages: allMessages,
+        ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
+      })
+    )
   }
 
   // Extract any final text from the last response (if we looped)

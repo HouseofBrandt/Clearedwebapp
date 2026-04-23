@@ -11,6 +11,8 @@ import { logObservations } from "@/lib/dev/junebug-observer"
 import { prisma } from "@/lib/db"
 import { decryptField } from "@/lib/encryption"
 import Anthropic from "@anthropic-ai/sdk"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
+import { preferredOpusModel } from "@/lib/ai/model-selection"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
@@ -284,14 +286,17 @@ RESPONSE RULES:
       return { role: m.role, content: m.content }
     })
 
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 4096,
-      temperature: 0.3,
-      system: systemPrompt,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: apiMessages,
-    })
+    const chatModel = preferredOpusModel()
+    const response = await anthropic.messages.create(
+      buildMessagesRequest({
+        model: chatModel,
+        max_tokens: 6144,
+        temperature: 0.3,
+        system: systemPrompt,
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages: apiMessages,
+      })
+    )
 
     // Extract all text content from the response (skipping tool_use/tool_result blocks)
     let textContent = response.content

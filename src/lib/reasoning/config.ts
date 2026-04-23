@@ -27,6 +27,9 @@ export function getPipelineConfig(): PipelineConfig {
       .map((s) => s.trim()) as TaskType[],
     minPassScore: parseInt(process.env.REASONING_MIN_PASS_SCORE || "75", 10),
     autoReviseEnabled: process.env.REASONING_AUTO_REVISE_ENABLED !== "false",
+    // thinkingBudget only applies to pre-4.7 evaluator models. Claude Opus
+    // 4.7 uses adaptive thinking (display: "summarized") — this value is
+    // ignored when evaluatorModel starts with "claude-opus-4-7".
     thinkingBudget: parseInt(process.env.REASONING_THINKING_BUDGET || "10000", 10),
     evaluatorModel: process.env.REASONING_EVALUATOR_MODEL || "claude-sonnet-4-20250514",
     logThinkingContent: process.env.REASONING_LOG_THINKING_CONTENT !== "false",
