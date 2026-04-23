@@ -9,6 +9,7 @@ import { createAuditLog, AUDIT_ACTIONS } from "@/lib/ai/audit"
 import { requireJunebugSession, requireOwnedThread } from "@/lib/junebug/thread-access"
 import { runJunebugCompletion, type JunebugMessage } from "@/lib/junebug/completion"
 import { findCaseByName } from "@/lib/junebug/case-match"
+import { preferredOpusModel } from "@/lib/ai/model-selection"
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 import {
   loadThreadHistoryForCompletion,
@@ -339,7 +340,7 @@ The user armed Full Fetch for this turn. Treat this as a "be thorough" signal:
       threadId: params.id,
       role: "ASSISTANT",
       content: "", // will be updated on stream end
-      model: body.model ?? "claude-opus-4-6",
+      model: body.model ?? preferredOpusModel(),
     },
   })
 
@@ -379,7 +380,7 @@ The user armed Full Fetch for this turn. Treat this as a "be thorough" signal:
       threadId: params.id,
       userMessageId: userMessage.id,
       assistantMessageId: assistantMessage.id,
-      model: body.model ?? "claude-opus-4-6",
+      model: body.model ?? preferredOpusModel(),
       contextAvailable,
       kbHits,
     },
@@ -522,7 +523,7 @@ The user armed Full Fetch for this turn. Treat this as a "be thorough" signal:
             threadId: params.id,
             userMessageId: userMessage.id,
             assistantMessageId: assistantMessage.id,
-            model: body.model ?? "claude-opus-4-6",
+            model: body.model ?? preferredOpusModel(),
             kbHits,
             contextAvailable,
             priorMessageCount,

@@ -496,15 +496,18 @@ export async function autoPopulateForm(
 
       try {
         const Anthropic = (await import("@anthropic-ai/sdk")).default
+        const { buildMessagesRequest } = await import("@/lib/ai/model-capabilities")
         const client = new Anthropic()
 
-        const response = await client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 8192,
-          temperature: 0,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userMessage }],
-        })
+        const response = await client.messages.create(
+          buildMessagesRequest({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 8192,
+            temperature: 0,
+            system: systemPrompt,
+            messages: [{ role: "user", content: userMessage }],
+          })
+        )
 
         const text = response.content.filter((b: any) => b.type === "text").map((b: any) => b.text).join("")
         const clean = text.replace(/```json\n?|```\n?/g, "").trim()

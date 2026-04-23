@@ -265,15 +265,18 @@ export async function deepHumanize(text: string): Promise<string> {
 
   try {
     const { default: Anthropic } = await import("@anthropic-ai/sdk")
+    const { buildMessagesRequest } = await import("./model-capabilities")
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20241022",
-      max_tokens: Math.max(2048, Math.ceil(text.length / 2)),
-      temperature: 0.4,
-      system: "You are a writing editor. Rewrite this text to remove AI writing patterns. Keep the same meaning and facts. Make it sound like a human expert wrote it. Be direct, use simple constructions, vary sentence length. No filler, no puffery, no signposting. Return only the rewritten text — no commentary, no preamble.",
-      messages: [{ role: "user", content: text }],
-    })
+    const response = await client.messages.create(
+      buildMessagesRequest({
+        model: "claude-haiku-4-5-20241022",
+        max_tokens: Math.max(2048, Math.ceil(text.length / 2)),
+        temperature: 0.4,
+        system: "You are a writing editor. Rewrite this text to remove AI writing patterns. Keep the same meaning and facts. Make it sound like a human expert wrote it. Be direct, use simple constructions, vary sentence length. No filler, no puffery, no signposting. Return only the rewritten text — no commentary, no preamble.",
+        messages: [{ role: "user", content: text }],
+      })
+    )
 
     const rewritten = response.content.find((c) => c.type === "text")
     if (rewritten && rewritten.text.length > 0) {

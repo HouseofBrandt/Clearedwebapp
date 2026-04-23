@@ -5,6 +5,8 @@ import { getCaseContextPacket, formatContextForPrompt } from "@/lib/switchboard/
 import { evaluateAIOutput } from "@/lib/reasoning/wrap"
 import { prisma } from "@/lib/db"
 import Anthropic from "@anthropic-ai/sdk"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
+import { preferredOpusModel } from "@/lib/ai/model-selection"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -45,20 +47,22 @@ export async function POST(request: NextRequest) {
       } catch { /* non-fatal — edit works without case context */ }
     }
 
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 12288,
-      temperature: 0.1,
-      system: `You are editing a tax resolution document. The practitioner has requested a specific change.${caseCtx}
+    const response = await anthropic.messages.create(
+      buildMessagesRequest({
+        model: preferredOpusModel(),
+        max_tokens: 16384,
+        temperature: 0.1,
+        system: `You are editing a tax resolution document. The practitioner has requested a specific change.${caseCtx}
 
 Apply the change precisely — modify only what was requested. Preserve everything else exactly as-is, including all formatting, section headers, tables, citations, [VERIFY] flags, and [PRACTITIONER JUDGMENT] flags. Return the complete updated document.
 
 Do not add preamble, commentary, or explanation. Return only the updated document.`,
-      messages: [{
-        role: "user",
-        content: `CURRENT DOCUMENT:\n${tokenizedText}\n\nPRACTITIONER INSTRUCTION:\n${tokenizedInstruction}\n\nReturn the complete updated document.`,
-      }],
-    })
+        messages: [{
+          role: "user",
+          content: `CURRENT DOCUMENT:\n${tokenizedText}\n\nPRACTITIONER INSTRUCTION:\n${tokenizedInstruction}\n\nReturn the complete updated document.`,
+        }],
+      })
+    )
 
     const editedTokenized = response.content
       .filter((b: any) => b.type === "text")
@@ -79,7 +83,7 @@ Do not add preamble, commentary, or explanation. Return only the updated documen
       taskType: "internal_memo",
       originalRequest: `Edit request: ${instruction}`,
       sourceContext: currentOutput.slice(0, 5000),
-      model: "claude-opus-4-6",
+      model: preferredOpusModel(),
       caseId,
     })
 

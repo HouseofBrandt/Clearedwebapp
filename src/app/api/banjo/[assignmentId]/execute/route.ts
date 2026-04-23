@@ -9,6 +9,7 @@ import { loadPrompt } from "@/lib/ai/prompts"
 import { getBanjoKnowledgeContext } from "@/lib/banjo/knowledge-retrieval"
 import { getPromptBias } from "@/lib/switchboard/prompt-bias"
 import { conductResearch } from "@/lib/research/web-research"
+import { preferredOpusModel } from "@/lib/ai/model-selection"
 import { mergeTemplateWithData } from "@/lib/templates/oic-merge"
 import { populateFromAIExtraction } from "@/lib/documents/liability"
 import { notify } from "@/lib/notifications"
@@ -211,7 +212,7 @@ export async function POST(
               taskType: "WEB_RESEARCH" as any,
               status: "APPROVED", // Research doesn't need review
               detokenizedOutput: result.fullText ? encryptField(result.fullText) : null,
-              modelUsed: "claude-opus-4-6",
+              modelUsed: preferredOpusModel(),
               banjoAssignmentId: assignmentId,
               banjoStepNumber: stepNumber,
               banjoStepLabel: deliverable.label,

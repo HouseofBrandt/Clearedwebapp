@@ -127,6 +127,7 @@ export async function getAutoMapping(formNumber: string): Promise<AutoMapResult 
 
     // Step 3: Send to Claude for matching
     const { default: Anthropic } = await import("@anthropic-ai/sdk")
+    const { buildMessagesRequest } = await import("@/lib/ai/model-capabilities")
     const client = new Anthropic()
 
     const prompt = `You are mapping form fields between a web application schema and an IRS PDF form (Form ${formNumber}).
@@ -166,12 +167,14 @@ Return ONLY valid JSON with no markdown formatting, no backticks, no code blocks
   "confidence": 85
 }`
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 16384,
-      temperature: 0,
-      messages: [{ role: "user", content: prompt }],
-    })
+    const response = await client.messages.create(
+      buildMessagesRequest({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 16384,
+        temperature: 0,
+        messages: [{ role: "user", content: prompt }],
+      })
+    )
 
     const responseText = response.content
       .filter(b => b.type === "text")

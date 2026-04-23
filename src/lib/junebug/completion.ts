@@ -22,6 +22,8 @@
 import Anthropic from "@anthropic-ai/sdk"
 import * as Sentry from "@sentry/nextjs"
 import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
+import { preferredOpusModel, resolveModel } from "@/lib/ai/model-selection"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -37,7 +39,7 @@ export interface RunJunebugCompletionInput {
   systemPrompt: string
   /** Known PII strings for deterministic tokenization (usually the client name). */
   knownNames?: string[]
-  /** Anthropic model slug. Default "claude-opus-4-6". */
+  /** Anthropic model slug. Default: `preferredOpusModel()` (4.7 when enabled, 4.6 otherwise). */
   model?: string
   /** Anthropic max_tokens for the response. Default 4096 (bumped to 8192 when fullFetch is true). */
   maxTokens?: number
@@ -92,7 +94,7 @@ export async function runJunebugCompletion(
   callbacks: StreamCallbacks = {}
 ): Promise<RunJunebugCompletionResult> {
   const startedAt = Date.now()
-  const model = input.model || "claude-opus-4-6"
+  const model = resolveModel(input.model || preferredOpusModel())
   // Full Fetch doubles the default max_tokens so thorough answers aren't
   // truncated mid-thought. Explicit maxTokens (if supplied) still wins.
   const maxTokens = input.maxTokens ?? (input.fullFetch ? 8192 : 4096)
@@ -122,13 +124,15 @@ export async function runJunebugCompletion(
   let finalModel = model
 
   try {
-    const stream = anthropic.messages.stream({
-      model,
-      max_tokens: maxTokens,
-      temperature,
-      system: input.systemPrompt,
-      messages: apiMessages,
-    })
+    const stream = anthropic.messages.stream(
+      buildMessagesRequest({
+        model,
+        max_tokens: maxTokens,
+        temperature,
+        system: input.systemPrompt,
+        messages: apiMessages,
+      })
+    )
 
     // Accumulate text + forward detokenized deltas to the caller.
     stream.on("text", async (delta: string) => {

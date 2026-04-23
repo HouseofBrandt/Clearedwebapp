@@ -8,6 +8,8 @@ import {
   type VerificationResult,
 } from "./citation-verifier"
 import { scanCitations } from "./citation-normalizer"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
+import { preferredOpusModel } from "@/lib/ai/model-selection"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -126,19 +128,23 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly 
   // without re-running verifiers on the final memo.
   const citationsCollected: VerificationResult[] = []
 
+  const researchModel = preferredOpusModel()
   let response: any
   let turns = 0
   while (true) {
-    response = await anthropic.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 16384,
-      system: systemPrompt,
-      tools: [
-        { type: "web_search_20250305", name: "web_search" },
-        VERIFY_CITATION_TOOL,
-      ],
-      messages,
-    })
+    response = await anthropic.messages.create(
+      buildMessagesRequest({
+        model: researchModel,
+        max_tokens: 16384,
+        system: systemPrompt,
+        tools: [
+          { type: "web_search_20250305", name: "web_search" },
+          VERIFY_CITATION_TOOL,
+        ],
+        messages,
+        effort: "high",
+      })
+    )
 
     // Append the assistant turn to the conversation.
     messages.push({ role: "assistant", content: response.content })
@@ -227,7 +233,7 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly 
       taskType: "general",
       originalRequest: request.topic,
       sourceContext: `Research topic: ${request.topic}. Scope: ${request.scope || "standard"}.`,
-      model: "claude-opus-4-6",
+      model: researchModel,
     })
     if (evaluated.pipelineDecision !== "skipped") {
       fullText = evaluated.output

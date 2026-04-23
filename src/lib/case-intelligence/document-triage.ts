@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk"
 import { prisma } from "@/lib/db"
 import { recalculateDocCompleteness } from "./doc-completeness"
 import { computeFreshness, recalculateFreshness } from "./document-freshness"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
+import { preferredOpusModel } from "@/lib/ai/model-selection"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -49,12 +51,13 @@ export async function triageDocument(params: {
   const textPreview = params.extractedText.substring(0, 4000)
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 1024,
-      temperature: 0,
-      system: "You are a document classifier for a tax resolution firm. Analyze the document and return ONLY a JSON object. No markdown, no explanation.",
-      messages: [{
+    const response = await anthropic.messages.create(
+      buildMessagesRequest({
+        model: preferredOpusModel(),
+        max_tokens: 1536,
+        temperature: 0,
+        system: "You are a document classifier for a tax resolution firm. Analyze the document and return ONLY a JSON object. No markdown, no explanation.",
+        messages: [{
         role: "user",
         content: `Classify this document and extract key data points.
 
@@ -84,8 +87,9 @@ Return this exact JSON structure:
   "keyFindings": ["string — 1-3 most important things about this document"],
   "suggestedAction": "string — what the practitioner should do about this document"
 }`,
-      }],
-    })
+        }],
+      })
+    )
 
     const text = response.content[0].type === "text" ? response.content[0].text : ""
     const cleaned = text.replace(/```json|```/g, "").trim()

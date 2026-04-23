@@ -53,7 +53,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   const [assignmentId, setAssignmentId] = useState<string | null>(null)
   const [questions, setQuestions] = useState<any[]>([])
   const [plan, setPlan] = useState<any>(null)
-  const [model, setModel] = useState("claude-opus-4-6")
+  const [model, setModel] = useState("claude-opus-4-7")
   const [skipRevision, setSkipRevision] = useState(false)
   const [deliverables, setDeliverables] = useState<DeliverableProgress[]>([])
   const [completedTasks, setCompletedTasks] = useState<any[]>([])
@@ -91,7 +91,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
 
         setAssignmentId(data.assignment.id)
         setPlan(data.assignment.plan)
-        setModel(data.assignment.model || "claude-opus-4-6")
+        setModel(data.assignment.model || "claude-opus-4-7")
 
         if (data.assignment.status === "EXECUTING" || data.assignment.status === "POLISHING") {
           setPhase("executing")
@@ -238,7 +238,7 @@ export function BanjoPanel({ caseId, caseType, caseData, documentCount, document
   async function handleSubmitAssignment(assignmentText: string, casePosture?: any, selectedModel?: string, skipRev?: boolean) {
     setPhase("planning")
     setError(null)
-    const m = selectedModel || "claude-opus-4-6"
+    const m = selectedModel || "claude-opus-4-7"
     setModel(m)
     setSkipRevision(skipRev || false)
 

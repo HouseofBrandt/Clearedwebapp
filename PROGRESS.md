@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-04-23 — Claude Opus 4.7 migration (flagship swap + breaking-API fixes)
+
+**What was done:**
+
+Migrated the flagship Opus model from `claude-opus-4-6` → `claude-opus-4-7` across every high-judgment call site (chat, review-edit, analyze, banjo plan/execute, Junebug thread completion, web research, document triage, feature detection). Sonnet and Haiku paths untouched per spec §4.2.
+
+Handled three breaking changes that 4.7 imposes:
+
+- **Sampling params.** 4.7 returns 400 if `temperature`, `top_p`, or `top_k` are set. New `src/lib/ai/model-capabilities.ts` exposes `supportsSamplingParams(model)` + `buildMessagesRequest(input)` — the helper strips params for 4.7 and preserves them for 4.6 / Sonnet / Haiku. Every direct-SDK call site now routes through `buildMessagesRequest` so no 400 can leak through.
+- **Extended thinking.** `thinking: { type: "enabled", budget_tokens: N }` is removed on 4.7. `src/lib/reasoning/evaluator.ts` now gates via `usesAdaptiveThinking(model)` — on 4.7 it sends `{ type: "adaptive", display: "summarized" }` so the existing `ThinkingBlock` extraction (used for audit logs) keeps working; on pre-4.7 models it keeps the budget-based shape.
+- **max_tokens headroom.** 4.7's tokenizer uses up to 1.35× the tokens for identical text. Bumped the `callClaude`/`callClaudeStream` default from 4096 → 6144, review-edit from 12288 → 16384, document-triage from 1024 → 1536. Values at 16k+ left alone.
+
+Adopted `output_config.effort` on the highest-stakes paths (4.7 only, ignored elsewhere):
+- `effort: "high"` on banjo plan, web research, and most case-analyze calls
+- `effort: "xhigh"` on OIC analyses (`WORKING_PAPERS`, `OIC_NARRATIVE`) and any analyze call with `casePosture.reliefSought` set
+
+**Feature flag (`CLEARED_OPUS_4_7_ENABLED`).** New `src/lib/ai/model-selection.ts` exposes `preferredOpusModel()` + `resolveModel(requested)`. Unset defaults to on in development, off in production. One env flip rolls back every flagship call to 4.6.
+
+**UI.** Banjo `BanjoPanel` / `AssignmentInput` + `AIAnalysisPanel` default to 4.7 in their dropdowns and keep 4.6 as a selectable alternate. `/api/ai/analyze` `VALID_MODELS` expanded to `["claude-opus-4-7", "claude-opus-4-6"]`; `/api/banjo/plan` z.enum same.
+
+**Tests.** `src/lib/ai/model-capabilities.test.ts` (10 cases) + `src/lib/ai/model-selection.test.ts` (7 cases) — hermetic, cover the sampling-param stripping contract + the feature-flag truthy/falsy synonyms.
+
+**Call sites updated (§4.1):**
+- `src/lib/ai/client.ts`, `src/app/api/ai/chat/route.ts`, `src/app/api/ai/review-edit/route.ts`, `src/app/api/ai/analyze/route.ts`, `src/app/api/banjo/plan/route.ts`, `src/app/api/banjo/[assignmentId]/execute/route.ts`, `src/lib/case-intelligence/document-triage.ts`, `src/lib/ai/feature-detection.ts`, `src/lib/research/web-research.ts`, `src/lib/junebug/completion.ts`, `src/app/api/junebug/threads/[id]/messages/route.ts`, `src/components/cases/ai-analysis-panel.tsx`, `src/components/banjo/banjo-panel.tsx`, `src/components/banjo/assignment-input.tsx`
+
+**Left alone (§4.2):**
+Haiku humanization, Sonnet on Pippen compile/daily-news/transcript-parser/form-help/junebug-runtime/forms auto-populate and pdf-auto-mapper, Sonnet evaluator default. All still route through `buildMessagesRequest` for consistency but keep their existing model string.
+
+**Rollout:** PR lands with flag OFF in production by default. Flip to true in staging → internal firm users → everyone, per spec §10.
+
+**Follow-ups logged:** two-pass citation verification (Phase 4 of citation spec), remove Opus 4.6 fallback + feature flag after two weeks of 100%-4.7 dogfood.
+
+---
+
 ## 2026-04-22 — Form Builder V2: foundation landing
 
 **What was done:**

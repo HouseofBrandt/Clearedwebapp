@@ -25,6 +25,7 @@
 import Anthropic from "@anthropic-ai/sdk"
 import { tokenizeText, detokenizeText } from "@/lib/ai/tokenizer"
 import { prisma } from "@/lib/db"
+import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
 import type { JunebugMessage as CompletionMsg } from "./completion"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
@@ -184,13 +185,15 @@ export async function generateAndSaveRollingSummary(
     // Tokenize before transmission (same PII discipline as completion).
     const { tokenizedText, tokenMap } = tokenizeText(transcript, knownNames)
 
-    const resp = await anthropic.messages.create({
-      model: SUMMARY_MODEL,
-      max_tokens: SUMMARY_MAX_TOKENS,
-      temperature: 0.2,
-      system: SUMMARY_SYSTEM_PROMPT,
-      messages: [{ role: "user", content: tokenizedText }],
-    })
+    const resp = await anthropic.messages.create(
+      buildMessagesRequest({
+        model: SUMMARY_MODEL,
+        max_tokens: SUMMARY_MAX_TOKENS,
+        temperature: 0.2,
+        system: SUMMARY_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: tokenizedText }],
+      })
+    )
 
     const raw = resp.content
       .filter((b) => b.type === "text")
