@@ -62,13 +62,10 @@ function toRomanLower(n: number): string {
 
 // ── Text run builders ───────────────────────────────────────────────
 
-type TextRunOverrides = {
-  bold?: boolean
-  italics?: boolean
-  underline?: Record<string, never> | { type?: string; color?: string }
-  color?: string
-}
-function bodyTextRun(text: string, overrides: TextRunOverrides = {}): TextRun {
+function bodyTextRun(
+  text: string,
+  overrides: { bold?: boolean; italics?: boolean; underline?: {}; color?: string } = {}
+): TextRun {
   return new TextRun({
     text,
     font: FONT,
