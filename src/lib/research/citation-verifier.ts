@@ -197,9 +197,9 @@ export const VERIFY_CITATION_TOOL = {
           "The exact citation to verify. Examples: '136 T.C. 137', 'Renkemeyer, Campbell & Weaver, LLP v. Commissioner, 136 T.C. 137 (2011)', 'T.C. Memo. 2013-54', '668 F.3d 1008', 'Rev. Rul. 69-184', 'Treas. Reg. § 301.7701-2(c)(2)(iv)', 'IRC § 1402(a)(13)', 'IRM 5.8.4.3.1'.",
       },
     },
-    required: ["citation"],
+    required: ["citation"] as string[],
   },
-} as const
+}
 
 /**
  * Execute a verify_citation tool call from Claude's tool-use response.
