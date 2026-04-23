@@ -380,6 +380,10 @@ function AddFormPicker({
   onPick: (formNumber: string) => void
 }) {
   const [selected, setSelected] = useState<string>("")
+
+  const available = forms.filter((f) => f.hasBinding)
+  const blocked = forms.filter((f) => !f.hasBinding)
+
   return (
     <div className="space-y-4">
       <Select value={selected} onValueChange={setSelected}>
@@ -387,14 +391,33 @@ function AddFormPicker({
           <SelectValue placeholder="Select a form…" />
         </SelectTrigger>
         <SelectContent>
-          {forms.map((f) => (
-            <SelectItem key={f.formNumber} value={f.formNumber} disabled={!f.hasBinding}>
+          {available.map((f) => (
+            <SelectItem key={f.formNumber} value={f.formNumber}>
               Form {f.formNumber} — {f.formTitle}
-              {!f.hasBinding ? "  (no PDF binding yet)" : ""}
+            </SelectItem>
+          ))}
+          {blocked.length > 0 && (
+            <div className="px-2 pt-2 pb-1 text-[11px] uppercase tracking-wider text-muted-foreground border-t mt-1">
+              Coming soon — PDF binding not yet authored
+            </div>
+          )}
+          {blocked.map((f) => (
+            <SelectItem key={f.formNumber} value={f.formNumber} disabled>
+              Form {f.formNumber} — {f.formTitle}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
+
+      {blocked.length > 0 && (
+        <p className="text-[11.5px] text-muted-foreground leading-snug">
+          Forms listed under <em>Coming soon</em> have a schema and validation in place but
+          the PDF field-name mapping hasn&rsquo;t been authored yet. They&rsquo;ll
+          render incorrectly if forced, so they&rsquo;re blocked at the picker.
+          {" "}See TASKS.md for the authoring queue.
+        </p>
+      )}
+
       <DialogFooter>
         <Button disabled={!selected} onClick={() => onPick(selected)}>
           Start this form

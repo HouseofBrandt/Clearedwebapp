@@ -224,6 +224,8 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
   const [autoPopResult, setAutoPopResult] = useState<AutoPopulationResult | null>(null)
   const [autoPopDialogOpen, setAutoPopDialogOpen] = useState(false)
   const [autoPopApplied, setAutoPopApplied] = useState<Record<string, AutoPopulatedField>>({})
+  const [autoPopError, setAutoPopError] = useState<string | null>(null)
+  const [autoPopEngineNote, setAutoPopEngineNote] = useState<string | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -365,17 +367,23 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
 
   const handleAutoPopulate = useCallback(async () => {
     setAutoPopLoading(true)
+    setAutoPopError(null)
+    setAutoPopEngineNote(null)
     try {
       const res = await fetch(`/api/forms/${instance.id}/auto-populate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       })
-      if (!res.ok) throw new Error("Auto-populate failed")
-      const result: AutoPopulationResult = await res.json()
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body?.error || `Auto-populate failed (${res.status})`)
+      }
+      const result: AutoPopulationResult & { engine?: string; engineNote?: string } = await res.json()
       setAutoPopResult(result)
+      if (result.engineNote) setAutoPopEngineNote(result.engineNote)
       setAutoPopDialogOpen(true)
-    } catch {
-      // Silent failure
+    } catch (err: any) {
+      setAutoPopError(err?.message || "Auto-populate failed")
     } finally {
       setAutoPopLoading(false)
     }
@@ -536,9 +544,19 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                     ) : (
                       <FileSearch className="h-3.5 w-3.5 mr-1.5" />
                     )}
-                    Auto-populate from documents
+                    {autoPopLoading ? "Searching documents\u2026" : "Auto-populate from documents"}
                   </Button>
                 </div>
+                {autoPopError && (
+                  <div className="mt-2 rounded-md px-3 py-2 text-[12px]" style={{ background: "var(--c-danger-soft, #FEF2F2)", color: "var(--c-danger, #b91c1c)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                    <strong>Auto-populate failed: </strong>{autoPopError}
+                  </div>
+                )}
+                {autoPopEngineNote && !autoPopError && (
+                  <div className="mt-2 rounded-md px-3 py-2 text-[11.5px]" style={{ background: "var(--c-warning-soft, #FFF9EB)", color: "var(--c-warning, #92400e)", border: "1px solid rgba(217,119,6,0.15)" }}>
+                    {autoPopEngineNote}
+                  </div>
+                )}
                 {currentSection.description && (
                   <p className="text-sm text-c-gray-300">{currentSection.description}</p>
                 )}

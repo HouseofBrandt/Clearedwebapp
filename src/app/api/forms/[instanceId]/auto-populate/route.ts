@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth/options"
+import { prisma } from "@/lib/db"
 import { getFormInstance } from "@/lib/forms/form-store"
 import { autoPopulateForm } from "@/lib/forms/auto-populate"
 import { autoPopulateV3 } from "@/lib/forms/auto-populate-v3"
@@ -39,13 +40,33 @@ export async function POST(
       )
     }
 
+    // V3 requires DocumentChunk rows to do semantic search. If the case
+    // has no chunks yet (new case, documents still processing, or chunking
+    // disabled), V3 would return empty results — worse than V2's naive
+    // grep. Degrade gracefully to V2 in that case.
     if (AUTO_POPULATE_V3_ENABLED) {
-      const result = await autoPopulateV3({
-        caseId: instance.caseId,
-        formNumber: instance.formNumber,
-        formInstanceId: instance.id,
+      const chunkCount = await prisma.documentChunk.count({
+        where: { document: { caseId: instance.caseId } },
+      }).catch(() => 0)
+
+      if (chunkCount > 0) {
+        const result = await autoPopulateV3({
+          caseId: instance.caseId,
+          formNumber: instance.formNumber,
+          formInstanceId: instance.id,
+        })
+        return NextResponse.json({ ...result, engine: "v3" })
+      }
+
+      // No chunks → fall back to V2 + include a hint so the UI can surface
+      // that richer prefill will be available once documents are indexed.
+      console.info("[auto-populate] Case has no chunks; falling back to V2", { caseId: instance.caseId })
+      const result = await autoPopulateForm(instance.caseId, instance.formNumber)
+      return NextResponse.json({
+        ...result,
+        engine: "v2-fallback",
+        engineNote: "V3 semantic search is enabled but this case has no indexed document chunks yet. Re-run auto-populate after uploads finish indexing for higher-quality prefill.",
       })
-      return NextResponse.json({ ...result, engine: "v3" })
     }
 
     const result = await autoPopulateForm(instance.caseId, instance.formNumber)
