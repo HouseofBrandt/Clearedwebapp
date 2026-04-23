@@ -10,6 +10,7 @@ import {
 import { scanCitations } from "./citation-normalizer"
 import { buildMessagesRequest } from "@/lib/ai/model-capabilities"
 import { preferredOpusModel } from "@/lib/ai/model-selection"
+import { RESEARCH_RESPONSE_STYLE_SUFFIX } from "./memo-system-prompt"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -108,7 +109,9 @@ Strategic considerations, caveats, open questions. This is where you add real va
 ## Sources
 List of authorities and URLs consulted.
 
-If the topic is ${request.scope === "narrow" ? "specific — answer it directly and concisely" : "broad — survey the landscape and identify key authorities"}.`
+If the topic is ${request.scope === "narrow" ? "specific — answer it directly and concisely" : "broad — survey the landscape and identify key authorities"}.
+
+${RESEARCH_RESPONSE_STYLE_SUFFIX}`
 
   const userMessage = request.context
     ? `Research the following for a ${request.context} case:\n\n${request.topic}`
