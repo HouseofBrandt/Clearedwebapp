@@ -14,6 +14,8 @@ import { logAudit, AUDIT_ACTIONS, getClientIP } from "@/lib/ai/audit"
 import { canAccessCase } from "@/lib/auth/case-access"
 import { createFeedEvent } from "@/lib/feed/create-event"
 import { isAudioMimeType, isAudioExtension, transcribeAudio, isTranscriptionAvailable } from "@/lib/audio/transcription"
+import { DOCUMENT_CHUNKING_ENABLED } from "@/lib/forms/feature-flags"
+import { chunkAndEmbedDocument } from "@/lib/documents/chunking"
 
 /**
  * Detect file type from MIME type, file extension, AND buffer magic bytes.
@@ -217,6 +219,13 @@ export async function POST(request: NextRequest) {
               console.error("[DocumentTriage] Background triage failed:", err.message)
             })
           }
+
+          // Chunk the transcript too so audio files feed V3 auto-populate.
+          if (DOCUMENT_CHUNKING_ENABLED && cleanText.length > 200) {
+            chunkAndEmbedDocument(document.id).catch((err) => {
+              console.warn("[DocumentChunking] Post-transcription chunking failed:", err?.message || err)
+            })
+          }
         })
         .catch((err) => {
           console.error(`[AudioTranscription] Failed for document ${document.id}:`, err.message)
@@ -265,6 +274,15 @@ export async function POST(request: NextRequest) {
         })
       }).catch(err => {
         console.error("[DocumentTriage] Background triage failed:", err.message)
+      })
+    }
+
+    // Fire-and-forget: chunk + embed for V3 auto-populate. Only runs for
+    // documents with usable extracted text — audio waits for transcription
+    // (chunking re-fires after transcribe completes; see transcribe handler).
+    if (DOCUMENT_CHUNKING_ENABLED && extractedText && extractedText.length > 200) {
+      chunkAndEmbedDocument(document.id).catch((err) => {
+        console.warn("[DocumentChunking] Background chunking failed:", err?.message || err)
       })
     }
 
