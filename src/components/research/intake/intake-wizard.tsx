@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { SmartProgress } from "@/components/ui/smart-progress"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -177,6 +178,9 @@ export function IntakeWizard() {
   const [launching, setLaunching] = useState(false)
   const [launchError, setLaunchError] = useState<string | null>(null)
   const [launchStatus, setLaunchStatus] = useState<string | null>(null)
+  const [launchHeadline, setLaunchHeadline] = useState<string>("Preparing research")
+  const [launchDetail, setLaunchDetail] = useState<string | undefined>(undefined)
+  const [launchPercent, setLaunchPercent] = useState<number | undefined>(undefined)
   const [cases, setCases] = useState<CaseOption[]>([])
   const [casesLoading, setCasesLoading] = useState(false)
 
@@ -308,7 +312,13 @@ export function IntakeWizard() {
             for (const line of lines) {
               try {
                 const data = JSON.parse(line.slice(6))
-                if (data.message) setLaunchStatus(data.message)
+                if (data.headline) {
+                  setLaunchHeadline(data.headline)
+                  setLaunchStatus(data.headline)
+                }
+                if (data.detail) setLaunchDetail(data.detail)
+                if (typeof data.percent === "number") setLaunchPercent(data.percent)
+                if (data.message && !data.headline) setLaunchStatus(data.message)
                 if (data.error) {
                   setLaunchError(data.error)
                   setLaunching(false)
@@ -422,11 +432,23 @@ export function IntakeWizard() {
         </div>
       )}
 
-      {/* Status display */}
-      {launchStatus && !launchError && (
-        <div className="rounded-lg px-4 py-3 text-sm flex items-center gap-2" style={{ background: "var(--c-teal-soft, #EFF8FA)", color: "var(--c-teal, #2A8FA8)", border: "1px solid rgba(42,143,168,0.15)" }}>
-          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-          {launchStatus}
+      {/* Smart progress display */}
+      {launching && !launchError && (
+        <div className="rounded-lg px-4 py-3" style={{ background: "var(--c-teal-soft, #EFF8FA)", border: "1px solid rgba(42,143,168,0.15)" }}>
+          <SmartProgress
+            headline={launchHeadline || launchStatus || "Working on your research"}
+            detail={launchDetail}
+            percent={launchPercent}
+            fallbackDetails={[
+              "Parsing the question",
+              "Searching IRS.gov and primary-source databases",
+              "Verifying citations against CourtListener",
+              "Reviewing Treasury Regulations and Revenue Rulings",
+              "Drafting the memo",
+              "Double-checking every citation",
+            ]}
+            active
+          />
         </div>
       )}
 

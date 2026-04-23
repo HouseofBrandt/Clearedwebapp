@@ -10,20 +10,22 @@ export const maxDuration = 600
 /**
  * POST /api/research/sessions/[sessionId]/memo
  *
- * Generates a formal Times New Roman memorandum from an existing
- * research session. The endpoint runs the two-pass memo pipeline
- * (draft → verify → render) and returns the docx as a binary
- * application/vnd.openxmlformats-officedocument.wordprocessingml.document.
+ * Streams a Claude-style progress display over SSE as the two-pass memo
+ * pipeline runs (draft → verify → revise → render), then delivers the
+ * final .docx as a base64 payload on a terminal `done` event.
  *
- * The session must be in READY_FOR_REVIEW — we use the session's
- * questionText as the memo prompt and its output (if any) as
- * additional context. The memo does NOT replace the session output;
- * it's an additional deliverable the practitioner can choose to
- * generate after reviewing the inline research response.
+ * Why SSE instead of returning a binary blob? The memo pipeline can take
+ * 30–120 seconds. A silent POST is indistinguishable from a hung
+ * request. Streaming per-step events lets the UI render a progress bar
+ * + detail line the whole way through.
  *
- * Query/body params (optional):
- *   - to, from, cc, re, date — overrides for the memo header
- *   - bodyOfLaw — "federal tax law" (default), "Delaware corporate law", etc.
+ * Stream protocol (one JSON object per `data: ...\n\n` event):
+ *   { type: "phase", phase: "drafting"|"verifying"|"revising"|"rendering"|"complete",
+ *     headline, percent }
+ *   { type: "detail", detail }
+ *   { type: "verify_citation", citation, status }
+ *   { type: "done", filename, docxBase64, verification }
+ *   { type: "error", error }
  */
 export async function POST(
   req: NextRequest,
@@ -47,22 +49,17 @@ export async function POST(
       return NextResponse.json({ error: "Research session not found" }, { status: 404 })
     }
 
-    // Accept header overrides from the body (optional). All optional — the
-    // renderer inserts placeholders where fields are missing.
     let bodyOverrides: any = {}
     try {
       bodyOverrides = await req.json()
     } catch { /* body optional */ }
 
-    // Derive a default clientName for the "To:" header when the session is
-    // case-scoped. Best-effort; falls back to the renderer's placeholder.
     let clientName = ""
     if (session.case) {
       try {
         clientName = decryptField(session.case.clientName) || ""
       } catch { /* fallthrough */ }
     }
-
     const authorName = session.createdBy?.name || ""
 
     logAudit({
@@ -71,48 +68,78 @@ export async function POST(
       caseId: session.caseId ?? undefined,
       resourceId: session.id,
       resourceType: "ResearchSession",
-      metadata: {
-        mode: session.mode,
+      metadata: { mode: session.mode },
+    })
+
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (data: any) => {
+          try {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+          } catch { /* client disconnected */ }
+        }
+
+        try {
+          const result = await generateMemo({
+            prompt: session.questionText,
+            context: session.output || undefined,
+            header: {
+              to: bodyOverrides?.to || clientName || undefined,
+              from: bodyOverrides?.from || authorName || undefined,
+              cc: bodyOverrides?.cc,
+              re: bodyOverrides?.re,
+              date: bodyOverrides?.date,
+              letterhead: bodyOverrides?.letterhead,
+            },
+            bodyOfLaw: bodyOverrides?.bodyOfLaw,
+            onProgress: (event) => {
+              if (event.kind === "phase") {
+                send({
+                  type: "phase",
+                  phase: event.phase,
+                  headline: event.headline,
+                  percent: event.percent,
+                })
+              } else if (event.kind === "verify_citation") {
+                const verb = event.status === "started" ? "Verifying" : (
+                  event.status === "verified" ? "Verified" :
+                  event.status === "superseded" ? "Superseded" : "Could not verify"
+                )
+                send({ type: "detail", detail: `${verb} ${truncateCite(event.citation)}` })
+                send({ type: "verify_citation", citation: event.citation, status: event.status })
+              } else if (event.kind === "detail") {
+                send({ type: "detail", detail: event.detail })
+              } else if (event.kind === "revise_flagged") {
+                send({
+                  type: "detail",
+                  detail: `${event.count} citation${event.count === 1 ? "" : "s"} failed verification — asking Claude to revise`,
+                })
+              }
+            },
+          })
+
+          const filename = slugifyFilename(result.draft.header.re)
+          send({
+            type: "done",
+            filename: `${filename}.docx`,
+            docxBase64: result.buffer.toString("base64"),
+            verification: result.verification,
+          })
+        } catch (err: any) {
+          console.error("[Research Memo SSE] error:", err?.message || err)
+          send({ type: "error", error: err?.message || String(err) })
+        }
+
+        try { controller.close() } catch {}
       },
     })
 
-    const result = await generateMemo({
-      prompt: session.questionText,
-      context: session.output || undefined,
-      header: {
-        to: bodyOverrides?.to || clientName || undefined,
-        from: bodyOverrides?.from || authorName || undefined,
-        cc: bodyOverrides?.cc,
-        re: bodyOverrides?.re,
-        date: bodyOverrides?.date,
-        letterhead: bodyOverrides?.letterhead,
-      },
-      bodyOfLaw: bodyOverrides?.bodyOfLaw,
-    })
-
-    // Persist verification stats on the session for the reviewer UI.
-    await prisma.researchSession.update({
-      where: { id: sessionId },
-      data: {
-        // No dedicated column for memo verification — write to audit log only.
-        // If we add a column later this is the place to persist it.
-      },
-    }).catch(() => {})
-
-    const filename = slugifyFilename(result.draft.header.re)
-
-    // NextResponse BodyInit doesn't accept Node Buffer directly — wrap in
-    // Uint8Array (same pattern used by /api/penalty/export-letter).
-    return new NextResponse(new Uint8Array(result.buffer), {
-      status: 200,
+    return new Response(stream, {
       headers: {
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="${filename}.docx"`,
-        "X-Memo-Citations-Total": String(result.verification.total),
-        "X-Memo-Citations-Verified": String(result.verification.verified),
-        "X-Memo-Citations-NotFound": String(result.verification.notFound),
-        "X-Memo-Citations-Unverifiable": String(result.verification.unverifiable),
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
       },
     })
   } catch (error: any) {
@@ -127,4 +154,9 @@ export async function POST(
 function slugifyFilename(input: string): string {
   const base = (input || "memo").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
   return `memo-${base || "research"}`.slice(0, 100)
+}
+
+function truncateCite(raw: string): string {
+  const trimmed = raw.replace(/\s+/g, " ").trim()
+  return trimmed.length > 64 ? trimmed.slice(0, 61) + "…" : trimmed
 }

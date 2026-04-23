@@ -41,6 +41,12 @@ import type { MemoDraft, MemoCitation } from "@/lib/memo-renderer/types"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
+export type MemoProgressEvent =
+  | { kind: "phase"; phase: "drafting" | "verifying" | "revising" | "rendering" | "complete"; headline: string; percent: number }
+  | { kind: "verify_citation"; citation: string; status: "started" | "verified" | "not_found" | "superseded" | "unverifiable" }
+  | { kind: "detail"; detail: string }
+  | { kind: "revise_flagged"; count: number }
+
 export interface GenerateMemoRequest {
   /**
    * Practitioner's request text. The model distills this into Facts +
@@ -60,6 +66,8 @@ export interface GenerateMemoRequest {
   context?: string
   /** Override default body-of-law phrasing. Default: "federal tax law". */
   bodyOfLaw?: string
+  /** Progress listener. Route forwards to SSE. */
+  onProgress?: (event: MemoProgressEvent) => void
 }
 
 export interface GenerateMemoResult {
@@ -90,8 +98,11 @@ export async function generateMemo(
   req: GenerateMemoRequest
 ): Promise<GenerateMemoResult> {
   const model = preferredOpusModel()
+  const emit = (e: MemoProgressEvent) => { try { req.onProgress?.(e) } catch {} }
 
   // ── Pass 1: Draft ──────────────────────────────────────────────────
+
+  emit({ kind: "phase", phase: "drafting", headline: "Drafting the memo", percent: 10 })
 
   const userMessage = buildUserMessage(req)
   const messages: any[] = [{ role: "user", content: userMessage }]
@@ -120,14 +131,20 @@ export async function generateMemo(
       (b: any) => b.type === "tool_use" && b.name === VERIFY_CITATION_TOOL.name
     )
     if (verifyCalls.length === 0) {
+      emit({ kind: "detail", detail: "Reading web-search results" })
       if (++turns >= MAX_TOOL_TURNS) break
       continue
     }
 
+    emit({ kind: "detail", detail: `Verifying ${verifyCalls.length} citation${verifyCalls.length === 1 ? "" : "s"}` })
+
     const results = await Promise.all(
       verifyCalls.map(async (tu: any) => {
-        const v = await verifyCitation((tu.input as { citation: string }).citation)
+        const input = tu.input as { citation: string }
+        emit({ kind: "verify_citation", citation: input.citation, status: "started" })
+        const v = await verifyCitation(input.citation)
         citationsCollectedDuringDraft.push(v)
+        emit({ kind: "verify_citation", citation: input.citation, status: v.status })
         return {
           tool_use_id: tu.id,
           payload: {
@@ -162,6 +179,8 @@ export async function generateMemo(
 
   // ── Pass 2: Verify every citation (backfill + attach verdicts) ─────
 
+  emit({ kind: "phase", phase: "verifying", headline: "Verifying every citation", percent: 65 })
+
   const byRaw = new Map<string, VerificationResult>()
   for (const v of citationsCollectedDuringDraft) byRaw.set(v.raw, v)
 
@@ -181,6 +200,7 @@ export async function generateMemo(
   }
 
   if (needsBackfill.length > 0) {
+    emit({ kind: "detail", detail: `Backfilling ${needsBackfill.length} citation${needsBackfill.length === 1 ? "" : "s"} the draft skipped` })
     const backfilled = await Promise.all(
       needsBackfill.map((c) => verifyCitation(c.fullCitation))
     )
@@ -202,12 +222,16 @@ export async function generateMemo(
   )
 
   if (unverified.length > 0) {
+    emit({ kind: "phase", phase: "revising", headline: `Revising draft — ${unverified.length} unverified citation${unverified.length === 1 ? "" : "s"}`, percent: 80 })
+    emit({ kind: "revise_flagged", count: unverified.length })
     draft = await reviseUnverified(draft, unverified)
   }
 
   // ── Pass 3: Render ─────────────────────────────────────────────────
 
+  emit({ kind: "phase", phase: "rendering", headline: "Rendering the .docx", percent: 95 })
   const buffer = await renderMemo(draft)
+  emit({ kind: "phase", phase: "complete", headline: "Memo ready", percent: 100 })
 
   return {
     buffer,
