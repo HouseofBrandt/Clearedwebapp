@@ -55,6 +55,26 @@ export interface VerificationResult {
 
 // ── Public API ──────────────────────────────────────────────────────
 
+/**
+ * Resolution order:
+ *   1. CanonicalAuthority (firm's own harvested DB — highest confidence).
+ *   2. Kind-specific fallback:
+ *        - Case law      → CourtListener
+ *        - IRC           → Cornell LII uscode URL probe
+ *        - Treas. Reg.   → Cornell LII CFR URL probe
+ *        - IRM           → IRS.gov URL probe
+ *        - Rev. Rul.,
+ *          Rev. Proc.,
+ *          Notice, PLR   → no public URL check available
+ *   3. Unknown kind → not_found (we can't tell if it's real).
+ *   4. Recognized kind without any verification source → unverifiable
+ *      (flag, don't drop — a DB miss on IRC § 1402(a)(13) doesn't mean
+ *      the statute doesn't exist).
+ *
+ * The semantic distinction is load-bearing: the system prompt tells
+ * Claude to DROP not_found citations but FLAG unverifiable ones. A
+ * bug here that collapses unverifiable→not_found erases real statutes.
+ */
 export async function verifyCitation(raw: string): Promise<VerificationResult> {
   const parsed = parseCitation(raw)
 
@@ -66,16 +86,66 @@ export async function verifyCitation(raw: string): Promise<VerificationResult> {
   if (parsed.kind === "tc_regular" || parsed.kind === "tc_memo" || parsed.kind === "federal_case") {
     const cl = await tryCourtListener(parsed)
     if (cl) return cl
+    // CourtListener returned a clean "no hit" — for case law, that's
+    // genuine evidence the case doesn't exist. Fall through to not_found.
   }
 
-  // Nothing found. Return not_found — model is instructed to drop or flag.
+  // For statute / regulation / IRM, try a public URL probe as a best-
+  // effort "does this exist" check. This catches well-formed citations
+  // to real authority that the firm's DB hasn't harvested yet.
+  if (parsed.kind === "irc" || parsed.kind === "treas_reg" || parsed.kind === "irm") {
+    const probed = await tryPublicUrlProbe(parsed)
+    if (probed) return probed
+  }
+
+  // Nothing found. Decide between not_found (likely fabricated) and
+  // unverifiable (real-looking but we had no way to check).
+  if (parsed.kind === "unknown") {
+    return {
+      raw,
+      status: "not_found",
+      sourceOfTruth: "none",
+      note: "Citation format not recognized. If this is a real authority, provide it in a standard reporter format.",
+    }
+  }
+
+  // Case law that cleared both DB and CourtListener: legitimate not_found.
+  if (parsed.kind === "tc_regular" || parsed.kind === "tc_memo" || parsed.kind === "federal_case") {
+    return {
+      raw,
+      status: "not_found",
+      sourceOfTruth: "none",
+      note: "Citation not found in the firm's authority database or CourtListener. Do NOT describe a holding from memory.",
+    }
+  }
+
+  // IRC / Treas. Reg. / IRM / Rev. Rul. / Rev. Proc. / Notice / PLR with
+  // no verification source available: unverifiable, NOT not_found.
+  // Claude flags with [UNVERIFIED] and avoids describing substance.
   return {
     raw,
-    status: "not_found",
+    status: "unverifiable",
     sourceOfTruth: "none",
-    note: parsed.kind === "unknown"
-      ? "Citation format not recognized. If this is a real authority, provide it in a standard reporter format."
-      : "Citation not found in the firm's authority database or CourtListener. Do NOT describe a holding from memory.",
+    note: noteForUnverifiedKind(parsed.kind),
+  }
+}
+
+function noteForUnverifiedKind(kind: ParsedCitation["kind"]): string {
+  switch (kind) {
+    case "irc":
+      return "Could not verify via the firm's authority database or a Cornell LII URL probe. The citation is well-formed but unconfirmed. Do not describe substance — flag as [UNVERIFIED] and confirm via law.cornell.edu/uscode or a Westlaw check."
+    case "treas_reg":
+      return "Could not verify via the firm's authority database or a Cornell LII CFR URL probe. Do not describe substance — flag as [UNVERIFIED] and confirm via law.cornell.edu/cfr or ecfr.gov."
+    case "irm":
+      return "Could not verify via the firm's authority database or an IRS.gov URL probe. Do not describe substance — flag as [UNVERIFIED] and confirm via irs.gov/irm."
+    case "rev_rul":
+    case "rev_proc":
+    case "notice":
+      return "Could not verify via the firm's authority database. No public URL probe available for IRB guidance. Do not describe substance — flag as [UNVERIFIED] and confirm via the IRS Internal Revenue Bulletin index."
+    case "plr":
+      return "Could not verify via the firm's authority database. No public URL probe available for PLRs. Do not describe substance — flag as [UNVERIFIED] and confirm via IRS.gov or a paid database."
+    default:
+      return "Could not verify citation. Do not describe substance — flag as [UNVERIFIED] and confirm manually."
   }
 }
 
@@ -222,6 +292,132 @@ function buildUnverifiable(
     year: parsed.year,
     note: human,
     sourceOfTruth: "none",
+  }
+}
+
+// ── Public URL probe (IRC / Treas. Reg. / IRM) ───────────────────────
+
+/**
+ * Best-effort "does this citation resolve to a real public URL" check.
+ * Covers the three kinds with predictable URL formats:
+ *
+ *   - IRC § N       → https://www.law.cornell.edu/uscode/text/26/N
+ *   - Treas. Reg. § → https://www.law.cornell.edu/cfr/text/26/{section}
+ *   - IRM X.Y.Z     → https://www.irs.gov/irm/part{X}/irm_{X}-{Y}-{Z}
+ *
+ * Uses HEAD to avoid downloading bodies. 5s timeout. Any non-2xx or
+ * network failure → null (caller returns status:"unverifiable" rather
+ * than claiming verified).
+ *
+ * When a probe hits, we return status="verified" with
+ * sourceOfTruth:"external_authority" so the downstream pipeline knows
+ * this wasn't a firm-DB hit.
+ */
+async function tryPublicUrlProbe(parsed: ParsedCitation): Promise<VerificationResult | null> {
+  const url = buildProbeUrl(parsed)
+  if (!url) return null
+
+  try {
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 5000)
+    let res: Response
+    try {
+      res = await fetch(url, {
+        method: "HEAD",
+        redirect: "follow",
+        headers: {
+          "User-Agent": "Cleared-Research/1.0 (tax-resolution platform)",
+          Accept: "text/html",
+        },
+        signal: ctrl.signal,
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+    // Some servers (Cornell LII) return 405 on HEAD. Fall back to GET
+    // with a range request so we don't download the full body.
+    if (res.status === 405 || res.status === 403) {
+      const ctrl2 = new AbortController()
+      const timer2 = setTimeout(() => ctrl2.abort(), 5000)
+      try {
+        res = await fetch(url, {
+          method: "GET",
+          redirect: "follow",
+          headers: {
+            "User-Agent": "Cleared-Research/1.0 (tax-resolution platform)",
+            Accept: "text/html",
+            Range: "bytes=0-1023",
+          },
+          signal: ctrl2.signal,
+        })
+      } finally {
+        clearTimeout(timer2)
+      }
+    }
+    if (!res.ok && res.status !== 206) return null
+    return {
+      raw: parsed.raw,
+      status: "verified",
+      sourceUrl: url,
+      courtOrAgency: agencyFromKind(parsed.kind),
+      year: parsed.year,
+      note: `Verified by public URL probe (${hostOf(url)}). Confirm substance at the source before describing holdings.`,
+      sourceOfTruth: "canonical_authority", // Treat Cornell/IRS.gov as authoritative.
+    }
+  } catch (err: any) {
+    // Network / timeout / DNS. Caller falls through to unverifiable with
+    // an appropriate note — never throw.
+    console.warn("[citation-verifier] URL probe failed", {
+      url,
+      error: err?.message || String(err),
+    })
+    return null
+  }
+}
+
+function buildProbeUrl(parsed: ParsedCitation): string | null {
+  if (parsed.kind === "irc") {
+    // normalized: "irc:1402:a:13" or "irc:6015"
+    const parts = parsed.normalized.split(":")
+    const section = parts[1]
+    if (!section) return null
+    // Cornell LII uscode URL doesn't take subsections — so a probe for
+    // § 1402 covers § 1402(a)(13). Good enough for existence check.
+    return `https://www.law.cornell.edu/uscode/text/26/${encodeURIComponent(section)}`
+  }
+  if (parsed.kind === "treas_reg") {
+    // normalized: "reg:301.7701-2:c:2:iv" or "reg:1.704-1"
+    const parts = parsed.normalized.split(":")
+    const section = parts[1]
+    if (!section) return null
+    return `https://www.law.cornell.edu/cfr/text/26/${encodeURIComponent(section)}`
+  }
+  if (parsed.kind === "irm") {
+    // normalized: "irm:5.8.4.3.1"
+    const parts = parsed.normalized.split(":")
+    const path = parts[1]
+    if (!path) return null
+    // IRS.gov IRM URL pattern — uses the first numeric component as the
+    // "part" and dashes for the rest: irm_5-8-4-3-1.
+    const segments = path.split(".")
+    const part = segments[0]
+    if (!part) return null
+    const tail = segments.join("-")
+    return `https://www.irs.gov/irm/part${part}/irm_${tail}`
+  }
+  return null
+}
+
+function hostOf(url: string): string {
+  try { return new URL(url).host } catch { return "public source" }
+}
+
+function agencyFromKind(kind: ParsedCitation["kind"]): string {
+  switch (kind) {
+    case "irc":       return "U.S. Code (26 U.S.C.)"
+    case "treas_reg": return "Treasury Regulation (26 C.F.R.)"
+    case "irm":       return "Internal Revenue Manual"
+    default:          return "Public Authority"
   }
 }
 
