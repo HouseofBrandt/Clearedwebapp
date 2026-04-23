@@ -87,12 +87,15 @@ describe("verifyCitation — CourtListener fallback", () => {
   it("falls back to CourtListener when canonical DB misses, and returns 'verified'", async () => {
     findFirstMock.mockResolvedValue(null)
     searchByCitationMock.mockResolvedValue({
-      caseName: "Renkemeyer, Campbell & Weaver, LLP v. Commissioner",
-      year: 2011,
-      court: "United States Tax Court",
-      absoluteUrl: "https://www.courtlistener.com/opinion/123456/renkemeyer/",
-      summary:
-        "The Tax Court held that attorneys who were members of an LLP were not 'limited partners' within the meaning of § 1402(a)(13).",
+      kind: "hit",
+      opinion: {
+        caseName: "Renkemeyer, Campbell & Weaver, LLP v. Commissioner",
+        year: 2011,
+        court: "United States Tax Court",
+        absoluteUrl: "https://www.courtlistener.com/opinion/123456/renkemeyer/",
+        summary:
+          "The Tax Court held that attorneys who were members of an LLP were not 'limited partners' within the meaning of § 1402(a)(13).",
+      },
     })
 
     const r = await verifyCitation("Renkemeyer, Campbell & Weaver, LLP v. Commissioner, 136 T.C. 137 (2011)")
@@ -103,15 +106,18 @@ describe("verifyCitation — CourtListener fallback", () => {
     expect(r.sourceUrl).toContain("courtlistener.com")
   })
 
-  it("tries party-name search when citation-based lookup fails", async () => {
+  it("tries party-name search when citation-based lookup misses", async () => {
     findFirstMock.mockResolvedValue(null)
-    searchByCitationMock.mockResolvedValue(null)
+    searchByCitationMock.mockResolvedValue({ kind: "no_hit" })
     searchByNameMock.mockResolvedValue({
-      caseName: "Renkemeyer, Campbell & Weaver, LLP v. Commissioner",
-      year: 2011,
-      court: "United States Tax Court",
-      absoluteUrl: "https://www.courtlistener.com/opinion/123456/renkemeyer/",
-      summary: "",
+      kind: "hit",
+      opinion: {
+        caseName: "Renkemeyer, Campbell & Weaver, LLP v. Commissioner",
+        year: 2011,
+        court: "United States Tax Court",
+        absoluteUrl: "https://www.courtlistener.com/opinion/123456/renkemeyer/",
+        summary: "",
+      },
     })
 
     const r = await verifyCitation("Renkemeyer, Campbell & Weaver, LLP v. Commissioner, 136 T.C. 137 (2011)")
@@ -120,13 +126,40 @@ describe("verifyCitation — CourtListener fallback", () => {
     expect(searchByNameMock).toHaveBeenCalled()
     expect(r.note).toContain("name search")
   })
+
+  it("returns 'unverifiable' (not 'not_found') on 403 — so Claude flags real cases instead of dropping them", async () => {
+    findFirstMock.mockResolvedValue(null)
+    searchByCitationMock.mockResolvedValue({
+      kind: "unreachable",
+      reason: "auth_required",
+      status: 403,
+    })
+    const r = await verifyCitation("Renkemeyer, Campbell & Weaver, LLP v. Commissioner, 136 T.C. 137 (2011)")
+    expect(r.status).toBe("unverifiable")
+    expect(r.note).toMatch(/does NOT mean the citation is fabricated/i)
+    // Must NOT fall through to party-name search on transport failures
+    // (that would almost always fail the same way, wasting a request).
+    expect(searchByNameMock).not.toHaveBeenCalled()
+  })
+
+  it("returns 'unverifiable' on rate-limit with a clear message", async () => {
+    findFirstMock.mockResolvedValue(null)
+    searchByCitationMock.mockResolvedValue({
+      kind: "unreachable",
+      reason: "rate_limited",
+      status: 429,
+    })
+    const r = await verifyCitation("Watson v. United States, 668 F.3d 1008 (8th Cir. 2012)")
+    expect(r.status).toBe("unverifiable")
+    expect(r.note).toMatch(/rate-limited/i)
+  })
 })
 
 describe("verifyCitation — not found (fabricated citations)", () => {
   it("returns 'not_found' when neither DB nor CourtListener has the citation — the hallucination guard", async () => {
     findFirstMock.mockResolvedValue(null)
-    searchByCitationMock.mockResolvedValue(null)
-    searchByNameMock.mockResolvedValue(null)
+    searchByCitationMock.mockResolvedValue({ kind: "no_hit" })
+    searchByNameMock.mockResolvedValue({ kind: "no_hit" })
 
     // A made-up but plausible-looking Tax Court cite. This is the
     // exact failure mode we're defending against: a model pattern-
@@ -157,8 +190,8 @@ describe("verifyCitation — not found (fabricated citations)", () => {
 describe("verifyCitation — resilience", () => {
   it("falls through to not_found when Prisma throws (never propagates error)", async () => {
     findFirstMock.mockRejectedValue(new Error("DB connection lost"))
-    searchByCitationMock.mockResolvedValue(null)
-    searchByNameMock.mockResolvedValue(null)
+    searchByCitationMock.mockResolvedValue({ kind: "no_hit" })
+    searchByNameMock.mockResolvedValue({ kind: "no_hit" })
 
     const r = await verifyCitation("IRC § 1402(a)(13)")
     expect(r.status).toBe("not_found")

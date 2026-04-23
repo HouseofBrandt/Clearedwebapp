@@ -135,43 +135,94 @@ async function tryCanonicalAuthority(parsed: ParsedCitation): Promise<Verificati
 
 // ── CourtListener lookup ────────────────────────────────────────────
 
+/**
+ * Three outcomes here — NOT two. Be careful with the semantics:
+ *
+ *   - A VerificationResult with status="verified": CourtListener has it,
+ *     the memo can describe the holding.
+ *   - A VerificationResult with status="unverifiable": CourtListener was
+ *     unreachable (403/auth/rate-limit/5xx). Claude must flag the cite
+ *     as [UNVERIFIED] rather than drop it — the case may well be real.
+ *   - null: CourtListener responded cleanly and found nothing. Upstream
+ *     combines this with "not in canonical DB either" to produce
+ *     status="not_found" (Claude drops).
+ *
+ * Do not collapse "unreachable" into null. That was the bug where real
+ * Supreme Court + Tax Court cases were being marked not_found and
+ * silently dropped from memos.
+ */
 async function tryCourtListener(parsed: ParsedCitation): Promise<VerificationResult | null> {
   // Try citation lookup first (most specific).
   const byCitation = await searchByCitation(parsed.raw)
-  if (byCitation) {
+  if (byCitation.kind === "hit") {
+    const op = byCitation.opinion
     return {
       raw: parsed.raw,
       status: "verified",
-      verifiedTitle: byCitation.caseName,
-      courtOrAgency: byCitation.court,
-      year: byCitation.year ?? parsed.year,
-      summary: byCitation.summary,
-      sourceUrl: byCitation.absoluteUrl || undefined,
+      verifiedTitle: op.caseName,
+      courtOrAgency: op.court,
+      year: op.year ?? parsed.year,
+      summary: op.summary,
+      sourceUrl: op.absoluteUrl || undefined,
       note: "Verified via CourtListener. Confirm holding at the source URL before relying.",
       sourceOfTruth: "courtlistener",
     }
   }
 
+  // If the first lookup was unreachable, the party-name search will
+  // almost certainly fail the same way. Return "unverifiable" now so
+  // Claude flags the citation instead of dropping it.
+  if (byCitation.kind === "unreachable") {
+    return buildUnverifiable(parsed, byCitation.reason, byCitation.status)
+  }
+
   // Fall back to party-name search when the raw citation included one.
   if (parsed.partyName) {
     const byName = await searchByName(parsed.partyName, parsed.year)
-    if (byName) {
+    if (byName.kind === "hit") {
+      const op = byName.opinion
       return {
         raw: parsed.raw,
         status: "verified",
-        verifiedTitle: byName.caseName,
-        courtOrAgency: byName.court,
-        year: byName.year ?? parsed.year,
-        summary: byName.summary,
-        sourceUrl: byName.absoluteUrl || undefined,
+        verifiedTitle: op.caseName,
+        courtOrAgency: op.court,
+        year: op.year ?? parsed.year,
+        summary: op.summary,
+        sourceUrl: op.absoluteUrl || undefined,
         note:
           "Verified via CourtListener name search — citation lookup failed but a case with this party name exists. Confirm the reporter/page numbers match.",
         sourceOfTruth: "courtlistener",
       }
     }
+    if (byName.kind === "unreachable") {
+      return buildUnverifiable(parsed, byName.reason, byName.status)
+    }
   }
 
+  // Clean miss: CourtListener responded and returned no results.
   return null
+}
+
+function buildUnverifiable(
+  parsed: ParsedCitation,
+  reason: string,
+  status: number | undefined
+): VerificationResult {
+  const human =
+    reason === "auth_required"
+      ? "CourtListener returned 403 (auth required). This does NOT mean the citation is fabricated — the verifier just couldn't check. Set COURTLISTENER_TOKEN (free) to avoid this."
+      : reason === "rate_limited"
+        ? "CourtListener rate-limited the verifier. Retry later or set COURTLISTENER_TOKEN to raise the limit."
+        : reason === "network_error"
+          ? "Network error reaching CourtListener. The citation may still be valid."
+          : `CourtListener unreachable (${reason}${status ? ", HTTP " + status : ""}). Verify manually before relying on this citation.`
+  return {
+    raw: parsed.raw,
+    status: "unverifiable",
+    year: parsed.year,
+    note: human,
+    sourceOfTruth: "none",
+  }
 }
 
 // ── Anthropic tool schema ──────────────────────────────────────────
