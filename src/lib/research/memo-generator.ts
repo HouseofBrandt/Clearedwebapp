@@ -87,7 +87,14 @@ export interface GenerateMemoResult {
   draftRaw: string
 }
 
-const MAX_TOOL_TURNS = 8
+/**
+ * Memo generation verifies MORE citations than research (because memos
+ * are load-bearing deliverables), so the tool-turn cap is higher here
+ * than in web-research.ts. A 10-citation memo with 2-3 tool calls per
+ * turn fits comfortably in 16 turns; the 800s maxDuration envelope on
+ * the surrounding route caps total wall-clock regardless.
+ */
+const MAX_TOOL_TURNS = 16
 
 /**
  * Orchestrate draft → verify → render. Throws only on catastrophic
@@ -179,7 +186,35 @@ export async function generateMemo(
     if (++turns >= MAX_TOOL_TURNS) break
   }
 
-  const draftRaw = extractTextFromResponse(response)
+  let draftRaw = extractTextFromResponse(response)
+
+  // If the loop hit MAX_TOOL_TURNS while still in tool-use mode, the last
+  // assistant turn has no text content — parseDraftJson would throw. Do
+  // one final non-tool call to force the JSON out. Tool budget is spent;
+  // the model now has all the verification context it needs.
+  if (!draftRaw || draftRaw.trim().length === 0) {
+    emit({ kind: "detail", detail: "Finalizing the memo draft" })
+    const finalize = await anthropic.messages.create(
+      buildMessagesRequest({
+        model,
+        max_tokens: 16384,
+        system: MEMO_SYSTEM_PROMPT,
+        // No tools — force the model to produce the JSON it owes us.
+        messages: [
+          ...messages,
+          {
+            role: "user",
+            content:
+              "You've completed citation verification. Now emit ONLY the final MemoDraft JSON object per the schema in the system prompt. No tool calls. No prose. JSON only.",
+          },
+        ],
+        effort: "xhigh",
+      }),
+      { timeout: ANTHROPIC_CALL_TIMEOUT_MS }
+    )
+    draftRaw = extractTextFromResponse(finalize)
+  }
+
   let draft = parseDraftJson(draftRaw)
   draft = applyHeaderDefaults(draft, req)
 

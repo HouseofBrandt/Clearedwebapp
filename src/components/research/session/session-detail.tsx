@@ -287,38 +287,44 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
           if (!line.startsWith("data:")) continue
           const json = line.slice(5).trim()
           if (!json) continue
+          // Parse the JSON event separately from dispatching it. The old
+          // shape wrapped both in a single try/catch and rethrew any
+          // Error that had a message — including SyntaxError from a
+          // truncated chunk. That killed the whole memo generation on
+          // the first partial SSE frame.
+          let event: any
           try {
-            const event = JSON.parse(json)
-            if (event.type === "phase") {
-              if (event.headline) setMemoHeadline(event.headline)
-              if (typeof event.percent === "number") setMemoPercent(event.percent)
-            } else if (event.type === "detail") {
-              setMemoDetail(event.detail)
-            } else if (event.type === "verify_citation") {
-              // Already reflected via the detail event the server also sends.
-            } else if (event.type === "done") {
-              // Convert base64 docx and trigger download.
-              const binary = atob(event.docxBase64)
-              const bytes = new Uint8Array(binary.length)
-              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-              const blob = new Blob([bytes], {
-                type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-              })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement("a")
-              a.href = url
-              a.download = event.filename || `memo-${session.id}.docx`
-              document.body.appendChild(a)
-              a.click()
-              a.remove()
-              URL.revokeObjectURL(url)
-              downloaded = true
-            } else if (event.type === "error") {
-              throw new Error(event.error || "Memo generation failed")
-            }
-          } catch (parseErr) {
-            // Only rethrow deliberate errors.
-            if (parseErr instanceof Error && parseErr.message) throw parseErr
+            event = JSON.parse(json)
+          } catch {
+            // Partial / malformed event — skip silently and keep reading.
+            continue
+          }
+          if (event.type === "phase") {
+            if (event.headline) setMemoHeadline(event.headline)
+            if (typeof event.percent === "number") setMemoPercent(event.percent)
+          } else if (event.type === "detail") {
+            setMemoDetail(event.detail)
+          } else if (event.type === "verify_citation") {
+            // Already reflected via the detail event the server also sends.
+          } else if (event.type === "done") {
+            // Convert base64 docx and trigger download.
+            const binary = atob(event.docxBase64)
+            const bytes = new Uint8Array(binary.length)
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+            const blob = new Blob([bytes], {
+              type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = event.filename || `memo-${session.id}.docx`
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            URL.revokeObjectURL(url)
+            downloaded = true
+          } else if (event.type === "error") {
+            throw new Error(event.error || "Memo generation failed")
           }
         }
       }
