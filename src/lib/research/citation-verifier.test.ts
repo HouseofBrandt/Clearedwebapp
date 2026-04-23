@@ -31,10 +31,19 @@ vi.mock("./courtlistener-client", () => ({
 
 import { verifyCitation } from "./citation-verifier"
 
+// Mock global fetch — the URL probe uses it for public-URL existence
+// checks (Cornell LII, IRS.gov). Unit tests never hit real networks.
+const fetchMock = vi.fn()
 beforeEach(() => {
   findFirstMock.mockReset()
   searchByCitationMock.mockReset()
   searchByNameMock.mockReset()
+  fetchMock.mockReset()
+  // Default: URL probe gets 200 OK so tests that don't specifically
+  // exercise the probe don't have to configure fetch per-case. Individual
+  // tests override as needed.
+  fetchMock.mockResolvedValue(new Response(null, { status: 404 }))
+  ;(globalThis as any).fetch = fetchMock
 })
 
 describe("verifyCitation — canonical authority DB hit", () => {
@@ -179,22 +188,80 @@ describe("verifyCitation — not found (fabricated citations)", () => {
 
   it("does NOT call CourtListener for agency-guidance kinds (IRC/Reg/IRM/RevRul) when canonical DB misses", async () => {
     findFirstMock.mockResolvedValue(null)
+    // URL probe also 404s in this test — nothing to verify.
     const r = await verifyCitation("IRC § 99999")
-    expect(r.status).toBe("not_found")
+    expect(r.status).toBe("unverifiable")
     // CourtListener is case-law only — agency guidance should never leak to it.
     expect(searchByCitationMock).not.toHaveBeenCalled()
     expect(searchByNameMock).not.toHaveBeenCalled()
   })
 })
 
-describe("verifyCitation — resilience", () => {
-  it("falls through to not_found when Prisma throws (never propagates error)", async () => {
-    findFirstMock.mockRejectedValue(new Error("DB connection lost"))
-    searchByCitationMock.mockResolvedValue({ kind: "no_hit" })
-    searchByNameMock.mockResolvedValue({ kind: "no_hit" })
+describe("verifyCitation — non-case-law unverifiable path", () => {
+  it("marks IRC as unverifiable (NOT not_found) when DB misses and URL probe fails — real statute must not be dropped", async () => {
+    findFirstMock.mockResolvedValue(null)
+    // URL probe returns 404 (unexpected, but tests the fallthrough)
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }))
 
     const r = await verifyCitation("IRC § 1402(a)(13)")
-    expect(r.status).toBe("not_found")
+    expect(r.status).toBe("unverifiable")
+    expect(r.note).toMatch(/Cornell LII|flag as \[UNVERIFIED\]/i)
+  })
+
+  it("marks Treas. Reg. as unverifiable when DB misses and probe fails", async () => {
+    findFirstMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }))
+
+    const r = await verifyCitation("Treas. Reg. § 1.704-1(b)(2)(ii)(d)")
+    expect(r.status).toBe("unverifiable")
+    expect(r.note).toMatch(/CFR|\[UNVERIFIED\]/i)
+  })
+
+  it("marks Rev. Rul. as unverifiable (no public probe exists for IRB)", async () => {
+    findFirstMock.mockResolvedValue(null)
+    const r = await verifyCitation("Rev. Rul. 69-184")
+    expect(r.status).toBe("unverifiable")
+    expect(r.note).toMatch(/IRB|\[UNVERIFIED\]/i)
+    // No URL probe for IRB — fetch shouldn't be called.
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("marks IRC as verified when Cornell LII probe returns 200", async () => {
+    findFirstMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }))
+
+    const r = await verifyCitation("IRC § 1402(a)(13)")
+    expect(r.status).toBe("verified")
+    expect(r.sourceUrl).toContain("law.cornell.edu/uscode/text/26/1402")
+    expect(r.courtOrAgency).toContain("U.S. Code")
+  })
+
+  it("marks Treas. Reg. as verified when Cornell LII CFR probe returns 200", async () => {
+    findFirstMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }))
+
+    const r = await verifyCitation("Treas. Reg. § 301.7701-2")
+    expect(r.status).toBe("verified")
+    expect(r.sourceUrl).toContain("law.cornell.edu/cfr/text/26/301.7701-2")
+  })
+
+  it("marks IRM as verified when IRS.gov probe returns 200", async () => {
+    findFirstMock.mockResolvedValue(null)
+    fetchMock.mockResolvedValue(new Response(null, { status: 200 }))
+
+    const r = await verifyCitation("IRM 5.8.4.3.1")
+    expect(r.status).toBe("verified")
+    expect(r.sourceUrl).toContain("irs.gov/irm/part5/irm_5-8-4-3-1")
+  })
+})
+
+describe("verifyCitation — resilience", () => {
+  it("falls through to unverifiable when Prisma throws on IRC (statute should never be dropped for a DB failure)", async () => {
+    findFirstMock.mockRejectedValue(new Error("DB connection lost"))
+    fetchMock.mockRejectedValue(new Error("network error"))
+
+    const r = await verifyCitation("IRC § 1402(a)(13)")
+    expect(r.status).toBe("unverifiable")
     // IRC is not a case-law kind, so CourtListener shouldn't have been tried.
     expect(searchByCitationMock).not.toHaveBeenCalled()
   })
