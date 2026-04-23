@@ -22,8 +22,12 @@ export async function GET() {
   if (!auth.authorized) return auth.response
 
   try {
+    // Cast extname/extversion to text — `extname` is Postgres's `name`
+    // type and extversion is `text`, but node-postgres via Prisma's raw
+    // query doesn't always round-trip `name` cleanly and throws at decode
+    // time. Explicit ::text casts make the query portable.
     const rows = await prisma.$queryRawUnsafe<Array<{ extname: string; extversion: string }>>(
-      "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'"
+      "SELECT extname::text AS extname, extversion::text AS extversion FROM pg_extension WHERE extname = 'vector'"
     )
     if (Array.isArray(rows) && rows.length > 0) {
       return NextResponse.json({
