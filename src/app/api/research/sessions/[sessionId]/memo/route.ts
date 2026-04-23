@@ -101,7 +101,14 @@ export async function POST(
 
     const filename = slugifyFilename(result.draft.header.re)
 
-    return new NextResponse(result.buffer, {
+    // NextResponse BodyInit doesn't accept Node Buffer directly — coerce
+    // to Uint8Array, which is BodyInit-compatible and zero-copy.
+    const body = new Uint8Array(
+      result.buffer.buffer,
+      result.buffer.byteOffset,
+      result.buffer.byteLength
+    )
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type":
