@@ -21,6 +21,7 @@ import {
   Check,
   Printer,
   MessageSquare,
+  FileDown,
 } from "lucide-react"
 import { marked } from "marked"
 import DOMPurify from "dompurify"
@@ -224,6 +225,42 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }, [session?.output])
+
+  const [memoGenerating, setMemoGenerating] = useState(false)
+  const [memoError, setMemoError] = useState<string | null>(null)
+
+  const handleGenerateMemo = useCallback(async () => {
+    if (!session || memoGenerating) return
+    setMemoError(null)
+    setMemoGenerating(true)
+    try {
+      const res = await fetch(`/api/research/sessions/${session.id}/memo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}", // no overrides — renderer uses placeholders / session defaults
+      })
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}))
+        throw new Error(detail?.error || `Memo generation failed (${res.status})`)
+      }
+      const blob = await res.blob()
+      const contentDisposition = res.headers.get("Content-Disposition") || ""
+      const filenameMatch = contentDisposition.match(/filename="([^"]+)"/)
+      const filename = filenameMatch?.[1] || `memo-${session.id}.docx`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setMemoError(err?.message || "Could not generate memo")
+    } finally {
+      setMemoGenerating(false)
+    }
+  }, [session, memoGenerating])
 
   const handleAction = async (action: "APPROVE" | "REJECT_MANUAL") => {
     if (actionLoading || !session) return
@@ -472,15 +509,39 @@ export function SessionDetail({ sessionId }: { sessionId: string }) {
           )}
 
           {/* Action buttons */}
-          <div className="research-actions-bar flex items-center justify-end gap-2 no-print">
-            <Button variant="outline" size="sm" onClick={handleCopyMarkdown} className="text-xs">
-              {copied ? <Check className="mr-1.5 h-3.5 w-3.5" style={{ color: "var(--c-success)" }} /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
-              {copied ? "Copied" : "Copy"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()} className="text-xs">
-              <Printer className="mr-1.5 h-3.5 w-3.5" />
-              Print
-            </Button>
+          <div className="research-actions-bar flex flex-col items-end gap-1 no-print">
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopyMarkdown} className="text-xs">
+                {copied ? <Check className="mr-1.5 h-3.5 w-3.5" style={{ color: "var(--c-success)" }} /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+                {copied ? "Copied" : "Copy"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => window.print()} className="text-xs">
+                <Printer className="mr-1.5 h-3.5 w-3.5" />
+                Print
+              </Button>
+              {isReviewable && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleGenerateMemo}
+                  disabled={memoGenerating}
+                  className="text-xs"
+                  title="Produce a formal Times New Roman .docx memorandum from this research"
+                >
+                  {memoGenerating ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {memoGenerating ? "Generating memo\u2026" : "Generate Memo"}
+                </Button>
+              )}
+            </div>
+            {memoError && (
+              <p className="text-[11px]" style={{ color: "var(--c-danger, #b91c1c)" }}>
+                {memoError}
+              </p>
+            )}
           </div>
 
           {/* Two-column layout: TOC + body */}
