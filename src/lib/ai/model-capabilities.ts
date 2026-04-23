@@ -69,7 +69,7 @@ export interface BuildMessagesInput {
  */
 export function buildMessagesRequest(
   input: BuildMessagesInput
-): Anthropic.MessageCreateParams {
+): Anthropic.MessageCreateParamsNonStreaming {
   const {
     temperature,
     top_p,
@@ -90,5 +90,8 @@ export function buildMessagesRequest(
     out.output_config = { effort }
   }
 
-  return out as Anthropic.MessageCreateParams
+  // Narrow to the non-streaming overload — the caller picks streaming by
+  // using `anthropic.messages.stream(...)` (which accepts the same param
+  // shape) rather than by setting `stream: true` on the body.
+  return out as Anthropic.MessageCreateParamsNonStreaming
 }
