@@ -109,18 +109,46 @@ export async function POST(
             userId: session.createdById,
           })
 
-          // Store sources
+          // Store web search sources
           for (const source of result.sources.slice(0, 20)) {
             await prisma.researchSource.create({
               data: {
                 sessionId,
-                sourceType: "KB_INTERNAL",
+                sourceType: "WEB_GENERAL",
                 citation: source.title,
                 title: source.title,
                 url: source.url,
                 snippet: source.snippet,
                 authorityScore: 0.5,
                 relevanceScore: 0.7,
+              },
+            }).catch(() => {})
+          }
+
+          // Store verified legal citations as dedicated authority rows, so
+          // the reviewer UI can show an "authorities relied on" list with
+          // per-cite verification status. isVerified reflects the actual
+          // outcome of verify_citation — never trust-by-default.
+          const { parseCitation } = await import("@/lib/research/citation-normalizer")
+          const { citationKindToSourceType } = await import("@/lib/research/citation-source-type")
+          for (const c of (result.citations || []).slice(0, 50)) {
+            const parsed = parseCitation(c.raw)
+            const sourceType = citationKindToSourceType(parsed.kind, c.courtOrAgency)
+            const isVerified = c.status === "verified"
+            await prisma.researchSource.create({
+              data: {
+                sessionId,
+                sourceType,
+                citation: c.raw,
+                title: c.verifiedTitle || c.raw,
+                url: c.sourceUrl || null,
+                snippet: c.note || c.summary || null,
+                authorityScore: isVerified ? 0.9 : 0.3,
+                relevanceScore: 0.8,
+                isVerified,
+                dateOfAuthority: c.year
+                  ? new Date(Date.UTC(c.year, 0, 1))
+                  : null,
               },
             }).catch(() => {})
           }

@@ -2,6 +2,12 @@ import Anthropic from "@anthropic-ai/sdk"
 import { prisma } from "@/lib/db"
 import { scrubForKnowledgeBase } from "@/lib/knowledge/scrub"
 import { humanizeText } from "@/lib/ai/humanizer"
+import {
+  VERIFY_CITATION_TOOL,
+  verifyCitation,
+  type VerificationResult,
+} from "./citation-verifier"
+import { scanCitations } from "./citation-normalizer"
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || "" })
 
@@ -25,12 +31,49 @@ export interface ResearchRequest {
 export interface ResearchResult {
   summary: string
   sources: Array<{ title: string; url: string; snippet: string }>
+  /** Citations the model emitted, each labeled with verify_citation's
+   *  verdict so the API route / UI can flag unverified authorities to the
+   *  practitioner before the memo ships. */
+  citations: Array<VerificationResult>
   fullText: string
   savedToKB?: { documentId: string; title: string }
 }
 
 export async function conductResearch(request: ResearchRequest): Promise<ResearchResult> {
-  const systemPrompt = `You are a tax law researcher for a licensed tax resolution firm. You have web search access. Your job is to find the most current, authoritative information on the given topic.
+  const systemPrompt = `You are a tax law researcher for a licensed tax resolution firm. Your job is to find the most current, authoritative information on the given topic and produce a memo the firm's attorneys can rely on.
+
+You have TWO tools:
+
+  - web_search: Open search for primary-source URLs (IRS.gov, law.cornell.edu, ustaxcourt.gov).
+  - verify_citation: A structured verifier that checks any legal citation against the firm's own authority database and CourtListener. Returns canonical case name, year, court, source URL, and supersession status.
+
+CITATION GROUNDING — LOAD-BEARING RULE:
+
+  Before stating what a case held, or the substance of any Treas. Reg., IRC
+  section, IRM section, Rev. Rul., Rev. Proc., Notice, or PLR, you MUST call
+  verify_citation on that authority. Then:
+
+  • If verify_citation returns status="verified", you may describe the
+    authority using the returned title + court + summary. If you want to
+    add detail beyond what the tool returned, confirm via web_search first.
+
+  • If verify_citation returns status="superseded", note the supersession
+    in your memo and, if possible, cite the replacement authority instead.
+
+  • If verify_citation returns status="not_found" OR status="unverifiable",
+    you may NOT describe a holding from memory. Either (a) drop the citation
+    entirely, or (b) include it with the explicit prefix "[UNVERIFIED —
+    confirm before relying]" and do NOT describe its substance.
+
+  Describing a case's holding from your training data alone — without
+  calling verify_citation first — is a safety failure. The model's job is
+  to say what the AUTHORITY says, not what the model remembers.
+
+  Example of CORRECT abstention when a citation can't be verified:
+    > "This position may be supported by Tax Court precedent in this area,
+    >  but I was unable to confirm the specific holdings of the cases I
+    >  recalled. I recommend a Westlaw check on Tax Court opinions applying
+    >  § 1402(a)(13) to LLPs before relying on this analysis."
 
 RESEARCH STANDARDS:
 - Prioritize primary sources: IRS.gov, irs.gov/irm, law.cornell.edu, ustaxcourt.gov
@@ -69,13 +112,98 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly 
     ? `Research the following for a ${request.context} case:\n\n${request.topic}`
     : `Research the following:\n\n${request.topic}`
 
-  const response = await anthropic.messages.create({
-    model: "claude-opus-4-6",
-    max_tokens: 16384,
-    system: systemPrompt,
-    tools: [{ type: "web_search_20250305", name: "web_search" }],
-    messages: [{ role: "user", content: userMessage }],
-  })
+  // Agentic multi-turn loop: Claude produces text and may emit tool_use
+  // blocks (web_search is built-in; verify_citation is our handler). Each
+  // tool_use gets a corresponding tool_result appended to the messages,
+  // and we continue the loop until stop_reason !== "tool_use". Capped at
+  // MAX_TOOL_TURNS to bound cost in the pathological case.
+  const MAX_TOOL_TURNS = 8
+
+  const messages: any[] = [{ role: "user", content: userMessage }]
+
+  // Citations accumulated across turns — every verify_citation call gets
+  // recorded here so the route + UI can show verification status per-cite
+  // without re-running verifiers on the final memo.
+  const citationsCollected: VerificationResult[] = []
+
+  let response: any
+  let turns = 0
+  while (true) {
+    response = await anthropic.messages.create({
+      model: "claude-opus-4-6",
+      max_tokens: 16384,
+      system: systemPrompt,
+      tools: [
+        { type: "web_search_20250305", name: "web_search" },
+        VERIFY_CITATION_TOOL,
+      ],
+      messages,
+    })
+
+    // Append the assistant turn to the conversation.
+    messages.push({ role: "assistant", content: response.content })
+
+    // If the model stopped for any reason other than tool_use, we're done.
+    if (response.stop_reason !== "tool_use") break
+
+    // Collect every tool_use block. Only verify_citation requires our
+    // handler; web_search is a server-side built-in that Anthropic
+    // executes and includes the result in the next response automatically,
+    // so we don't need to respond to it here.
+    const toolUses = response.content.filter(
+      (b: any) => b.type === "tool_use" && b.name === VERIFY_CITATION_TOOL.name
+    )
+
+    if (toolUses.length === 0) {
+      // stop_reason=tool_use but only web_search was called — Anthropic
+      // handles that one server-side; on the next turn the results are
+      // already in the assistant message. Just continue the loop to let
+      // Claude produce its next turn.
+      if (++turns >= MAX_TOOL_TURNS) break
+      continue
+    }
+
+    // Resolve each verify_citation call in parallel. One call per tool_use —
+    // the same VerificationResult feeds both the accumulator and the
+    // tool_result payload sent back to Claude.
+    const results = await Promise.all(
+      toolUses.map(async (tu: any) => {
+        const input = tu.input as { citation: string }
+        const v = await verifyCitation(input.citation)
+        citationsCollected.push(v)
+        const payload = {
+          citation: v.raw,
+          status: v.status,
+          verified_title: v.verifiedTitle,
+          court_or_agency: v.courtOrAgency,
+          year: v.year,
+          summary: v.summary,
+          source_url: v.sourceUrl,
+          superseded_by: v.supersededBy,
+          note: v.note,
+          source_of_truth: v.sourceOfTruth,
+        }
+        return { tool_use_id: tu.id, payload }
+      })
+    )
+
+    // Append a single user message containing all tool_result blocks.
+    messages.push({
+      role: "user",
+      content: results.map((r) => ({
+        type: "tool_result" as const,
+        tool_use_id: r.tool_use_id,
+        content: JSON.stringify(r.payload),
+      })),
+    })
+
+    if (++turns >= MAX_TOOL_TURNS) {
+      console.warn(
+        `[conductResearch] Reached MAX_TOOL_TURNS (${MAX_TOOL_TURNS}) — stopping loop.`
+      )
+      break
+    }
+  }
 
   const textBlocks = response.content.filter((b: any) => b.type === "text")
   let fullText = textBlocks.map((b: any) => b.text).join("\n\n")
@@ -85,6 +213,11 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly 
 
   const sources = extractSourcesFromResponse(response)
   const summary = extractSummaryFromText(fullText)
+
+  // Post-pass: if the memo contains a citation the model never actually
+  // verified (lazy model behavior), verify now and record the result. This
+  // backstops the system-prompt rule.
+  await backfillUnverifiedCitations(fullText, citationsCollected)
 
   // Run through reasoning pipeline for quality evaluation
   try {
@@ -106,7 +239,12 @@ If the topic is ${request.scope === "narrow" ? "specific — answer it directly 
 
   fullText = humanizeText(fullText)
 
-  const result: ResearchResult = { summary, sources, fullText }
+  const result: ResearchResult = {
+    summary,
+    sources,
+    citations: citationsCollected,
+    fullText,
+  }
 
   if (request.saveToKB) {
     const scrubbed = scrubForKnowledgeBase(fullText, "", "")
@@ -203,4 +341,53 @@ function stripPreamble(text: string): string {
   }
 
   return lines.slice(startIdx).join("\n").trim()
+}
+
+/**
+ * Safety-net pass after the agentic loop completes. Scans the composed
+ * memo for citation shapes, and for any citation the model wrote without
+ * calling verify_citation, runs verification now and appends the result
+ * to the accumulator.
+ *
+ * This catches the lazy-model failure mode: the system prompt says "you
+ * MUST call verify_citation", but a model under pressure sometimes just
+ * writes the citation and keeps going. The backfill ensures the route's
+ * `isVerified` flags reflect reality for every cite that appears in the
+ * final text, not just the ones the model explicitly verified.
+ *
+ * Dedupes against `already.raw` AND `already` normalized keys so we don't
+ * double-count a cite the model verified AND also wrote in the memo.
+ */
+async function backfillUnverifiedCitations(
+  fullText: string,
+  already: VerificationResult[]
+): Promise<void> {
+  const hits = scanCitations(fullText)
+  if (hits.length === 0) return
+
+  // Build a dedup key set from what's already been verified.
+  const seenKeys = new Set<string>()
+  for (const v of already) {
+    seenKeys.add(v.raw.trim())
+    // Attempt to derive a normalized key for cross-check. Cheap re-parse.
+    try {
+      const reparsed = scanCitations(v.raw)
+      for (const r of reparsed) seenKeys.add(r.normalized)
+    } catch { /* non-fatal */ }
+  }
+
+  const missing = hits.filter((h) => !seenKeys.has(h.raw.trim()) && !seenKeys.has(h.normalized))
+  if (missing.length === 0) return
+
+  // Cap the backfill to keep unexpected input from blowing the budget.
+  const CAP = 20
+  const toVerify = missing.slice(0, CAP)
+  if (missing.length > CAP) {
+    console.warn(
+      `[conductResearch] backfill found ${missing.length} un-verified citations, capping at ${CAP}`
+    )
+  }
+
+  const results = await Promise.all(toVerify.map((m) => verifyCitation(m.raw)))
+  for (const r of results) already.push(r)
 }
