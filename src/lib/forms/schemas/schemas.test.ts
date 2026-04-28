@@ -31,14 +31,15 @@ describe("registry", () => {
   })
 
   it("hasBinding is true only for forms with a binding JSON", () => {
-    // These four are the ones shipped with PDFs + authored bindings.
+    // Forms shipped with PDFs + authored bindings.
     expect(hasBinding("433-A")).toBe(true)
+    expect(hasBinding("433-A-OIC")).toBe(true)
+    expect(hasBinding("2848")).toBe(true)
     expect(hasBinding("12153")).toBe(true)
     expect(hasBinding("911")).toBe(true)
-    // 433-A-OIC and the new schemas are deferred.
-    expect(hasBinding("433-A-OIC")).toBe(false)
-    expect(hasBinding("2848")).toBe(false)
+    // The remaining schemas are deferred until their PDFs land in public/forms/.
     expect(hasBinding("4506-T")).toBe(false)
+    expect(hasBinding("656")).toBe(false)
   })
 })
 

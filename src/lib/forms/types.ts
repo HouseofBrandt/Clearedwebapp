@@ -193,6 +193,42 @@ export interface FormMetadata {
 
 // ─── Runtime types ───────────────────────────────────────────────────────────
 
+/**
+ * Per-field metadata sidecar.
+ *
+ * Stored on FormInstance.valuesMeta as Record<fieldId, FieldMeta>.
+ * Captures the *provenance* and *review state* of each field separately
+ * from the value itself, so the wizard can render confidence badges that
+ * survive a reload, and the practitioner can see what's been double-checked.
+ *
+ * Fields are intentionally optional — the wizard treats absence as
+ * "manually entered, unreviewed".
+ */
+export interface FieldMeta {
+  /** Confidence the auto-populator had in this value. */
+  confidence?: "high" | "medium" | "low"
+  /** Human-readable description of where the value came from. */
+  source?: string
+  /** Document citations (used to render "from {fileName}, page {n}" tooltips). */
+  extractedFrom?: Array<{
+    documentId?: string
+    documentName?: string
+    pageNumber?: number
+  }>
+  /** Optional one-sentence rationale from the AI inference path. */
+  reasoning?: string
+  /** True iff the value originated from auto-populate (never user-typed). */
+  autoFilled?: boolean
+  /** True once a practitioner has explicitly confirmed the value. */
+  reviewed?: boolean
+  /** ISO timestamp of the review action. */
+  reviewedAt?: string
+  /** User ID of the reviewer. */
+  reviewedBy?: string
+  /** True if the user edited a previously-auto-filled value (clears reviewed). */
+  manuallyEdited?: boolean
+}
+
 export interface FormInstance {
   id: string
   formNumber: string
@@ -205,6 +241,8 @@ export interface FormInstance {
   clientId?: string
   status: "draft" | "in_progress" | "complete" | "submitted"
   values: Record<string, any>
+  /** Per-field metadata. Empty object for legacy rows. */
+  valuesMeta?: Record<string, FieldMeta>
   completedSections: string[]
   validationErrors: Record<string, string[]>
   createdAt: string

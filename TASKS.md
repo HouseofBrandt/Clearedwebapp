@@ -576,25 +576,23 @@ V2 foundation landed behind `FORM_BUILDER_V2_ENABLED` flag. The tasks below are 
 
 ## ═══ V2 P0 — Ship-blockers ═══
 
-## [TODO] V2.1 Author 433-A-OIC PDF binding
+## [DONE] V2.1 Author 433-A-OIC PDF binding
 Priority: P0
 Source: docs/forms-v2-spec.md §7 + PROGRESS.md 2026-04-22
-Scope: src/lib/forms/pdf-bindings/433-A-OIC/2024-04.json, write a one-shot pdf-inspect script under scripts/
-Acceptance:
-- Node script (scripts/inspect-pdf-fields.mjs) that takes a PDF path and dumps every AcroForm field name + type
-- Run against public/forms/f433aoic.pdf to enumerate fields
-- Author 433-A-OIC/2024-04.json with real field names
-- Update registry: add 433-A-OIC to BINDING_LOADERS, flip hasBinding to true
-- Manual smoke test: fill an instance, render PDF, verify every expected field appears
+Status notes (2026-04-28):
+- scripts/inspect-pdf-fields.mjs added (reusable for V2.2+)
+- public/forms/f433aoic.pdf was an HTML 404; replaced with the real IRS PDF (IRS filename is f433aoi.pdf, no trailing c — original download hit the wrong URL)
+- src/lib/forms/pdf-bindings/433-A-OIC/2024-04.json authored: 131 binding entries against 425 AcroForm fields; smoke test (scripts/smoke-test-433aoic.mjs) passes with zero missing fields and zero fill failures
+- Registry: BINDING_LOADERS + FORM_META.hasBinding updated; deferred-bindings comment trimmed
+- Known gaps logged in the binding's notes field (split names, marital-status string-vs-checkbox, vehicle make/model collapse, page-7 c1_*/p1_t* Y/N checkboxes, RCP compute mismatch). Each is recoverable in a follow-up without re-inspecting the PDF.
 
-## [TODO] V2.2 Acquire + bind 2848 (Power of Attorney)
+## [DONE] V2.2 Acquire + bind 2848 (Power of Attorney)
 Priority: P0
-Scope: public/forms/f2848.pdf, src/lib/forms/pdf-bindings/2848/2021-01.json
-Acceptance:
-- Download f2848 from irs.gov (Rev. 1-2021)
-- Run inspect script, author binding
-- Fill test instance end-to-end
-- 2848 is the gatekeeper for every resolution path — this is the highest-leverage missing form
+Status notes (2026-04-28):
+- public/forms/f2848.pdf downloaded (Rev. January 2021, 92 AcroForm fields, 2 pages)
+- src/lib/forms/pdf-bindings/2848/2021-01.json authored: 60 binding entries covering taxpayer info, all 4 representative slots, all 3 tax-matter rows, Part 2 (Declaration of Representative) designations + jurisdictions + bar numbers, signature block. scripts/smoke-test-2848.mjs passes with 0 missing fields and 0 fill failures.
+- Registry: BINDING_LOADERS + FORM_META.hasBinding updated.
+- Known gaps logged in binding notes: single-line PDF address fields collapse the schema's address_street/city/state/zip into one slot; the schema's additional_acts multi_select doesn't map to PDF's separate SubstituteOrAdd / SignReturn / OtherActs checkboxes (same value-transform gap as 433-A's marital_status); tax-matter rows beyond 3 require an attached statement.
 
 ## ═══ V2 P1 — Near-term follow-ups ═══
 

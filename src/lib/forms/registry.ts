@@ -51,15 +51,13 @@ const SCHEMA_LOADERS: Record<string, () => Promise<FormSchema>> = {
 // the client bundle entirely.
 
 const BINDING_LOADERS: Record<string, Record<string, () => Promise<PDFBinding>>> = {
-  "433-A":  { "2022-07": () => loadBinding("433-A", "2022-07") },
-  "12153":  { "2020-12": () => loadBinding("12153", "2020-12") },
-  "911":    { "2022-05": () => loadBinding("911", "2022-05") },
+  "433-A":     { "2022-07": () => loadBinding("433-A", "2022-07") },
+  "433-A-OIC": { "2024-04": () => loadBinding("433-A-OIC", "2024-04") },
+  "2848":      { "2021-01": () => loadBinding("2848", "2021-01") },
+  "12153":     { "2020-12": () => loadBinding("12153", "2020-12") },
+  "911":       { "2022-05": () => loadBinding("911", "2022-05") },
   // Deferred bindings — see TASKS.md:
-  //   433-A-OIC: PDF is present but AcroForm field names need inspection.
-  //              The legacy code path silently fell back to 433-A's field
-  //              map, which does not match 433-A-OIC's actual fields.
-  //              V2 correctly reports "no binding" until this is authored.
-  //   656, 843, 9465, 2848, 4506-T, 14039, 12277:
+  //   656, 843, 9465, 4506-T, 14039, 12277:
   //              Schemas exist (or will exist); PDFs must be placed in
   //              public/forms/ before bindings can be authored.
 }
@@ -93,13 +91,13 @@ interface SyncMeta {
 
 const FORM_META: Record<string, SyncMeta> = {
   "433-A":     { formNumber: "433-A",     formTitle: "Collection Information Statement for Wage Earners and Self-Employed Individuals", estimatedMinutes: 45, hasBinding: true,  currentRevision: "2022-07" },
-  "433-A-OIC": { formNumber: "433-A-OIC", formTitle: "Collection Information Statement (Offer in Compromise)",                              estimatedMinutes: 45, hasBinding: false, currentRevision: "2024-04" },
+  "433-A-OIC": { formNumber: "433-A-OIC", formTitle: "Collection Information Statement (Offer in Compromise)",                              estimatedMinutes: 45, hasBinding: true,  currentRevision: "2024-04" },
   "12153":     { formNumber: "12153",     formTitle: "Request for Collection Due Process or Equivalent Hearing",                            estimatedMinutes: 15, hasBinding: true,  currentRevision: "2020-12" },
   "911":       { formNumber: "911",       formTitle: "Request for Taxpayer Advocate Service Assistance",                                    estimatedMinutes: 20, hasBinding: true,  currentRevision: "2022-05" },
   "656":       { formNumber: "656",       formTitle: "Offer in Compromise",                                                                 estimatedMinutes: 30, hasBinding: false, currentRevision: "2024-04" },
   "843":       { formNumber: "843",       formTitle: "Claim for Refund and Request for Abatement",                                          estimatedMinutes: 20, hasBinding: false, currentRevision: "2011-08" },
   "9465":      { formNumber: "9465",      formTitle: "Installment Agreement Request",                                                       estimatedMinutes: 15, hasBinding: false, currentRevision: "2020-09" },
-  "2848":      { formNumber: "2848",      formTitle: "Power of Attorney and Declaration of Representative",                                 estimatedMinutes: 20, hasBinding: false, currentRevision: "2021-01" },
+  "2848":      { formNumber: "2848",      formTitle: "Power of Attorney and Declaration of Representative",                                 estimatedMinutes: 20, hasBinding: true,  currentRevision: "2021-01" },
   "4506-T":    { formNumber: "4506-T",    formTitle: "Request for Transcript of Tax Return",                                                estimatedMinutes: 10, hasBinding: false, currentRevision: "2023-03" },
   "14039":     { formNumber: "14039",     formTitle: "Identity Theft Affidavit",                                                            estimatedMinutes: 15, hasBinding: false, currentRevision: "2022-12" },
   "12277":     { formNumber: "12277",     formTitle: "Application for Withdrawal of Filed Notice of Federal Tax Lien",                      estimatedMinutes: 10, hasBinding: false, currentRevision: "2011-10" },

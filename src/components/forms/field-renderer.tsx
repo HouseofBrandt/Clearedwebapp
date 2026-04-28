@@ -14,8 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Trash2, Upload, FileText, HelpCircle } from "lucide-react"
-import type { FieldDef, ConditionalRule } from "@/lib/forms/types"
+import { Plus, Trash2, Upload, FileText, HelpCircle, CheckCircle2, Sparkles, AlertTriangle, PencilLine } from "lucide-react"
+import type { FieldDef, ConditionalRule, FieldMeta } from "@/lib/forms/types"
 
 // ---------------------------------------------------------------------------
 // Condition evaluator — supports the existing ConditionalRule shape
@@ -198,36 +198,67 @@ export interface FieldRendererProps {
   allValues: Record<string, any>
   /** Called when the user clicks the help icon on a field that has helpText or irsReference */
   onFieldHelp?: (fieldId: string) => void
-  /** Auto-population metadata for this field (if auto-populated) */
-  autoPopulated?: {
-    confidence: "high" | "medium" | "low"
-    sourceName: string
-  }
+  /** Per-field metadata (auto-populate provenance + review state). */
+  meta?: FieldMeta
+  /** Called when the user clicks "Mark reviewed" on an auto-populated field. */
+  onMarkReviewed?: () => void
   /** Unique key for radio buttons in repeating groups (prevents name collisions) */
   uniqueKey?: string
+}
+
+/**
+ * Visual state per field — exclusive, ordered by priority.
+ *
+ *   - reviewed:        practitioner explicitly confirmed (green left border + check)
+ *   - manuallyEdited:  user typed into a previously-auto-filled cell — needs re-review
+ *   - autoFilled:      sourced from auto-populate, not yet reviewed (teal/yellow by confidence)
+ *   - manual:          user-entered, no metadata (no border)
+ */
+function fieldVisualState(meta: FieldMeta | undefined): "reviewed" | "manuallyEdited" | "autoFilled" | "manual" {
+  if (!meta) return "manual"
+  if (meta.reviewed) return "reviewed"
+  if (meta.manuallyEdited) return "manuallyEdited"
+  if (meta.autoFilled) return "autoFilled"
+  return "manual"
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function FieldRenderer({ field, value, onChange, error, allValues, onFieldHelp, autoPopulated, uniqueKey }: FieldRendererProps) {
+export function FieldRenderer({ field, value, onChange, error, allValues, onFieldHelp, meta, onMarkReviewed, uniqueKey }: FieldRendererProps) {
   // Check conditional visibility
   if (!evaluateConditions(field.conditionals, allValues)) return null
 
   const isRequired = field.required
   const irsRef = field.irsReference
   const hasHelpContent = !!(field.helpText || field.irsReference)
+  const state = fieldVisualState(meta)
+  const sourceName = meta?.extractedFrom?.[0]?.documentName || meta?.source
 
-  // Auto-population border color
-  const autoBorderClass = autoPopulated
-    ? autoPopulated.confidence === "high"
+  // Left-border treatment per state. Stays a 4px accent so the form retains
+  // its calm grid while still reading at a glance.
+  const borderClass =
+    state === "reviewed"
+      ? "border-l-4 border-l-c-success pl-3"
+      : state === "manuallyEdited"
+      ? "border-l-4 border-l-c-warning pl-3"
+      : state === "autoFilled" && meta?.confidence === "high"
       ? "border-l-4 border-l-c-teal pl-3"
-      : "border-l-4 border-l-c-warning pl-3"
-    : ""
+      : state === "autoFilled"
+      ? "border-l-4 border-l-c-warning pl-3"
+      : ""
+
+  // Title (tooltip) summarises provenance + reviewed state on hover.
+  const titleParts: string[] = []
+  if (sourceName) titleParts.push(`From ${sourceName}`)
+  if (meta?.confidence) titleParts.push(`${meta.confidence} confidence`)
+  if (state === "reviewed") titleParts.push("Reviewed")
+  if (state === "manuallyEdited") titleParts.push("Edited since auto-fill — re-review")
+  const containerTitle = titleParts.length ? titleParts.join(" · ") : undefined
 
   return (
-    <div className={`space-y-1.5 ${autoBorderClass}`} title={autoPopulated ? `From ${autoPopulated.sourceName}` : undefined}>
+    <div className={`space-y-1.5 ${borderClass}`} title={containerTitle}>
       {/* Label row */}
       <div className="flex items-center gap-2">
         <Label htmlFor={field.id} className="text-sm font-medium text-c-gray-700">
@@ -249,15 +280,72 @@ export function FieldRenderer({ field, value, onChange, error, allValues, onFiel
             <HelpCircle className="h-3.5 w-3.5" />
           </button>
         )}
-        {autoPopulated && (
-          <span className="inline-flex items-center" title={`Auto-populated from ${autoPopulated.sourceName}`}>
-            <FileText className="h-3 w-3 text-c-gray-300" />
+
+        {/* State indicators — one icon, semantic colour */}
+        {state === "reviewed" && (
+          <span
+            className="inline-flex items-center text-c-success"
+            title={meta?.reviewedAt ? `Reviewed ${new Date(meta.reviewedAt).toLocaleString()}` : "Reviewed"}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          </span>
+        )}
+        {state === "manuallyEdited" && (
+          <span
+            className="inline-flex items-center text-c-warning"
+            title="Edited since auto-fill — please re-review"
+          >
+            <PencilLine className="h-3.5 w-3.5" />
+          </span>
+        )}
+        {state === "autoFilled" && (
+          <span
+            className={`inline-flex items-center ${meta?.confidence === "high" ? "text-[var(--c-teal)]" : "text-c-warning"}`}
+            title={containerTitle || "Auto-populated"}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
           </span>
         )}
       </div>
 
       {/* Field input */}
       <FieldInput field={field} value={value} onChange={onChange} allValues={allValues} uniqueKey={uniqueKey} />
+
+      {/* Provenance footer — only when a value came from auto-populate or has been reviewed */}
+      {(state === "autoFilled" || state === "manuallyEdited") && onMarkReviewed && (
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <p className="text-[11px] text-c-gray-300 leading-snug truncate">
+            {state === "manuallyEdited" ? (
+              <>
+                <AlertTriangle className="inline h-3 w-3 mr-1 -mt-0.5 text-c-warning" />
+                Edited since auto-fill
+              </>
+            ) : sourceName ? (
+              <>From <span className="font-medium text-c-gray-500">{sourceName}</span>{meta?.confidence ? ` · ${meta.confidence} confidence` : ""}</>
+            ) : meta?.source ? (
+              <>{meta.source}{meta?.confidence ? ` · ${meta.confidence} confidence` : ""}</>
+            ) : null}
+          </p>
+          <button
+            type="button"
+            onClick={onMarkReviewed}
+            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-[var(--c-teal)] hover:text-c-success transition-colors"
+            title="Confirm this value is correct"
+          >
+            <CheckCircle2 className="h-3 w-3" />
+            Mark reviewed
+          </button>
+        </div>
+      )}
+
+      {/* Reviewed footer — same row layout, but reads as a confirmed state */}
+      {state === "reviewed" && (
+        <p className="text-[11px] text-c-success leading-snug mt-1 inline-flex items-center gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          Reviewed
+          {sourceName && <span className="text-c-gray-300 font-normal">· originally from {sourceName}</span>}
+        </p>
+      )}
 
       {/* Help text */}
       {field.helpText && (
