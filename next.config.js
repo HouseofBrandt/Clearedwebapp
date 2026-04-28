@@ -21,6 +21,32 @@ const nextConfig = {
     },
     outputFileTracingIncludes: {
       '/api/ai/analyze': ['./src/lib/ai/prompts/**/*.txt'],
+      // Form-builder bundles need every authored PDF binding and every
+      // referenced form PDF. Vercel's tracer doesn't follow runtime
+      // fs.readFile(path.join(process.cwd(), 'src/lib/forms/pdf-bindings/...'))
+      // calls because the path is built at runtime — this list pins the
+      // files into the function bundle explicitly.
+      '/api/forms/[instanceId]/preview-pdf': [
+        './src/lib/forms/pdf-bindings/**/*.json',
+        './public/forms/*.pdf',
+      ],
+      '/api/forms/[instanceId]/auto-populate': [
+        './src/lib/forms/pdf-bindings/**/*.json',
+      ],
+      '/api/forms/[instanceId]': [
+        './src/lib/forms/pdf-bindings/**/*.json',
+      ],
+      '/api/forms': [
+        './src/lib/forms/pdf-bindings/**/*.json',
+      ],
+      '/api/forms/auto-map': [
+        './src/lib/forms/pdf-bindings/**/*.json',
+        './public/forms/*.pdf',
+      ],
+      '/api/forms/pdf-fields': [
+        './src/lib/forms/pdf-bindings/**/*.json',
+        './public/forms/*.pdf',
+      ],
     },
   },
   async headers() {

@@ -105,6 +105,39 @@ const FORM_META: Record<string, SyncMeta> = {
 
 // ── Binding cache ────────────────────────────────────────────────────────────
 
+// Pre-reference every binding JSON path at module init so Next.js's tracer
+// pulls them into the serverless bundle. Without this, runtime-built paths
+// (the ones in loadBinding below) are invisible to the bundler and the
+// JSON files get stripped from the deployed function. We also reference
+// the corresponding PDF in public/forms/ for the same reason — the
+// preview-pdf route reads them via fs at runtime.
+//
+// Errors are swallowed so a partial bundle on first build doesn't
+// crash module load. outputFileTracingIncludes in next.config.js is the
+// belt; this is the suspenders.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs") as typeof import("fs")
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const p  = require("path") as typeof import("path")
+  const cwd = process.cwd()
+  const refs = [
+    "src/lib/forms/pdf-bindings/433-A/2022-07.json",
+    "src/lib/forms/pdf-bindings/433-A-OIC/2024-04.json",
+    "src/lib/forms/pdf-bindings/2848/2021-01.json",
+    "src/lib/forms/pdf-bindings/12153/2020-12.json",
+    "src/lib/forms/pdf-bindings/911/2022-05.json",
+    "public/forms/f433a.pdf",
+    "public/forms/f433aoic.pdf",
+    "public/forms/f2848.pdf",
+    "public/forms/f12153.pdf",
+    "public/forms/f911.pdf",
+  ]
+  for (const r of refs) {
+    try { fs.readFileSync(p.join(cwd, r)) } catch { /* missing file is fine at build time */ }
+  }
+} catch { /* not running in node — fine */ }
+
 const bindingCache = new Map<string, PDFBinding>()
 
 function bindingCacheKey(formNumber: string, revision: string): string {
