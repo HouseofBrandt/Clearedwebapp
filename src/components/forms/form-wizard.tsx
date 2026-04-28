@@ -754,6 +754,30 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                       )}
                       {autoPopLoading ? "Searching documents\u2026" : "Auto-populate from documents"}
                     </Button>
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        // Flush any pending autosave so the PDF reflects the latest values.
+                        if (saveTimerRef.current) {
+                          clearTimeout(saveTimerRef.current)
+                          saveTimerRef.current = null
+                        }
+                        await doSave(values, valuesMeta)
+                        // Then open the download endpoint \u2014 the browser handles the file save.
+                        const url = `/api/forms/${instance.id}/preview-pdf?download=1`
+                        const link = document.createElement("a")
+                        link.href = url
+                        link.rel = "noopener"
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                      }}
+                      className="text-xs"
+                      title="Save and download the filled PDF"
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Generate PDF
+                    </Button>
                   </div>
                 </div>
                 {autoPopError && (
