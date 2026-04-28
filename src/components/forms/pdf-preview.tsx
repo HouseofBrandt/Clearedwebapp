@@ -14,6 +14,7 @@ const FORM_PDF_MAP: Record<string, string> = {
   "433-A-OIC": "/forms/f433aoic.pdf",
   "12153": "/forms/f12153.pdf",
   "911": "/forms/f911.pdf",
+  "2848": "/forms/f2848.pdf",
 }
 
 // PDF.js CDN URL

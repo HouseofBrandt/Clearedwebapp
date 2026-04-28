@@ -51,6 +51,8 @@ export async function autoPopulateV3(params: {
   caseId: string
   formNumber: string
   formInstanceId?: string
+  /** Logged-in practitioner; used to auto-fill the representative slot. */
+  userId?: string
 }): Promise<AutoPopulationResultV3> {
   const started = Date.now()
 
@@ -64,12 +66,17 @@ export async function autoPopulateV3(params: {
   // Phase 1 — structured (fast, free).
   const structured = await gatherStructured(params.caseId, params.formNumber)
 
+  // Phase 1b — practitioner (the logged-in user's profile).
+  const practitioner = params.userId ? await gatherFromCurrentUser(params.userId, params.formNumber) : []
+
   // Phase 2 — structured extracts from DocumentExtract rows.
   const fromExtracts = await gatherFromExtracts(params.caseId)
 
-  // Merge structured + extracts. Structured wins ties (first-source).
+  // Merge: structured first, then practitioner (won't overwrite structured),
+  // then document extracts. Structured wins ties (first-source).
   const filled = new Map<string, AutoPopulatedFieldV3>()
   for (const f of structured) filled.set(f.fieldId, f)
+  for (const f of practitioner) if (!filled.has(f.fieldId)) filled.set(f.fieldId, f)
   for (const f of fromExtracts) if (!filled.has(f.fieldId)) filled.set(f.fieldId, f)
 
   // Phase 3 — for each unfilled field, run search and collect context chunks.
@@ -141,6 +148,100 @@ async function gatherStructured(caseId: string, formNumber: string): Promise<Aut
       if (out.find((o) => o.fieldId === k)) continue
       push(out, k, v, "high", `Sibling form ${sib.formNumber}`)
     }
+  }
+
+  return out
+}
+
+// ── Phase 1b: practitioner profile → representative slot ──
+
+/**
+ * Map the logged-in user's profile (CAF, PTIN, firm address, license info)
+ * onto the representative slot of any form that has one. Drives the
+ * "auto-fill the practitioner section" UX so the firm doesn't re-type the
+ * same info per case.
+ *
+ * Forms covered (their schemas all have a representative concept):
+ *   - 2848 (Power of Attorney): representatives.0.* + designation/jurisdiction/bar on Part 2
+ *   - 12153 (CDP): representative_name / representative_phone / caf_number
+ *   - 911 (TAS): rep_name / rep_phone / rep_caf
+ * Other forms without a rep slot get nothing (function returns []).
+ */
+async function gatherFromCurrentUser(userId: string, formNumber: string): Promise<AutoPopulatedFieldV3[]> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      name: true,
+      phone: true,
+      cafNumber: true,
+      ptin: true,
+      jurisdiction: true,
+      licenseType: true,
+      licenseNumber: true,
+      firmName: true,
+      firmAddress: true,
+      firmCity: true,
+      firmState: true,
+      firmZip: true,
+      firmPhone: true,
+      firmFax: true,
+    },
+  })
+  if (!user) return []
+
+  const out: AutoPopulatedFieldV3[] = []
+  const source = "Practitioner profile"
+
+  // licenseType → 2848 designation code (per Part 2 dropdown)
+  const designation =
+    user.licenseType === "ATTORNEY" ? "a" :
+    user.licenseType === "CPA"      ? "b" :
+    user.licenseType === "EA"       ? "c" :
+    null
+
+  // Combined firm address line for forms that take a single address field
+  // (2848 RepresentativesAddress is one line).
+  const firmAddressOneLine = [
+    user.firmAddress,
+    [user.firmCity, user.firmState, user.firmZip].filter(Boolean).join(", "),
+  ].filter(Boolean).join(", ")
+  const firmAddressDisplay = firmAddressOneLine || null
+
+  // 2848 representatives.0.* — representative slot 1.
+  if (formNumber === "2848") {
+    const rep0: Record<string, any> = {}
+    if (user.name)              rep0.rep_name = user.name
+    if (firmAddressDisplay)     rep0.rep_address = firmAddressDisplay
+    if (user.firmCity)          rep0.rep_city = user.firmCity
+    if (user.firmState)         rep0.rep_state = user.firmState
+    if (user.firmZip)           rep0.rep_zip = user.firmZip
+    if (user.firmPhone || user.phone) rep0.rep_phone = user.firmPhone || user.phone
+    if (user.firmFax)           rep0.rep_fax = user.firmFax
+    if (user.cafNumber)         rep0.rep_caf_number = user.cafNumber
+    if (user.ptin)              rep0.rep_ptin = user.ptin
+    if (designation)            rep0.rep_designation = designation
+    if (user.jurisdiction)      rep0.rep_jurisdiction = user.jurisdiction
+    if (user.licenseNumber)     rep0.rep_bar_license_number = user.licenseNumber
+
+    if (Object.keys(rep0).length > 0) {
+      // The wizard stores repeating groups as arrays. We fill the first slot
+      // and leave the rest for the practitioner if they need a co-rep.
+      push(out, "representatives", [rep0], "high", source)
+    }
+  }
+
+  // 12153: flat representative_name / representative_phone / caf_number
+  if (formNumber === "12153") {
+    if (user.name)               push(out, "representative_name", user.name, "high", source)
+    if (user.firmPhone || user.phone) push(out, "representative_phone", user.firmPhone || user.phone, "high", source)
+    if (user.cafNumber)          push(out, "caf_number", user.cafNumber, "high", source)
+  }
+
+  // 911: flat rep_name / rep_phone / rep_caf
+  if (formNumber === "911") {
+    if (user.name)               push(out, "rep_name", user.name, "high", source)
+    if (user.firmPhone || user.phone) push(out, "rep_phone", user.firmPhone || user.phone, "high", source)
+    if (user.cafNumber)          push(out, "rep_caf", user.cafNumber, "high", source)
   }
 
   return out

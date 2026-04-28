@@ -309,6 +309,20 @@ model User {
   role          Role         @default(PRACTITIONER)
   licenseType   LicenseType?
   licenseNumber String?
+  // Practitioner credentials. Used to auto-fill the representative slot on
+  // 2848, 12153, 911, etc. so the user doesn't re-type firm info per case.
+  cafNumber     String?
+  ptin          String?
+  phone         String?
+  jurisdiction  String?      // E.g. "California" for an attorney, "EA" for an enrolled agent
+  // Firm address — printed in the representative section of every form.
+  firmName       String?
+  firmAddress    String?
+  firmCity       String?
+  firmState      String?
+  firmZip        String?
+  firmPhone      String?
+  firmFax        String?
   mfaEnabled    Boolean      @default(false)
   mfaSecret     String?
   createdAt     DateTime     @default(now())

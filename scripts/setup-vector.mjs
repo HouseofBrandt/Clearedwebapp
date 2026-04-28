@@ -102,6 +102,35 @@ async function bootstrapFormInstances() {
   }
 }
 
+async function bootstrapUserPractitionerFields() {
+  // Defensive bootstrap for the new practitioner-credential / firm-address
+  // columns on users. Same DB-branch-mismatch concern as form_instances:
+  // the migration may run against a different branch than the runtime.
+  try {
+    const cols = [
+      ["cafNumber",    "TEXT"],
+      ["ptin",         "TEXT"],
+      ["phone",        "TEXT"],
+      ["jurisdiction", "TEXT"],
+      ["firmName",     "TEXT"],
+      ["firmAddress",  "TEXT"],
+      ["firmCity",     "TEXT"],
+      ["firmState",    "TEXT"],
+      ["firmZip",      "TEXT"],
+      ["firmPhone",    "TEXT"],
+      ["firmFax",      "TEXT"],
+    ]
+    for (const [name, type] of cols) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "${name}" ${type}`
+      )
+    }
+    console.log("[setup-vector] users practitioner columns bootstrapped (or already present)")
+  } catch (error) {
+    console.error("[setup-vector] users practitioner bootstrap failed:", error.message)
+  }
+}
+
 async function fullSetup() {
   try {
     await prisma.$executeRawUnsafe(`CREATE EXTENSION IF NOT EXISTS vector`)
@@ -151,6 +180,7 @@ async function main() {
     } else {
       await fullSetup()
       await bootstrapFormInstances()
+      await bootstrapUserPractitionerFields()
     }
   } finally {
     await prisma.$disconnect()
