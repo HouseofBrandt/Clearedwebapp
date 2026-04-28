@@ -15,12 +15,14 @@ import {
   Save,
   Download,
   CheckCircle,
+  CheckCircle2,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
   Loader2,
   FileSearch,
+  Sparkles,
   X,
 } from "lucide-react"
 import type {
@@ -28,6 +30,7 @@ import type {
   FormInstance,
   SectionDef,
   FieldDef,
+  FieldMeta,
   ValidationRule,
   ConditionalRule,
 } from "@/lib/forms/types"
@@ -207,6 +210,9 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
   const allSections = schema.sections
   const [activeSection, setActiveSection] = useState<string>(allSections[0]?.id || "")
   const [values, setValues] = useState<Record<string, any>>(instance.values || {})
+  // Per-field metadata — provenance and review state. Loaded from the
+  // server-persisted instance.valuesMeta so badges survive a reload.
+  const [valuesMeta, setValuesMeta] = useState<Record<string, FieldMeta>>(instance.valuesMeta || {})
   const [errors, setErrors] = useState<Record<string, string[]>>(instance.validationErrors || {})
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(
@@ -223,9 +229,11 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
   const [autoPopLoading, setAutoPopLoading] = useState(false)
   const [autoPopResult, setAutoPopResult] = useState<AutoPopulationResult | null>(null)
   const [autoPopDialogOpen, setAutoPopDialogOpen] = useState(false)
-  const [autoPopApplied, setAutoPopApplied] = useState<Record<string, AutoPopulatedField>>({})
   const [autoPopError, setAutoPopError] = useState<string | null>(null)
   const [autoPopEngineNote, setAutoPopEngineNote] = useState<string | null>(null)
+
+  // Review queue panel state
+  const [reviewPanelOpen, setReviewPanelOpen] = useState(false)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -253,7 +261,7 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
   // Auto-save
   // ---------------------------------------------------------------------------
 
-  const doSave = useCallback(async (newValues: Record<string, any>) => {
+  const doSave = useCallback(async (newValues: Record<string, any>, newMeta?: Record<string, FieldMeta>) => {
     setSaving(true)
     try {
       await fetch(`/api/forms/${instance.id}`, {
@@ -261,6 +269,7 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           values: newValues,
+          ...(newMeta ? { valuesMeta: newMeta } : {}),
           completionPercent: computeCompletion(sections, newValues),
         }),
       })
@@ -281,12 +290,59 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
           const { [fieldId]: _, ...rest } = e
           return rest
         })
+
+        // If the field had auto-fill metadata and the user has now changed
+        // the value, mark it as manually edited (clears reviewed). This is
+        // how the wizard surfaces "you edited an AI-suggested value — make
+        // sure it's still right."
+        let metaPatch: Record<string, FieldMeta> | undefined
+        setValuesMeta((prevMeta) => {
+          const existing = prevMeta[fieldId]
+          if (!existing) return prevMeta
+          // Only flip flags if the value actually changed.
+          if (JSON.stringify(prev[fieldId]) === JSON.stringify(value)) return prevMeta
+          const updated: FieldMeta = {
+            ...existing,
+            manuallyEdited: true,
+            reviewed: false,
+            reviewedAt: undefined,
+            reviewedBy: undefined,
+          }
+          metaPatch = { [fieldId]: updated }
+          return { ...prevMeta, [fieldId]: updated }
+        })
+
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-        saveTimerRef.current = setTimeout(() => doSave(next), 500)
+        saveTimerRef.current = setTimeout(() => doSave(next, metaPatch), 500)
         return next
       })
     },
     [doSave]
+  )
+
+  // ---------------------------------------------------------------------------
+  // Review actions — per-field "Mark reviewed"
+  // ---------------------------------------------------------------------------
+
+  const handleMarkReviewed = useCallback(
+    (fieldId: string) => {
+      setValuesMeta((prev) => {
+        const existing = prev[fieldId] || {}
+        const now = new Date().toISOString()
+        const updated: FieldMeta = {
+          ...existing,
+          reviewed: true,
+          reviewedAt: now,
+          manuallyEdited: false,
+        }
+        const nextMeta = { ...prev, [fieldId]: updated }
+        // Persist the single-field change without delaying via the autosave
+        // timer — the click is the explicit save signal.
+        doSave(values, { [fieldId]: updated })
+        return nextMeta
+      })
+    },
+    [values, doSave]
   )
 
   const handleFieldBlur = useCallback(
@@ -326,6 +382,109 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
     }
     return counts
   }, [sections, errors])
+
+  // ---------------------------------------------------------------------------
+  // Review Queue — fields the practitioner should look at before exporting.
+  //
+  // Three buckets:
+  //   1. missing   — required, visible, currently empty
+  //   2. verify    — auto-filled, not yet marked reviewed
+  //   3. re-verify — was auto-filled, then user edited the value
+  //
+  // The user-facing copy collapses (2) and (3) into "needs your eyes" since
+  // the action ("look at it, click Mark reviewed") is the same.
+  // ---------------------------------------------------------------------------
+
+  type ReviewItem = {
+    fieldId: string
+    fieldLabel: string
+    sectionId: string
+    sectionTitle: string
+    reason: "missing" | "verify" | "reverify"
+    confidence?: FieldMeta["confidence"]
+    sourceName?: string
+    currentValue?: any
+  }
+
+  const reviewItems = useMemo<ReviewItem[]>(() => {
+    const items: ReviewItem[] = []
+    for (const section of sections) {
+      for (const field of section.fields) {
+        if (field.type === "computed") continue
+        if (!evaluateConditions(field.conditionals, values)) continue
+        const value = values[field.id]
+        const meta = valuesMeta[field.id]
+        const isEmpty =
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          (Array.isArray(value) && value.length === 0)
+
+        if (field.required && isEmpty) {
+          items.push({
+            fieldId: field.id,
+            fieldLabel: field.label,
+            sectionId: section.id,
+            sectionTitle: section.title,
+            reason: "missing",
+          })
+          continue
+        }
+        if (meta?.manuallyEdited) {
+          items.push({
+            fieldId: field.id,
+            fieldLabel: field.label,
+            sectionId: section.id,
+            sectionTitle: section.title,
+            reason: "reverify",
+            confidence: meta.confidence,
+            sourceName: meta.extractedFrom?.[0]?.documentName || meta.source,
+            currentValue: value,
+          })
+          continue
+        }
+        if (meta?.autoFilled && !meta.reviewed) {
+          items.push({
+            fieldId: field.id,
+            fieldLabel: field.label,
+            sectionId: section.id,
+            sectionTitle: section.title,
+            reason: "verify",
+            confidence: meta.confidence,
+            sourceName: meta.extractedFrom?.[0]?.documentName || meta.source,
+            currentValue: value,
+          })
+        }
+      }
+    }
+    return items
+  }, [sections, values, valuesMeta])
+
+  const reviewCounts = useMemo(() => {
+    let missing = 0
+    let verify = 0
+    for (const it of reviewItems) {
+      if (it.reason === "missing") missing++
+      else verify++
+    }
+    return { missing, verify, total: reviewItems.length }
+  }, [reviewItems])
+
+  const handleJumpToField = useCallback(
+    (item: ReviewItem) => {
+      setActiveSection(item.sectionId)
+      setReviewPanelOpen(false)
+      // Defer the focus call until after the active section re-renders.
+      setTimeout(() => {
+        const el = document.getElementById(item.fieldId)
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" })
+          ;(el as HTMLInputElement).focus?.()
+        }
+      }, 100)
+    },
+    []
+  )
 
   // ---------------------------------------------------------------------------
   // Ctrl+J keyboard shortcut for Junebug
@@ -392,19 +551,45 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
   const applyAutoPopulated = useCallback(
     (fields: AutoPopulatedField[]) => {
       const newValues = { ...values }
-      const applied: Record<string, AutoPopulatedField> = { ...autoPopApplied }
+      const newMeta = { ...valuesMeta }
       for (const field of fields) {
         newValues[field.fieldId] = field.value
-        applied[field.fieldId] = field
+        // Build a FieldMeta entry from the auto-populate payload. The shape
+        // is normalised across V2 (source: object) and V3 (source: string +
+        // extractedFrom: array) so the UI sees a single representation.
+        const v2Source = (field as any).source
+        const v3ExtractedFrom = (field as any).extractedFrom
+        const sourceLabel: string =
+          typeof v2Source === "string"
+            ? v2Source
+            : v2Source?.documentName
+            ? `${v2Source.documentType || "Document"}: ${v2Source.documentName}`
+            : (field as any).extractedFrom && typeof (field as any).extractedFrom === "string"
+            ? (field as any).extractedFrom
+            : "Auto-populate"
+        const citations: FieldMeta["extractedFrom"] = Array.isArray(v3ExtractedFrom)
+          ? v3ExtractedFrom
+          : v2Source?.documentId
+          ? [{ documentId: v2Source.documentId, documentName: v2Source.documentName }]
+          : []
+        newMeta[field.fieldId] = {
+          confidence: field.confidence,
+          source: sourceLabel,
+          extractedFrom: citations,
+          reasoning: (field as any).reasoning,
+          autoFilled: true,
+          reviewed: false,
+          manuallyEdited: false,
+        }
       }
       setValues(newValues)
-      setAutoPopApplied(applied)
+      setValuesMeta(newMeta)
       setAutoPopDialogOpen(false)
-      // Trigger save
+      // Trigger save with both halves
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-      saveTimerRef.current = setTimeout(() => doSave(newValues), 500)
+      saveTimerRef.current = setTimeout(() => doSave(newValues, newMeta), 500)
     },
-    [values, autoPopApplied, doSave]
+    [values, valuesMeta, doSave]
   )
 
   // ---------------------------------------------------------------------------
@@ -530,22 +715,46 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
             <>
               {/* Section header */}
               <div className="mb-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <h1 className="text-display-md mb-1">{currentSection.title}</h1>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAutoPopulate}
-                    disabled={autoPopLoading}
-                    className="text-xs shrink-0"
-                  >
-                    {autoPopLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <FileSearch className="h-3.5 w-3.5 mr-1.5" />
+                  <div className="flex items-center gap-2 shrink-0">
+                    {reviewCounts.total > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setReviewPanelOpen(true)}
+                        className="text-xs"
+                        title="Fields that need your attention before export"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1.5 text-[var(--c-teal)]" />
+                        Review queue
+                        <span
+                          className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums"
+                          style={{
+                            background: reviewCounts.missing > 0 ? "var(--c-warning-soft, #FFF9EB)" : "var(--c-info-soft)",
+                            color: reviewCounts.missing > 0 ? "var(--c-warning, #92400e)" : "var(--c-teal)",
+                            minWidth: "1.25rem",
+                          }}
+                        >
+                          {reviewCounts.total}
+                        </span>
+                      </Button>
                     )}
-                    {autoPopLoading ? "Searching documents\u2026" : "Auto-populate from documents"}
-                  </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAutoPopulate}
+                      disabled={autoPopLoading}
+                      className="text-xs"
+                    >
+                      {autoPopLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <FileSearch className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {autoPopLoading ? "Searching documents\u2026" : "Auto-populate from documents"}
+                    </Button>
+                  </div>
                 </div>
                 {autoPopError && (
                   <div className="mt-2 rounded-md px-3 py-2 text-[12px]" style={{ background: "var(--c-danger-soft, #FEF2F2)", color: "var(--c-danger, #b91c1c)", border: "1px solid rgba(239,68,68,0.15)" }}>
@@ -612,12 +821,10 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                       error={errors[field.id]?.[0]}
                       allValues={values}
                       onFieldHelp={handleFieldHelp}
-                      autoPopulated={
-                        autoPopApplied[field.id]
-                          ? {
-                              confidence: autoPopApplied[field.id].confidence,
-                              sourceName: autoPopApplied[field.id].source.documentName,
-                            }
+                      meta={valuesMeta[field.id]}
+                      onMarkReviewed={
+                        valuesMeta[field.id]?.autoFilled || valuesMeta[field.id]?.manuallyEdited
+                          ? () => handleMarkReviewed(field.id)
                           : undefined
                       }
                     />
@@ -678,6 +885,156 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
           <JunebugIcon className="h-4 w-4" />
           <span className="font-medium">Ask Junebug</span>
         </button>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Review Queue dialog                                                 */}
+      {/* ------------------------------------------------------------------ */}
+      {reviewPanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 p-5 border-b border-[var(--c-gray-100)]">
+              <div>
+                <h3 className="text-base font-semibold text-c-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-[var(--c-teal)]" />
+                  Review queue
+                </h3>
+                <p className="text-xs text-c-gray-300 mt-0.5">
+                  Fields that need your eyes before you export {schema.formNumber}.
+                </p>
+              </div>
+              <button
+                onClick={() => setReviewPanelOpen(false)}
+                className="text-c-gray-300 hover:text-c-gray-700 transition-colors shrink-0"
+                aria-label="Close review queue"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Counts strip */}
+            <div className="flex items-center gap-4 px-5 py-3 bg-c-gray-50 text-xs border-b border-[var(--c-gray-100)]">
+              <span className="flex items-center gap-1.5 text-c-warning">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span className="font-medium tabular-nums">{reviewCounts.missing}</span>
+                <span className="text-c-gray-500">missing</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[var(--c-teal)]">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span className="font-medium tabular-nums">{reviewCounts.verify}</span>
+                <span className="text-c-gray-500">to verify</span>
+              </span>
+            </div>
+
+            {/* Items list */}
+            <div className="flex-1 overflow-y-auto">
+              {reviewItems.length === 0 ? (
+                <div className="text-center py-10 px-6">
+                  <CheckCircle2 className="h-8 w-8 mx-auto mb-3 text-c-success" />
+                  <p className="text-sm text-c-gray-700 font-medium">All clear</p>
+                  <p className="text-xs text-c-gray-300 mt-1">Every required field is filled and every auto-populated value has been reviewed.</p>
+                </div>
+              ) : (
+                (() => {
+                  // Group by section, in section order, preserving the order they appeared.
+                  const grouped: Array<{ sectionId: string; sectionTitle: string; items: ReviewItem[] }> = []
+                  for (const item of reviewItems) {
+                    let bucket = grouped.find((g) => g.sectionId === item.sectionId)
+                    if (!bucket) {
+                      bucket = { sectionId: item.sectionId, sectionTitle: item.sectionTitle, items: [] }
+                      grouped.push(bucket)
+                    }
+                    bucket.items.push(item)
+                  }
+                  return (
+                    <div className="divide-y divide-[var(--c-gray-100)]">
+                      {grouped.map((g) => (
+                        <div key={g.sectionId}>
+                          <div className="px-5 py-2.5 bg-c-gray-50/50 sticky top-0 z-10">
+                            <p className="text-[11px] font-medium text-c-gray-300 uppercase tracking-wider">
+                              {g.sectionTitle}
+                            </p>
+                          </div>
+                          {g.items.map((item) => {
+                            const reasonStyle =
+                              item.reason === "missing"
+                                ? { bg: "var(--c-warning-soft, #FFF9EB)", fg: "var(--c-warning, #92400e)", label: "Missing" }
+                                : item.reason === "reverify"
+                                ? { bg: "var(--c-warning-soft, #FFF9EB)", fg: "var(--c-warning, #92400e)", label: "Edited — re-verify" }
+                                : { bg: "var(--c-info-soft)", fg: "var(--c-teal)", label: "Verify" }
+                            const valuePreview =
+                              item.currentValue === undefined || item.currentValue === null
+                                ? null
+                                : Array.isArray(item.currentValue)
+                                ? `${item.currentValue.length} item${item.currentValue.length === 1 ? "" : "s"}`
+                                : typeof item.currentValue === "object"
+                                ? JSON.stringify(item.currentValue).slice(0, 80)
+                                : String(item.currentValue).slice(0, 80)
+                            return (
+                              <div key={`${item.sectionId}-${item.fieldId}`} className="px-5 py-3 flex items-start gap-3 hover:bg-c-gray-50/40">
+                                <span
+                                  className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider mt-0.5"
+                                  style={{ background: reasonStyle.bg, color: reasonStyle.fg }}
+                                >
+                                  {reasonStyle.label}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-c-gray-900 leading-tight">{item.fieldLabel}</p>
+                                  {valuePreview && (
+                                    <p className="text-xs text-c-gray-500 mt-0.5 font-mono truncate">{valuePreview}</p>
+                                  )}
+                                  {item.sourceName && (
+                                    <p className="text-[11px] text-c-gray-300 mt-0.5">
+                                      From <span className="font-medium">{item.sourceName}</span>
+                                      {item.confidence ? ` · ${item.confidence} confidence` : ""}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="shrink-0 flex items-center gap-1.5">
+                                  {(item.reason === "verify" || item.reason === "reverify") && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleMarkReviewed(item.fieldId)}
+                                      className="text-[11px] h-7 px-2"
+                                    >
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Confirm
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleJumpToField(item)}
+                                    className="text-[11px] h-7 px-2 text-c-gray-500 hover:text-c-gray-900"
+                                  >
+                                    Open
+                                    <ChevronRight className="h-3 w-3 ml-0.5" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-[var(--c-gray-100)] p-4 flex items-center justify-end gap-2">
+              <p className="text-[11px] text-c-gray-300 mr-auto">
+                {reviewItems.length === 0 ? "Ready to export." : "Address each item, then export."}
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setReviewPanelOpen(false)} className="text-xs">
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Auto-populate results dialog */}

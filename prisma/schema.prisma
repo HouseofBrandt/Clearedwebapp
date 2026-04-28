@@ -1499,6 +1499,10 @@ model FormInstance {
   caseId            String
   status            String   @default("draft")
   values            Json     @default("{}")
+  // Per-field metadata sidecar: confidence, source, reviewed state, etc.
+  // Keyed by the same field IDs as `values`. See FieldMeta in src/lib/forms/types.ts.
+  // Optional — legacy rows are {} and treated as "manually entered, unreviewed".
+  valuesMeta        Json     @default("{}")
   completedSections String[] @default([])
   version           Int      @default(1)
   createdAt         DateTime @default(now())

@@ -5,6 +5,88 @@
 
 ---
 
+## 2026-04-28 — Form Builder: V2.2 (2848) + per-field review infrastructure
+
+Two big additions to the form builder this round.
+
+### V2.2 — Form 2848 (Power of Attorney) binding
+
+The single highest-leverage missing form is now fillable. 2848 is the gatekeeper for every resolution path — without a POA on file, Cleared can't generate compliant work for any client.
+
+- `public/forms/f2848.pdf` — downloaded from `https://www.irs.gov/pub/irs-pdf/f2848.pdf` (Rev. January 2021, 92 AcroForm fields, 2 pages)
+- `src/lib/forms/pdf-bindings/2848/2021-01.json` — 60 binding entries. Coverage: taxpayer info, all 4 representative slots (name / address / CAF / PTIN / phone / fax) + Part 2 designation/jurisdiction/bar/date, all 3 tax-matter rows (description / form / years), prior-2848 revocation checkbox, retention/revocation, taxpayer print-name signature.
+- `scripts/smoke-test-2848.mjs` — fills the PDF with synthetic data, zero missing fields, zero fill failures.
+- Registry: `BINDING_LOADERS` and `FORM_META.hasBinding` updated.
+- `src/lib/forms/schemas/schemas.test.ts` — expectations for `hasBinding` updated; 132/132 forms tests pass.
+- Known gaps in the binding `notes` field: PDF's single-line TaxpayerAddress collapses the schema's address_street/city/state/zip; schema's `additional_acts` multi_select doesn't auto-fold into the PDF's three discrete checkboxes (same value-transform gap as 433-A's marital_status); tax-matter rows past 3 require an attached statement.
+
+### Per-field review infrastructure (foundation for "smart manual review")
+
+Every form binding now ships with a UX layer that surfaces what the system filled, what it didn't, and what still needs the practitioner's eyes. Until this PR the wizard had per-field auto-populate metadata available transiently in component state — it disappeared on refresh and never made it to the database.
+
+**Persistence.** New `valuesMeta` JSON column on `FormInstance` (default `{}`, additive — legacy rows are valid). Type `FieldMeta` in `src/lib/forms/types.ts` captures: `confidence`, `source`, `extractedFrom` citations, `reasoning`, `autoFilled`, `reviewed`, `reviewedAt`, `reviewedBy`, `manuallyEdited`. The form-store reads/writes the column; the PATCH route accepts a `valuesMeta` patch and merges over existing entries; the wizard sends both halves on every autosave. Migration: `prisma/migrations/20260428_form_instance_values_meta/migration.sql` (single `ADD COLUMN IF NOT EXISTS`, safe to apply).
+
+**Visual states.** Field renderer now shows one of four states per field, colour-coded with a 4px left accent and a single state icon to keep the form calm:
+- `reviewed` — green, `CheckCircle2`. Practitioner has explicitly confirmed the value.
+- `manuallyEdited` — amber, `PencilLine`. Was auto-filled, then user edited the value (re-review required).
+- `autoFilled` (high confidence) — teal, `Sparkles`. Auto-populated, not yet confirmed.
+- `autoFilled` (medium/low) — amber, `Sparkles`. Lower-confidence auto-fill.
+- `manual` — no accent. User-typed value, no metadata.
+A "Mark reviewed" link appears on auto-filled or recently-edited fields; clicking flips the state and saves immediately.
+
+**Review queue.** New "Review queue" button in the wizard toolbar with a count badge (yellow if any required fields are missing, teal otherwise). Click opens a modal that groups every field needing attention by section, showing reason (Missing / Verify / Edited — re-verify), current value preview, source citation, and per-row "Confirm" + "Open" actions. "Open" jumps to the field with smooth scroll + focus.
+
+**Auto-populate flow.** `applyAutoPopulated` now normalizes both V2 (`source: object, extractedFrom: string`) and V3 (`source: string, extractedFrom: array`) shapes into the unified `FieldMeta` and persists them alongside values. The transient `autoPopApplied` state map is gone; every field's provenance survives a reload.
+
+**2848-specific value:** `tax_matters` is a structured repeating group, so the review queue lists each row separately — practitioners get a per-row Confirm button on description / form / years before exporting. This was the user's poster-child case for the feature.
+
+**Tests:** type-check clean, all forms unit tests pass (132/132). Manual UI verification — the review queue modal layout, badge contrasts, focus-jump behaviour — needs a browser pass; flagged in the follow-ups.
+
+### Followups
+
+- Bind 843 (penalty abatement), 9465 (installment agreement), 4506-T, 14039, 12277 — schemas exist; same workflow as V2.1/V2.2, ~30 min each.
+- Author missing schemas for 433-B, 433-B-OIC, 433-F, 9423 (CAP) — bigger lift; each is a few hundred lines of field defs.
+- A "multi-select-contains" value transform that maps a multi_select array onto a set of PDF checkboxes — would unblock additional_acts on 2848 and marital_status on 433-A / 433-A-OIC.
+- Repeating-group child fields don't yet receive `meta` props in the renderer; wire that up so per-row tax-matter rows get individual badges and Mark-reviewed actions inline (today they appear in the modal but not in the wizard grid).
+- Manual UI walkthrough: load each of the four bindable forms in the wizard, verify badge layout, confirm modal scroll behaviour with 20+ items, check focus-jump from modal works after section switch.
+
+---
+
+## 2026-04-28 — Form Builder V2.1: 433-A-OIC PDF binding
+
+**What was done:**
+
+The 433-A-OIC binding has been authored and wired in. V2.1 from `TASKS.md` is now complete. The form was previously the highest-priority gap in the form-builder rollout — schema and metadata were in place but the PDF binding was deferred because nobody had inspected the AcroForm field names.
+
+**Discovery during inspection:** the existing `public/forms/f433aoic.pdf` was an HTML 404 page, not a PDF. The IRS file is named `f433aoi.pdf` (no trailing `c`); whoever first added the file fetched the wrong URL. Re-downloaded from `https://www.irs.gov/pub/irs-pdf/f433aoi.pdf` (April 2024 revision, 326 KB, 8 pages, 425 AcroForm fields) and saved over the placeholder under our existing filename.
+
+**New tooling.**
+
+- `scripts/inspect-pdf-fields.mjs` — node script that loads any PDF via pdf-lib and dumps every AcroForm field name, type, page index, and current value. Supports `text`, `json`, `csv` output. This is the inspection tool V2.2 (Form 2848) and V2.3 (4506-T, 14039, 12277) will reuse.
+- `scripts/smoke-test-433aoic.mjs` — fills the 433-A-OIC PDF with synthetic data and verifies every binding entry resolves to a real AcroForm field. Pass = zero `missing in PDF` and zero `failed at fill`.
+
+**Binding coverage.** 131 binding entries authored, 110+ exercised by the smoke fill (the rest are secondary repeating-group slots with no sample data). Coverage spans: personal info, dependents (4 rows), employment (taxpayer side), bank accounts (2), investments (2), retirement, life insurance, real property (2), vehicles (2), other assets (2), Section 4 self-employment business, Section 5 business bank accounts (2), Section 6 business P&L, Section 7 monthly household income & expenses, page-7 OIC computation boxes (Box A+B, Box F1, Box F2, Offer Amount).
+
+**Known gaps documented in the binding's `notes` field:**
+
+- Names (`taxpayer_name`, `spouse_name`) bind to `lastName` only; `firstName` renders empty until the schema is split. Same shape as the 433-A binding.
+- `marital_status` is unbound: schema stores a string ("married" / "single" / etc.), PDF expects two boolean checkboxes. Pre-existing limitation mirrored from 433-A — a future schema/transform change will fix both.
+- Vehicle make and model collapse into a single `Vehicle_Make_Model` field; only `veh_make` is bound.
+- Page-7 "Other Information" Y/N questions (`c1_7_`, `c1_8_`, `c1_9a_`, `c1_9b_`, `c1_10_`, `c1_11_`) are unbound until each pair is mapped to its question — without visual inspection of the form numbering, blind binding would silently misreport.
+- `rcp_lump` / `rcp_periodic` are unbound: schema's compute formula (`total_asset_equity + future_income`) doesn't match the PDF's Box A+B + Box G/H computation.
+
+**Registry change.** `BINDING_LOADERS` gained a `"433-A-OIC": { "2024-04": loader }` entry; `FORM_META["433-A-OIC"].hasBinding` flipped from `false` to `true`. The deferred-bindings comment block was trimmed accordingly.
+
+**Tests.** `src/lib/forms/schemas/schemas.test.ts:33` updated — `hasBinding("433-A-OIC")` now expects `true`. `npm test` passes 132/132 across the forms test suites.
+
+**Followups still in `TASKS.md`:**
+
+- V2.2 Form 2848 (highest-leverage missing form — gatekeeper for every resolution path)
+- V2.3 4506-T, 14039, 12277 — schemas exist, only PDFs + bindings missing
+- Field-mapping refinements for the gaps documented above (split names, marital-status transform, OIC c1_*/p1_t* checkboxes)
+
+---
+
 ## 2026-04-23 — Claude Opus 4.7 migration (flagship swap + breaking-API fixes)
 
 **What was done:**

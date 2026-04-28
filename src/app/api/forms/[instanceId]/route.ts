@@ -66,10 +66,17 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { values, status, completedSections } = body
+    const { values, valuesMeta, status, completedSections } = body
 
     if (values && typeof values === "object") {
       instance.values = { ...instance.values, ...values }
+    }
+
+    if (valuesMeta && typeof valuesMeta === "object") {
+      // Merge per-field metadata. The client sends the *full* meta map for
+      // any field it touched; we merge on top of existing entries so older
+      // fields that aren't in this PATCH stay intact.
+      instance.valuesMeta = { ...(instance.valuesMeta || {}), ...valuesMeta }
     }
 
     if (status && ["draft", "in_progress", "complete", "submitted"].includes(status)) {
