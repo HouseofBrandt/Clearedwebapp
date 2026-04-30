@@ -200,13 +200,24 @@ function getKeySummaryValues(
 interface FormWizardProps {
   schema: FormSchema
   instance: FormInstance
+  /**
+   * True when the logged-in user has filled out CAF + (PTIN or license) +
+   * full firm address. When false and the form has a representative slot,
+   * the wizard nudges them to fill Settings → Profile.
+   */
+  practitionerProfileComplete?: boolean
 }
+
+// Forms whose schemas have a "representative" / preparer slot that auto-populate
+// fills from the user's practitioner profile. If the profile is incomplete, the
+// wizard surfaces a one-click banner pointing to Settings → Profile.
+const FORMS_WITH_REP_SLOT = new Set(["2848", "12153", "911"])
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function FormWizard({ schema, instance }: FormWizardProps) {
+export function FormWizard({ schema, instance, practitionerProfileComplete = true }: FormWizardProps) {
   const router = useRouter()
   const allSections = schema.sections
   const [activeSection, setActiveSection] = useState<string>(allSections[0]?.id || "")
@@ -238,6 +249,12 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
 
   // PDF generation state
   const [generatingPdf, setGeneratingPdf] = useState(false)
+
+  // Practitioner-profile nudge: dismissable per session.
+  const showProfileNudge =
+    !practitionerProfileComplete &&
+    FORMS_WITH_REP_SLOT.has(schema.formNumber)
+  const [profileNudgeDismissed, setProfileNudgeDismissed] = useState(false)
 
   const { addToast } = useToast()
 
@@ -717,6 +734,42 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
       {/* ------------------------------------------------------------------ */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-6 py-6">
+          {/* Practitioner-profile nudge — shown once per session for forms with a rep slot. */}
+          {showProfileNudge && !profileNudgeDismissed && (
+            <div
+              className="mb-5 rounded-xl border px-4 py-3 flex items-start gap-3"
+              style={{
+                background: "var(--c-info-soft)",
+                borderColor: "rgba(20, 184, 166, 0.2)",
+              }}
+            >
+              <Sparkles className="h-4 w-4 mt-0.5 shrink-0 text-[var(--c-teal)]" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-c-gray-900">
+                  Fill your practitioner profile once and skip it forever
+                </p>
+                <p className="text-xs text-c-gray-500 mt-0.5">
+                  CAF, PTIN, jurisdiction, and firm address auto-fill the representative section
+                  on this form (and every other form with a rep slot). One-time setup in Settings.
+                </p>
+                <a
+                  href="/settings"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--c-teal)] hover:text-c-success mt-1.5 transition-colors"
+                >
+                  Open Settings → Profile
+                  <ChevronRight className="h-3 w-3" />
+                </a>
+              </div>
+              <button
+                onClick={() => setProfileNudgeDismissed(true)}
+                className="text-c-gray-300 hover:text-c-gray-700 transition-colors shrink-0"
+                aria-label="Dismiss"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {currentSection && (
             <>
               {/* Section header */}
