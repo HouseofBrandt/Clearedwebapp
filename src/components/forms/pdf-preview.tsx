@@ -15,6 +15,15 @@ const FORM_PDF_MAP: Record<string, string> = {
   "12153": "/forms/f12153.pdf",
   "911": "/forms/f911.pdf",
   "2848": "/forms/f2848.pdf",
+  // PDFs available for blank preview but bindings deferred — see TASKS.md.
+  // Wizard preview shows the blank form so practitioners can see what they're
+  // filling out; Generate PDF for these forms returns the blank PDF (no
+  // overlay) until the binding is authored.
+  "843": "/forms/f843.pdf",
+  "9465": "/forms/f9465.pdf",
+  "4506-T": "/forms/f4506t.pdf",
+  "14039": "/forms/f14039.pdf",
+  "12277": "/forms/f12277.pdf",
 }
 
 // PDF.js CDN URL
