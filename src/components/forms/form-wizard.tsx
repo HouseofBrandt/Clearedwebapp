@@ -43,6 +43,7 @@ import {
 import { JunebugFormAssistant } from "@/components/forms/junebug-form-assistant"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { PDFFormPreview } from "@/components/forms/pdf-preview"
+import { useToast } from "@/components/ui/toast"
 import type { AutoPopulationResult, AutoPopulatedField } from "@/lib/forms/auto-populate"
 
 // ---------------------------------------------------------------------------
@@ -234,6 +235,11 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
 
   // Review queue panel state
   const [reviewPanelOpen, setReviewPanelOpen] = useState(false)
+
+  // PDF generation state
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+
+  const { addToast } = useToast()
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -763,20 +769,84 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                           saveTimerRef.current = null
                         }
                         await doSave(values, valuesMeta)
-                        // Then open the download endpoint \u2014 the browser handles the file save.
-                        const url = `/api/forms/${instance.id}/preview-pdf?download=1`
-                        const link = document.createElement("a")
-                        link.href = url
-                        link.rel = "noopener"
-                        document.body.appendChild(link)
-                        link.click()
-                        document.body.removeChild(link)
+                        setGeneratingPdf(true)
+                        try {
+                          const res = await fetch(`/api/forms/${instance.id}/preview-pdf?download=1`)
+                          if (!res.ok) {
+                            const body = await res.json().catch(() => ({}))
+                            addToast({
+                              title: "PDF generation failed",
+                              description: body?.error || `Server returned ${res.status}`,
+                              variant: "destructive",
+                            })
+                            return
+                          }
+                          // Read fill stats off the response headers \u2014 surfaced by the
+                          // V2 renderer in src/lib/forms/pdf-renderer/index.ts.
+                          const filledHdr = res.headers.get("X-Forms-V2-Filled")
+                          const skippedHdr = res.headers.get("X-Forms-V2-Skipped")
+                          const failedHdr = res.headers.get("X-Forms-V2-Failed")
+                          const filled = filledHdr !== null ? Number(filledHdr) : null
+                          const skipped = skippedHdr !== null ? Number(skippedHdr) : null
+                          const failed = failedHdr !== null ? Number(failedHdr) : null
+
+                          // Pull the filename out of Content-Disposition; fall back gracefully.
+                          const disposition = res.headers.get("Content-Disposition") || ""
+                          const filename = /filename="?([^"]+)"?/i.exec(disposition)?.[1]
+                            || `Form-${schema.formNumber}.pdf`
+
+                          const blob = await res.blob()
+                          const blobUrl = URL.createObjectURL(blob)
+                          const link = document.createElement("a")
+                          link.href = blobUrl
+                          link.download = filename
+                          document.body.appendChild(link)
+                          link.click()
+                          document.body.removeChild(link)
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+
+                          // Show stats. The toast tells the practitioner exactly which
+                          // proportion of binding entries had values; if many are blank,
+                          // they know to fill more in the wizard or run auto-populate.
+                          if (filled === null) {
+                            addToast({ title: "PDF downloaded" })
+                          } else if (failed && failed > 0) {
+                            addToast({
+                              title: "PDF generated with errors",
+                              description: `${filled} filled \u00b7 ${skipped ?? 0} blank \u00b7 ${failed} failed at fill. Server logs have the field IDs.`,
+                              variant: "destructive",
+                            })
+                          } else if (skipped && skipped > 0) {
+                            addToast({
+                              title: `PDF generated \u00b7 ${filled} fields filled`,
+                              description: `${skipped} fields are blank on the PDF. Click "Review queue" to see what's missing or unverified.`,
+                            })
+                          } else {
+                            addToast({
+                              title: `PDF generated \u00b7 ${filled} fields filled`,
+                              description: "Every bound field on the form had a value.",
+                            })
+                          }
+                        } catch (err: any) {
+                          addToast({
+                            title: "PDF generation failed",
+                            description: err?.message || "Network error",
+                            variant: "destructive",
+                          })
+                        } finally {
+                          setGeneratingPdf(false)
+                        }
                       }}
+                      disabled={generatingPdf}
                       className="text-xs"
                       title="Save and download the filled PDF"
                     >
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      Generate PDF
+                      {generatingPdf ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {generatingPdf ? "Generating\u2026" : "Generate PDF"}
                     </Button>
                   </div>
                 </div>
