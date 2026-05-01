@@ -102,6 +102,28 @@ async function bootstrapFormInstances() {
   }
 }
 
+async function bootstrapCaseIntelligenceResolutionFields() {
+  // Defensive bootstrap for the Resolution Engine v2 columns. Same
+  // DB-branch-mismatch concern as form_instances: the migration may run
+  // against a different branch than the runtime.
+  try {
+    const cols = [
+      ["caseCharacteristics",      "JSONB"],
+      ["recommendedPath",          "TEXT"],
+      ["pathRecommendationReason", "TEXT"],
+      ["pathRecommendationAt",     "TIMESTAMP(3)"],
+    ]
+    for (const [name, type] of cols) {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "case_intelligence" ADD COLUMN IF NOT EXISTS "${name}" ${type}`
+      )
+    }
+    console.log("[setup-vector] case_intelligence resolution columns bootstrapped (or already present)")
+  } catch (error) {
+    console.error("[setup-vector] case_intelligence resolution bootstrap failed:", error.message)
+  }
+}
+
 async function bootstrapUserPractitionerFields() {
   // Defensive bootstrap for the new practitioner-credential / firm-address
   // columns on users. Same DB-branch-mismatch concern as form_instances:
@@ -181,6 +203,7 @@ async function main() {
       await fullSetup()
       await bootstrapFormInstances()
       await bootstrapUserPractitionerFields()
+      await bootstrapCaseIntelligenceResolutionFields()
     }
   } finally {
     await prisma.$disconnect()

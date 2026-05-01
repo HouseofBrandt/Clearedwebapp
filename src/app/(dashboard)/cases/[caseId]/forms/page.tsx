@@ -2,7 +2,11 @@ import { requireAuth } from "@/lib/auth/session"
 import { prisma } from "@/lib/db"
 import { canAccessCase } from "@/lib/auth/case-access"
 import { notFound } from "next/navigation"
-import { generateFormPackage, RESOLUTION_PATHS, type CaseCharacteristics } from "@/lib/forms/resolution-engine"
+import {
+  generateFormPackage,
+  RESOLUTION_PATHS,
+  deriveCaseCharacteristics,
+} from "@/lib/forms/resolution-engine"
 import { getAvailableForms, FORM_BUILDER_V2_ENABLED } from "@/lib/forms/registry"
 import { CaseFormsPackage } from "@/components/forms/case-forms-package"
 
@@ -35,7 +39,7 @@ export default async function CaseFormsPage({
     notFound()
   }
 
-  const [caseData, intel, instances, liabilityCount] = await Promise.all([
+  const [caseData, intel, instances, derived] = await Promise.all([
     prisma.case.findUnique({
       where: { id: params.caseId },
       select: {
@@ -51,8 +55,9 @@ export default async function CaseFormsPage({
       where: { caseId: params.caseId },
       select: {
         resolutionType: true,
-        levyThreatActive: true,
-        liensFiledActive: true,
+        recommendedPath: true,
+        pathRecommendationReason: true,
+        pathRecommendationAt: true,
       },
     }),
     prisma.formInstance.findMany({
@@ -68,42 +73,20 @@ export default async function CaseFormsPage({
       },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.liabilityPeriod.count({ where: { caseId: params.caseId } }),
+    deriveCaseCharacteristics(params.caseId),
   ])
 
   if (!caseData) notFound()
 
-  // Derive resolution path. Prefer CaseIntelligence.resolutionType if set;
-  // fall back to the case's caseType.
-  const pathId = inferPathId(intel?.resolutionType, caseData.caseType)
+  // Resolution path: prefer the practitioner's explicit choice, then the
+  // cached AI recommendation, then a heuristic from caseType.
+  const pathId = inferPathId(
+    intel?.resolutionType,
+    intel?.recommendedPath,
+    caseData.caseType
+  )
 
-  // Derive collection-action flag from the two booleans on CaseIntelligence.
-  const collectionActionType: CaseCharacteristics["collectionActionType"] =
-    intel?.levyThreatActive && intel?.liensFiledActive
-      ? "both"
-      : intel?.levyThreatActive
-      ? "levy"
-      : intel?.liensFiledActive
-      ? "lien"
-      : "none"
-
-  // Derive characteristics. hasBusiness / hasIdentityTheft are not yet tracked
-  // on CaseIntelligence; default to false. When those flags become first-class,
-  // update this mapping.
-  const characteristics: CaseCharacteristics = {
-    hasBusiness: false,
-    isSelfEmployed: false,
-    isMarriedJoint: caseData.filingStatus === "MFJ",
-    hasIdentityTheft: false,
-    needsAmendedReturn: false,
-    hasNoITIN: false,
-    needsTranscripts: true,
-    collectionActionType,
-    totalBalance: Number(caseData.totalLiability || 0),
-    taxPeriodsCount: liabilityCount,
-  }
-
-  const packageItems = generateFormPackage(pathId, characteristics)
+  const packageItems = generateFormPackage(pathId, derived.characteristics)
 
   const instancesByForm = new Map<string, typeof instances[number][]>()
   for (const inst of instances) {
@@ -121,7 +104,20 @@ export default async function CaseFormsPage({
       clientName={caseData.clientName}
       resolutionPathId={pathId}
       resolutionPathName={RESOLUTION_PATHS.find((p) => p.id === pathId)?.name || "Resolution Package"}
+      allPaths={RESOLUTION_PATHS.map((p) => ({ id: p.id, name: p.name, description: p.description }))}
       packageItems={packageItems}
+      detectedCharacteristics={derived.detected}
+      characteristicOverrides={derived.overrides}
+      effectiveCharacteristics={derived.characteristics}
+      recommendation={
+        intel?.recommendedPath
+          ? {
+              path: intel.recommendedPath,
+              reasoning: intel.pathRecommendationReason || "",
+              recommendedAt: intel.pathRecommendationAt?.toISOString() || null,
+            }
+          : null
+      }
       instances={instances.map((i) => ({
         id: i.id,
         formNumber: i.formNumber,
@@ -134,12 +130,21 @@ export default async function CaseFormsPage({
   )
 }
 
-function inferPathId(resolutionPath: string | null | undefined, caseType: string): string {
+function inferPathId(
+  resolutionPath: string | null | undefined,
+  recommendedPath: string | null | undefined,
+  caseType: string
+): string {
+  // 1. Practitioner's explicit choice (CaseIntelligence.resolutionType).
   if (resolutionPath && typeof resolutionPath === "string") {
     const normalized = resolutionPath.toLowerCase()
     if (RESOLUTION_PATHS.find((p) => p.id === normalized)) return normalized
   }
-  // Map CaseType enum to resolution path id.
+  // 2. Cached AI recommendation.
+  if (recommendedPath && typeof recommendedPath === "string") {
+    if (RESOLUTION_PATHS.find((p) => p.id === recommendedPath)) return recommendedPath
+  }
+  // 3. Heuristic from caseType enum.
   switch (caseType) {
     case "OIC":             return "oic"
     case "IA":              return "ia"

@@ -1,4 +1,5 @@
 import { getAvailableForms, isFormRegistered } from "./registry"
+import { prisma } from "@/lib/db"
 
 export interface ResolutionPath {
   id: string
@@ -130,4 +131,118 @@ function getFormTitle(formNumber: string): string {
 
 function isFormAvailable(formNumber: string): boolean {
   return isFormRegistered(formNumber)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Case-characteristic detection
+//
+// Replaces the old hardcoded `false` defaults with values derived from real
+// case data. Practitioner overrides (stored as JSON on
+// CaseIntelligence.caseCharacteristics) take precedence over the auto-detected
+// values when explicitly set, so an over-caution default can be flipped on
+// per case without changing detection logic.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Derive case characteristics from the database.
+ *
+ * Order of precedence per field:
+ *   1. CaseIntelligence.caseCharacteristics — explicit practitioner override
+ *   2. Auto-detection from case + intelligence + liability + form-instance data
+ *   3. Conservative default (false / 0 / "none")
+ */
+export async function deriveCaseCharacteristics(caseId: string): Promise<{
+  characteristics: CaseCharacteristics
+  detected: CaseCharacteristics
+  overrides: Partial<CaseCharacteristics>
+}> {
+  const [caseRow, intel, liabilityPeriods, formInstances] = await Promise.all([
+    prisma.case.findUnique({
+      where: { id: caseId },
+      select: { caseType: true, filingStatus: true, totalLiability: true },
+    }),
+    prisma.caseIntelligence.findUnique({
+      where: { caseId },
+      select: {
+        caseCharacteristics: true,
+        levyThreatActive: true,
+        liensFiledActive: true,
+        allReturnsFiled: true,
+      },
+    }),
+    prisma.liabilityPeriod.findMany({
+      where: { caseId },
+      select: { formType: true },
+    }),
+    prisma.formInstance.findMany({
+      where: { caseId },
+      select: { formNumber: true },
+    }),
+  ])
+
+  // Detect business activity. Tax form numbers that imply a business or
+  // self-employment liability — 941/943/944 (employment), 940 (FUTA),
+  // 1065 (partnership), 1120/1120-S (corporate), Schedule SE on 1040.
+  const businessForms = new Set(["940", "941", "943", "944", "1065", "1120", "1120-S", "1120S"])
+  const hasBusinessLiability = liabilityPeriods.some((p) =>
+    p.formType ? businessForms.has(p.formType.replace(/\s+/g, "").toUpperCase()) : false
+  )
+  const hasBusinessFromCaseType = caseRow?.caseType === "TFRP" || caseRow?.caseType === "ERC"
+
+  // Identity theft: if the case already has a 14039 instance, the
+  // practitioner has flagged it. Also a useful check to prevent the modifier
+  // from re-suggesting a form that's already in flight.
+  const hasIdentityTheftForm = formInstances.some((i) => i.formNumber === "14039")
+  const hasAmendedReturnForm = formInstances.some((i) => i.formNumber === "1040-X")
+
+  // Collection action — preserved from existing intel mapping.
+  const collectionActionType: CaseCharacteristics["collectionActionType"] =
+    intel?.levyThreatActive && intel?.liensFiledActive
+      ? "both"
+      : intel?.levyThreatActive
+      ? "levy"
+      : intel?.liensFiledActive
+      ? "lien"
+      : "none"
+
+  const detected: CaseCharacteristics = {
+    hasBusiness: hasBusinessLiability || hasBusinessFromCaseType,
+    isSelfEmployed: hasBusinessLiability,                // Conservative: any biz liability ≈ SE for v1
+    isMarriedJoint: caseRow?.filingStatus === "MFJ",
+    hasIdentityTheft: hasIdentityTheftForm,
+    needsAmendedReturn: hasAmendedReturnForm,
+    hasNoITIN: false,                                    // Not yet tracked
+    needsTranscripts: !(intel?.allReturnsFiled ?? false),
+    collectionActionType,
+    totalBalance: Number(caseRow?.totalLiability || 0),
+    taxPeriodsCount: liabilityPeriods.length,
+  }
+
+  // Apply practitioner overrides on top of detection. Only known keys, only
+  // boolean / number / specific union values — defensive against bad JSON.
+  const overrides: Partial<CaseCharacteristics> = {}
+  const raw = (intel?.caseCharacteristics as Record<string, unknown> | null) || null
+  if (raw && typeof raw === "object") {
+    const boolKeys: (keyof CaseCharacteristics)[] = [
+      "hasBusiness", "isSelfEmployed", "isMarriedJoint", "hasIdentityTheft",
+      "needsAmendedReturn", "hasNoITIN", "needsTranscripts",
+    ]
+    for (const k of boolKeys) {
+      if (typeof raw[k] === "boolean") (overrides as any)[k] = raw[k]
+    }
+    if (
+      typeof raw.collectionActionType === "string" &&
+      ["levy", "lien", "both", "none"].includes(raw.collectionActionType as string)
+    ) {
+      overrides.collectionActionType = raw.collectionActionType as CaseCharacteristics["collectionActionType"]
+    }
+    if (typeof raw.totalBalance === "number") overrides.totalBalance = raw.totalBalance
+    if (typeof raw.taxPeriodsCount === "number") overrides.taxPeriodsCount = raw.taxPeriodsCount
+  }
+
+  return {
+    detected,
+    overrides,
+    characteristics: { ...detected, ...overrides },
+  }
 }

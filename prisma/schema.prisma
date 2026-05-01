@@ -847,6 +847,19 @@ model CaseIntelligence {
   outcomeDate   DateTime?
   outcomeNotes  String?   @db.Text
 
+  // === Resolution Engine v2 ===
+  // Practitioner-editable case characteristics. Overrides the auto-detected
+  // values in resolution-engine.deriveCaseCharacteristics(). Shape mirrors
+  // the CaseCharacteristics type. Empty / missing = use the auto-detected
+  // value. Any explicit boolean here wins over detection.
+  caseCharacteristics Json?
+
+  // AI-generated path recommendation. Cached so we don't re-call Claude on
+  // every page load. Recompute on demand via the recommend-resolution endpoint.
+  recommendedPath          String?
+  pathRecommendationReason String?   @db.Text
+  pathRecommendationAt     DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
