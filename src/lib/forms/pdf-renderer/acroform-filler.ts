@@ -104,7 +104,16 @@ function fillOne(
         case "text":
         default: {
           const tf = form.getTextField(name)
-          tf.setText(displayValue)
+          // pdf-lib throws if text exceeds the field's maxLength. Real-world
+          // data (e.g. "123 Long Street, City State ZIP") often overflows
+          // these tight slots. Truncate rather than fail — partial data is
+          // more useful than a blank field, and the practitioner can tighten
+          // the source value during review if needed.
+          const max = tf.getMaxLength?.()
+          const safeText = typeof max === "number" && max > 0 && displayValue.length > max
+            ? displayValue.slice(0, max)
+            : displayValue
+          tf.setText(safeText)
           return { ok: true }
         }
       }

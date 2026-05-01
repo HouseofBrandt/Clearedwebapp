@@ -71,6 +71,11 @@ function applyTransform(value, transform) {
       if (isNaN(d.getTime())) return s
       return `${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}/${d.getFullYear()}`
     }
+    case "date-mmddyyyy-nosep": {
+      const d = new Date(s)
+      if (isNaN(d.getTime())) return s
+      return `${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}${d.getFullYear()}`
+    }
     case "zip-first-5": return s.replace(/\D/g, "").slice(0, 5)
     case "zip-last-4": { const d = s.replace(/\D/g, ""); return d.length >= 9 ? d.slice(5, 9) : "" }
     default: return s
