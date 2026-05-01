@@ -69,15 +69,27 @@ export async function autoPopulateV3(params: {
   // Phase 1b — practitioner (the logged-in user's profile).
   const practitioner = params.userId ? await gatherFromCurrentUser(params.userId, params.formNumber) : []
 
+  // Phase 1c — cross-form mappings. Reads the target schema's
+  // crossFormMappings declarations and pulls values from completed sibling
+  // forms on the same case. This is the highest-leverage data source after
+  // case record + practitioner profile.
+  const fromSiblings = await gatherFromCrossFormMappings(params.caseId, params.formNumber, schema)
+
   // Phase 2 — structured extracts from DocumentExtract rows.
   const fromExtracts = await gatherFromExtracts(params.caseId)
 
-  // Merge: structured first, then practitioner (won't overwrite structured),
-  // then document extracts. Structured wins ties (first-source).
+  // Merge order (first wins on conflict):
+  //   1. structured (case record + intelligence + liability periods)
+  //   2. practitioner profile
+  //   3. sibling forms (cross-form mappings)
+  //   4. document extracts
+  // Practitioner-typed values in structured beat sibling-form data, but
+  // sibling-form data beats document extracts (which can be noisy).
   const filled = new Map<string, AutoPopulatedFieldV3>()
-  for (const f of structured) filled.set(f.fieldId, f)
-  for (const f of practitioner) if (!filled.has(f.fieldId)) filled.set(f.fieldId, f)
-  for (const f of fromExtracts) if (!filled.has(f.fieldId)) filled.set(f.fieldId, f)
+  for (const f of structured)    filled.set(f.fieldId, f)
+  for (const f of practitioner)  if (!filled.has(f.fieldId)) filled.set(f.fieldId, f)
+  for (const f of fromSiblings)  if (!filled.has(f.fieldId)) filled.set(f.fieldId, f)
+  for (const f of fromExtracts)  if (!filled.has(f.fieldId)) filled.set(f.fieldId, f)
 
   // Phase 3 — for each unfilled field, run search and collect context chunks.
   const unfilled = allFields.filter((f) => !filled.has(f.id))
@@ -245,6 +257,106 @@ async function gatherFromCurrentUser(userId: string, formNumber: string): Promis
   }
 
   return out
+}
+
+// ── Phase 1c: cross-form mappings → sibling values ──
+
+/**
+ * Pull values from completed sibling forms via the target schema's
+ * declared `crossFormMappings`.
+ *
+ * Each mapping declares: "if a `sourceFormNumber` instance is complete on
+ * this case, take its `fieldA` and put it in our `fieldB`." We pick the
+ * most recently updated complete-or-in-progress sibling instance per
+ * sourceFormNumber, then walk the field map.
+ *
+ * Source field IDs may be dot-paths into the source's values JSON
+ * (e.g. `representatives.0.rep_name` for repeating-group entries) — they
+ * are resolved with a tiny path walker so a 2848 PoA's first
+ * representative populates a 12153 representative_name slot.
+ *
+ * Confidence is "high" because the data came from a fellow practitioner-
+ * authored form, not from heuristic scraping.
+ */
+async function gatherFromCrossFormMappings(
+  caseId: string,
+  formNumber: string,
+  schema: import("./types").FormSchema
+): Promise<AutoPopulatedFieldV3[]> {
+  const mappings = schema.crossFormMappings || []
+  if (mappings.length === 0) return []
+
+  const sourceFormNumbers = Array.from(new Set(mappings.map((m) => m.sourceFormNumber)))
+  if (sourceFormNumbers.length === 0) return []
+
+  const siblings = await prisma.formInstance.findMany({
+    where: {
+      caseId,
+      formNumber: { in: sourceFormNumbers, not: formNumber },
+      status: { in: ["complete", "in_progress", "submitted"] },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { formNumber: true, status: true, values: true, updatedAt: true },
+  })
+  if (siblings.length === 0) return []
+
+  // Pick the most-recently-updated sibling per source form number. Status
+  // ordering — complete > submitted > in_progress — is preserved by the
+  // initial orderBy + dedup on first hit, since `complete` instances tend
+  // to be newer once authored.
+  const bestPerSource = new Map<string, (typeof siblings)[number]>()
+  for (const s of siblings) {
+    if (!bestPerSource.has(s.formNumber)) bestPerSource.set(s.formNumber, s)
+  }
+
+  const out: AutoPopulatedFieldV3[] = []
+  for (const m of mappings) {
+    const sibling = bestPerSource.get(m.sourceFormNumber)
+    if (!sibling) continue
+    const values = (sibling.values as Record<string, any>) || {}
+    const sourceLabel = `Form ${m.sourceFormNumber} (${sibling.status === "complete" ? "completed" : "in progress"})`
+    for (const [sourceFieldId, targetFieldId] of Object.entries(m.fieldMap)) {
+      const v = readDottedPath(values, sourceFieldId)
+      if (v === undefined || v === null || v === "") continue
+      // First mapping wins per target field — if multiple source forms
+      // contribute the same target, the order in crossFormMappings dictates
+      // priority. The map's iteration is stable.
+      if (out.some((existing) => existing.fieldId === targetFieldId)) continue
+      out.push({
+        fieldId: targetFieldId,
+        value: v,
+        confidence: "high",
+        source: sourceLabel,
+        extractedFrom: [],
+        reasoning: `Carried over from ${m.sourceFormNumber} field "${sourceFieldId}"`,
+      })
+    }
+  }
+  return out
+}
+
+/**
+ * Resolve a dotted path against a values object, supporting numeric segments
+ * for array indices: `representatives.0.rep_name`. Returns undefined when
+ * any segment is missing.
+ */
+function readDottedPath(obj: Record<string, any>, path: string): any {
+  if (!path.includes(".")) return obj[path]
+  const segments = path.split(".")
+  let cursor: any = obj
+  for (const seg of segments) {
+    if (cursor === null || cursor === undefined) return undefined
+    if (Array.isArray(cursor)) {
+      const idx = Number(seg)
+      if (!Number.isInteger(idx)) return undefined
+      cursor = cursor[idx]
+    } else if (typeof cursor === "object") {
+      cursor = cursor[seg]
+    } else {
+      return undefined
+    }
+  }
+  return cursor
 }
 
 // ── Phase 2: DocumentExtract → field mapping ──

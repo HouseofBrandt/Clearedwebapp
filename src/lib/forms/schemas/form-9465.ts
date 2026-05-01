@@ -29,6 +29,29 @@ export const FORM_9465: FormSchema = {
     dataSources: ["case", "433-A"],
     dataTargets: [],
   },
+  crossFormMappings: [
+    // 9465 needs taxpayer + spouse identifying info plus a snapshot of
+    // total monthly income & expenses; 433-A is the canonical source.
+    {
+      sourceFormNumber: "433-A",
+      fieldMap: {
+        taxpayer_name:           "taxpayer_name",
+        ssn:                     "ssn",
+        spouse_name:             "spouse_name",
+        spouse_ssn:              "spouse_ssn",
+        address_street:          "address_street",
+        address_city:             "address_city",
+        address_state:           "address_state",
+        address_zip:             "address_zip",
+        home_phone:              "home_phone",
+        cell_phone:              "cell_phone",
+        total_liability:         "total_liability",
+        total_monthly_income:    "total_monthly_income",
+        total_monthly_expenses:  "total_monthly_expenses",
+        remaining_monthly_income: "remaining_monthly_income",
+      },
+    },
+  ],
 
   sections: [
     // ── Section 1: Taxpayer Identification ───────────────────────────────
