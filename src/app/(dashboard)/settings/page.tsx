@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { requireAuth } from "@/lib/auth/session"
+import { prisma } from "@/lib/db"
 import { User, Shield, Activity, SlidersHorizontal, ChevronRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import Link from "next/link"
@@ -10,8 +11,21 @@ import { ProfileForm, PasswordChangeForm, ComplianceSection, TimezoneForm } from
 
 export default async function SettingsPage() {
   const session = await requireAuth()
-  const user = session.user as any
-  const isAdmin = user.role === "ADMIN"
+  const sessionUser = session.user as any
+  const isAdmin = sessionUser.role === "ADMIN"
+
+  // Fetch the full user record so the form can hydrate practitioner + firm fields.
+  const user = await prisma.user.findUnique({
+    where: { id: sessionUser.id },
+    select: {
+      id: true, name: true, email: true, role: true,
+      licenseType: true, licenseNumber: true,
+      cafNumber: true, ptin: true, phone: true, jurisdiction: true,
+      firmName: true, firmAddress: true, firmCity: true, firmState: true,
+      firmZip: true, firmPhone: true, firmFax: true,
+    },
+  }).catch(() => null)
+  const fallback = user ?? sessionUser
 
   return (
     <div className="page-enter space-y-6">
@@ -27,11 +41,23 @@ export default async function SettingsPage() {
             <User className="h-5 w-5" /> Profile
           </h2>
           <ProfileForm
-            userId={user.id}
-            initialName={user.name || ""}
-            email={user.email || ""}
-            role={user.role || ""}
-            licenseType={user.licenseType || null}
+            userId={fallback.id}
+            initialName={fallback.name || ""}
+            email={fallback.email || ""}
+            role={fallback.role || ""}
+            licenseType={fallback.licenseType || null}
+            licenseNumber={fallback.licenseNumber || ""}
+            initialCafNumber={user?.cafNumber || ""}
+            initialPtin={user?.ptin || ""}
+            initialPhone={user?.phone || ""}
+            initialJurisdiction={user?.jurisdiction || ""}
+            initialFirmName={user?.firmName || ""}
+            initialFirmAddress={user?.firmAddress || ""}
+            initialFirmCity={user?.firmCity || ""}
+            initialFirmState={user?.firmState || ""}
+            initialFirmZip={user?.firmZip || ""}
+            initialFirmPhone={user?.firmPhone || ""}
+            initialFirmFax={user?.firmFax || ""}
           />
         </div>
 

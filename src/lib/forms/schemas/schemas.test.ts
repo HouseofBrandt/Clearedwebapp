@@ -37,9 +37,14 @@ describe("registry", () => {
     expect(hasBinding("2848")).toBe(true)
     expect(hasBinding("12153")).toBe(true)
     expect(hasBinding("911")).toBe(true)
-    // The remaining schemas are deferred until their PDFs land in public/forms/.
+    expect(hasBinding("14039")).toBe(true)
+    // PDFs are present in public/forms/ but bindings are deferred until
+    // visual layout mapping is done (their AcroForm fields are generic).
     expect(hasBinding("4506-T")).toBe(false)
     expect(hasBinding("656")).toBe(false)
+    expect(hasBinding("843")).toBe(false)
+    expect(hasBinding("9465")).toBe(false)
+    expect(hasBinding("12277")).toBe(false)
   })
 })
 

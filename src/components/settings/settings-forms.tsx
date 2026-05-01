@@ -22,13 +22,67 @@ interface ProfileFormProps {
   email: string
   role: string
   licenseType: string | null
+  licenseNumber?: string
+  initialCafNumber?: string
+  initialPtin?: string
+  initialPhone?: string
+  initialJurisdiction?: string
+  initialFirmName?: string
+  initialFirmAddress?: string
+  initialFirmCity?: string
+  initialFirmState?: string
+  initialFirmZip?: string
+  initialFirmPhone?: string
+  initialFirmFax?: string
 }
 
-export function ProfileForm({ userId, initialName, email, role, licenseType }: ProfileFormProps) {
+export function ProfileForm({
+  userId,
+  initialName,
+  email,
+  role,
+  licenseType,
+  licenseNumber = "",
+  initialCafNumber = "",
+  initialPtin = "",
+  initialPhone = "",
+  initialJurisdiction = "",
+  initialFirmName = "",
+  initialFirmAddress = "",
+  initialFirmCity = "",
+  initialFirmState = "",
+  initialFirmZip = "",
+  initialFirmPhone = "",
+  initialFirmFax = "",
+}: ProfileFormProps) {
   const [name, setName] = useState(initialName)
+  const [cafNumber, setCafNumber] = useState(initialCafNumber)
+  const [ptin, setPtin] = useState(initialPtin)
+  const [phone, setPhone] = useState(initialPhone)
+  const [jurisdiction, setJurisdiction] = useState(initialJurisdiction)
+  const [firmName, setFirmName] = useState(initialFirmName)
+  const [firmAddress, setFirmAddress] = useState(initialFirmAddress)
+  const [firmCity, setFirmCity] = useState(initialFirmCity)
+  const [firmState, setFirmState] = useState(initialFirmState)
+  const [firmZip, setFirmZip] = useState(initialFirmZip)
+  const [firmPhone, setFirmPhone] = useState(initialFirmPhone)
+  const [firmFax, setFirmFax] = useState(initialFirmFax)
   const [saving, setSaving] = useState(false)
   const { addToast } = useToast()
-  const hasChanged = name !== initialName
+
+  const hasChanged =
+    name !== initialName ||
+    cafNumber !== initialCafNumber ||
+    ptin !== initialPtin ||
+    phone !== initialPhone ||
+    jurisdiction !== initialJurisdiction ||
+    firmName !== initialFirmName ||
+    firmAddress !== initialFirmAddress ||
+    firmCity !== initialFirmCity ||
+    firmState !== initialFirmState ||
+    firmZip !== initialFirmZip ||
+    firmPhone !== initialFirmPhone ||
+    firmFax !== initialFirmFax
 
   async function handleSave() {
     if (!name.trim()) {
@@ -40,7 +94,20 @@ export function ProfileForm({ userId, initialName, email, role, licenseType }: P
       const res = await fetch(`/api/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          cafNumber: cafNumber || null,
+          ptin: ptin || null,
+          phone: phone || null,
+          jurisdiction: jurisdiction || null,
+          firmName: firmName || null,
+          firmAddress: firmAddress || null,
+          firmCity: firmCity || null,
+          firmState: firmState || null,
+          firmZip: firmZip || null,
+          firmPhone: firmPhone || null,
+          firmFax: firmFax || null,
+        }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Failed to update" }))
@@ -55,40 +122,118 @@ export function ProfileForm({ userId, initialName, email, role, licenseType }: P
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Profile</CardTitle>
-        <CardDescription>Your account information</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <div className="flex gap-2">
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Account</CardTitle>
+          <CardDescription>Your name and login email</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Name</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={email} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Input value={role} disabled />
+            </div>
+            <div className="space-y-2">
+              <Label>License Type</Label>
+              <Input value={licenseType || "N/A"} disabled />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input value={email} disabled />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Practitioner credentials</CardTitle>
+          <CardDescription>
+            Used to auto-fill the representative slot on every IRS form (2848, 12153, 911, etc.).
+            Fill these once and the form builder will not re-prompt per case.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>CAF Number</Label>
+              <Input value={cafNumber} onChange={(e) => setCafNumber(e.target.value)} placeholder="e.g. 1234-56789R" />
+            </div>
+            <div className="space-y-2">
+              <Label>PTIN</Label>
+              <Input value={ptin} onChange={(e) => setPtin(e.target.value)} placeholder="P########" />
+            </div>
+            <div className="space-y-2">
+              <Label>Direct phone</Label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555-1234" />
+            </div>
+            <div className="space-y-2">
+              <Label>Licensing jurisdiction</Label>
+              <Input
+                value={jurisdiction}
+                onChange={(e) => setJurisdiction(e.target.value)}
+                placeholder='e.g. "California" for an attorney, "EA" for an enrolled agent'
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Bar / license / enrollment number</Label>
+              <Input value={licenseNumber} disabled placeholder="(set by your administrator)" />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Role</Label>
-            <Input value={role} disabled />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Firm address</CardTitle>
+          <CardDescription>Printed in the representative section of every form.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Firm name</Label>
+              <Input value={firmName} onChange={(e) => setFirmName(e.target.value)} placeholder="Acme Tax Resolution, LLC" />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Street address</Label>
+              <Input value={firmAddress} onChange={(e) => setFirmAddress(e.target.value)} placeholder="123 Main St, Suite 200" />
+            </div>
+            <div className="space-y-2">
+              <Label>City</Label>
+              <Input value={firmCity} onChange={(e) => setFirmCity(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>State</Label>
+              <Input value={firmState} onChange={(e) => setFirmState(e.target.value)} placeholder="CA" maxLength={2} />
+            </div>
+            <div className="space-y-2">
+              <Label>ZIP</Label>
+              <Input value={firmZip} onChange={(e) => setFirmZip(e.target.value)} placeholder="90210" />
+            </div>
+            <div className="space-y-2">
+              <Label>Firm phone</Label>
+              <Input value={firmPhone} onChange={(e) => setFirmPhone(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Firm fax</Label>
+              <Input value={firmFax} onChange={(e) => setFirmFax(e.target.value)} />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>License Type</Label>
-            <Input value={licenseType || "N/A"} disabled />
-          </div>
-        </div>
-        {hasChanged && (
-          <Button onClick={handleSave} disabled={saving} size="sm">
-            <Save className="mr-2 h-4 w-4" />
-            {saving ? "Saving..." : "Save Name"}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {hasChanged && (
+        <Button onClick={handleSave} disabled={saving} size="sm">
+          <Save className="mr-2 h-4 w-4" />
+          {saving ? "Saving..." : "Save profile"}
+        </Button>
+      )}
+    </div>
   )
 }
 

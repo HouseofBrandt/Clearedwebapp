@@ -13,7 +13,37 @@ const updateUserSchema = z.object({
   role: z.enum(["PRACTITIONER", "SENIOR", "ADMIN"]).optional(),
   licenseType: z.enum(["EA", "CPA", "ATTORNEY"]).optional(),
   licenseNumber: z.string().min(1).optional(),
+  // Practitioner credentials + firm info — used to auto-fill the
+  // representative slot on every form. Optional, free-text; the firm is
+  // responsible for keeping the values accurate (CAF, PTIN, etc.).
+  cafNumber:    z.string().max(20).optional().nullable(),
+  ptin:         z.string().max(20).optional().nullable(),
+  phone:        z.string().max(40).optional().nullable(),
+  jurisdiction: z.string().max(80).optional().nullable(),
+  firmName:     z.string().max(160).optional().nullable(),
+  firmAddress:  z.string().max(200).optional().nullable(),
+  firmCity:     z.string().max(80).optional().nullable(),
+  firmState:    z.string().max(40).optional().nullable(),
+  firmZip:      z.string().max(20).optional().nullable(),
+  firmPhone:    z.string().max(40).optional().nullable(),
+  firmFax:      z.string().max(40).optional().nullable(),
 })
+
+// Fields a user is allowed to edit on their own profile (no admin role required).
+const SELF_EDITABLE_FIELDS = new Set([
+  "name",
+  "cafNumber",
+  "ptin",
+  "phone",
+  "jurisdiction",
+  "firmName",
+  "firmAddress",
+  "firmCity",
+  "firmState",
+  "firmZip",
+  "firmPhone",
+  "firmFax",
+])
 
 export async function PATCH(
   request: NextRequest,
@@ -42,14 +72,13 @@ export async function PATCH(
       )
     }
 
-    // Non-admin users can only update their own name
+    // Non-admin users can only update their own profile fields (no role / license type changes).
     if (!isAdmin) {
-      const allowedKeys = ["name"]
       const keys = Object.keys(parsed.data)
-      const disallowed = keys.filter((k) => !allowedKeys.includes(k))
+      const disallowed = keys.filter((k) => !SELF_EDITABLE_FIELDS.has(k))
       if (disallowed.length > 0) {
         return NextResponse.json(
-          { error: "You can only update your name" },
+          { error: `You cannot update: ${disallowed.join(", ")}` },
           { status: 403 }
         )
       }
@@ -85,6 +114,17 @@ export async function PATCH(
         role: true,
         licenseType: true,
         licenseNumber: true,
+        cafNumber: true,
+        ptin: true,
+        phone: true,
+        jurisdiction: true,
+        firmName: true,
+        firmAddress: true,
+        firmCity: true,
+        firmState: true,
+        firmZip: true,
+        firmPhone: true,
+        firmFax: true,
         createdAt: true,
       },
     })

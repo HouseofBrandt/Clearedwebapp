@@ -43,6 +43,7 @@ import {
 import { JunebugFormAssistant } from "@/components/forms/junebug-form-assistant"
 import { JunebugIcon } from "@/components/assistant/junebug-icon"
 import { PDFFormPreview } from "@/components/forms/pdf-preview"
+import { useToast } from "@/components/ui/toast"
 import type { AutoPopulationResult, AutoPopulatedField } from "@/lib/forms/auto-populate"
 
 // ---------------------------------------------------------------------------
@@ -199,13 +200,24 @@ function getKeySummaryValues(
 interface FormWizardProps {
   schema: FormSchema
   instance: FormInstance
+  /**
+   * True when the logged-in user has filled out CAF + (PTIN or license) +
+   * full firm address. When false and the form has a representative slot,
+   * the wizard nudges them to fill Settings → Profile.
+   */
+  practitionerProfileComplete?: boolean
 }
+
+// Forms whose schemas have a "representative" / preparer slot that auto-populate
+// fills from the user's practitioner profile. If the profile is incomplete, the
+// wizard surfaces a one-click banner pointing to Settings → Profile.
+const FORMS_WITH_REP_SLOT = new Set(["2848", "12153", "911"])
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export function FormWizard({ schema, instance }: FormWizardProps) {
+export function FormWizard({ schema, instance, practitionerProfileComplete = true }: FormWizardProps) {
   const router = useRouter()
   const allSections = schema.sections
   const [activeSection, setActiveSection] = useState<string>(allSections[0]?.id || "")
@@ -234,6 +246,20 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
 
   // Review queue panel state
   const [reviewPanelOpen, setReviewPanelOpen] = useState(false)
+
+  // Per-field acceptance state for the auto-populate dialog. Keyed by fieldId.
+  const [autoPopSelection, setAutoPopSelection] = useState<Record<string, boolean>>({})
+
+  // PDF generation state
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+
+  // Practitioner-profile nudge: dismissable per session.
+  const showProfileNudge =
+    !practitionerProfileComplete &&
+    FORMS_WITH_REP_SLOT.has(schema.formNumber)
+  const [profileNudgeDismissed, setProfileNudgeDismissed] = useState(false)
+
+  const { addToast } = useToast()
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -539,6 +565,12 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
       }
       const result: AutoPopulationResult & { engine?: string; engineNote?: string } = await res.json()
       setAutoPopResult(result)
+      // Default selection: high-confidence on, others off.
+      const defaultSel: Record<string, boolean> = {}
+      for (const f of result.fields || []) {
+        defaultSel[f.fieldId] = f.confidence === "high"
+      }
+      setAutoPopSelection(defaultSel)
       if (result.engineNote) setAutoPopEngineNote(result.engineNote)
       setAutoPopDialogOpen(true)
     } catch (err: any) {
@@ -547,6 +579,35 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
       setAutoPopLoading(false)
     }
   }, [instance.id])
+
+  // Build a lookup of fieldId → display info for the dialog. Includes both
+  // top-level schema fields and the inner fields of repeating groups (those
+  // are addressed as `groupId.0.subId` after flattening).
+  const fieldLabelMap = useMemo(() => {
+    const map: Record<string, { label: string; sectionTitle: string }> = {}
+    for (const section of allSections) {
+      for (const field of section.fields) {
+        map[field.id] = { label: field.label, sectionTitle: section.title }
+        if (field.type === "repeating_group" && field.groupFields) {
+          // For repeating groups, present the group label so the auto-populate
+          // dialog reads "Representatives" instead of internal "rep_name".
+          // The actual array gets stored under `field.id`, no per-row preview.
+          // Keep the entry for the group itself.
+        }
+      }
+    }
+    return map
+  }, [allSections])
+
+  function previewAutoValue(value: any): string {
+    if (value === null || value === undefined) return ""
+    if (Array.isArray(value)) {
+      return `${value.length} ${value.length === 1 ? "row" : "rows"}`
+    }
+    if (typeof value === "object") return JSON.stringify(value).slice(0, 60)
+    const s = String(value)
+    return s.length > 60 ? s.slice(0, 57) + "…" : s
+  }
 
   const applyAutoPopulated = useCallback(
     (fields: AutoPopulatedField[]) => {
@@ -711,6 +772,42 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
       {/* ------------------------------------------------------------------ */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-6 py-6">
+          {/* Practitioner-profile nudge — shown once per session for forms with a rep slot. */}
+          {showProfileNudge && !profileNudgeDismissed && (
+            <div
+              className="mb-5 rounded-xl border px-4 py-3 flex items-start gap-3"
+              style={{
+                background: "var(--c-info-soft)",
+                borderColor: "rgba(20, 184, 166, 0.2)",
+              }}
+            >
+              <Sparkles className="h-4 w-4 mt-0.5 shrink-0 text-[var(--c-teal)]" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-c-gray-900">
+                  Fill your practitioner profile once and skip it forever
+                </p>
+                <p className="text-xs text-c-gray-500 mt-0.5">
+                  CAF, PTIN, jurisdiction, and firm address auto-fill the representative section
+                  on this form (and every other form with a rep slot). One-time setup in Settings.
+                </p>
+                <a
+                  href="/settings"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--c-teal)] hover:text-c-success mt-1.5 transition-colors"
+                >
+                  Open Settings → Profile
+                  <ChevronRight className="h-3 w-3" />
+                </a>
+              </div>
+              <button
+                onClick={() => setProfileNudgeDismissed(true)}
+                className="text-c-gray-300 hover:text-c-gray-700 transition-colors shrink-0"
+                aria-label="Dismiss"
+                title="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           {currentSection && (
             <>
               {/* Section header */}
@@ -753,6 +850,94 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
                         <FileSearch className="h-3.5 w-3.5 mr-1.5" />
                       )}
                       {autoPopLoading ? "Searching documents\u2026" : "Auto-populate from documents"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        // Flush any pending autosave so the PDF reflects the latest values.
+                        if (saveTimerRef.current) {
+                          clearTimeout(saveTimerRef.current)
+                          saveTimerRef.current = null
+                        }
+                        await doSave(values, valuesMeta)
+                        setGeneratingPdf(true)
+                        try {
+                          const res = await fetch(`/api/forms/${instance.id}/preview-pdf?download=1`)
+                          if (!res.ok) {
+                            const body = await res.json().catch(() => ({}))
+                            addToast({
+                              title: "PDF generation failed",
+                              description: body?.error || `Server returned ${res.status}`,
+                              variant: "destructive",
+                            })
+                            return
+                          }
+                          // Read fill stats off the response headers \u2014 surfaced by the
+                          // V2 renderer in src/lib/forms/pdf-renderer/index.ts.
+                          const filledHdr = res.headers.get("X-Forms-V2-Filled")
+                          const skippedHdr = res.headers.get("X-Forms-V2-Skipped")
+                          const failedHdr = res.headers.get("X-Forms-V2-Failed")
+                          const filled = filledHdr !== null ? Number(filledHdr) : null
+                          const skipped = skippedHdr !== null ? Number(skippedHdr) : null
+                          const failed = failedHdr !== null ? Number(failedHdr) : null
+
+                          // Pull the filename out of Content-Disposition; fall back gracefully.
+                          const disposition = res.headers.get("Content-Disposition") || ""
+                          const filename = /filename="?([^"]+)"?/i.exec(disposition)?.[1]
+                            || `Form-${schema.formNumber}.pdf`
+
+                          const blob = await res.blob()
+                          const blobUrl = URL.createObjectURL(blob)
+                          const link = document.createElement("a")
+                          link.href = blobUrl
+                          link.download = filename
+                          document.body.appendChild(link)
+                          link.click()
+                          document.body.removeChild(link)
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+
+                          // Show stats. The toast tells the practitioner exactly which
+                          // proportion of binding entries had values; if many are blank,
+                          // they know to fill more in the wizard or run auto-populate.
+                          if (filled === null) {
+                            addToast({ title: "PDF downloaded" })
+                          } else if (failed && failed > 0) {
+                            addToast({
+                              title: "PDF generated with errors",
+                              description: `${filled} filled \u00b7 ${skipped ?? 0} blank \u00b7 ${failed} failed at fill. Server logs have the field IDs.`,
+                              variant: "destructive",
+                            })
+                          } else if (skipped && skipped > 0) {
+                            addToast({
+                              title: `PDF generated \u00b7 ${filled} fields filled`,
+                              description: `${skipped} fields are blank on the PDF. Click "Review queue" to see what's missing or unverified.`,
+                            })
+                          } else {
+                            addToast({
+                              title: `PDF generated \u00b7 ${filled} fields filled`,
+                              description: "Every bound field on the form had a value.",
+                            })
+                          }
+                        } catch (err: any) {
+                          addToast({
+                            title: "PDF generation failed",
+                            description: err?.message || "Network error",
+                            variant: "destructive",
+                          })
+                        } finally {
+                          setGeneratingPdf(false)
+                        }
+                      }}
+                      disabled={generatingPdf}
+                      className="text-xs"
+                      title="Save and download the filled PDF"
+                    >
+                      {generatingPdf ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {generatingPdf ? "Generating\u2026" : "Generate PDF"}
                     </Button>
                   </div>
                 </div>
@@ -1037,58 +1222,170 @@ export function FormWizard({ schema, instance }: FormWizardProps) {
         </div>
       )}
 
-      {/* Auto-populate results dialog */}
+      {/* Auto-populate results dialog — per-field accept */}
       {autoPopDialogOpen && autoPopResult && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-medium text-c-gray-900">Auto-Populate Results</h3>
-              <button onClick={() => setAutoPopDialogOpen(false)} className="text-c-gray-300 hover:text-c-gray-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 p-5 border-b border-[var(--c-gray-100)]">
+              <div>
+                <h3 className="text-base font-semibold text-c-gray-900 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[var(--c-teal)]" />
+                  Auto-populate results
+                </h3>
+                {autoPopResult.totalFound > 0 ? (
+                  <p className="text-xs text-c-gray-300 mt-0.5">
+                    Found {autoPopResult.totalFound} fields
+                    {autoPopResult.documentsUsed.length > 0 && (
+                      <> from {autoPopResult.documentsUsed.length} document{autoPopResult.documentsUsed.length === 1 ? "" : "s"}</>
+                    )}
+                    . Review each below before accepting.
+                  </p>
+                ) : (
+                  <p className="text-xs text-c-gray-300 mt-0.5">
+                    No matching data found in case documents or your profile.
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setAutoPopDialogOpen(false)}
+                className="text-c-gray-300 hover:text-c-gray-700 transition-colors shrink-0"
+                aria-label="Close"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            {autoPopResult.totalFound === 0 ? (
-              <div className="text-center py-6">
-                <FileSearch className="h-8 w-8 mx-auto mb-3 text-c-gray-200" />
-                <p className="text-sm text-c-gray-500">No matching data found in case documents.</p>
-                <p className="text-xs text-c-gray-300 mt-1">Upload more source documents and try again.</p>
+
+            {/* Counts strip */}
+            {autoPopResult.totalFound > 0 && (
+              <div className="flex items-center gap-4 px-5 py-3 bg-c-gray-50 text-xs border-b border-[var(--c-gray-100)]">
+                <span className="flex items-center gap-1.5 text-[var(--c-teal)]">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span className="font-medium tabular-nums">{autoPopResult.highConfidence}</span>
+                  <span className="text-c-gray-500">high confidence</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-c-warning">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span className="font-medium tabular-nums">{autoPopResult.needsReview}</span>
+                  <span className="text-c-gray-500">need review</span>
+                </span>
+                <button
+                  onClick={() => {
+                    const next: Record<string, boolean> = {}
+                    for (const f of autoPopResult.fields) next[f.fieldId] = true
+                    setAutoPopSelection(next)
+                  }}
+                  className="ml-auto text-[11px] text-[var(--c-teal)] hover:text-c-success transition-colors"
+                >
+                  Select all
+                </button>
+                <button
+                  onClick={() => {
+                    const next: Record<string, boolean> = {}
+                    for (const f of autoPopResult.fields) next[f.fieldId] = false
+                    setAutoPopSelection(next)
+                  }}
+                  className="text-[11px] text-c-gray-500 hover:text-c-gray-700 transition-colors"
+                >
+                  Clear
+                </button>
               </div>
-            ) : (
-              <>
-                <div className="rounded-lg bg-c-gray-50 p-3 mb-4 space-y-1">
-                  <p className="text-sm text-c-gray-700">
-                    Found <span className="font-medium">{autoPopResult.totalFound}</span> fields from{" "}
-                    <span className="font-medium">{autoPopResult.documentsUsed.length}</span> documents.
-                  </p>
-                  <p className="text-xs text-c-gray-300">
-                    {autoPopResult.highConfidence} high confidence, {autoPopResult.needsReview} need review.
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <Button
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => applyAutoPopulated(autoPopResult.fields.filter((f) => f.confidence === "high"))}
-                  >
-                    Accept High Confidence ({autoPopResult.highConfidence})
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => applyAutoPopulated(autoPopResult.fields)}
-                  >
-                    Accept All ({autoPopResult.totalFound})
-                  </Button>
-                </div>
-              </>
             )}
-            <button
-              onClick={() => setAutoPopDialogOpen(false)}
-              className="w-full mt-3 text-xs text-c-gray-300 hover:text-c-gray-500 text-center"
-            >
-              Cancel
-            </button>
+
+            {/* Per-field list */}
+            <div className="flex-1 overflow-y-auto">
+              {autoPopResult.totalFound === 0 ? (
+                <div className="text-center py-10 px-6">
+                  <FileSearch className="h-8 w-8 mx-auto mb-3 text-c-gray-200" />
+                  <p className="text-sm text-c-gray-700 font-medium">Nothing to auto-fill yet</p>
+                  <p className="text-xs text-c-gray-300 mt-1">
+                    Upload source documents (1040, W-2, bank statements, IRS notices) to your case,
+                    or fill your practitioner profile in Settings → Profile, then run auto-populate again.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[var(--c-gray-100)]">
+                  {autoPopResult.fields.map((f) => {
+                    const meta = fieldLabelMap[f.fieldId]
+                    const label = meta?.label || f.fieldId
+                    const sectionTitle = meta?.sectionTitle
+                    const checked = autoPopSelection[f.fieldId] !== false
+                    const sourceName = f.source?.documentName || (f as any).source || "Unknown source"
+                    const confDot =
+                      f.confidence === "high"
+                        ? { bg: "var(--c-info-soft)", fg: "var(--c-teal)", label: "high" }
+                        : f.confidence === "medium"
+                        ? { bg: "var(--c-warning-soft, #FFF9EB)", fg: "var(--c-warning, #92400e)", label: "medium" }
+                        : { bg: "var(--c-warning-soft, #FFF9EB)", fg: "var(--c-warning, #92400e)", label: "low" }
+                    return (
+                      <label
+                        key={f.fieldId}
+                        className="flex items-start gap-3 px-5 py-3 hover:bg-c-gray-50/40 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setAutoPopSelection((prev) => ({
+                              ...prev,
+                              [f.fieldId]: e.target.checked,
+                            }))
+                          }
+                          className="mt-1 shrink-0 h-4 w-4 accent-[var(--c-teal)]"
+                        />
+                        <span
+                          className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wider mt-0.5"
+                          style={{ background: confDot.bg, color: confDot.fg }}
+                        >
+                          {confDot.label}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-c-gray-900 leading-tight">
+                            {label}
+                          </p>
+                          <p className="text-xs text-c-gray-500 mt-0.5 font-mono truncate">
+                            {previewAutoValue(f.value)}
+                          </p>
+                          <p className="text-[11px] text-c-gray-300 mt-0.5 truncate">
+                            {sectionTitle ? <>{sectionTitle} · </> : null}
+                            From <span className="font-medium">{sourceName}</span>
+                          </p>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-[var(--c-gray-100)] p-4 flex items-center justify-end gap-2">
+              {autoPopResult.totalFound > 0 && (
+                <p className="text-[11px] text-c-gray-300 mr-auto">
+                  {Object.values(autoPopSelection).filter(Boolean).length} of {autoPopResult.totalFound} selected
+                </p>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setAutoPopDialogOpen(false)} className="text-xs">
+                Cancel
+              </Button>
+              {autoPopResult.totalFound > 0 && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const selected = autoPopResult.fields.filter((f) => autoPopSelection[f.fieldId] !== false)
+                    if (selected.length === 0) {
+                      addToast({ title: "Select at least one field to apply." })
+                      return
+                    }
+                    applyAutoPopulated(selected)
+                  }}
+                  className="text-xs"
+                  disabled={Object.values(autoPopSelection).filter(Boolean).length === 0}
+                >
+                  Accept selected
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

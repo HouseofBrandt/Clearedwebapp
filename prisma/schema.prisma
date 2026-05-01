@@ -309,6 +309,20 @@ model User {
   role          Role         @default(PRACTITIONER)
   licenseType   LicenseType?
   licenseNumber String?
+  // Practitioner credentials. Used to auto-fill the representative slot on
+  // 2848, 12153, 911, etc. so the user doesn't re-type firm info per case.
+  cafNumber     String?
+  ptin          String?
+  phone         String?
+  jurisdiction  String?      // E.g. "California" for an attorney, "EA" for an enrolled agent
+  // Firm address — printed in the representative section of every form.
+  firmName       String?
+  firmAddress    String?
+  firmCity       String?
+  firmState      String?
+  firmZip        String?
+  firmPhone      String?
+  firmFax        String?
   mfaEnabled    Boolean      @default(false)
   mfaSecret     String?
   createdAt     DateTime     @default(now())
@@ -832,6 +846,19 @@ model CaseIntelligence {
   outcomeAmount Decimal? // Final accepted/settled amount
   outcomeDate   DateTime?
   outcomeNotes  String?   @db.Text
+
+  // === Resolution Engine v2 ===
+  // Practitioner-editable case characteristics. Overrides the auto-detected
+  // values in resolution-engine.deriveCaseCharacteristics(). Shape mirrors
+  // the CaseCharacteristics type. Empty / missing = use the auto-detected
+  // value. Any explicit boolean here wins over detection.
+  caseCharacteristics Json?
+
+  // AI-generated path recommendation. Cached so we don't re-call Claude on
+  // every page load. Recompute on demand via the recommend-resolution endpoint.
+  recommendedPath          String?
+  pathRecommendationReason String?   @db.Text
+  pathRecommendationAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

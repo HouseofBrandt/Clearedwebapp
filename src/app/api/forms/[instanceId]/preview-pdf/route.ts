@@ -690,7 +690,11 @@ export async function POST(
   return generateFilledPDF(formNumber, values, pdfFileName)
 }
 
-async function renderWithV2(formNumber: string, values: Record<string, any>) {
+async function renderWithV2(
+  formNumber: string,
+  values: Record<string, any>,
+  opts: { download?: boolean; downloadFilename?: string } = {}
+) {
   const result = await fillPDFOrReport({
     formNumber,
     values,
@@ -700,10 +704,14 @@ async function renderWithV2(formNumber: string, values: Record<string, any>) {
     return NextResponse.json({ error: result.reason }, { status: 404 })
   }
   const { pdfBytes, filled, skipped, failed, durationMs, strategy, revision } = result.result
+  const filename = opts.downloadFilename || `Form-${formNumber}.pdf`
+  const disposition = opts.download
+    ? `attachment; filename="${filename.replace(/"/g, "")}"`
+    : `inline; filename="preview-${formNumber}.pdf"`
   return new NextResponse(Buffer.from(pdfBytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="preview-${formNumber}.pdf"`,
+      "Content-Disposition": disposition,
       "Cache-Control": "no-cache, no-store, must-revalidate",
       "X-Forms-V2-Strategy": strategy,
       "X-Forms-V2-Revision": revision,
@@ -716,7 +724,7 @@ async function renderWithV2(formNumber: string, values: Record<string, any>) {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { instanceId: string } }
 ) {
   const session = await getServerSession(authOptions)
@@ -725,6 +733,8 @@ export async function GET(
   }
 
   const { instanceId } = params
+  const url = new URL(request.url)
+  const download = url.searchParams.get("download") === "1" || url.searchParams.get("download") === "true"
   let values: Record<string, any> = {}
   let formNumber = "433-A"
 
@@ -734,8 +744,12 @@ export async function GET(
     formNumber = instance.formNumber || "433-A"
   }
 
+  // Build a friendly download filename: "Form-2848-CLR-2026-04-0001.pdf"
+  // Falls back gracefully when caseId is unset.
+  const downloadFilename = `Form-${formNumber}${instance?.caseId ? `-${instance.caseId.slice(0, 12)}` : ""}.pdf`
+
   if (FORM_BUILDER_V2_ENABLED && hasBinding(formNumber)) {
-    return renderWithV2(formNumber, values)
+    return renderWithV2(formNumber, values, { download, downloadFilename })
   }
 
   const pdfFileName = FORM_PDF_FILES[formNumber] || getPDFFileName(formNumber)
@@ -743,10 +757,15 @@ export async function GET(
     return NextResponse.json({ error: "PDF not available" }, { status: 404 })
   }
 
-  return generateFilledPDF(formNumber, values, pdfFileName)
+  return generateFilledPDF(formNumber, values, pdfFileName, { download, downloadFilename })
 }
 
-async function generateFilledPDF(formNumber: string, values: Record<string, any>, pdfFileName: string) {
+async function generateFilledPDF(
+  formNumber: string,
+  values: Record<string, any>,
+  pdfFileName: string,
+  opts: { download?: boolean; downloadFilename?: string } = {}
+) {
   try {
     const pdfPath = join(process.cwd(), "public", "forms", pdfFileName)
     const pdfBytes = await readFile(pdfPath)
@@ -868,10 +887,14 @@ async function generateFilledPDF(formNumber: string, values: Record<string, any>
 
     const filledPdfBytes = await pdfDoc.save()
 
+    const filename = opts.downloadFilename || `Form-${formNumber}.pdf`
+    const disposition = opts.download
+      ? `attachment; filename="${filename.replace(/"/g, "")}"`
+      : `inline; filename="preview-${formNumber}.pdf"`
     return new NextResponse(Buffer.from(filledPdfBytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="preview-${formNumber}.pdf"`,
+        "Content-Disposition": disposition,
         "Cache-Control": "no-cache, no-store, must-revalidate",
       },
     })

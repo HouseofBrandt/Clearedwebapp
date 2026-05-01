@@ -1,0 +1,28 @@
+{
+  "formNumber": "14039",
+  "revision": "2022-12",
+  "pdfFileName": "f14039.pdf",
+  "fillStrategy": "acroform",
+  "pageCount": 2,
+  "pageDimensions": [
+    { "width": 612, "height": 792 },
+    { "width": 612, "height": 792 }
+  ],
+  "effectiveDate": "2022-12-01",
+  "supersededDate": null,
+  "notes": "Authored from scripts/inspect-pdf-fields.mjs against IRS f14039.pdf (Rev. December 2022). PDF has 72 AcroForm fields organized into Sections A–F with semantic names. Known limitations: (a) taxpayer_name binds to last_name only — schema currently has unsplit names, first_name + middle_initial render empty pending a schema split. (b) address_zip binds to zip_code.first_5 only — the trailing 4 digits aren't separated in our schema. (c) submission_reason and taxpayer_status are single_select strings; their corresponding PDF checkboxes (section_a.q1/q2 for reason, section_f for representative-type) need a multi-select-contains transform that doesn't yet exist — same gap as 433-A's marital_status. (d) Section F (representative info) isn't in the 14039 schema yet, so section_f representative fields stay blank.",
+  "fields": {
+    "circumstances":         { "acro": { "acroFieldName": "form1[0].Page1[0].section_b[0].provideExplanation[0].provideExplanation[0]" } },
+
+    "taxpayer_name":         { "acro": { "acroFieldName": "form1[0].Page1[0].section_c[0].last_name[0]" } },
+    "ssn":                   { "acro": { "acroFieldName": "form1[0].Page1[0].section_c[0].TIN[0]" }, "transform": "ssn-digits" },
+    "address_street":        { "acro": { "acroFieldName": "form1[0].Page1[0].section_c[0].current_mailing_address[0]" } },
+    "address_city":          { "acro": { "acroFieldName": "form1[0].Page1[0].section_c[0].city[0]" } },
+    "address_state":         { "acro": { "acroFieldName": "form1[0].Page1[0].section_c[0].state[0]", "acroFieldType": "dropdown" } },
+    "address_zip":           { "acro": { "acroFieldName": "form1[0].Page1[0].section_c[0].zip_code[0].first_5[0]" }, "transform": "zip-first-5" },
+    "phone":                 { "acro": { "acroFieldName": "form1[0].Page1[0].section_c[0].telephone_number[0].home[0]" }, "transform": "phone-digits" },
+
+    "taxpayer_signature_name": { "acro": { "acroFieldName": "form1[0].Page2[0].section_e[0].signature[0]" } },
+    "taxpayer_signature_date": { "acro": { "acroFieldName": "form1[0].Page2[0].section_e[0].date_signed[0]" }, "transform": "date-mmddyyyy" }
+  }
+}

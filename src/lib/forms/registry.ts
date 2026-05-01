@@ -56,10 +56,12 @@ const BINDING_LOADERS: Record<string, Record<string, () => Promise<PDFBinding>>>
   "2848":      { "2021-01": () => loadBinding("2848", "2021-01") },
   "12153":     { "2020-12": () => loadBinding("12153", "2020-12") },
   "911":       { "2022-05": () => loadBinding("911", "2022-05") },
-  // Deferred bindings — see TASKS.md:
-  //   656, 843, 9465, 4506-T, 14039, 12277:
-  //              Schemas exist (or will exist); PDFs must be placed in
-  //              public/forms/ before bindings can be authored.
+  "14039":     { "2022-12": () => loadBinding("14039", "2022-12") },
+  // Deferred bindings — PDFs are in public/forms/ but bindings need
+  // visual layout mapping (their AcroForm names are generic — f1_1, c1_1[0]
+  // etc. — so we can't map them safely from the dump alone). Tracked in
+  // TASKS.md V2.X.
+  //   656, 843, 9465, 4506-T, 12277
 }
 
 // ── Metadata loaders ─────────────────────────────────────────────────────────
@@ -99,7 +101,7 @@ const FORM_META: Record<string, SyncMeta> = {
   "9465":      { formNumber: "9465",      formTitle: "Installment Agreement Request",                                                       estimatedMinutes: 15, hasBinding: false, currentRevision: "2020-09" },
   "2848":      { formNumber: "2848",      formTitle: "Power of Attorney and Declaration of Representative",                                 estimatedMinutes: 20, hasBinding: true,  currentRevision: "2021-01" },
   "4506-T":    { formNumber: "4506-T",    formTitle: "Request for Transcript of Tax Return",                                                estimatedMinutes: 10, hasBinding: false, currentRevision: "2023-03" },
-  "14039":     { formNumber: "14039",     formTitle: "Identity Theft Affidavit",                                                            estimatedMinutes: 15, hasBinding: false, currentRevision: "2022-12" },
+  "14039":     { formNumber: "14039",     formTitle: "Identity Theft Affidavit",                                                            estimatedMinutes: 15, hasBinding: true,  currentRevision: "2022-12" },
   "12277":     { formNumber: "12277",     formTitle: "Application for Withdrawal of Filed Notice of Federal Tax Lien",                      estimatedMinutes: 10, hasBinding: false, currentRevision: "2011-10" },
 }
 

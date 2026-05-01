@@ -54,6 +54,7 @@ export async function POST(
           caseId: instance.caseId,
           formNumber: instance.formNumber,
           formInstanceId: instance.id,
+          userId: (session.user as any).id,
         })
         return NextResponse.json({ ...result, engine: "v3" })
       }

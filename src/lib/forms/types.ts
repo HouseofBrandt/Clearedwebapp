@@ -121,8 +121,11 @@ export type FillStrategy = "acroform" | "coordinate" | "hybrid"
 
 export type ValueTransform =
   | "ssn-format"
+  | "ssn-digits"
   | "ein-format"
+  | "ein-digits"
   | "phone-format"
+  | "phone-digits"
   | "currency-no-symbol"
   | "currency-whole-dollars"
   | "date-mmddyyyy"
@@ -131,6 +134,8 @@ export type ValueTransform =
   | "lowercase"
   | "checkbox-x"
   | "yes-no"
+  | "zip-first-5"
+  | "zip-last-4"
 
 export interface AcroFieldBinding {
   acroFieldName: string

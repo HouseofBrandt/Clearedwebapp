@@ -29,6 +29,34 @@ describe("ein-format", () => {
   })
 })
 
+describe("ssn-digits / ein-digits / phone-digits / zip splits", () => {
+  // For older PDFs whose AcroForm fields enforce numeric-only maxLength.
+  it("ssn-digits strips dashes", () => {
+    expect(applyTransform("123-45-6789", "ssn-digits")).toBe("123456789")
+    expect(applyTransform("123456789",   "ssn-digits")).toBe("123456789")
+  })
+  it("ssn-digits truncates to 9", () => {
+    expect(applyTransform("12345678999", "ssn-digits")).toBe("123456789")
+  })
+  it("ein-digits strips formatting", () => {
+    expect(applyTransform("12-3456789", "ein-digits")).toBe("123456789")
+  })
+  it("phone-digits strips formatting + leading 1", () => {
+    expect(applyTransform("(555) 123-4567", "phone-digits")).toBe("5551234567")
+    expect(applyTransform("1-555-123-4567", "phone-digits")).toBe("5551234567")
+  })
+  it("zip-first-5 takes first 5 digits", () => {
+    expect(applyTransform("90210",       "zip-first-5")).toBe("90210")
+    expect(applyTransform("90210-1234",  "zip-first-5")).toBe("90210")
+    expect(applyTransform("902101234",   "zip-first-5")).toBe("90210")
+  })
+  it("zip-last-4 returns 4 digits when ZIP+4 supplied, empty otherwise", () => {
+    expect(applyTransform("90210-1234",  "zip-last-4")).toBe("1234")
+    expect(applyTransform("902101234",   "zip-last-4")).toBe("1234")
+    expect(applyTransform("90210",       "zip-last-4")).toBe("")
+  })
+})
+
 describe("phone-format", () => {
   it("formats 10-digit US", () => {
     expect(applyTransform("5551234567", "phone-format")).toBe("(555) 123-4567")
