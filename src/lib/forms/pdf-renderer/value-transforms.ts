@@ -88,6 +88,18 @@ const TRANSFORMS: Record<ValueTransform, TransformFn> = {
     return `${mm}-${dd}-${yyyy}`
   },
 
+  // 8-char form, no separators (MMDDYYYY). Used by tight AcroForm fields like
+  // 433-A's Line 5 DOB columns where maxLength=8 won't accept "MM/DD/YYYY".
+  "date-mmddyyyy-nosep": (v) => {
+    if (!v) return ""
+    const d = new Date(v)
+    if (Number.isNaN(d.getTime())) return String(v)
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
+    const dd = String(d.getUTCDate()).padStart(2, "0")
+    const yyyy = d.getUTCFullYear()
+    return `${mm}${dd}${yyyy}`
+  },
+
   "uppercase": (v) => String(v ?? "").toUpperCase(),
   "lowercase": (v) => String(v ?? "").toLowerCase(),
 

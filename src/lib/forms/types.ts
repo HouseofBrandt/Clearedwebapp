@@ -130,6 +130,7 @@ export type ValueTransform =
   | "currency-whole-dollars"
   | "date-mmddyyyy"
   | "date-mm-dd-yyyy"
+  | "date-mmddyyyy-nosep"
   | "uppercase"
   | "lowercase"
   | "checkbox-x"
