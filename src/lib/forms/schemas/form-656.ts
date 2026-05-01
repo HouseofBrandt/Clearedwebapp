@@ -28,6 +28,29 @@ export const FORM_656: FormSchema = {
     dataSources: ["case", "433-A-OIC", "433-B-OIC"],
     dataTargets: [],
   },
+  crossFormMappings: [
+    // 656 inherits the OIC computation worksheet from 433-A-OIC. Most
+    // identifying info + the offer numbers carry over 1-to-1.
+    {
+      sourceFormNumber: "433-A-OIC",
+      fieldMap: {
+        taxpayer_name:                  "taxpayer_name",
+        ssn:                            "ssn",
+        spouse_name:                    "spouse_name",
+        spouse_ssn:                     "spouse_ssn",
+        address_street:                 "address_street",
+        address_city:                   "address_city",
+        address_state:                  "address_state",
+        address_zip:                    "address_zip",
+        home_phone:                     "phone",
+        total_liability:                "total_liability",
+        offer_amount:                   "offer_amount",
+        offer_type:                     "offer_type",
+        oic_basis:                      "oic_basis",
+        special_circumstances_narrative: "special_circumstances_narrative",
+      },
+    },
+  ],
 
   sections: [
     // ── Section 1: Your Contact Information ──────────────────────────────

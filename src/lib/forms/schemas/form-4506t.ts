@@ -34,6 +34,21 @@ export const FORM_4506T: FormSchema = {
     dataSources: [],
     dataTargets: [],
   },
+  crossFormMappings: [
+    {
+      sourceFormNumber: "433-A",
+      fieldMap: {
+        taxpayer_name:  "taxpayer_name",
+        ssn:            "ssn",
+        spouse_name:    "spouse_name",
+        spouse_ssn:     "spouse_ssn",
+        address_street: "address_street",
+        address_city:   "address_city",
+        address_state:  "address_state",
+        address_zip:    "address_zip",
+      },
+    },
+  ],
   sections: [
     {
       id: "taxpayer_info",
