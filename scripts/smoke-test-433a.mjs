@@ -34,14 +34,16 @@ const SAMPLE = {
     { dep_name: "Kid Two",  dep_relationship: "Child" },
     { dep_name: "Parent A", dep_relationship: "Parent" },
   ],
+  marital_status: "married",
   outside_business_interests: true,
   other_business_interests: [
-    { obi_business_name: "Acme LLC", obi_ownership_percentage: "25", obi_title: "Member" },
+    { obi_business_name: "Acme LLC", obi_ownership_percentage: "25", obi_title: "Member", obi_entity_type: "llc" },
   ],
   employers: [
     { emp_name: "Megacorp Inc.", emp_address: "1 Corporate Plaza, Springfield IL 62702",
-      emp_gross_monthly: 8500, emp_net_monthly: 6200 },
+      emp_gross_monthly: 8500, emp_net_monthly: 6200, emp_pay_frequency: "biweekly" },
   ],
+  digital_assets: false,
   cash_on_hand: 350,
   bank_accounts: [
     { bank_name: "First National", bank_account_number: "1234", bank_balance: 4250.50 },
@@ -209,7 +211,8 @@ for (const [fieldId, fb] of Object.entries(binding.fields)) {
     continue
   }
 
-  const value = flat[fieldId]
+  const sourceId = fb.boundField || fieldId
+  const value = flat[sourceId]
   if (value === undefined || value === null || value === "") {
     skipped.push(fieldId)
     continue
@@ -220,7 +223,15 @@ for (const [fieldId, fb] of Object.entries(binding.fields)) {
     const acroType = fb.acro.acroFieldType || "text"
     if (acroType === "checkbox") {
       const cb = form.getCheckBox(name)
-      if (value === true || value === "true" || value === "yes" || value === 1) cb.check()
+      let shouldCheck
+      if (fb.acro.checkWhen !== undefined) {
+        shouldCheck = value === fb.acro.checkWhen
+      } else if (fb.acro.checkWhenNot !== undefined) {
+        shouldCheck = value !== fb.acro.checkWhenNot && value !== undefined && value !== null && value !== ""
+      } else {
+        shouldCheck = value === true || value === "true" || value === "yes" || value === 1
+      }
+      if (shouldCheck) cb.check()
       else cb.uncheck()
     } else {
       const tf = form.getTextField(name)

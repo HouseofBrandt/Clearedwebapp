@@ -141,6 +141,18 @@ export type ValueTransform =
 export interface AcroFieldBinding {
   acroFieldName: string
   acroFieldType?: "text" | "checkbox" | "radio" | "dropdown"
+  /**
+   * For checkboxes: only check the box if the bound field's value === this.
+   * Used to map an enum like marital_status="married" to a specific checkbox.
+   * If absent, the renderer falls back to a truthy-value check (good for yes_no).
+   */
+  checkWhen?: string | number | boolean
+  /**
+   * Inverse of checkWhen: only check the box if the bound field's value !== this.
+   * Lets a single enum drive both halves of a paired checkbox group
+   * (e.g. C1_01_2a[0]=Married checkWhen "married", [1]=Unmarried checkWhenNot "married").
+   */
+  checkWhenNot?: string | number | boolean
 }
 
 export interface CoordinateBinding {
@@ -162,6 +174,17 @@ export interface FieldBinding {
   // the renderer uses the numeric index as repeatIndex at fill time. This field
   // is informational (doc-only) and is not used at runtime.
   repeatIndex?: number
+  /**
+   * The schema field id this binding pulls its value from. If absent, the
+   * binding key itself is used (the legacy and most common case).
+   *
+   * Set this when multiple binding entries map a single schema field to
+   * several PDF widgets — e.g. paired Married/Unmarried checkboxes both
+   * driven by `marital_status`. The binding keys must still be unique, so
+   * use a synthetic name (e.g. `_marital_married`) and point boundField
+   * at the real schema id.
+   */
+  boundField?: string
 }
 
 export interface PageDimensions {
