@@ -31,6 +31,22 @@ export const FORM_843: FormSchema = {
     dataSources: ["case", "documents"],
     dataTargets: [],
   },
+  crossFormMappings: [
+    {
+      sourceFormNumber: "433-A",
+      fieldMap: {
+        taxpayer_name:  "taxpayer_name",
+        ssn:            "ssn",
+        spouse_name:    "spouse_name",
+        spouse_ssn:     "spouse_ssn",
+        address_street: "address_street",
+        address_city:   "address_city",
+        address_state:  "address_state",
+        address_zip:    "address_zip",
+        home_phone:     "daytime_phone",
+      },
+    },
+  ],
 
   sections: [
     // ── Section 1: Taxpayer Identification ───────────────────────────────

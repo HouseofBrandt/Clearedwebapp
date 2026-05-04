@@ -8,6 +8,19 @@
 import { prisma } from "@/lib/db"
 import { callClaude } from "@/lib/ai/client"
 import { humanizeText } from "@/lib/ai/humanizer"
+import { decodeRawContent } from "@/lib/tax-authority/integration/promote-artifacts"
+
+// Per-artifact body excerpt cap. Claude needs enough of each document to
+// summarize, but the total prompt has to fit. With 50+ artifacts/day this
+// caps the prompt at ~150KB even at the upper bound.
+const ARTIFACT_BODY_CHAR_CAP = 3000
+
+// Below this many artifacts with decodable bodies, we refuse to ask Claude
+// to summarize — instead emit the deterministic template report. Prevents
+// the "AI politely reports nothing to summarize" failure mode shown in
+// PR #160's user feedback (49 of 51 had no body → Claude wrote a poetic
+// failure message that got published to the dashboard).
+const MIN_DECODABLE_FOR_AI_SUMMARY = 3
 
 export interface DailyLearning {
   title: string
@@ -118,12 +131,18 @@ export async function compileDailyLearnings(date?: Date): Promise<CompiledReport
     sourceId: string
     contentType: string
     metadata: any
+    rawContent: Buffer | Uint8Array | null
   }> = []
 
   try {
     artifacts = await prisma.sourceArtifact.findMany({
       where: {
         fetchedAt: { gte: startOfDay, lte: endOfDay },
+        // Only consider artifacts the harvester kept (matched practitioner
+        // relevance). Skip off-topic / preference-suppressed rows so Claude
+        // doesn't waste tokens on noise. PENDING = kept, awaiting promotion;
+        // COMPLETE = already promoted to KB.
+        parserStatus: { in: ["PENDING", "COMPLETE"] },
       },
       select: {
         id: true,
@@ -133,6 +152,7 @@ export async function compileDailyLearnings(date?: Date): Promise<CompiledReport
         sourceId: true,
         contentType: true,
         metadata: true,
+        rawContent: true,
       },
       orderBy: { fetchedAt: "desc" },
     })
@@ -158,13 +178,47 @@ export async function compileDailyLearnings(date?: Date): Promise<CompiledReport
     }
   }
 
-  // Build input for Claude
-  const artifactSummaries = artifacts.map((a, i) => {
+  // Decode body text for each artifact. PDFs and binary blobs return null;
+  // those flow through the AI pipeline as title-only entries (Claude is
+  // explicitly told to skip them). The decoded-count gates whether we even
+  // call Claude — if too few have real text, the template report is more
+  // honest than asking the model to summarize air.
+  const decoded = artifacts.map((a) => {
+    const body =
+      a.rawContent
+        ? decodeRawContent(a.rawContent as unknown as Buffer, a.contentType)
+        : null
+    return { artifact: a, body: body ? body.trim() : null }
+  })
+  const decodableCount = decoded.filter((d) => d.body && d.body.length > 100).length
+
+  if (decodableCount < MIN_DECODABLE_FOR_AI_SUMMARY) {
+    // Not enough body text to meaningfully summarize. Don't pretend.
+    console.warn(
+      `[Pippen] Only ${decodableCount} of ${artifacts.length} artifacts decoded to body text — falling back to template.`
+    )
+    return buildFallbackReport(dateStr, artifacts)
+  }
+
+  // Build input for Claude — title + metadata + body excerpt (or a clear
+  // "[no body text — title-only]" marker so the model doesn't invent content).
+  const artifactSummaries = decoded.map((d, i) => {
+    const a = d.artifact
     const pubDate = a.publicationDate?.toISOString().split("T")[0] ?? "unknown"
-    return `[${i + 1}] Title: ${a.normalizedTitle}\n    Source: ${a.sourceId}\n    URL: ${a.sourceUrl}\n    Published: ${pubDate}\n    Type: ${a.contentType}`
+    const head = `[${i + 1}] Title: ${a.normalizedTitle}\n    Source: ${a.sourceId}\n    URL: ${a.sourceUrl}\n    Published: ${pubDate}\n    Type: ${a.contentType}`
+    if (!d.body || d.body.length < 100) {
+      return `${head}\n    Body: [unavailable — title-only metadata; do not summarize, just note the title]`
+    }
+    const truncated =
+      d.body.length > ARTIFACT_BODY_CHAR_CAP
+        ? d.body.slice(0, ARTIFACT_BODY_CHAR_CAP) + "\n[…truncated…]"
+        : d.body
+    return `${head}\n    Body:\n${truncated}`
   }).join("\n\n")
 
   const systemPrompt = `You are Pippen, an AI research assistant for a tax resolution firm. Your job is to summarize newly fetched tax authority materials into practitioner-friendly learning items.
+
+CRITICAL: If an entry's Body field is "[unavailable …]" or empty, OMIT that entry entirely from your response. Do NOT write meta-commentary about missing content, retrieval failures, or "this should be re-fetched." Just leave it out. The pipeline already gates on body availability before calling you — if you find yourself wanting to write about how many entries lacked content, return only the entries that DID have content.
 
 For each source material provided, you must:
 1. Write a clear, concise summary (2-3 sentences)
@@ -229,6 +283,32 @@ Be concise and practical. Focus on what practitioners need to know and do.`
         actionItems?: string[]
       }>
       topTakeaway: string
+    }
+
+    // Guardrail: detect when Claude returned a meta-error response instead
+    // of summaries (the "CONTENT RETRIEVAL FAILURE" failure mode). If the
+    // takeaway or any learning's summary is dominated by failure-language,
+    // fall back to the template — better to publish honest "N items today"
+    // than a poetic warning.
+    const FAILURE_LANGUAGE = [
+      "retrieval failure",
+      "could not be summarized",
+      "must be re-fetched",
+      "without body text",
+      "delivered without",
+      "no content was provided",
+      "unable to summarize",
+    ]
+    const lowerTakeaway = (parsed.topTakeaway || "").toLowerCase()
+    const tookFailureExit = FAILURE_LANGUAGE.some((p) => lowerTakeaway.includes(p))
+    const tooFewLearnings = !parsed.learnings || parsed.learnings.length === 0
+    if (tookFailureExit || tooFewLearnings) {
+      console.warn("[Pippen] Claude response looks like a failure report — falling back to template", {
+        tookFailureExit,
+        tooFewLearnings,
+        takeawayPreview: lowerTakeaway.slice(0, 120),
+      })
+      return buildFallbackReport(dateStr, artifacts)
     }
 
     // Map Claude's output back to artifacts

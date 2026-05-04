@@ -15,6 +15,30 @@ export const FORM_911: FormSchema = {
     dataSources: [],
     dataTargets: [],
   },
+  crossFormMappings: [
+    {
+      sourceFormNumber: "433-A",
+      fieldMap: {
+        taxpayer_name:  "taxpayer_name",
+        ssn:            "ssn",
+        spouse_name:    "spouse_name",
+        spouse_ssn:     "spouse_ssn",
+        address_street: "address_street",
+        address_city:   "address_city",
+        address_state:  "address_state",
+        address_zip:    "address_zip",
+        home_phone:     "phone",
+      },
+    },
+    {
+      sourceFormNumber: "2848",
+      fieldMap: {
+        "representatives.0.rep_name":       "rep_name",
+        "representatives.0.rep_phone":      "rep_phone",
+        "representatives.0.rep_caf_number": "rep_caf",
+      },
+    },
+  ],
   sections: [
     // ── Section 1: Taxpayer Information ──────────────────────────────────
     {

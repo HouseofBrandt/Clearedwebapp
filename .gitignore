@@ -39,3 +39,9 @@ next-env.d.ts
 
 # prisma
 /prisma/migrations/
+
+# scratch artifacts from binding-diagnostic / smoke-test scripts
+/scripts/.tmp/
+/433a-fields.json
+/433a-paths.txt
+.claude/

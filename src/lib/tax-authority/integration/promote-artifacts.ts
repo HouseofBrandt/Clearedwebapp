@@ -224,7 +224,7 @@ export async function promoteSourceArtifactsToKB(
  * parser. Good enough for Phase 1; if we want fidelity later we can
  * swap in `cheerio` or `htmlparser2`.
  */
-function decodeRawContent(
+export function decodeRawContent(
   rawContent: Uint8Array | Buffer,
   contentType: string | null | undefined
 ): string | null {

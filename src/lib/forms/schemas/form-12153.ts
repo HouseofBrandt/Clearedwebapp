@@ -15,6 +15,32 @@ export const FORM_12153: FormSchema = {
     dataSources: [],
     dataTargets: [],
   },
+  crossFormMappings: [
+    {
+      sourceFormNumber: "433-A",
+      fieldMap: {
+        taxpayer_name:   "taxpayer_name",
+        ssn:             "ssn",
+        spouse_name:     "spouse_name",
+        spouse_ssn:      "spouse_ssn",
+        address_street:  "address_street",
+        address_city:    "address_city",
+        address_state:   "address_state",
+        address_zip:     "address_zip",
+        home_phone:      "phone",
+      },
+    },
+    {
+      sourceFormNumber: "2848",
+      fieldMap: {
+        // Pull representative info from the firm-wide POA — the practitioner
+        // listed on 2848 is the same one filing the CDP request.
+        "representatives.0.rep_name":       "representative_name",
+        "representatives.0.rep_phone":      "representative_phone",
+        "representatives.0.rep_caf_number": "caf_number",
+      },
+    },
+  ],
   sections: [
     // ── Section 1: Taxpayer Information ──────────────────────────────────
     {
