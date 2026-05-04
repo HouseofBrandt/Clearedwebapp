@@ -15,12 +15,13 @@ import { decodeRawContent } from "@/lib/tax-authority/integration/promote-artifa
 // caps the prompt at ~150KB even at the upper bound.
 const ARTIFACT_BODY_CHAR_CAP = 3000
 
-// Below this many artifacts with decodable bodies, we refuse to ask Claude
-// to summarize — instead emit the deterministic template report. Prevents
-// the "AI politely reports nothing to summarize" failure mode shown in
-// PR #160's user feedback (49 of 51 had no body → Claude wrote a poetic
-// failure message that got published to the dashboard).
-const MIN_DECODABLE_FOR_AI_SUMMARY = 3
+// Floor for asking Claude at all. Below this absolute count OR below 50% of
+// the day's artifacts having decodable bodies, we emit the deterministic
+// template instead. The 50% rule is what catches the May 4 brief — we had
+// many artifacts but most were PDFs decodeRawContent rejects, leaving Claude
+// with too few to work with so it wrote a meta-refusal that got published.
+const MIN_DECODABLE_FOR_AI_SUMMARY = 5
+const MIN_DECODABLE_RATIO_FOR_AI_SUMMARY = 0.5
 
 export interface DailyLearning {
   title: string
@@ -65,7 +66,87 @@ export interface CompiledReport {
 }
 
 /**
- * Build a simple template-based report when Claude is unavailable.
+ * Decide whether Claude's parsed JSON looks like a meta-refusal that
+ * shouldn't be published. Exported separately so we can test it against
+ * the real failure-mode strings we've seen in production briefs without
+ * spinning up Prisma + the LLM.
+ *
+ * Returns refused=true when ANY of:
+ *   - topTakeaway hits one of our high-signal singletons
+ *   - topTakeaway matches 2+ of the broader pipeline-vocabulary terms
+ *   - learnings array is empty
+ *   - learnings count is < 40% of decodableCount (Claude got context but
+ *     skipped most of it — likely refusal-flavoured output)
+ */
+export function looksLikeFailureRefusal(
+  parsed: { learnings?: Array<unknown> | null; topTakeaway?: string | null },
+  decodableCount: number,
+): {
+  refused: boolean
+  reason: "fast-path" | "term-co-occurrence" | "empty-learnings" | "refused-most" | null
+  matchedTerms: string[]
+  learningsCount: number
+  takeawayPreview: string
+} {
+  // High-signal singletons — these only appear in pipeline-meta refusals,
+  // never in real tax-authority takeaways. Any single match → bail.
+  const FAST_PATH = [
+    "no summaries can be",
+    "no summaries to provide",
+    "no summaries to share",
+    "metadata only",
+    "re-run with full",
+    "retrieval failure",
+    "fetch pipeline",
+  ]
+
+  // Broader vocabulary — any 2 co-occurring → bail.
+  const PIPELINE_TERMS = [
+    "fetch pipeline", "retrieval failure", "retrieval pipeline",
+    "metadata only", "metadata-only", "no document content",
+    "no body text", "no content was provided", "without body text",
+    "without content", "without document content",
+    "could not be summarized", "cannot be summarized", "unable to summarize",
+    "responsibly generated", "responsibly summari", // covers "summarize"/"summarized"
+    "must be re-fetched", "should be re-fetched", "re-run with",
+    "re-run the", "rerun the fetch", "full text retrieval",
+    "full-text retrieval", "full text extraction", "full-text extraction",
+    "delivered without", "practitioner-facing summari",
+    "no summaries can", "summaries cannot", "no summaries to",
+    "pipeline error", "ingestion error", "before requesting",
+  ]
+
+  const lowerTakeaway = (parsed.topTakeaway ?? "").toLowerCase()
+  const learningsCount = parsed.learnings?.length ?? 0
+  const takeawayPreview = lowerTakeaway.slice(0, 200)
+
+  if (FAST_PATH.some((p) => lowerTakeaway.includes(p))) {
+    return { refused: true, reason: "fast-path", matchedTerms: FAST_PATH.filter((p) => lowerTakeaway.includes(p)), learningsCount, takeawayPreview }
+  }
+
+  const matched = PIPELINE_TERMS.filter((p) => lowerTakeaway.includes(p))
+  if (matched.length >= 2) {
+    return { refused: true, reason: "term-co-occurrence", matchedTerms: matched, learningsCount, takeawayPreview }
+  }
+
+  if (learningsCount === 0) {
+    return { refused: true, reason: "empty-learnings", matchedTerms: matched, learningsCount, takeawayPreview }
+  }
+
+  if (decodableCount > 0 && learningsCount < Math.max(2, Math.floor(decodableCount * 0.4))) {
+    return { refused: true, reason: "refused-most", matchedTerms: matched, learningsCount, takeawayPreview }
+  }
+
+  return { refused: false, reason: null, matchedTerms: matched, learningsCount, takeawayPreview }
+}
+
+/**
+ * Build a template-based report when Claude is unavailable or unsuitable
+ * (too few decodable bodies, refusal output, parse error, etc.).
+ *
+ * Groups artifacts by source so the practitioner sees "12 new IRMs, 3
+ * Tax Court opinions, 2 Rev. Procs" — meaningful at a glance — instead
+ * of an unstructured list. Source label is humanized.
  */
 function buildFallbackReport(
   dateStr: string,
@@ -73,18 +154,33 @@ function buildFallbackReport(
 ): CompiledReport {
   const learnings: DailyLearning[] = artifacts.map((a) => ({
     title: a.normalizedTitle,
-    summary: `New material fetched from ${a.sourceId}.`,
+    summary: `New ${humanizeSourceId(a.sourceId)} published${a.publicationDate ? ` ${a.publicationDate.toISOString().split("T")[0]}` : ""}.`,
     source: a.sourceId,
     sourceUrl: a.sourceUrl,
-    relevance: "Review to determine applicability to active cases.",
+    relevance: relevanceForSource(a.sourceId),
     publicationDate: a.publicationDate?.toISOString().split("T")[0],
     issueCategory: extractIssueCategory((a as any).metadata),
   }))
 
+  // Group counts by source for the headline.
+  const counts: Record<string, number> = {}
+  for (const a of artifacts) {
+    const label = humanizeSourceId(a.sourceId)
+    counts[label] = (counts[label] ?? 0) + 1
+  }
+  const breakdown = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, n]) => `${n} ${label}${n === 1 ? "" : "s"}`)
+    .join(", ")
+
+  const headline = artifacts.length > 0
+    ? `${artifacts.length} new tax authority material${artifacts.length === 1 ? "" : "s"} today — ${breakdown}.`
+    : "No new materials today."
+
   const lines = [
     `# Pippen Daily Learnings — ${dateStr}`,
     "",
-    `> ${artifacts.length} new source material(s) fetched today.`,
+    `> ${headline}`,
     "",
   ]
 
@@ -92,7 +188,7 @@ function buildFallbackReport(
     lines.push(`## ${l.title}`)
     lines.push("")
     lines.push(`- **Source:** [${l.source}](${l.sourceUrl})`)
-    lines.push(`- **Summary:** ${l.summary}`)
+    lines.push(`- **Note:** ${l.summary}`)
     lines.push(`- **Relevance:** ${l.relevance}`)
     if (l.publicationDate) {
       lines.push(`- **Published:** ${l.publicationDate}`)
@@ -104,10 +200,42 @@ function buildFallbackReport(
     date: dateStr,
     title: `Pippen Daily Learnings — ${dateStr}`,
     learnings,
-    topTakeaway: artifacts.length > 0
-      ? `${artifacts.length} new source material(s) fetched today. Review for applicability.`
-      : "No new materials today.",
+    topTakeaway: headline,
     markdownContent: lines.join("\n"),
+  }
+}
+
+/**
+ * Map our internal sourceId values to practitioner-readable labels.
+ * Falls back to the raw id when unrecognized.
+ */
+function humanizeSourceId(sourceId: string): string {
+  const map: Record<string, string> = {
+    irs_irm: "IRM section",
+    treas_reg_cfr26: "Treasury Regulation",
+    ustc_opinions: "Tax Court opinion",
+    irs_irb: "IRB / Rev. Proc / Rev. Rul",
+    irs_written_determinations: "IRS written determination",
+    irs_news_releases: "IRS news release",
+    treasury_press: "Treasury press release",
+    taxpayer_advocate: "TAS report",
+    irs_forms_pubs: "IRS form/publication update",
+  }
+  return map[sourceId] ?? sourceId.replace(/_/g, " ")
+}
+
+function relevanceForSource(sourceId: string): string {
+  switch (sourceId) {
+    case "irs_irm":
+      return "Internal Revenue Manual — procedural guidance binding on IRS staff. Check for revisions to sections you cite."
+    case "treas_reg_cfr26":
+      return "Treasury Regulation — high authority. Review if it touches an active resolution path."
+    case "ustc_opinions":
+      return "Tax Court opinion — precedential or persuasive. Scan for applicability to current cases."
+    case "irs_irb":
+      return "Internal Revenue Bulletin item (Rev. Proc, Rev. Rul, Notice). Often actionable for ongoing matters."
+    default:
+      return "Review to determine applicability to active cases."
   }
 }
 
@@ -192,10 +320,17 @@ export async function compileDailyLearnings(date?: Date): Promise<CompiledReport
   })
   const decodableCount = decoded.filter((d) => d.body && d.body.length > 100).length
 
-  if (decodableCount < MIN_DECODABLE_FOR_AI_SUMMARY) {
-    // Not enough body text to meaningfully summarize. Don't pretend.
+  const decodableRatio = decodableCount / Math.max(1, artifacts.length)
+  if (
+    decodableCount < MIN_DECODABLE_FOR_AI_SUMMARY ||
+    decodableRatio < MIN_DECODABLE_RATIO_FOR_AI_SUMMARY
+  ) {
+    // Either too few absolute, or the ratio is so skewed Claude will spend
+    // its tokens writing about what's missing instead of summarizing what's
+    // there. The template fallback lists every artifact honestly with title
+    // + source, which beats "we cannot responsibly summarize today" by miles.
     console.warn(
-      `[Pippen] Only ${decodableCount} of ${artifacts.length} artifacts decoded to body text — falling back to template.`
+      `[Pippen] Only ${decodableCount} of ${artifacts.length} artifacts decoded to body text (ratio ${decodableRatio.toFixed(2)}) — falling back to template.`
     )
     return buildFallbackReport(dateStr, artifacts)
   }
@@ -218,7 +353,33 @@ export async function compileDailyLearnings(date?: Date): Promise<CompiledReport
 
   const systemPrompt = `You are Pippen, an AI research assistant for a tax resolution firm. Your job is to summarize newly fetched tax authority materials into practitioner-friendly learning items.
 
-CRITICAL: If an entry's Body field is "[unavailable …]" or empty, OMIT that entry entirely from your response. Do NOT write meta-commentary about missing content, retrieval failures, or "this should be re-fetched." Just leave it out. The pipeline already gates on body availability before calling you — if you find yourself wanting to write about how many entries lacked content, return only the entries that DID have content.
+ABSOLUTE RULE — DO NOT WRITE META-COMMENTARY ABOUT THE PIPELINE.
+If you ever find yourself drafting any of the following, STOP and rewrite without it:
+- "No summaries can be generated"
+- "the fetch pipeline ..."
+- "metadata only" / "no document content" / "no body text"
+- "re-run with full text" / "re-fetched" / "must be re-fetched"
+- "responsibly generated" / "responsibly summarized"
+- "practitioner-facing summaries" (as a meta-noun)
+- "retrieval failure" / "ingestion error"
+- Any sentence whose subject is the data pipeline, fetch process, or
+  availability of body text.
+
+Your audience is a tax practitioner reading the daily newsfeed. They do
+NOT want to know about pipeline issues — they want substantive summaries
+of what was published in the IRC, IRM, Treas. Regs, Tax Court, etc.
+
+Handling entries with no Body:
+- Silently omit them from the learnings array. Do not mention them.
+- If FEWER THAN HALF the entries have a Body, still summarize the ones
+  that do. Do not attempt to characterize the day's content as a whole;
+  just summarize what's actually in front of you.
+- If literally zero entries have a Body, return an empty learnings array
+  and a topTakeaway that is a single neutral sentence about the count of
+  new materials (e.g. "47 new IRS publications fetched today; awaiting
+  body extraction for substantive summaries"). DO NOT use the words
+  "pipeline", "retrieval", "re-run", "responsibly", or any of the banned
+  phrases above.
 
 For each source material provided, you must:
 1. Write a clear, concise summary (2-3 sentences)
@@ -286,27 +447,13 @@ Be concise and practical. Focus on what practitioners need to know and do.`
     }
 
     // Guardrail: detect when Claude returned a meta-error response instead
-    // of summaries (the "CONTENT RETRIEVAL FAILURE" failure mode). If the
-    // takeaway or any learning's summary is dominated by failure-language,
-    // fall back to the template — better to publish honest "N items today"
-    // than a poetic warning.
-    const FAILURE_LANGUAGE = [
-      "retrieval failure",
-      "could not be summarized",
-      "must be re-fetched",
-      "without body text",
-      "delivered without",
-      "no content was provided",
-      "unable to summarize",
-    ]
-    const lowerTakeaway = (parsed.topTakeaway || "").toLowerCase()
-    const tookFailureExit = FAILURE_LANGUAGE.some((p) => lowerTakeaway.includes(p))
-    const tooFewLearnings = !parsed.learnings || parsed.learnings.length === 0
-    if (tookFailureExit || tooFewLearnings) {
+    // of summaries.
+    const verdict = looksLikeFailureRefusal(parsed, decodableCount)
+    if (verdict.refused) {
       console.warn("[Pippen] Claude response looks like a failure report — falling back to template", {
-        tookFailureExit,
-        tooFewLearnings,
-        takeawayPreview: lowerTakeaway.slice(0, 120),
+        ...verdict,
+        decodableCount,
+        artifactsCount: artifacts.length,
       })
       return buildFallbackReport(dateStr, artifacts)
     }
