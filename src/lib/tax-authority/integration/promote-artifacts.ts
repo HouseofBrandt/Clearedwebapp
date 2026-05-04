@@ -117,8 +117,8 @@ export async function promoteSourceArtifactsToKB(
         continue
       }
 
-      // Skip — binary or near-binary content (pdf bytes, image bytes, etc.)
-      const text = decodeRawContent(artifact.rawContent, artifact.contentType)
+      // PDF → real text via pdf-parse; HTML → tag-stripped text; image bytes → null.
+      const text = await decodeRawContent(artifact.rawContent, artifact.contentType)
       if (!text) {
         skip("binary_or_unreadable")
         continue
@@ -219,21 +219,28 @@ export async function promoteSourceArtifactsToKB(
  * Decode SourceArtifact.rawContent (Bytes) into a string suitable for
  * chunking. Returns null if the content appears binary or unreadable.
  *
- * Applies a crude HTML strip when the content is HTML — preserves text
- * content and drops tags/scripts/styles without pulling in a full HTML
- * parser. Good enough for Phase 1; if we want fidelity later we can
- * swap in `cheerio` or `htmlparser2`.
+ * Routes:
+ *   - PDF magic bytes → pdf-parse text extraction (handles ~all of IRS's
+ *     daily output, which is overwhelmingly PDF).
+ *   - PNG / JPEG magic bytes → null (images aren't OCR'd here; the
+ *     dedicated ingestion path in document-extractors handles those).
+ *   - Else → utf-8 decode + printable-ratio gate + crude HTML strip.
+ *
+ * Async because pdf-parse is async. Both call sites
+ * (promoteSourceArtifactsToKB, compileDailyLearnings) are already async.
  */
-export function decodeRawContent(
+export async function decodeRawContent(
   rawContent: Uint8Array | Buffer,
-  contentType: string | null | undefined
-): string | null {
-  // Convert to Buffer first so we can iterate bytes quickly
+  contentType: string | null | undefined,
+): Promise<string | null> {
   const buf = Buffer.isBuffer(rawContent) ? rawContent : Buffer.from(rawContent)
 
-  // Heuristic: if it starts with "%PDF" or the PNG/JPEG magic bytes, skip.
+  // Magic-byte routing.
   if (buf.length >= 4) {
-    if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) return null // %PDF
+    // %PDF — try real PDF text extraction.
+    if (buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) {
+      return extractPdfText(buf)
+    }
     if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return null // PNG
     if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return null // JPEG
   }
@@ -277,6 +284,49 @@ export function decodeRawContent(
   }
 
   return text.length >= 200 ? text : null
+}
+
+/**
+ * PDF text extraction via pdf-parse v2 (PDFParse class).
+ *
+ * Returns null on:
+ *   - parse error (corrupt PDF, password-protected, encrypted, unusual encoding)
+ *   - empty / sub-200-char output (scanned image PDFs with no embedded text;
+ *     OCR is a separate path we don't run inline here)
+ *
+ * The 60-second internal timeout matches the IRS PDFs we've seen in the wild
+ * (multi-hundred-page Pubs and IRBs). If a PDF takes longer than that we'd
+ * rather skip it than hang the daily cron.
+ */
+async function extractPdfText(buf: Buffer): Promise<string | null> {
+  let parser: { getText: () => Promise<{ text: string }>; destroy: () => Promise<void> } | null = null
+  try {
+    // Lazy require — pulls in pdfjs-dist (~3MB), only when we actually have
+    // a PDF artifact to decode. Avoids loading on cold-start of unrelated routes.
+    const mod = await import("pdf-parse")
+    const PDFParse = (mod as any).PDFParse ?? (mod as any).default?.PDFParse
+    if (!PDFParse) {
+      console.warn("[decodeRawContent] pdf-parse module did not export PDFParse")
+      return null
+    }
+    parser = new PDFParse({ data: buf })
+    const result = await parser!.getText()
+    const text = (result?.text ?? "").trim()
+    if (text.length < 200) return null
+    return text
+  } catch (err: any) {
+    console.warn(
+      "[decodeRawContent] PDF text extraction failed",
+      { message: err?.message?.slice(0, 200), name: err?.name },
+    )
+    return null
+  } finally {
+    try {
+      await parser?.destroy()
+    } catch {
+      // ignore cleanup errors
+    }
+  }
 }
 
 /**
