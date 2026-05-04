@@ -24,6 +24,9 @@
     "spouse_ssn":      { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c1[0].Table_Part4-Line5[0].Row2[0].F02_034_0_[0]" }, "transform": "ssn-digits" },
     "spouse_dob":      { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c1[0].Table_Part4-Line5[0].Row2[0].F02_035_0_[0]" }, "transform": "date-mmddyyyy-nosep" },
 
+    "_marital_married":   { "boundField": "marital_status", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c1[0].C1_01_2a[0]", "acroFieldType": "checkbox", "checkWhen": "married" } },
+    "_marital_unmarried": { "boundField": "marital_status", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c1[0].C1_01_2a[1]", "acroFieldType": "checkbox", "checkWhenNot": "married" } },
+
     "dependents.0.dep_name":         { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row1[0].Name[0]" } },
     "dependents.0.dep_relationship": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row1[0].Relationship[0]" } },
     "dependents.1.dep_name":         { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row2[0].Name[0]" } },
@@ -31,15 +34,26 @@
     "dependents.2.dep_name":         { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row3[0].Name[0]" } },
     "dependents.2.dep_relationship": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].ClaimedAsDependents[0].Row3[0].Relationship[0]" } },
 
-    "outside_business_interests":                       { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3a[0].tab_order[0].Yes[0]", "acroFieldType": "checkbox" } },
+    "outside_business_interests":                       { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3a[0].tab_order[0].Yes[0]", "acroFieldType": "checkbox", "checkWhen": true } },
+    "_obi_no":                                          { "boundField": "outside_business_interests", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3a[0].No[0]", "acroFieldType": "checkbox", "checkWhen": false } },
     "other_business_interests.0.obi_ownership_percentage": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3a[0].tab_order[0].PercentageOfOwnership[0]" } },
     "other_business_interests.0.obi_title":             { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3a[0].tab_order[0].Title[0]" } },
     "other_business_interests.0.obi_business_name":     { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Lines3b[0].BusinessName[0]" } },
+
+    "_obi0_partnership":  { "boundField": "other_business_interests.0.obi_entity_type", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3c[0].Partnership[0]",  "acroFieldType": "checkbox", "checkWhen": "partnership" } },
+    "_obi0_llc":          { "boundField": "other_business_interests.0.obi_entity_type", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3c[0].LLC[0]",          "acroFieldType": "checkbox", "checkWhen": "llc" } },
+    "_obi0_corporation":  { "boundField": "other_business_interests.0.obi_entity_type", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3c[0].Corporation[0]",  "acroFieldType": "checkbox", "checkWhen": "corporation" } },
+    "_obi0_other":        { "boundField": "other_business_interests.0.obi_entity_type", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].c2[0].Line3c[0].Other[0]",        "acroFieldType": "checkbox", "checkWhen": "other" } },
 
     "employers.0.emp_name":          { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].p1_t15_4a[0]" } },
     "employers.0.emp_address":       { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].p1_t16_4b[0]" } },
     "employers.0.emp_gross_monthly": { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].p1_t21_4f[0]" }, "transform": "currency-no-symbol" },
     "employers.0.emp_net_monthly":   { "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].p1_t22_4g[0]" }, "transform": "currency-no-symbol" },
+
+    "_emp0_freq_weekly":      { "boundField": "employers.0.emp_pay_frequency", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].c1_4h_[0]", "acroFieldType": "checkbox", "checkWhen": "weekly" } },
+    "_emp0_freq_biweekly":    { "boundField": "employers.0.emp_pay_frequency", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].c1_4h_[1]", "acroFieldType": "checkbox", "checkWhen": "biweekly" } },
+    "_emp0_freq_semimonthly": { "boundField": "employers.0.emp_pay_frequency", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].c1_4h_[2]", "acroFieldType": "checkbox", "checkWhen": "semimonthly" } },
+    "_emp0_freq_monthly":     { "boundField": "employers.0.emp_pay_frequency", "acro": { "acroFieldName": "topmostSubform[0].Page1[0].Taxpayer\\.L4a-h[0].c1_4h_[3]", "acroFieldType": "checkbox", "checkWhen": "monthly" } },
 
     "cash_on_hand":                  { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].p2-t1_11[0]" }, "transform": "currency-no-symbol" },
 
@@ -73,6 +87,9 @@
     "credit_cards.1.cc_minimum_payment": { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Table_Line15[0].Line14b[0].p2_t28_14b[0]" }, "transform": "currency-no-symbol" },
 
     "life_insurance_csv": { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].p2_t29_14c[0]" }, "transform": "currency-no-symbol" },
+
+    "digital_assets":      { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].c1_07_0_[0]", "acroFieldType": "checkbox", "checkWhen": true } },
+    "_digital_assets_no":  { "boundField": "digital_assets", "acro": { "acroFieldName": "topmostSubform[0].Page2[0].c1_07_0_[1]", "acroFieldType": "checkbox", "checkWhen": false } },
 
     "real_property.0.prop_description":  { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Lines16b-f[0].Lines16b-f_Column1[0].p2_t30_16[0]" } },
     "real_property.0.prop_address":      { "acro": { "acroFieldName": "topmostSubform[0].Page2[0].Lines16b-f[0].Lines16b-f_Column1[0].p2_t33_16c[0]" } },

@@ -39,7 +39,11 @@ export async function acroformFill(
   for (const [fieldId, fieldBinding] of Object.entries(binding.fields)) {
     if (!fieldBinding.acro) continue
 
-    const value = flatValues[fieldId]
+    // Allow a binding entry to pull its value from a different schema field
+    // than its key. Used when several PDF widgets are driven by a single
+    // schema enum (paired checkboxes, conditional groups, etc.).
+    const sourceFieldId = fieldBinding.boundField || fieldId
+    const value = flatValues[sourceFieldId]
     if (value === undefined || value === null || value === "") {
       skipped++
       continue
@@ -52,7 +56,7 @@ export async function acroformFill(
       continue
     }
 
-    const result = fillOne(form, fieldBinding.acro.acroFieldName, acroFieldType, value, display, actualFieldNames)
+    const result = fillOne(form, fieldBinding.acro, acroFieldType, value, display, actualFieldNames)
     if (result.ok) {
       filled++
     } else {
@@ -65,12 +69,13 @@ export async function acroformFill(
 
 function fillOne(
   form: ReturnType<PDFDocument["getForm"]>,
-  fullName: string,
+  acro: { acroFieldName: string; checkWhen?: string | number | boolean; checkWhenNot?: string | number | boolean },
   type: "text" | "checkbox" | "radio" | "dropdown",
   rawValue: any,
   displayValue: string,
   actualFieldNames: Set<string>
 ): { ok: true } | { ok: false; reason: string } {
+  const fullName = acro.acroFieldName
   // Try full path, then short name as fallback.
   const shortName = fullName.split(".").pop() || fullName
   const candidates = [fullName]
@@ -84,11 +89,27 @@ function fillOne(
       switch (type) {
         case "checkbox": {
           const cb = form.getCheckBox(name)
-          if (rawValue === true || rawValue === "true" || rawValue === "yes" || rawValue === 1 || displayValue === "X" || displayValue === "Yes") {
-            cb.check()
+          let shouldCheck: boolean
+          if (acro.checkWhen !== undefined) {
+            // Enum-style binding: only check when the schema value matches.
+            shouldCheck = rawValue === acro.checkWhen
+          } else if (acro.checkWhenNot !== undefined) {
+            // Inverse half of a paired enum binding.
+            shouldCheck =
+              rawValue !== acro.checkWhenNot &&
+              rawValue !== undefined &&
+              rawValue !== null &&
+              rawValue !== ""
           } else {
-            cb.uncheck()
+            shouldCheck =
+              rawValue === true ||
+              rawValue === "true" ||
+              rawValue === "yes" ||
+              rawValue === 1 ||
+              displayValue === "X" ||
+              displayValue === "Yes"
           }
+          if (shouldCheck) cb.check(); else cb.uncheck()
           return { ok: true }
         }
         case "radio": {

@@ -94,7 +94,14 @@ for (const [fieldId, fb] of Object.entries(binding.fields)) {
   if (!fb.acro) continue
   const name = fb.acro.acroFieldName
   const acroType = fb.acro.acroFieldType || "text"
-  const value = syntheticValue(fieldId, fb.transform)
+  // syntheticValue is keyed off the schema field id, not the binding key.
+  const sourceId = fb.boundField || fieldId
+  // For a checkWhen binding, force the synthetic value to the matching value
+  // so the checkbox actually checks during the diagnostic. (For checkWhenNot,
+  // any other value is fine.)
+  const value = fb.acro.checkWhen !== undefined
+    ? fb.acro.checkWhen
+    : syntheticValue(sourceId, fb.transform)
   const display = applyTransform(value, fb.transform)
 
   if (!actual.has(name)) {
@@ -104,7 +111,15 @@ for (const [fieldId, fb] of Object.entries(binding.fields)) {
   try {
     if (acroType === "checkbox") {
       const cb = form.getCheckBox(name)
-      if (value === true || value === "true" || value === "yes" || value === 1) cb.check(); else cb.uncheck()
+      let shouldCheck
+      if (fb.acro.checkWhen !== undefined) {
+        shouldCheck = value === fb.acro.checkWhen
+      } else if (fb.acro.checkWhenNot !== undefined) {
+        shouldCheck = value !== fb.acro.checkWhenNot && value !== undefined && value !== null && value !== ""
+      } else {
+        shouldCheck = value === true || value === "true" || value === "yes" || value === 1
+      }
+      if (shouldCheck) cb.check(); else cb.uncheck()
     } else {
       const tf = form.getTextField(name)
       tf.setText(String(display))
