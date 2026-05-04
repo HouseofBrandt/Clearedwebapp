@@ -311,13 +311,17 @@ export async function compileDailyLearnings(date?: Date): Promise<CompiledReport
   // explicitly told to skip them). The decoded-count gates whether we even
   // call Claude — if too few have real text, the template report is more
   // honest than asking the model to summarize air.
-  const decoded = artifacts.map((a) => {
-    const body =
-      a.rawContent
-        ? decodeRawContent(a.rawContent as unknown as Buffer, a.contentType)
+  // decodeRawContent is async (PDF extraction via pdf-parse). Run them in
+  // parallel — independent per-artifact, no shared state. With 50+ artifacts
+  // a serial loop would add seconds of latency to the daily cron.
+  const decoded = await Promise.all(
+    artifacts.map(async (a) => {
+      const body = a.rawContent
+        ? await decodeRawContent(a.rawContent as unknown as Buffer, a.contentType)
         : null
-    return { artifact: a, body: body ? body.trim() : null }
-  })
+      return { artifact: a, body: body ? body.trim() : null }
+    }),
+  )
   const decodableCount = decoded.filter((d) => d.body && d.body.length > 100).length
 
   const decodableRatio = decodableCount / Math.max(1, artifacts.length)
